@@ -102,12 +102,19 @@ public class DownloadManager : INotifyPropertyChanged, IDisposable
                     }
                     catch (Exception scrapEx)
                     {
-                        _logger.LogDebug(scrapEx, "Web scraping failed, falling back to Spotify API");
-                        // Fall through to API call below
+                        _logger.LogDebug(scrapEx, "Web scraping failed");
+                        
+                        // If public-only mode is enabled, don't try API fallback
+                        if (_config.SpotifyUsePublicOnly)
+                        {
+                            _logger.LogWarning("Public-only mode enabled and scraping failed, aborting");
+                            throw new InvalidOperationException($"Spotify public scraping failed and public-only mode is enabled: {scrapEx.Message}");
+                        }
+                        // Otherwise, fall through to API call below
                     }
                     
-                    // Fallback: Use Spotify Web API if scraping didn't work
-                    if (!queries.Any())
+                    // Fallback: Use Spotify Web API if scraping didn't work (only if public-only is disabled)
+                    if (!queries.Any() && !_config.SpotifyUsePublicOnly)
                     {
                         _logger.LogDebug("Attempting to fetch via Spotify Web API");
                         queries = await _spotifyInputSource.ParseAsync(inputUrl);
@@ -115,7 +122,10 @@ public class DownloadManager : INotifyPropertyChanged, IDisposable
                     }
                     
                     if (!queries.Any())
-                        throw new InvalidOperationException("No tracks found in Spotify source (both scraping and API failed)");
+                    {
+                        var mode = _config.SpotifyUsePublicOnly ? "public scraping only" : "public scraping and API";
+                        throw new InvalidOperationException($"No tracks found in Spotify source ({mode} failed)");
+                    }
                     
                     sourceTracks = queries.Select(q => new Track
                     {
@@ -277,6 +287,31 @@ public class DownloadManager : INotifyPropertyChanged, IDisposable
     }
 
     /// <summary>
+    /// Requeues an existing job (used for resume after cancel/fail).
+    /// </summary>
+    public void RequeueJob(DownloadJob job)
+    {
+        if (job.State != DownloadState.Cancelled && job.State != DownloadState.Failed)
+        {
+            _logger.LogWarning("Job {JobId} is not cancelled/failed; skipping requeue", job.Id);
+            return;
+        }
+
+        job.ResetCancellationToken();
+        job.RetryCount = 0;
+        job.ErrorMessage = null;
+        job.Progress = 0;
+        job.BytesDownloaded = 0;
+        job.StartedAt = null;
+        job.CompletedAt = null;
+        job.State = DownloadState.Pending;
+        JobUpdated?.Invoke(this, job);
+
+        _logger.LogInformation("Requeued job: {JobId}", job.Id);
+        _jobChannel.Writer.TryWrite(job);
+    }
+
+    /// <summary>
     /// Starts the long-running task that processes jobs from the channel.
     /// </summary>
     public async Task StartAsync(CancellationToken ct = default)
@@ -319,44 +354,70 @@ public class DownloadManager : INotifyPropertyChanged, IDisposable
     /// Processes a single download job.
     /// </summary>
     private async Task ProcessJobAsync(DownloadJob job, CancellationToken ct)
-    {        
+    {
         using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(ct, job.CancellationTokenSource.Token);
         var effectiveCt = linkedCts.Token;
 
         await _concurrencySemaphore.WaitAsync(effectiveCt);
         try
         {
-            // Download the file
-            var progress = new Progress<double>(p =>
+            // Attempt download with retry logic
+            var downloaded = false;
+            while (!downloaded && job.RetryCount <= _config.MaxDownloadRetries)
             {
-                job.Progress = p;
-                job.BytesDownloaded = (long?)((job.Track.Size ?? 0) * p);
+                var progress = new Progress<double>(p =>
+                {
+                    job.Progress = p;
+                    job.BytesDownloaded = (long?)((job.Track.Size ?? 0) * p);
+                    JobUpdated?.Invoke(this, job);
+                });
+
+                job.State = job.RetryCount > 0 ? DownloadState.Retrying : DownloadState.Downloading;
+                job.StartedAt ??= DateTime.UtcNow;
+                job.LastAttemptTime = DateTime.UtcNow;
                 JobUpdated?.Invoke(this, job);
-            });
 
-            job.State = DownloadState.Downloading;
-            job.StartedAt = DateTime.UtcNow;
-            JobUpdated?.Invoke(this, job);
+                var success = await _soulseek.DownloadAsync(
+                    job.Track.Username!,
+                    job.Track.Filename!,
+                    job.OutputPath!,
+                    job.Track.Size,
+                    progress,
+                    effectiveCt
+                );
 
-            var success = await _soulseek.DownloadAsync(
-                job.Track.Username!,
-                job.Track.Filename!,
-                job.OutputPath!,
-                job.Track.Size,
-                progress,
-                effectiveCt
-            );
+                if (success)
+                {
+                    downloaded = true;
+                    job.Progress = 1.0;
+                    job.Track.LocalPath = job.OutputPath; // persist local path for history
+                    job.State = DownloadState.Completed;
+                    job.CompletedAt = DateTime.UtcNow;
+                    _logger.LogInformation("Download completed successfully: {Artist} - {Title}",
+                        job.Track.Artist, job.Track.Title);
+                }
+                else if (job.RetryCount < _config.MaxDownloadRetries && _config.AutoRetryFailedDownloads)
+                {
+                    job.RetryCount++;
+                    job.ErrorMessage = $"Attempt {job.RetryCount} failed, retrying...";
+                    _logger.LogWarning("Download failed, will retry: {Artist} - {Title} (retry {Attempt}/{Max})",
+                        job.Track.Artist, job.Track.Title, job.RetryCount, _config.MaxDownloadRetries);
+                    await Task.Delay(1000, effectiveCt); // Brief delay before retry
+                }
+                else
+                {
+                    job.State = DownloadState.Failed;
+                    job.ErrorMessage = $"Download failed after {job.RetryCount + 1} attempt(s)";
+                    job.CompletedAt = DateTime.UtcNow;
+                    _logger.LogError("Download failed and no more retries available: {Artist} - {Title}",
+                        job.Track.Artist, job.Track.Title);
+                    break;
+                }
+            }
 
-            job.Progress = 1.0;
-            job.Track.LocalPath = job.OutputPath; // persist local path for history
-            job.State = success ? DownloadState.Completed : DownloadState.Failed;
-            job.CompletedAt = DateTime.UtcNow;
-
-            if (!success)
-                job.ErrorMessage = "Download failed";
-            else
+            // Post-processing on success (tagging)
+            if (downloaded)
             {
-                // Automatically tag the downloaded file with metadata
                 try
                 {
                     if (!string.IsNullOrEmpty(job.OutputPath))

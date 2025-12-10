@@ -1,3 +1,5 @@
+using System;
+using System.Collections.Generic;
 using System.ComponentModel;
 using System.Diagnostics;
 using System.IO;
@@ -19,8 +21,10 @@ public class DownloadJob : INotifyPropertyChanged
 
     /// <summary>
     /// Per-job cancellation token to allow UI-triggered cancellation.
+    /// Resettable for resume/requeue scenarios.
     /// </summary>
-    public CancellationTokenSource CancellationTokenSource { get; } = new();
+    private CancellationTokenSource _cancellationTokenSource = new();
+    public CancellationTokenSource CancellationTokenSource => _cancellationTokenSource;
 
     private DownloadState _state = DownloadState.Pending;
     public DownloadState State
@@ -104,10 +108,39 @@ public class DownloadJob : INotifyPropertyChanged
         set => SetProperty(ref _completedAt, value);
     }
 
-    public TimeSpan? ElapsedTime => 
+    public TimeSpan? ElapsedTime =>
         (CompletedAt ?? DateTime.UtcNow) - (StartedAt ?? CreatedAt);
 
     public double? SizeInMb => Track.Size.HasValue ? (double)Track.Size.Value / 1024 / 1024 : null;
+
+    /// <summary>
+    /// Tracks the number of retry attempts made for this download.
+    /// </summary>
+    private int _retryCount;
+    public int RetryCount
+    {
+        get => _retryCount;
+        set => SetProperty(ref _retryCount, value);
+    }
+
+    /// <summary>
+    /// Timestamp of the last download attempt.
+    /// </summary>
+    private DateTime? _lastAttemptTime;
+    public DateTime? LastAttemptTime
+    {
+        get => _lastAttemptTime;
+        set => SetProperty(ref _lastAttemptTime, value);
+    }
+
+    /// <summary>
+    /// Resets the cancellation token so a cancelled job can be resumed/requeued.
+    /// </summary>
+    public void ResetCancellationToken()
+    {
+        _cancellationTokenSource.Dispose();
+        _cancellationTokenSource = new CancellationTokenSource();
+    }
 
     public DownloadJob()
     {
@@ -171,6 +204,7 @@ public enum DownloadState
     Pending,
     Searching,
     Downloading,
+    Retrying,
     Completed,
     Failed,
     Cancelled

@@ -61,6 +61,12 @@ public class ConfigManager
                 CheckForDuplicates = !bool.TryParse(config["Download:CheckForDuplicates"], out var check) || check, // Default to true
                 SpotifyClientId = config["Soulseek:SpotifyClientId"],
                 SpotifyClientSecret = config["Soulseek:SpotifyClientSecret"],
+                SpotifyUsePublicOnly = !bool.TryParse(config["Soulseek:SpotifyUsePublicOnly"], out var supo) || supo,
+                SearchLengthToleranceSeconds = int.TryParse(config["Download:SearchLengthToleranceSeconds"], out var tol) ? tol : 3,
+                FuzzyMatchEnabled = !bool.TryParse(config["Download:FuzzyMatchEnabled"], out var fz) || fz,
+                MaxSearchAttempts = int.TryParse(config["Download:MaxSearchAttempts"], out var msa) ? msa : 3,
+                AutoRetryFailedDownloads = !bool.TryParse(config["Download:AutoRetryFailedDownloads"], out var arf) || arf,
+                MaxDownloadRetries = int.TryParse(config["Download:MaxDownloadRetries"], out var mdr) ? mdr : 2,
             };
         }
         else
@@ -91,6 +97,7 @@ public class ConfigManager
         iniContent.AppendLine($"RememberPassword = {config.RememberPassword}");
         iniContent.AppendLine($"SpotifyClientId = {config.SpotifyClientId}");
         iniContent.AppendLine($"SpotifyClientSecret = {config.SpotifyClientSecret}");
+        iniContent.AppendLine($"SpotifyUsePublicOnly = {config.SpotifyUsePublicOnly}");
 
         iniContent.AppendLine();
         iniContent.AppendLine("[Download]");
@@ -98,6 +105,11 @@ public class ConfigManager
         iniContent.AppendLine($"MaxConcurrent = {config.MaxConcurrentDownloads}");
         iniContent.AppendLine($"NameFormat = {config.NameFormat}");
         iniContent.AppendLine($"CheckForDuplicates = {config.CheckForDuplicates}");
+        iniContent.AppendLine($"SearchLengthToleranceSeconds = {config.SearchLengthToleranceSeconds}");
+        iniContent.AppendLine($"FuzzyMatchEnabled = {config.FuzzyMatchEnabled}");
+        iniContent.AppendLine($"MaxSearchAttempts = {config.MaxSearchAttempts}");
+        iniContent.AppendLine($"AutoRetryFailedDownloads = {config.AutoRetryFailedDownloads}");
+        iniContent.AppendLine($"MaxDownloadRetries = {config.MaxDownloadRetries}");
         
         // This setting belongs in the [Soulseek] section.
         // It was misplaced under [Download].

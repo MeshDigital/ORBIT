@@ -28,6 +28,16 @@ public class AppConfig
     public string? SpotifyClientSecret { get; set; }
     public string? SpotifyAccessToken { get; set; }
     public string? SpotifyRefreshToken { get; set; }
+    
+    // Spotify source preference
+    public bool SpotifyUsePublicOnly { get; set; } = true; // Default to public scraping only, no API keys
+    
+    // Search and download preferences
+    public int SearchLengthToleranceSeconds { get; set; } = 3; // Allow +/- 3 seconds duration mismatch
+    public bool FuzzyMatchEnabled { get; set; } = true; // Enable fuzzy matching for search results
+    public int MaxSearchAttempts { get; set; } = 3; // Max progressive search attempts per track
+    public bool AutoRetryFailedDownloads { get; set; } = true;
+    public int MaxDownloadRetries { get; set; } = 2;
 
     public override string ToString()
     {

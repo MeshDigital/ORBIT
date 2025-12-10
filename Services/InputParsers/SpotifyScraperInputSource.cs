@@ -11,8 +11,8 @@ namespace SLSKDONET.Services.InputParsers;
 
 /// <summary>
 /// Scrapes public Spotify playlists and albums without requiring API keys.
-/// Parses HTML/JS content to extract track metadata.
-/// Primary method for accessing public playlists without user configuration.
+/// Uses multiple strategies: OEmbed (most reliable), HTML scraping, JSON-LD fallback.
+/// Hardened against Spotify frontend changes with rate limiting.
 /// </summary>
 public class SpotifyScraperInputSource
 {
@@ -24,20 +24,18 @@ public class SpotifyScraperInputSource
         _logger = logger;
         _httpClient = new HttpClient();
         _httpClient.DefaultRequestHeaders.Add("User-Agent", 
-            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36");
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36");
+        _httpClient.Timeout = TimeSpan.FromSeconds(15);
     }
 
     /// <summary>
     /// Extracts playlist ID from Spotify URL.
-    /// Supports: https://open.spotify.com/playlist/ID and spotify:playlist:ID formats.
     /// </summary>
     public static string? ExtractPlaylistId(string url)
     {
-        // Format: https://open.spotify.com/playlist/PLAYLIST_ID
         if (url.Contains("open.spotify.com/playlist/"))
         {
             var parts = url.Split('/');
-            var playlistPart = parts.FirstOrDefault(p => p.StartsWith("playlist:") || parts[Array.IndexOf(parts, "playlist") + 1] != null);
             if (parts.Contains("playlist"))
             {
                 var idx = Array.IndexOf(parts, "playlist");
@@ -49,22 +47,17 @@ public class SpotifyScraperInputSource
             }
         }
 
-        // Format: spotify:playlist:PLAYLIST_ID
         if (url.StartsWith("spotify:playlist:"))
-        {
             return url.Replace("spotify:playlist:", "");
-        }
 
         return null;
     }
 
     /// <summary>
     /// Extracts album ID from Spotify URL.
-    /// Supports: https://open.spotify.com/album/ID and spotify:album:ID formats.
     /// </summary>
     public static string? ExtractAlbumId(string url)
     {
-        // Format: https://open.spotify.com/album/ALBUM_ID
         if (url.Contains("open.spotify.com/album/"))
         {
             var parts = url.Split('/');
@@ -79,191 +72,209 @@ public class SpotifyScraperInputSource
             }
         }
 
-        // Format: spotify:album:ALBUM_ID
         if (url.StartsWith("spotify:album:"))
-        {
             return url.Replace("spotify:album:", "");
+
+        return null;
+    }
+
+    /// <summary>
+    /// Parses a Spotify URL using multiple extraction strategies.
+    /// Tries OEmbed, then HTML scraping, then JSON-LD.
+    /// </summary>
+    public async Task<List<SearchQuery>> ParseAsync(string url)
+    {
+        try
+        {
+            _logger.LogInformation("Parsing Spotify content (public scraping): {Url}", url);
+
+            // Strategy 1: Try OEmbed for metadata
+            var oembedTitle = await TryOEmbedAsync(url);
+
+            // Strategy 2: Try HTML scraping
+            var tracks = await TryScrapeHtmlAsync(url);
+            
+            if (!tracks.Any())
+                throw new InvalidOperationException("Unable to extract tracks. The playlist may be private, deleted, or the URL may be invalid.");
+
+            // Enrich with OEmbed title if available
+            if (!string.IsNullOrEmpty(oembedTitle) && tracks.Any())
+            {
+                foreach (var track in tracks)
+                {
+                    if (string.IsNullOrEmpty(track.SourceTitle))
+                        track.SourceTitle = oembedTitle;
+                }
+            }
+
+            _logger.LogInformation("Successfully extracted {Count} tracks from Spotify", tracks.Count);
+            return tracks;
+        }
+        catch (HttpRequestException ex)
+        {
+            _logger.LogError(ex, "Network error accessing Spotify");
+            throw new InvalidOperationException($"Network error: {ex.Message}");
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to parse Spotify URL");
+            throw;
+        }
+    }
+
+    /// <summary>
+    /// Attempts to fetch metadata via Spotify's OEmbed endpoint.
+    /// Returns the playlist/album title if successful.
+    /// </summary>
+    private async Task<string?> TryOEmbedAsync(string url)
+    {
+        try
+        {
+            _logger.LogDebug("Attempting OEmbed extraction");
+            
+            var oembedUrl = $"https://open.spotify.com/oembed?url={Uri.EscapeDataString(url)}";
+            var response = await _httpClient.GetAsync(oembedUrl);
+            
+            if (!response.IsSuccessStatusCode)
+                return null;
+
+            var json = await response.Content.ReadAsStringAsync();
+            using var doc = JsonDocument.Parse(json);
+            var root = doc.RootElement;
+
+            if (root.TryGetProperty("title", out var titleElem))
+            {
+                var title = titleElem.GetString();
+                _logger.LogDebug("OEmbed title: {Title}", title);
+                return title;
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogDebug(ex, "OEmbed extraction failed");
         }
 
         return null;
     }
 
     /// <summary>
-    /// Parses a Spotify URL (playlist or album) and scrapes track metadata.
+    /// Scrapes HTML with rate limiting and multiple fallback strategies.
     /// </summary>
-    public async Task<List<SearchQuery>> ParseAsync(string url)
+    private async Task<List<SearchQuery>> TryScrapeHtmlAsync(string url)
     {
         try
         {
-            _logger.LogDebug("Attempting to scrape Spotify content from: {Url}", url);
+            // Rate limiting to avoid IP bans
+            await Task.Delay(Random.Shared.Next(500, 1500));
 
-            // Determine content type and extract ID
-            if (url.Contains("/playlist/") || url.Contains(":playlist:"))
-            {
-                var playlistId = ExtractPlaylistId(url);
-                if (playlistId != null)
-                    return await ScrapePlaylistAsync(playlistId, url);
-            }
-            else if (url.Contains("/album/") || url.Contains(":album:"))
-            {
-                var albumId = ExtractAlbumId(url);
-                if (albumId != null)
-                    return await ScrapeAlbumAsync(albumId, url);
-            }
-            else if (url.Contains("/track/") || url.Contains(":track:"))
-            {
-                // Single track
-                return await ScrapeTrackAsync(url);
-            }
+            var html = await _httpClient.GetStringAsync(url);
 
-            throw new InvalidOperationException("Unable to parse Spotify URL. Supported formats: playlist, album, or track URLs.");
+            // Try __NEXT_DATA__ first
+            var tracks = ExtractTracksFromHtml(html, url);
+            if (tracks.Any())
+                return tracks;
+
+            // Try JSON-LD as fallback
+            tracks = ExtractTracksFromJsonLd(html, url);
+            if (tracks.Any())
+                return tracks;
+
+            return new List<SearchQuery>();
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to scrape Spotify content");
-            throw;
+            _logger.LogDebug(ex, "HTML scraping failed, returning empty list");
+            return new List<SearchQuery>();
         }
     }
 
     /// <summary>
-    /// Scrapes a Spotify playlist to extract all track metadata.
+    /// Extracts tracks from JSON-LD structured data (SEO data).
     /// </summary>
-    private async Task<List<SearchQuery>> ScrapePlaylistAsync(string playlistId, string sourceUrl)
+    private List<SearchQuery> ExtractTracksFromJsonLd(string html, string sourceUrl)
     {
+        var tracks = new List<SearchQuery>();
         try
         {
-            var url = $"https://open.spotify.com/playlist/{playlistId}";
-            _logger.LogInformation("Scraping Spotify playlist: {PlaylistId}", playlistId);
+            const string jsonLdPrefix = "\"@type\":\"MusicPlaylist\"";
+            var jsonLdIndex = html.IndexOf(jsonLdPrefix, StringComparison.OrdinalIgnoreCase);
+            
+            if (jsonLdIndex == -1)
+                return tracks;
 
-            var html = await _httpClient.GetStringAsync(url);
-            return ExtractTracksFromHtml(html, sourceUrl);
+            var braceIndex = html.LastIndexOf('{', jsonLdIndex);
+            if (braceIndex == -1)
+                return tracks;
+
+            var closingBrace = FindMatchingBrace(html, braceIndex);
+            if (closingBrace == -1)
+                return tracks;
+
+            var jsonContent = html.Substring(braceIndex, closingBrace - braceIndex + 1);
+            
+            using var doc = JsonDocument.Parse(jsonContent);
+            var root = doc.RootElement;
+
+            if (root.TryGetProperty("track", out var tracksElem))
+            {
+                var playlistTitle = root.TryGetProperty("name", out var nameElem) 
+                    ? nameElem.GetString() ?? "Spotify Playlist"
+                    : "Spotify Playlist";
+
+                ExtractTracksRecursive(tracksElem, tracks, playlistTitle);
+            }
+
+            if (tracks.Count > 0)
+                _logger.LogDebug("Extracted {TrackCount} tracks from JSON-LD", tracks.Count);
         }
-        catch (HttpRequestException ex)
+        catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to fetch Spotify playlist page");
-            throw new InvalidOperationException($"Unable to fetch Spotify playlist. The playlist may be private or deleted.");
+            _logger.LogDebug(ex, "JSON-LD extraction failed, returning empty list");
         }
+
+        return tracks;
     }
 
     /// <summary>
-    /// Scrapes a Spotify album to extract all track metadata.
-    /// </summary>
-    private async Task<List<SearchQuery>> ScrapeAlbumAsync(string albumId, string sourceUrl)
-    {
-        try
-        {
-            var url = $"https://open.spotify.com/album/{albumId}";
-            _logger.LogInformation("Scraping Spotify album: {AlbumId}", albumId);
-
-            var html = await _httpClient.GetStringAsync(url);
-            return ExtractTracksFromHtml(html, sourceUrl);
-        }
-        catch (HttpRequestException ex)
-        {
-            _logger.LogError(ex, "Failed to fetch Spotify album page");
-            throw new InvalidOperationException($"Unable to fetch Spotify album. The album may be unavailable or deleted.");
-        }
-    }
-
-    /// <summary>
-    /// Scrapes a single Spotify track.
-    /// </summary>
-    private async Task<List<SearchQuery>> ScrapeTrackAsync(string sourceUrl)
-    {
-        try
-        {
-            _logger.LogInformation("Scraping Spotify track: {Url}", sourceUrl);
-            var html = await _httpClient.GetStringAsync(sourceUrl);
-            return ExtractTracksFromHtml(html, sourceUrl);
-        }
-        catch (HttpRequestException ex)
-        {
-            _logger.LogError(ex, "Failed to fetch Spotify track page");
-            throw new InvalidOperationException($"Unable to fetch Spotify track. The track may be unavailable.");
-        }
-    }
-
-    /// <summary>
-    /// Extracts track metadata from Spotify HTML page.
-    /// Looks for __NEXT_DATA__ script tag containing embedded JSON with track information.
+    /// Extracts tracks from __NEXT_DATA__ script content.
     /// </summary>
     private List<SearchQuery> ExtractTracksFromHtml(string html, string sourceUrl)
     {
-        var tracks = new List<SearchQuery>();
-
         try
         {
-            // Find the __NEXT_DATA__ script tag content
-            var scriptStart = html.IndexOf("\"__NEXT_DATA__\"", StringComparison.OrdinalIgnoreCase);
+            var scriptStart = html.IndexOf("id=\"__NEXT_DATA__\"", StringComparison.OrdinalIgnoreCase);
             if (scriptStart == -1)
-            {
-                // Try alternative approach: look for id="__NEXT_DATA__" followed by script content
-                scriptStart = html.IndexOf("id=\"__NEXT_DATA__\"", StringComparison.OrdinalIgnoreCase);
-                if (scriptStart == -1)
-                {
-                    _logger.LogWarning("Could not find __NEXT_DATA__ script tag in Spotify page");
-                    return new List<SearchQuery>();
-                }
+                return new List<SearchQuery>();
 
-                // Find the script content after the id attribute
-                var contentStart = html.IndexOf(">", scriptStart);
-                var contentEnd = html.IndexOf("</script>", contentStart);
-                if (contentStart == -1 || contentEnd == -1)
-                {
-                    _logger.LogWarning("Could not extract script content");
-                    return new List<SearchQuery>();
-                }
+            var contentStart = html.IndexOf(">", scriptStart);
+            var contentEnd = html.IndexOf("</script>", contentStart);
+            if (contentStart == -1 || contentEnd == -1)
+                return new List<SearchQuery>();
 
-                var jsonContent = html.Substring(contentStart + 1, contentEnd - contentStart - 1).Trim();
-                if (string.IsNullOrEmpty(jsonContent))
-                {
-                    _logger.LogWarning("Script tag content is empty");
-                    return new List<SearchQuery>();
-                }
+            var jsonContent = html.Substring(contentStart + 1, contentEnd - contentStart - 1).Trim();
+            if (string.IsNullOrEmpty(jsonContent))
+                return new List<SearchQuery>();
 
-                // Parse JSON using System.Text.Json
-                using var doc = JsonDocument.Parse(jsonContent);
-                var root = doc.RootElement;
+            using var doc = JsonDocument.Parse(jsonContent);
+            var root = doc.RootElement;
 
-                var playlistTitle = ExtractPlaylistTitle(root);
-                tracks = ExtractTracksFromJson(root, playlistTitle ?? "Spotify Playlist", sourceUrl);
-            }
-            else
-            {
-                // Alternative: parse as JSON if the content is directly a JSON object
-                var jsonStart = html.IndexOf("{", scriptStart);
-                var jsonEnd = FindMatchingBrace(html, jsonStart);
-                if (jsonStart == -1 || jsonEnd == -1)
-                {
-                    _logger.LogWarning("Could not extract JSON from script tag");
-                    return new List<SearchQuery>();
-                }
+            var playlistTitle = ExtractPlaylistTitle(root);
+            var tracks = new List<SearchQuery>();
+            ExtractTracksRecursive(root, tracks, playlistTitle ?? "Spotify Playlist");
 
-                var jsonContent = html.Substring(jsonStart, jsonEnd - jsonStart + 1);
-                using var doc = JsonDocument.Parse(jsonContent);
-                var root = doc.RootElement;
-
-                var playlistTitle = ExtractPlaylistTitle(root);
-                tracks = ExtractTracksFromJson(root, playlistTitle ?? "Spotify Playlist", sourceUrl);
-            }
-
-            _logger.LogInformation("Extracted {Count} tracks from Spotify content", tracks.Count);
+            if (tracks.Count > 0)
+                _logger.LogDebug("Extracted {TrackCount} tracks from __NEXT_DATA__", tracks.Count);
             return tracks;
-        }
-        catch (JsonException ex)
-        {
-            _logger.LogError(ex, "Failed to parse Spotify JSON data");
-            throw new InvalidOperationException("Failed to parse Spotify page content. The page structure may have changed.");
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error extracting tracks from HTML");
-            throw new InvalidOperationException("Error extracting track data from Spotify page.");
+            _logger.LogDebug(ex, "HTML extraction from __NEXT_DATA__ failed, returning empty list");
+            return new List<SearchQuery>();
         }
     }
 
     /// <summary>
-    /// Finds the matching closing brace for an opening brace at the given position.
+    /// Finds matching brace position.
     /// </summary>
     private int FindMatchingBrace(string text, int startIndex)
     {
@@ -276,7 +287,7 @@ public class SpotifyScraperInputSource
 
         for (int i = startIndex; i < text.Length; i++)
         {
-            char c = text[i];
+            var c = text[i];
 
             if (escaped)
             {
@@ -298,13 +309,11 @@ public class SpotifyScraperInputSource
 
             if (!inString)
             {
-                if (c == '{')
-                    depth++;
+                if (c == '{') depth++;
                 else if (c == '}')
                 {
                     depth--;
-                    if (depth == 0)
-                        return i;
+                    if (depth == 0) return i;
                 }
             }
         }
@@ -313,25 +322,21 @@ public class SpotifyScraperInputSource
     }
 
     /// <summary>
-    /// Extracts the playlist/album title from JSON data.
+    /// Extracts playlist title from JSON.
     /// </summary>
     private string? ExtractPlaylistTitle(JsonElement root)
     {
         try
         {
-            // Try multiple paths to find the title
             if (root.TryGetProperty("props", out var props) &&
-                props.TryGetProperty("pageProps", out var pageProps))
+                props.TryGetProperty("pageProps", out var pageProps) &&
+                pageProps.TryGetProperty("initialState", out var state) &&
+                state.TryGetProperty("headerData", out var header) &&
+                header.TryGetProperty("title", out var titleElem))
             {
-                if (pageProps.TryGetProperty("initialState", out var state) &&
-                    state.TryGetProperty("headerData", out var header))
-                {
-                    if (header.TryGetProperty("title", out var titleElem))
-                        return titleElem.GetString();
-                }
+                return titleElem.GetString();
             }
 
-            // Alternative path
             if (root.TryGetProperty("initialState", out var initialState) &&
                 initialState.TryGetProperty("headerData", out var headerData) &&
                 headerData.TryGetProperty("title", out var title))
@@ -341,53 +346,14 @@ public class SpotifyScraperInputSource
         }
         catch (Exception ex)
         {
-            _logger.LogDebug(ex, "Could not extract title from JSON");
+            _logger.LogDebug(ex, "Title extraction failed");
         }
 
         return null;
     }
 
     /// <summary>
-    /// Recursively extracts all tracks from the JSON object.
-    /// Handles different JSON structures for playlists, albums, and tracks.
-    /// </summary>
-    private List<SearchQuery> ExtractTracksFromJson(JsonElement element, string sourceTitle, string sourceUrl)
-    {
-        var tracks = new List<SearchQuery>();
-
-        try
-        {
-            // Recursively search for track objects
-            ExtractTracksRecursive(element, tracks, sourceTitle);
-
-            // Also try to find tracks in common structures
-            if (element.TryGetProperty("props", out var props) &&
-                props.TryGetProperty("pageProps", out var pageProps))
-            {
-                ExtractTracksRecursive(pageProps, tracks, sourceTitle);
-            }
-
-            // Deduplicate by artist + title
-            var deduped = tracks
-                .GroupBy(t => $"{t.Artist}|{t.Title}")
-                .Select(g => g.First())
-                .ToList();
-
-            _logger.LogDebug("Found {Count} unique tracks (deduplicated from {Original})", 
-                deduped.Count, tracks.Count);
-
-            return deduped;
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error extracting tracks from JSON");
-            return new List<SearchQuery>();
-        }
-    }
-
-    /// <summary>
-    /// Recursively searches JSON element for track objects.
-    /// Extracts artist, title, album, and track number when found.
+    /// Recursively extracts all tracks from JSON.
     /// </summary>
     private void ExtractTracksRecursive(JsonElement element, List<SearchQuery> tracks, string sourceTitle)
     {
@@ -396,42 +362,35 @@ public class SpotifyScraperInputSource
             switch (element.ValueKind)
             {
                 case JsonValueKind.Object:
+                    if (IsTrackObject(element))
                     {
-                        // Check if this is a track object
-                        if (IsTrackObject(element))
-                        {
-                            var track = ExtractTrackFromObject(element, sourceTitle);
-                            if (track != null)
-                                tracks.Add(track);
-                        }
-
-                        // Recurse into object properties
-                        foreach (var prop in element.EnumerateObject())
-                        {
-                            ExtractTracksRecursive(prop.Value, tracks, sourceTitle);
-                        }
-                        break;
+                        var track = ExtractTrackFromObject(element, sourceTitle);
+                        if (track != null)
+                            tracks.Add(track);
                     }
+
+                    foreach (var prop in element.EnumerateObject())
+                    {
+                        ExtractTracksRecursive(prop.Value, tracks, sourceTitle);
+                    }
+                    break;
 
                 case JsonValueKind.Array:
+                    foreach (var item in element.EnumerateArray())
                     {
-                        // Recurse into array elements
-                        foreach (var item in element.EnumerateArray())
-                        {
-                            ExtractTracksRecursive(item, tracks, sourceTitle);
-                        }
-                        break;
+                        ExtractTracksRecursive(item, tracks, sourceTitle);
                     }
+                    break;
             }
         }
         catch (Exception ex)
         {
-            _logger.LogDebug(ex, "Error in recursive track extraction");
+            _logger.LogDebug(ex, "Error in recursive extraction, continuing");
         }
     }
 
     /// <summary>
-    /// Determines if a JSON object represents a track.
+    /// Determines if JSON object is a track.
     /// </summary>
     private bool IsTrackObject(JsonElement obj)
     {
@@ -450,7 +409,7 @@ public class SpotifyScraperInputSource
     }
 
     /// <summary>
-    /// Extracts track information from a JSON object.
+    /// Extracts track information from JSON object.
     /// </summary>
     private SearchQuery? ExtractTrackFromObject(JsonElement obj, string sourceTitle)
     {
@@ -461,13 +420,12 @@ public class SpotifyScraperInputSource
                 return null;
 
             string? artist = null;
-            // Artists can be either an array or a single object
             if (obj.TryGetProperty("artists", out var artistsElem))
             {
                 if (artistsElem.ValueKind == JsonValueKind.Array)
                 {
-                    var artistArray = artistsElem.EnumerateArray().FirstOrDefault();
-                    artist = artistArray.TryGetProperty("name", out var artistName) ? artistName.GetString() : null;
+                    var firstArtist = artistsElem.EnumerateArray().FirstOrDefault();
+                    artist = firstArtist.TryGetProperty("name", out var artistName) ? artistName.GetString() : null;
                 }
                 else
                 {
@@ -485,10 +443,6 @@ public class SpotifyScraperInputSource
                     : albumElem.GetString())
                 : null;
 
-            var trackNumber = obj.TryGetProperty("track_number", out var trackNumElem) 
-                ? trackNumElem.GetInt32() 
-                : 0;
-
             return new SearchQuery
             {
                 Artist = artist ?? "Unknown",
@@ -500,7 +454,7 @@ public class SpotifyScraperInputSource
         }
         catch (Exception ex)
         {
-            _logger.LogDebug(ex, "Error extracting track from JSON object");
+            _logger.LogDebug(ex, "Error extracting track from JSON, skipping track");
             return null;
         }
     }

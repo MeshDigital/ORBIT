@@ -189,6 +189,138 @@ public class SoulseekAdapter : IDisposable
         }
     }
 
+    /// <summary>
+    /// Progressive search strategy: Tries multiple search queries with increasing leniency.
+    /// 1. Strict: "Artist - Title" (exact match expected)
+    /// 2. Relaxed: "Artist Title" (keyword-based)
+    /// 3. Album: Album-based search (fallback)
+    /// Returns results from the first successful strategy.
+    /// </summary>
+    public async Task<int> ProgressiveSearchAsync(
+        string artist,
+        string title,
+        string? album,
+        IEnumerable<string>? formatFilter,
+        (int? Min, int? Max) bitrateFilter,
+        Action<IEnumerable<Track>> onTracksFound,
+        CancellationToken ct = default)
+    {
+        if (_client == null)
+        {
+            throw new InvalidOperationException("Not connected to Soulseek");
+        }
+
+        var maxAttempts = _config.MaxSearchAttempts;
+        _logger.LogInformation("Starting progressive search: {Artist} - {Title} (album: {Album})", artist, title, album ?? "unknown");
+
+        // Strategy 1: Strict search "Artist - Title"
+        for (int attempt = 1; attempt <= maxAttempts; attempt++)
+        {
+            if (ct.IsCancellationRequested)
+                return 0;
+
+            try
+            {
+                var strictQuery = $"{artist} - {title}";
+                _logger.LogInformation("Attempt {Attempt}/{Max}: Strict search: {Query}", attempt, maxAttempts, strictQuery);
+                
+                var resultCount = await SearchAsync(
+                    strictQuery,
+                    formatFilter,
+                    bitrateFilter,
+                    DownloadMode.Normal,
+                    onTracksFound,
+                    ct);
+                
+                if (resultCount > 0)
+                {
+                    _logger.LogInformation("Progressive search succeeded with strict query after {Attempt} attempt(s)", attempt);
+                    return resultCount;
+                }
+
+                if (attempt < maxAttempts)
+                    await Task.Delay(500, ct); // Brief delay before retry
+            }
+            catch (Exception ex)
+            {
+                _logger.LogDebug(ex, "Strict search attempt {Attempt} failed", attempt);
+            }
+        }
+
+        // Strategy 2: Relaxed search "Artist Title"
+        for (int attempt = 1; attempt <= maxAttempts; attempt++)
+        {
+            if (ct.IsCancellationRequested)
+                return 0;
+
+            try
+            {
+                var relaxedQuery = $"{artist} {title}";
+                _logger.LogInformation("Attempt {Attempt}/{Max}: Relaxed search: {Query}", attempt, maxAttempts, relaxedQuery);
+                
+                var resultCount = await SearchAsync(
+                    relaxedQuery,
+                    formatFilter,
+                    bitrateFilter,
+                    DownloadMode.Normal,
+                    onTracksFound,
+                    ct);
+                
+                if (resultCount > 0)
+                {
+                    _logger.LogInformation("Progressive search succeeded with relaxed query after {Attempt} attempt(s)", attempt);
+                    return resultCount;
+                }
+
+                if (attempt < maxAttempts)
+                    await Task.Delay(500, ct); // Brief delay before retry
+            }
+            catch (Exception ex)
+            {
+                _logger.LogDebug(ex, "Relaxed search attempt {Attempt} failed", attempt);
+            }
+        }
+
+        // Strategy 3: Album search (fallback)
+        if (!string.IsNullOrEmpty(album))
+        {
+            for (int attempt = 1; attempt <= maxAttempts; attempt++)
+            {
+                if (ct.IsCancellationRequested)
+                    return 0;
+
+                try
+                {
+                    _logger.LogInformation("Attempt {Attempt}/{Max}: Album search: {Query}", attempt, maxAttempts, album);
+                    
+                    var resultCount = await SearchAsync(
+                        album,
+                        formatFilter,
+                        bitrateFilter,
+                        DownloadMode.Album,
+                        onTracksFound,
+                        ct);
+                    
+                    if (resultCount > 0)
+                    {
+                        _logger.LogInformation("Progressive search succeeded with album search after {Attempt} attempt(s)", attempt);
+                        return resultCount;
+                    }
+
+                    if (attempt < maxAttempts)
+                        await Task.Delay(500, ct); // Brief delay before retry
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogDebug(ex, "Album search attempt {Attempt} failed", attempt);
+                }
+            }
+        }
+
+        _logger.LogWarning("Progressive search exhausted all strategies for {Artist} - {Title}", artist, title);
+        return 0;
+    }
+
     private Track ParseTrackFromFile(Soulseek.File file, string username)
     {
         // Extract bitrate and length from file attributes
