@@ -25,7 +25,6 @@ public class DownloadManager : INotifyPropertyChanged, IDisposable
     private readonly ILibraryService _libraryService;
     private readonly ITaggerService _taggerService;
     private readonly SpotifyScraperInputSource _spotifyScraperInputSource;
-    private readonly SpotifyInputSource _spotifyInputSource;
     private readonly CsvInputSource _csvInputSource;
     private readonly ConcurrentDictionary<string, DownloadJob> _jobs = new();
     private readonly SemaphoreSlim _concurrencySemaphore;
@@ -51,7 +50,6 @@ public class DownloadManager : INotifyPropertyChanged, IDisposable
         ILibraryService libraryService,
         ITaggerService taggerService,
         SpotifyScraperInputSource spotifyScraperInputSource,
-        SpotifyInputSource spotifyInputSource,
         CsvInputSource csvInputSource)
     {
         _logger = logger;
@@ -61,7 +59,6 @@ public class DownloadManager : INotifyPropertyChanged, IDisposable
         _libraryService = libraryService;
         _taggerService = taggerService;
         _spotifyScraperInputSource = spotifyScraperInputSource;
-        _spotifyInputSource = spotifyInputSource;
         _csvInputSource = csvInputSource;
         _concurrencySemaphore = new SemaphoreSlim(_config.MaxConcurrentDownloads);
         _jobChannel = Channel.CreateUnbounded<DownloadJob>();
@@ -86,45 +83,14 @@ public class DownloadManager : INotifyPropertyChanged, IDisposable
                 try
                 {
                     _logger.LogInformation("Fetching tracks from Spotify: {Url}", inputUrl);
-                    
-                    List<SearchQuery> queries = new();
-                    
-                    // Tiered approach: Try web scraping first (no API keys needed)
-                    try
-                    {
-                        _logger.LogDebug("Attempting to scrape Spotify content (public access)");
-                        queries = await _spotifyScraperInputSource.ParseAsync(inputUrl);
-                        
-                        if (queries.Any())
-                        {
-                            _logger.LogInformation("Successfully scraped {Count} tracks from Spotify without API keys", queries.Count);
-                        }
-                    }
-                    catch (Exception scrapEx)
-                    {
-                        _logger.LogDebug(scrapEx, "Web scraping failed");
-                        
-                        // If public-only mode is enabled, don't try API fallback
-                        if (_config.SpotifyUsePublicOnly)
-                        {
-                            _logger.LogWarning("Public-only mode enabled and scraping failed, aborting");
-                            throw new InvalidOperationException($"Spotify public scraping failed and public-only mode is enabled: {scrapEx.Message}");
-                        }
-                        // Otherwise, fall through to API call below
-                    }
-                    
-                    // Fallback: Use Spotify Web API if scraping didn't work (only if public-only is disabled)
-                    if (!queries.Any() && !_config.SpotifyUsePublicOnly)
-                    {
-                        _logger.LogDebug("Attempting to fetch via Spotify Web API");
-                        queries = await _spotifyInputSource.ParseAsync(inputUrl);
-                        _logger.LogInformation("Successfully fetched {Count} tracks from Spotify API", queries.Count);
-                    }
+
+                    _logger.LogDebug("Attempting to scrape Spotify content (public access)");
+                    var queries = await _spotifyScraperInputSource.ParseAsync(inputUrl);
                     
                     if (!queries.Any())
                     {
-                        var mode = _config.SpotifyUsePublicOnly ? "public scraping only" : "public scraping and API";
-                        throw new InvalidOperationException($"No tracks found in Spotify source ({mode} failed)");
+                        _logger.LogWarning("Spotify scraping returned no tracks for URL: {Url}", inputUrl);
+                        throw new InvalidOperationException("No tracks found in the Spotify source. The playlist might be private, empty, or the page structure may have changed.");
                     }
                     
                     sourceTracks = queries.Select(q => new Track
@@ -140,8 +106,8 @@ public class DownloadManager : INotifyPropertyChanged, IDisposable
                 }
                 catch (Exception ex)
                 {
-                    _logger.LogError(ex, "Failed to fetch Spotify tracks via both scraping and API");
-                    throw new InvalidOperationException($"Spotify error: {ex.Message}");
+                    _logger.LogError(ex, "Failed to fetch Spotify tracks via public scraping");
+                    throw new InvalidOperationException($"Spotify scraping error: {ex.Message}");
                 }
             }
             else if (sourceType == InputSourceType.CSV)

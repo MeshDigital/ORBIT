@@ -25,6 +25,8 @@ public class SpotifyScraperInputSource
         _httpClient = new HttpClient();
         _httpClient.DefaultRequestHeaders.Add("User-Agent", 
             "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36");
+        _httpClient.DefaultRequestHeaders.Add("Accept-Language", "en-US,en;q=0.9");
+        _httpClient.DefaultRequestHeaders.Add("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8");
         _httpClient.Timeout = TimeSpan.FromSeconds(15);
     }
 
@@ -88,11 +90,16 @@ public class SpotifyScraperInputSource
         {
             _logger.LogInformation("Parsing Spotify content (public scraping): {Url}", url);
 
+            // Normalize URL to avoid Spotify "si" tracking parameters that sometimes break scraping
+            var canonicalUrl = NormalizeSpotifyUrl(url);
+            if (!string.Equals(canonicalUrl, url, StringComparison.Ordinal))
+                _logger.LogDebug("Using canonical Spotify URL: {CanonicalUrl}", canonicalUrl);
+
             // Strategy 1: Try OEmbed for metadata
-            var oembedTitle = await TryOEmbedAsync(url);
+            var oembedTitle = await TryOEmbedAsync(canonicalUrl);
 
             // Strategy 2: Try HTML scraping
-            var tracks = await TryScrapeHtmlAsync(url);
+            var tracks = await TryScrapeHtmlAsync(canonicalUrl);
             
             if (!tracks.Any())
                 throw new InvalidOperationException("Unable to extract tracks. The playlist may be private, deleted, or the URL may be invalid.");
@@ -119,6 +126,32 @@ public class SpotifyScraperInputSource
         {
             _logger.LogError(ex, "Failed to parse Spotify URL");
             throw;
+        }
+    }
+
+    /// <summary>
+    /// Removes tracking query params and rebuilds a clean Spotify URL for more reliable scraping.
+    /// </summary>
+    private static string NormalizeSpotifyUrl(string url)
+    {
+        try
+        {
+            var uri = new Uri(url);
+
+            // Keep only the path (playlist/album) without query fragments like ?si=...
+            var cleanBuilder = new UriBuilder(uri.Scheme, uri.Host)
+            {
+                Path = uri.AbsolutePath,
+                Query = string.Empty
+            };
+
+            return cleanBuilder.Uri.ToString().TrimEnd('/');
+        }
+        catch
+        {
+            // Fallback: strip common "?" tracking manually
+            var qIndex = url.IndexOf('?', StringComparison.Ordinal);
+            return qIndex >= 0 ? url[..qIndex] : url;
         }
     }
 

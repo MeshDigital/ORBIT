@@ -3,9 +3,8 @@ using System.IO;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using SLSKDONET.Configuration;
-using SLSKDONET.Services;
 using SLSKDONET.Services.InputParsers;
-using SpotifyAPI.Web;
+using SLSKDONET.Services;
 using SLSKDONET.Views;
 
 namespace SLSKDONET;
@@ -127,9 +126,7 @@ public partial class App : System.Windows.Application
         services.AddSingleton<ProtectedDataService>();
 
         // Register Spotify services
-        // Spotify API client not used - public scraping only
-        services.AddSingleton<ISpotifyClient>(provider => null!);
-        services.AddSingleton<SpotifyInputSource>();
+        // Use public scraping only for Spotify integration
         services.AddSingleton<SpotifyScraperInputSource>();
 
         // Input parsers
@@ -168,4 +165,3 @@ public partial class App : System.Windows.Application
         services.AddSingleton<SearchQueryNormalizer>();
     }
 }
-

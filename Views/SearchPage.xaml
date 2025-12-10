@@ -3,7 +3,8 @@
       xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
       xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
       xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
-      xmlns:converters="clr-namespace:SLSKDONET.Converters"
+    xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
+    xmlns:converters="clr-namespace:SLSKDONET.Converters"
       mc:Ignorable="d" 
       d:DesignHeight="450" d:DesignWidth="800"
       Title="SearchPage">
@@ -42,19 +43,18 @@
                             </Grid.ColumnDefinitions>
 
                             <!-- Main TextBox -->
-                            <TextBox Name="SearchBox" Grid.Column="0"
+                            <ui:TextBox Name="SearchBox" Grid.Column="0"
                                      Text="{Binding SearchQuery, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                                     Style="{StaticResource ModernTextBoxStyle}"
+                                     PlaceholderText="🔍 Type artist/title, paste Spotify/CSV URL - Auto-detects format"
+                                     Icon="{ui:SymbolIcon Search24}"
+                                     ClearButtonEnabled="True"
                                      Height="40"
-                                     BorderThickness="0"
-                                     Padding="12,0"
                                      VerticalAlignment="Center"
-                                     VerticalContentAlignment="Center"
                                      IsEnabled="{Binding IsSearching, Converter={StaticResource InverseBooleanConverter}}">
-                                <TextBox.InputBindings>
+                                <ui:TextBox.InputBindings>
                                     <KeyBinding Key="Enter" Command="{Binding SearchCommand}"/>
-                                </TextBox.InputBindings>
-                            </TextBox>
+                                </ui:TextBox.InputBindings>
+                            </ui:TextBox>
 
                             <!-- Quick Action Buttons (in textbox) -->
                             <StackPanel Grid.Column="1" Orientation="Horizontal" Margin="0,0,4,0">

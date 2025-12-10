@@ -29,7 +29,6 @@
     
     <!-- Dependency Injection -->
     <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="8.0.0" /> <!-- Stays on 8.0.0 for .NET 8 compatibility -->
-    <PackageReference Include="SpotifyAPI.Web" Version="7.2.1" />
     
     <!-- Async/Concurrency -->
     <PackageReference Include="System.Reactive" Version="6.1.0" />

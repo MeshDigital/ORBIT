@@ -8,11 +8,10 @@ using System.Windows.Input;
 using System.Linq;
 using System;
 using Microsoft.Extensions.Logging;
-using System.Collections.Generic;
 using SLSKDONET.Configuration;
 using SLSKDONET.Models;
-using SLSKDONET.Services;
 using SLSKDONET.Services.InputParsers;
+using SLSKDONET.Services;
 using SLSKDONET.Views;
 using Wpf.Ui.Controls;
 using System.Collections.Concurrent;
@@ -85,13 +84,13 @@ public class MainViewModel : INotifyPropertyChanged
     public ICommand AddToDownloadsCommand { get; }
     public ICommand ImportCsvCommand { get; }
     public ICommand StartDownloadsCommand { get; }
+    public ICommand ImportFromSpotifyCommand { get; }
     public ICommand RemoveFromLibraryCommand { get; }
     public ICommand RescanLibraryCommand { get; }
     public ICommand CancelDownloadsCommand { get; }
     public ICommand ToggleFiltersPanelCommand { get; }
-    public ICommand ClearSearchHistoryCommand { get; }
     public ICommand QuickDownloadCommand { get; }
-    public ICommand ImportFromSpotifyCommand { get; }
+    public ICommand ClearSearchHistoryCommand { get; }
     public ICommand BrowseDownloadPathCommand { get; }
     public ICommand BrowseSharedFolderCommand { get; }
     public ICommand ShowPauseComingSoonCommand { get; }
@@ -111,12 +110,12 @@ public class MainViewModel : INotifyPropertyChanged
         AppConfig config,
         SoulseekAdapter soulseek,
         DownloadManager downloadManager,
+        SpotifyScraperInputSource spotifyScraperInputSource,
         SearchQueryNormalizer searchQueryNormalizer,
         ConfigManager configManager,
         INavigationService navigationService,
         DownloadLogService downloadLogService,
         INotificationService notificationService,
-        SpotifyInputSource spotifyInputSource,
         ProtectedDataService protectedDataService,
         IUserInputService userInputService,
         CsvInputSource csvInputSource) // Add CsvInputSource dependency
@@ -130,8 +129,8 @@ public class MainViewModel : INotifyPropertyChanged
         _navigationService = navigationService;
         _notificationService = notificationService;
         _downloadManager = downloadManager;
-        _csvInputSource = csvInputSource; // Store it
-        _spotifyInputSource = spotifyInputSource;
+        _csvInputSource = csvInputSource;
+        _spotifyScraperInputSource = spotifyScraperInputSource;
         _protectedDataService = protectedDataService;
         _userInputService = userInputService;
         _searchQueryNormalizer = searchQueryNormalizer; // Store it
@@ -147,8 +146,6 @@ public class MainViewModel : INotifyPropertyChanged
         PreferredFormats = string.Join(",", _config.PreferredFormats ?? new List<string> { "mp3", "flac" });
         CheckForDuplicates = _config.CheckForDuplicates;
         RememberPassword = _config.RememberPassword;
-        // Spotify integration uses public scraping only - no credentials required
-        SpotifyUseApi = !_config.SpotifyUsePublicOnly;
         MinBitrate = _config.PreferredMinBitrate;
         MaxBitrate = _config.PreferredMaxBitrate;
 
@@ -157,13 +154,13 @@ public class MainViewModel : INotifyPropertyChanged
         SearchCommand = new AsyncRelayCommand(SearchAsync, () => IsConnected && !IsSearching && !string.IsNullOrEmpty(SearchQuery));
         AddToDownloadsCommand = new RelayCommand<IList<object>?>(AddToDownloads, items => items is { Count: > 0 });
         ImportCsvCommand = new AsyncRelayCommand<string>(ImportCsvAsync, filePath => !string.IsNullOrEmpty(filePath));
+        ImportFromSpotifyCommand = new AsyncRelayCommand(ImportFromSpotifyAsync);
         RemoveFromLibraryCommand = new RelayCommand<IList<object>?>(RemoveFromLibrary, items => items is { Count: > 0 });
         RescanLibraryCommand = new AsyncRelayCommand(RescanLibraryAsync);
         StartDownloadsCommand = new AsyncRelayCommand(StartDownloadsAsync, () => Downloads.Any(j => j.State == DownloadState.Pending));
         CancelDownloadsCommand = new RelayCommand(CancelDownloads);
         ToggleFiltersPanelCommand = new RelayCommand(ToggleFiltersPanel);
         QuickDownloadCommand = new RelayCommand<Track?>(QuickDownload);
-        ImportFromSpotifyCommand = new AsyncRelayCommand(ImportFromSpotifyAsync);
         BrowseDownloadPathCommand = new RelayCommand(BrowseDownloadPath);
         BrowseSharedFolderCommand = new RelayCommand(BrowseSharedFolder);
         SearchAllImportedCommand = new AsyncRelayCommand(SearchAllImportedAsync, () => ImportedQueries.Any() && !IsSearching);
@@ -377,7 +374,7 @@ public class MainViewModel : INotifyPropertyChanged
         set => SetProperty(ref _selectedInputSourceType, value);
     }
 
-    public string QueryInputPlaceholder => "Enter artist, title, or Spotify URL...";
+    public string QueryInputPlaceholder => "Search tracks, import Spotify/CSV - Auto-detects format";
 
     /// <summary>
     /// Search history for recall (last 20 queries)
@@ -403,13 +400,6 @@ public class MainViewModel : INotifyPropertyChanged
     {
         get => _checkForDuplicates;
         set => SetProperty(ref _checkForDuplicates, value);
-    }
-
-    private bool _spotifyUseApi;
-    public bool SpotifyUseApi
-    {
-        get => _spotifyUseApi;
-        set => SetProperty(ref _spotifyUseApi, value);
     }
 
     public int? MinBitrate
@@ -753,16 +743,10 @@ public class MainViewModel : INotifyPropertyChanged
 
         if (string.IsNullOrEmpty(playlistUrl)) return;
 
-        if (_spotifyInputSource?.IsConfigured != true)
-        {
-            StatusText = "Spotify is not configured. Please add Client ID and Secret in settings.";
-            return;
-        }
-
         try
         {
             StatusText = "Importing from Spotify...";
-            var queries = await _spotifyInputSource.ParseAsync(playlistUrl);
+            var queries = await _spotifyScraperInputSource.ParseAsync(playlistUrl);
 
             _notificationService.Show("Spotify Import Complete",
                 $"Imported {queries.Count} tracks from the playlist.", NotificationType.Success, TimeSpan.FromSeconds(5));
@@ -988,8 +972,6 @@ public class MainViewModel : INotifyPropertyChanged
         _config.PreferredFormats = PreferredFormats.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).ToList();
         _config.CheckForDuplicates = CheckForDuplicates;
         _config.RememberPassword = RememberPassword;
-        _config.SpotifyUsePublicOnly = !SpotifyUseApi;
-        // Spotify credentials not needed for public scraping
 
         _config.PreferredMinBitrate = MinBitrate ?? _config.PreferredMinBitrate;
         _config.PreferredMaxBitrate = MaxBitrate ?? _config.PreferredMaxBitrate;
@@ -1028,7 +1010,7 @@ public class MainViewModel : INotifyPropertyChanged
 
 
     private readonly SearchQueryNormalizer _searchQueryNormalizer;
-    private readonly SpotifyInputSource? _spotifyInputSource;
+    private readonly SpotifyScraperInputSource _spotifyScraperInputSource;
     private readonly CsvInputSource _csvInputSource;
     private readonly DownloadLogService _downloadLogService;
     private readonly ProtectedDataService _protectedDataService;

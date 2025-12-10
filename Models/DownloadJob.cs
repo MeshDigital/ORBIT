@@ -144,7 +144,6 @@ public class DownloadJob : INotifyPropertyChanged
         _cancellationTokenSource = new CancellationTokenSource();
     }
 
-    [Newtonsoft.Json.JsonIgnore]
     public DownloadManager? DownloadManager { get; set; }
 
     public DownloadJob(DownloadManager? downloadManager = null)

@@ -121,39 +121,11 @@
                     <Label Content="Spotify Integration" Style="{StaticResource ModernLabelStyle}" 
                            FontSize="{StaticResource FontSizeMedium}" FontWeight="Bold" Margin="0,0,0,12"/>
 
-                    <TextBlock Text="By default, Spotify playlists are imported using public scraping. For more reliable access and to import private playlists or 'Liked Songs', you can provide your own Spotify API credentials."
+                    <TextBlock Text="Spotify playlists are imported using public scraping only. No API credentials are required."
                                TextWrapping="Wrap" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,0,0,12"/>
-
-                    <Grid Margin="0,0,0,12">
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="180"/>
-                            <ColumnDefinition Width="*"/>
-                        </Grid.ColumnDefinitions>
-                        <Label Content="Enable Spotify API:" Style="{StaticResource ModernLabelStyle}"/>
-                        <CheckBox Grid.Column="1" IsChecked="{Binding SpotifyUseApi, Mode=TwoWay}" 
-                                  VerticalAlignment="Center" Style="{StaticResource ModernCheckBoxStyle}"
-                                  ToolTip="If checked, the application will use your API credentials below instead of public scraping."/>
-                    </Grid>
-
-                    <Grid Margin="0,0,0,12" IsEnabled="{Binding SpotifyUseApi}">
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="180"/>
-                            <ColumnDefinition Width="*"/>
-                        </Grid.ColumnDefinitions>
-                        <Label Content="Spotify Client ID:" Style="{StaticResource ModernLabelStyle}"/>
-                        <ui:TextBox Grid.Column="1" Text="{Binding SpotifyClientId}"/>
-                    </Grid>
-
-                    <Grid IsEnabled="{Binding SpotifyUseApi}">
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="180"/>
-                            <ColumnDefinition Width="*"/>
-                        </Grid.ColumnDefinitions>
-                        <Label Content="Spotify Client Secret:" Style="{StaticResource ModernLabelStyle}"/>
-                        <ui:TextBox Grid.Column="1" Text="{Binding SpotifyClientSecret}"
-                                 ToolTip="Your secret is encrypted and stored securely on your machine."/>
-                    </Grid>
-
+                    
+                    <TextBlock Text="Simply paste a Spotify playlist URL in the Search page and the playlist will be automatically scraped and tracks will be downloaded from Soulseek."
+                               TextWrapping="Wrap" Foreground="{StaticResource TextSecondaryBrush}"/>
                 </StackPanel>
             </Border>
 
