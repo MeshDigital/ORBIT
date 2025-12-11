@@ -55,6 +55,9 @@ public class DownloadManager : INotifyPropertyChanged, IDisposable
         System.Windows.Data.BindingOperations.EnableCollectionSynchronization(AllGlobalTracks, _collectionLock);
     }
 
+    // Event for external listeners (UI, Notifications)
+    public event EventHandler<PlaylistTrackViewModel>? TrackUpdated;
+
     /// <summary>
     /// Queues a project (list of tracks) for processing.
     /// </summary>
@@ -66,10 +69,70 @@ public class DownloadManager : INotifyPropertyChanged, IDisposable
             foreach (var track in tracks)
             {
                 var vm = new PlaylistTrackViewModel(track);
+                vm.PropertyChanged += OnTrackPropertyChanged;
                 AllGlobalTracks.Add(vm);
             }
         }
         // Processing loop picks this up automatically
+    }
+
+    private void OnTrackPropertyChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (sender is PlaylistTrackViewModel vm)
+        {
+            // Re-fire as a global event
+            TrackUpdated?.Invoke(this, vm);
+        }
+    }
+
+    // Command Logic Helpers (delegating to VM logic)
+
+    public void PauseTrack(string globalId)
+    {
+        var vm = AllGlobalTracks.FirstOrDefault(t => t.GlobalId == globalId);
+        vm?.Pause();
+    }
+
+    public void ResumeTrack(string globalId)
+    {
+        var vm = AllGlobalTracks.FirstOrDefault(t => t.GlobalId == globalId);
+        vm?.Resume();
+    }
+
+    public void HardRetryTrack(string globalId)
+    {
+        var vm = AllGlobalTracks.FirstOrDefault(t => t.GlobalId == globalId);
+        // We can expose the logic from LibraryViewModel here or just call Reset
+        // But HardRetry usually involves file cleanup. 
+        // Ideally, the cleanup logic should be IN the VM or HERE.
+        // Given Phase 2 Prompt: "Cancel token, Delete local part file, reset Status, Re-queue"
+        // I will implement the cleanup logic here to centralize it, or defer to VM if VM has it.
+        // VM has `Reset` but not file cleanup. LibraryViewModel had file cleanup.
+        // Let's implement full Hard Retry here.
+        
+        if (vm == null) return;
+
+        _logger.LogInformation("Hard Retry (Manager) for {GlobalId}", globalId);
+        vm.CancellationTokenSource?.Cancel();
+        vm.State = PlaylistTrackState.Cancelled;
+
+        try 
+        {
+            var path = vm.Model.ResolvedFilePath;
+            if (!string.IsNullOrEmpty(path) && File.Exists(path)) 
+            {
+                File.Delete(path);
+                _logger.LogInformation("Deleted file: {Path}", path);
+            }
+            // Also check for .part? SoulseekAdapter uses stream to final path. 
+            // So just deleting final path is correct if we assume direct write.
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to cleanup file during Hard Retry");
+        }
+
+        vm.Reset(); // Sets to Pending, effectively re-queueing
     }
 
     /// <summary>
@@ -88,17 +151,6 @@ public class DownloadManager : INotifyPropertyChanged, IDisposable
              ResolvedFilePath = Path.Combine(_config.DownloadDirectory!, _fileNameFormatter.Format(_config.NameFormat ?? "{artist} - {title}", track) + "." + track.GetExtension()),
              TrackUniqueHash = track.UniqueHash
         };
-        
-        // If we already know the file details (from search), we can pre-populate the model 
-        // effectively skipping the 'Searching' phase if we implement that check in ProcessTrackAsync
-        // For now, we'll let it flow through the state machine.
-        // Actually, if it's from search, we WANT to download THIS specific file.
-        // We'll attach the SoulseekFile if possible or just use the username/filename
-        
-        // TODO: Pass specific file info to ViewModel so it skips search?
-        // For now, adhering to the "Project" architecture which implies "I want this song", not "I want this file".
-        // But for direct downloads, that's inefficient. 
-        // We can handle this by checking if the passed track has Username/Filename and using it.
         
         QueueProject(new List<PlaylistTrack> { playlistTrack });
     }
@@ -309,7 +361,15 @@ public class DownloadManager : INotifyPropertyChanged, IDisposable
         }
         catch (OperationCanceledException)
         {
-            track.State = PlaylistTrackState.Cancelled;
+            // If the user paused it, the VM state is already Paused.
+            // If the user cancelled it, the VM state is already Cancelled (or should be).
+            // We only set it to Cancelled if it's not already Paused/Cancelled.
+            
+            if (track.State != PlaylistTrackState.Paused && track.State != PlaylistTrackState.Cancelled)
+            {
+                track.State = PlaylistTrackState.Cancelled;
+            }
+            _logger.LogInformation("Track processing stopped: {Artist} - {Title} ({State})", track.Artist, track.Title, track.State);
         }
         catch (Exception ex)
         {

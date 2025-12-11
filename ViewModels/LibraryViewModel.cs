@@ -43,10 +43,58 @@ public class LibraryViewModel : INotifyPropertyChanged
         WarehouseTracksInit.IsLiveSortingRequested = true; // Optional for warehouse
         WarehouseTracksInit.LiveSortingProperties.Add("Artist");
         WarehouseTracksInit.Filter += WarehouseTracks_Filter;
-        WarehouseTracksInit.SortDescriptions.Add(new SortDescription("AddedAt", ListSortDirection.Descending)); // Assuming AddedAt or similar exists? PlaylistTrack usually implies order. 
-        // We'll sort by SourceId (Project) then TrackNumber for now if possible, or just implicit.
+        WarehouseTracksInit.SortDescriptions.Add(new SortDescription("SortOrder", ListSortDirection.Ascending)); 
         
         HardRetryCommand = new RelayCommand<PlaylistTrackViewModel>(ExecuteHardRetry);
+    }
+
+    public void ReorderTrack(PlaylistTrackViewModel source, PlaylistTrackViewModel target)
+    {
+        if (source == null || target == null || source == target) return;
+
+        // Simple implementation: Swap SortOrder
+        // Better implementation: Insert
+        // Renumbering everything is safest for consistency
+        
+        // Find current indices in the underlying collection? 
+        // We really want to change SortOrder values.
+        
+        // Let's adopt a "dense rank" approach.
+        // First, ensure everyone has a SortOrder. if 0, assign based on current index.
+        
+        var allTracks = _downloadManager.AllGlobalTracks; // This is the source
+        // But we are only reordering within "Warehouse" view ideally. 
+        // Mixing active/warehouse reordering is tricky.
+        // Assuming we drag pending items.
+        
+        int oldIndex = source.SortOrder;
+        int newIndex = target.SortOrder;
+        
+        if (oldIndex == newIndex) return;
+        
+        // Shift items
+        foreach (var track in allTracks)
+        {
+            if (oldIndex < newIndex)
+            {
+                // Moving down: shift items between old and new UP (-1)
+                if (track.SortOrder > oldIndex && track.SortOrder <= newIndex)
+                {
+                    track.SortOrder--;
+                }
+            }
+            else
+            {
+                // Moving up: shift items between new and old DOWN (+1)
+                if (track.SortOrder >= newIndex && track.SortOrder < oldIndex)
+                {
+                    track.SortOrder++;
+                }
+            }
+        }
+        
+        source.SortOrder = newIndex;
+        // Verify uniqueness? If we started with unique 0..N, we end with unique 0..N
     }
 
     private void ActiveTracks_Filter(object sender, FilterEventArgs e)
@@ -78,38 +126,7 @@ public class LibraryViewModel : INotifyPropertyChanged
         if (vm == null) return;
         
         _logger.LogInformation("Hard Retry requested for {Artist} - {Title}", vm.Artist, vm.Title);
-        
-        // Step A: Cancel existing operation
-        vm.CancellationTokenSource?.Cancel();
-        vm.State = PlaylistTrackState.Cancelled; // Temporary state before reset
-
-        // Step B: File System Cleanup
-        try 
-        {
-            var path = vm.Model.ResolvedFilePath;
-            if (!string.IsNullOrEmpty(path))
-            {
-                // Delete incomplete .part file if it exists (SoulseekDL specific, or just the main file if partial)
-                // Assuming the adapter writes directly to the path.
-                if (File.Exists(path)) 
-                {
-                    try { File.Delete(path); _logger.LogInformation("Deleted partial file: {Path}", path); }
-                    catch (Exception ex) { _logger.LogWarning("Could not delete file {Path}: {Msg}", path, ex.Message); }
-                }
-            }
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error during Hard Retry cleanup");
-        }
-
-        // Step C: Reset State
-        vm.Reset(); // Resets to Pending, clears CT
-        
-        // Step D: Re-queue logic is implicit because the DownloadManager loop 
-        // constantly scans for 'Pending' items in the global collection.
-        // By setting it to Pending, we effectively re-queue it.
-        _logger.LogInformation("Reset track state to Pending. Background loop will pick it up.");
+        _downloadManager.HardRetryTrack(vm.GlobalId);
     }
 
     public event PropertyChangedEventHandler? PropertyChanged;

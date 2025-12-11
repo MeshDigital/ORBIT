@@ -73,6 +73,10 @@ public static class ResultSorter
             PassesRequired = evaluator.PassesRequired(result),
             PreferredScore = evaluator.ScorePreferred(result),
 
+            // Intelligence Metrics (The User's Request)
+            HasFreeUploadSlot = result.HasFreeUploadSlot,
+            QueueLength = result.QueueLength,
+
             // Metadata quality
             HasValidLength = result.Length != null && result.Length > 0,
             LengthMatch = CalculateLengthScore(result, searchTrack),
@@ -174,6 +178,11 @@ public class SortingCriteria : IComparable<SortingCriteria>
 {
     public bool PassesRequired { get; set; }
     public double PreferredScore { get; set; }
+    
+    // Intelligence Metrics
+    public bool HasFreeUploadSlot { get; set; } // +2000 if true
+    public int QueueLength { get; set; } // -1 per item in queue
+    
     public bool HasValidLength { get; set; }
     public double LengthMatch { get; set; }
     public bool BitrateMatch { get; set; }
@@ -191,25 +200,30 @@ public class SortingCriteria : IComparable<SortingCriteria>
         get
         {
             double score = 0.0;
+            
+            // 0. Availability (The most critical factor for speed)
+            if (HasFreeUploadSlot) score += 2000;
+            score -= QueueLength; // Penalize long queues
+            if (QueueLength == 0) score += 10; // Bonus for empty queue even if no slot explicitly advertised (rare)
 
-            // Required conditions (most important)
+            // 1. Required conditions 
             if (PassesRequired) score += 1000;
 
-            // Preferred conditions
+            // 2. Preferred conditions
             score += PreferredScore * 500;
 
-            // Metadata quality
+            // 3. Metadata quality
             if (HasValidLength) score += 100;
             score += LengthMatch * 100;
             if (BitrateMatch) score += 50;
             score += Math.Min(BitRateValue, 50); // Cap at 50 points
 
-            // String matching
+            // 4. String matching
             score += TitleSimilarity * 200;
             score += ArtistSimilarity * 100;
             score += AlbumSimilarity * 50;
 
-            // Tiebreaker
+            // 5. Tiebreaker
             score += RandomTiebreaker / 1_000_000_000.0; // Small contribution
 
             return score;

@@ -86,15 +86,43 @@
                     </DataGridTemplateColumn.CellTemplate>
                 </DataGridTemplateColumn>
 
-                <DataGridTemplateColumn Header="Monitor" Width="200">
+                <DataGridTemplateColumn Header="Monitor" Width="150">
                     <DataGridTemplateColumn.CellTemplate>
                         <DataTemplate>
                             <Grid>
-                                <ProgressBar Value="{Binding Progress, Mode=OneWay}" Maximum="100" Height="2" VerticalAlignment="Bottom" Background="#333" Foreground="#007ACC"/>
-                                <TextBlock Text="{Binding ErrorMessage}" Foreground="#F44336" FontSize="10" TextTrimming="CharacterEllipsis"/>
-                                <TextBlock Text="{Binding CurrentSpeed}" HorizontalAlignment="Right" FontSize="10" Foreground="#888" 
-                                           Visibility="{Binding State, Converter={StaticResource StringToVisibilityConverter}, ConverterParameter=Downloading}"/>
+                                <ProgressBar Value="{Binding Progress, Mode=OneWay}" Maximum="100" Height="4" VerticalAlignment="Center" Background="#333" Foreground="{Binding StatusColor}"/>
+                                <TextBlock Text="{Binding ErrorMessage}" Foreground="#F44336" FontSize="10" TextTrimming="CharacterEllipsis" VerticalAlignment="Bottom"/>
+                                <TextBlock Text="{Binding CurrentSpeed}" HorizontalAlignment="Right" FontSize="10" Foreground="#AAA" VerticalAlignment="Top"/>
                             </Grid>
+                        </DataTemplate>
+                    </DataGridTemplateColumn.CellTemplate>
+                </DataGridTemplateColumn>
+
+                <!-- Actions Column -->
+                <DataGridTemplateColumn Header="Actions" Width="140">
+                    <DataGridTemplateColumn.CellTemplate>
+                        <DataTemplate>
+                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                                <!-- Pause -->
+                                <Button Content="⏸" Command="{Binding PauseCommand}" 
+                                        Visibility="{Binding CanPause, Converter={StaticResource BooleanToVisibilityConverter}}"
+                                        ToolTip="Pause" Width="24" Height="24" Background="Transparent" Foreground="#FFC107" BorderThickness="0"/>
+                                
+                                <!-- Resume -->
+                                <Button Content="▶" Command="{Binding ResumeCommand}" 
+                                        Visibility="{Binding CanResume, Converter={StaticResource BooleanToVisibilityConverter}}"
+                                        ToolTip="Resume" Width="24" Height="24" Background="Transparent" Foreground="#4CAF50" BorderThickness="0"/>
+
+                                <!-- Cancel -->
+                                <Button Content="⏹" Command="{Binding CancelCommand}" 
+                                        Visibility="{Binding CanCancel, Converter={StaticResource BooleanToVisibilityConverter}}"
+                                        ToolTip="Cancel" Width="24" Height="24" Background="Transparent" Foreground="#F44336" BorderThickness="0"/>
+
+                                <!-- Recycle / Hard Retry (The Orange Button) -->
+                                <Button Content="♻" Command="{Binding FindNewVersionCommand}" 
+                                        Visibility="{Binding CanHardRetry, Converter={StaticResource BooleanToVisibilityConverter}}"
+                                        ToolTip="Find New Version" Width="24" Height="24" Background="Transparent" Foreground="#FF9800" BorderThickness="0" FontWeight="Bold"/>
+                            </StackPanel>
                         </DataTemplate>
                     </DataGridTemplateColumn.CellTemplate>
                 </DataGridTemplateColumn>

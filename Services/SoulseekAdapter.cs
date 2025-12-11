@@ -133,7 +133,7 @@ public class SoulseekAdapter : IDisposable
                             }
 
                             // Parse filename to extract artist, title, album
-                            var track = ParseTrackFromFile(file, response.Username);
+                            var track = ParseTrackFromFile(file, response);
 
                             // Apply bitrate filter
                             if (bitrateFilter.Min.HasValue && track.Bitrate < bitrateFilter.Min.Value)
@@ -321,7 +321,7 @@ public class SoulseekAdapter : IDisposable
         return 0;
     }
 
-    private Track ParseTrackFromFile(Soulseek.File file, string username)
+    private Track ParseTrackFromFile(Soulseek.File file, Soulseek.SearchResponse response)
     {
         // Extract bitrate and length from file attributes
         var bitrateAttr = file.Attributes?.FirstOrDefault(a => a.Type == FileAttributeType.BitRate);
@@ -356,11 +356,16 @@ public class SoulseekAdapter : IDisposable
             Title = title,
             Album = album,
             Filename = file.Filename,
-            Username = username,
+            Username = response.Username,
             Bitrate = bitrate,
             Size = file.Size,
             Length = length,
-            SoulseekFile = file // CRITICAL: Store the original file object for downloads.
+            SoulseekFile = file, // CRITICAL: Store the original file object for downloads.
+            
+            // Intelligence Metrics
+            HasFreeUploadSlot = response.HasFreeUploadSlot,
+            QueueLength = response.QueueLength,
+            UploadSpeed = response.UploadSpeed // Bytes/s
         };
     }
 

@@ -18,6 +18,11 @@ public class Track
     public int Bitrate { get; set; } // in kbps
     public Dictionary<string, object>? Metadata { get; set; }
     
+    // Intelligence Metrics
+    public bool HasFreeUploadSlot { get; set; }
+    public int QueueLength { get; set; }
+    public int UploadSpeed { get; set; } // Bytes per second
+
     /// <summary>
     /// Local filesystem path where the track was stored (if known).
     /// </summary>

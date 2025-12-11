@@ -149,6 +149,11 @@
                             </Setter.Value>
                         </Setter>
                     </Style>
+                    <Style TargetType="DataGridRow">
+                        <EventSetter Event="PreviewMouseLeftButtonDown" Handler="DataGridRow_PreviewMouseLeftButtonDown"/>
+                        <EventSetter Event="Drop" Handler="DataGridRow_Drop"/>
+                        <Setter Property="AllowDrop" Value="True"/>
+                    </Style>
                 </DataGrid.Resources>
 
                 <DataGrid.Columns>
