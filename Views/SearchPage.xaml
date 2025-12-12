@@ -327,16 +327,6 @@
                         </TextBlock>
                     </Border>
                 </StackPanel>
-                
-                <!-- Status Message -->
-                <TextBlock Grid.Column="1" 
-                           Text="{Binding StatusText, FallbackValue='Ready'}"
-                           Foreground="{StaticResource TextSecondaryBrush}"
-                           VerticalAlignment="Center"
-                           HorizontalAlignment="Right"
-                           FontSize="{StaticResource FontSizeSmall}"
-                           FontStyle="Italic"
-                           Margin="16,0,0,0"/>
             </Grid>
         </Border>
     </Grid>
