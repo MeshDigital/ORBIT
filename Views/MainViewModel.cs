@@ -1455,6 +1455,40 @@ public class MainViewModel : INotifyPropertyChanged
                 _logger.LogWarning("Diagnostics harness skipped cancellation test because Soulseek is disconnected.");
             }
 
+            // === Step 4: Concurrency Probe for Library Entry Upsert ===
+            StatusText = "Diagnostics: Running concurrency probe...";
+            _logger.LogInformation("Diagnostics: Running concurrency probe for SaveOrUpdateLibraryEntryAsync.");
+
+            var concurrentEntry = new LibraryEntry
+            {
+                UniqueHash = "concurrent_probe_hash",
+                Artist = "Probe Artist",
+                Title = "Probe Title",
+                Album = "Probe Album",
+                FilePath = "C:\\probe\\path.mp3",
+                Bitrate = 320,
+                DurationSeconds = 180,
+                Format = "mp3"
+            };
+
+            // Run 10 concurrent save operations on the same entry
+            var tasks = Enumerable.Range(0, 10)
+                .Select(_ => _libraryService.SaveOrUpdateLibraryEntryAsync(concurrentEntry))
+                .ToList();
+
+            try
+            {
+                await Task.WhenAll(tasks);
+                _logger.LogInformation("Diagnostics: Concurrency probe completed. All upserts finished without PK violation.");
+            }
+            catch (Exception ex)
+            {
+                // A primary key violation would throw an exception here, likely from the database provider.
+                // If we get here, the test has failed.
+                _logger.LogError(ex, "Diagnostics: CONCURRENCY PROBE FAILED! A primary key violation or other error occurred.");
+                StatusText = "❌ Diagnostics: Concurrency probe FAILED!";
+            }
+
             StatusText = "Diagnostics harness completed. Review logs for details.";
         }
         catch (Exception ex)
@@ -1479,6 +1513,16 @@ public class MainViewModel : INotifyPropertyChanged
                 try
                 {
                     await _libraryService.DeletePlaylistJobAsync(diagnosticsJob.Id);
+
+                    // Clean up the concurrency probe entry.
+                    // This requires a method to delete a LibraryEntry, which doesn't exist yet.
+                    // For now, we'll log it. A proper implementation would be:
+                    // await _libraryService.DeleteLibraryEntryAsync("concurrent_probe_hash");
+                    _logger.LogInformation("Diagnostics: Manual cleanup of 'concurrent_probe_hash' from LibraryEntries may be needed.");
+
+                    // To fully clean up, you would need to add a `DeleteLibraryEntryAsync` method to ILibraryService
+                    // and implement it in LibraryService/DatabaseService.
+
                     _logger.LogInformation("Diagnostics: soft-deleted synthetic job {JobId}.", diagnosticsJob.Id);
                 }
                 catch (Exception cleanupEx)

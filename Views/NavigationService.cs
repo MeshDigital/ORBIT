@@ -40,14 +40,20 @@ public class NavigationService : INavigationService
             var page = _serviceProvider.GetService(pageType) as Page;
             if (page != null)
             {
-                var mainVm = _serviceProvider.GetService(typeof(MainViewModel)) as MainViewModel;
-                if (page is ImportPreviewPage && mainVm?.ImportPreviewViewModel != null)
+                // FIX: Only set the DataContext if the page doesn't already have one.
+                // Pages with dedicated ViewModels (like LibraryPage) set their own DataContext
+                // in their constructor via dependency injection.
+                if (page.DataContext == null)
                 {
-                    page.DataContext = mainVm.ImportPreviewViewModel;
-                }
-                else
-                {
-                    page.DataContext = mainVm;
+                    var mainVm = _serviceProvider.GetService(typeof(MainViewModel)) as MainViewModel;
+                    if (page is ImportPreviewPage && mainVm?.ImportPreviewViewModel != null)
+                    {
+                        page.DataContext = mainVm.ImportPreviewViewModel;
+                    }
+                    else
+                    {
+                        page.DataContext = mainVm;
+                    }
                 }
                 _frame.Navigate(page);
             }

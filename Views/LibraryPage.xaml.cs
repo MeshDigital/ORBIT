@@ -7,10 +7,14 @@ namespace SLSKDONET.Views
 {
     public partial class LibraryPage : Page
     {
+        private readonly LibraryViewModel _viewModel;
+
         public LibraryPage(LibraryViewModel viewModel)
         {
             InitializeComponent();
-            DataContext = viewModel;
+            _viewModel = viewModel;
+            // This is the critical step: set the DataContext before navigation can overwrite it.
+            this.DataContext = _viewModel;
         }
 
         private void DataGridRow_PreviewMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
