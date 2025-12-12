@@ -4,6 +4,7 @@ using System.ComponentModel;
 using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Threading;
+using System.Threading.Tasks;
 using System.Windows.Input;
 using Microsoft.Extensions.Logging;
 using SLSKDONET.Models;
@@ -110,7 +111,7 @@ public class ImportPreviewViewModel : INotifyPropertyChanged
     /// <summary>
     /// Initialize preview with imported tracks from Spotify/CSV/etc
     /// </summary>
-    public void InitializePreview(string sourceTitle, string sourceType, IEnumerable<SearchQuery> queries)
+    public async Task InitializePreviewAsync(string sourceTitle, string sourceType, IEnumerable<SearchQuery> queries)
     {
         SourceTitle = sourceTitle;
         SourceType = sourceType;
@@ -118,6 +119,7 @@ public class ImportPreviewViewModel : INotifyPropertyChanged
         AlbumGroups.Clear();
 
         int trackNum = 1;
+        var tempTracks = new List<Track>();
         foreach (var query in queries ?? Enumerable.Empty<SearchQuery>())
         {
             var track = new Track
@@ -127,10 +129,21 @@ public class ImportPreviewViewModel : INotifyPropertyChanged
                 Album = query.Album,
                 Length = query.Length
             };
-            ImportedTracks.Add(track);
+            tempTracks.Add(track);
             trackNum++;
         }
 
+        // Check for duplicates asynchronously
+        if (_libraryService != null)
+        {
+            foreach (var track in tempTracks)
+            {
+                var entry = await _libraryService.FindLibraryEntryAsync(track.UniqueHash);
+                track.IsInLibrary = entry != null;
+            }
+        }
+
+        ImportedTracks = new ObservableCollection<Track>(tempTracks);
         // Group by album for display
         GroupByAlbum();
         StatusMessage = $"Loaded {ImportedTracks.Count} tracks";

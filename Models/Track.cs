@@ -57,6 +57,12 @@ public class Track
     public double CurrentRank { get; set; } = 0.0;
 
     /// <summary>
+    /// Indicates whether this track already exists in the user's library.
+    /// Used by ImportPreview to show duplicate status.
+    /// </summary>
+    public bool IsInLibrary { get; set; } = false;
+
+    /// <summary>
     /// Unique hash for deduplication: artist-title combination (lowercase, no spaces).
     /// </summary>
     public string UniqueHash => $"{Artist?.ToLower().Replace(" ", "")}-{Title?.ToLower().Replace(" ", "")}".TrimStart('-').TrimEnd('-');

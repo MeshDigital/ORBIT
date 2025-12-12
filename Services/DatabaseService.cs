@@ -71,59 +71,60 @@ public class DatabaseService
     }
 
     /// <summary>
-    /// Finds all PlaylistJob(s) associated with a global track hash and recalculates their successful/failed counts,
-    /// then persists the updated job entities.
-    /// Returns the IDs of the jobs that were updated.
+    /// Updates the status of a track across all playlists that contain it,
+    /// then recalculates the progress counts for those playlists.
     /// </summary>
-    public async Task<List<Guid>> RecalculateJobCountsForTrackAsync(string trackUniqueHash)
+    public async Task<List<Guid>> UpdatePlaylistTrackStatusAndRecalculateJobsAsync(string trackUniqueHash, TrackStatus newStatus, string? resolvedPath)
     {
         using var context = new AppDbContext();
-        var affectedJobIds = new List<Guid>();
 
-        // Find all unique PlaylistIds associated with the global track hash
-        var distinctJobIds = await context.PlaylistTracks
-            .Where(t => t.TrackUniqueHash == trackUniqueHash)
-            .Select(t => t.PlaylistId)
-            .Distinct()
+        // 1. Find all PlaylistTrack entries for this global track hash
+        var playlistTracks = await context.PlaylistTracks
+            .Where(pt => pt.TrackUniqueHash == trackUniqueHash)
             .ToListAsync();
 
-        if (!distinctJobIds.Any()) return affectedJobIds;
+        if (!playlistTracks.Any()) return new List<Guid>();
 
-        // Fetch all jobs to update in one go
+        var distinctJobIds = playlistTracks.Select(pt => pt.PlaylistId).Distinct().ToList();
+
+        // 2. Update their status in memory
+        foreach (var pt in playlistTracks)
+        {
+            pt.Status = newStatus;
+            if (!string.IsNullOrEmpty(resolvedPath))
+            {
+                pt.ResolvedFilePath = resolvedPath;
+            }
+        }
+        
+        // 3. Fetch all affected jobs and all their related tracks in two efficient queries
         var jobsToUpdate = await context.PlaylistJobs
             .Where(j => distinctJobIds.Contains(j.Id))
             .ToListAsync();
-        
-        // Fetch all relevant playlist tracks in one go
+
         var allRelatedTracks = await context.PlaylistTracks
             .Where(t => distinctJobIds.Contains(t.PlaylistId))
+            .AsNoTracking() // Use NoTracking for the read-only calculation part
             .ToListAsync();
 
-        foreach (var jobEntity in jobsToUpdate)
+        // 4. Recalculate counts for each job in memory
+        foreach (var job in jobsToUpdate)
         {
-            var relatedTracks = allRelatedTracks.Where(t => t.PlaylistId == jobEntity.Id).ToList();
-            
-            // Recalculate the aggregate counts
-            int successfulCount = relatedTracks.Count(t => t.Status == TrackStatus.Downloaded);
-            // Treat Failed and Skipped as terminal failures for job progress
-            int failedCount = relatedTracks.Count(t => t.Status == TrackStatus.Failed || t.Status == TrackStatus.Skipped);
-            
-            // Only update if counts have actually changed
-            if (jobEntity.SuccessfulCount != successfulCount || jobEntity.FailedCount != failedCount)
-            {
-                jobEntity.SuccessfulCount = successfulCount;
-                jobEntity.FailedCount = failedCount;
-                affectedJobIds.Add(jobEntity.Id);
-            }
+            // Combine the already-updated tracks with the other tracks for this job
+            var currentJobTracks = allRelatedTracks
+                .Where(t => t.PlaylistId == job.Id && t.TrackUniqueHash != trackUniqueHash)
+                .ToList();
+            currentJobTracks.AddRange(playlistTracks.Where(pt => pt.PlaylistId == job.Id));
+
+            job.SuccessfulCount = currentJobTracks.Count(t => t.Status == TrackStatus.Downloaded);
+            job.FailedCount = currentJobTracks.Count(t => t.Status == TrackStatus.Failed || t.Status == TrackStatus.Skipped);
         }
 
-        if (affectedJobIds.Any())
-        {
-            await context.SaveChangesAsync();
-            _logger.LogInformation("Recalculated counts for {Count} jobs based on track {Hash}", affectedJobIds.Count, trackUniqueHash);
-        }
+        // 5. Save all changes (track status and job counts) in a single transaction
+        await context.SaveChangesAsync();
+        _logger.LogInformation("Updated status for track {Hash}, affecting {TrackCount} playlist entries and recalculating {JobCount} jobs.", trackUniqueHash, playlistTracks.Count, jobsToUpdate.Count);
 
-        return affectedJobIds;
+        return distinctJobIds;
     }
 
     // ===== LibraryEntry Methods =====

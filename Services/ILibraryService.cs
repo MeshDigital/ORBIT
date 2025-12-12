@@ -25,12 +25,6 @@ public interface ILibraryService
     // ===== INDEX 1: LibraryEntry (Main Global Index) =====
     
     /// <summary>
-    /// Retrieves a library entry by its UniqueHash (synchronous).
-    /// Used for deduplication checks during import.
-    /// </summary>
-    LibraryEntry? FindLibraryEntry(string uniqueHash);
-
-    /// <summary>
     /// Retrieves a library entry by its UniqueHash (asynchronous).
     /// </summary>
     Task<LibraryEntry?> FindLibraryEntryAsync(string uniqueHash);
@@ -53,12 +47,6 @@ public interface ILibraryService
     /// Used to populate the Playlist List view in the UI.
     /// </summary>
     Task<List<PlaylistJob>> LoadAllPlaylistJobsAsync();
-
-    /// <summary>
-    /// Loads a specific playlist job by ID (synchronous).
-    /// Includes related PlaylistTrack entries.
-    /// </summary>
-    PlaylistJob? FindPlaylistJob(Guid playlistId);
 
     /// <summary>
     /// Loads a specific playlist job by ID (asynchronous).

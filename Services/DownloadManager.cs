@@ -45,7 +45,7 @@ public class DownloadManager : INotifyPropertyChanged, IDisposable
     // Event for new project creation
     public event EventHandler<ProjectEventArgs>? ProjectAdded;
 
-    // Event for project status update (used by LibraryViewModel)
+    // Event for project status update (used by LibraryViewModel to refresh counts)
     public event EventHandler<Guid>? ProjectUpdated;
 
     public DownloadManager(
@@ -213,26 +213,40 @@ public class DownloadManager : INotifyPropertyChanged, IDisposable
                 e.PropertyName == nameof(PlaylistTrackViewModel.ErrorMessage) ||
                 e.PropertyName == nameof(PlaylistTrackViewModel.CoverArtUrl))
             {
+                // 1. Save to Global Track Cache (Existing logic)
                 await SaveTrackToDb(vm);
-                
-                // NEW: If a track reaches a terminal state, update the parent PlaylistJob counts and notify the UI
+
+                // 2. NEW: Sync with Playlist Data and Recalculate Jobs
+                // Only needed if the state implies a Status change (Completed/Failed)
                 if (vm.State == PlaylistTrackState.Completed || 
                     vm.State == PlaylistTrackState.Failed || 
                     vm.State == PlaylistTrackState.Cancelled)
                 {
                     try
                     {
-                        var affectedJobIds = await _databaseService.RecalculateJobCountsForTrackAsync(vm.GlobalId);
-                        
-                        // Fire event for Library UI to refresh the job's summary status
-                        foreach (var jobId in affectedJobIds)
+                        var dbStatus = vm.State switch
+                        {
+                            PlaylistTrackState.Completed => TrackStatus.Downloaded,
+                            PlaylistTrackState.Failed => TrackStatus.Failed,
+                            PlaylistTrackState.Cancelled => TrackStatus.Skipped, // Map Cancelled to Skipped
+                            _ => vm.Model.Status
+                        };
+
+                        var updatedJobIds = await _databaseService.UpdatePlaylistTrackStatusAndRecalculateJobsAsync(
+                            vm.GlobalId, 
+                            dbStatus, 
+                            vm.Model.ResolvedFilePath
+                        );
+
+                        // 3. Notify the Library UI to refresh the specific Project Header
+                        foreach (var jobId in updatedJobIds)
                         {
                             ProjectUpdated?.Invoke(this, jobId);
                         }
                     }
                     catch (Exception ex)
                     {
-                         _logger.LogError(ex, "Failed to recalculate PlaylistJob counts for track {Id}", vm.GlobalId);
+                        _logger.LogError(ex, "Failed to sync playlist track status for {Id}", vm.GlobalId);
                     }
                 }
             }
@@ -496,154 +510,146 @@ public class DownloadManager : INotifyPropertyChanged, IDisposable
                 return;
             }
 
-            // --- 1. Search Phase ---
-            // If the model doesn't have specific file info, we must search.
-            // If it DOES (e.g. from manual search), we might skip this. 
-            // For Bundle 1, let's assume we always search if it's "Pending" to be robust for projects.
-            
-            track.State = PlaylistTrackState.Searching;
-            track.Progress = 0; // Infinite spinner logic in UI often checks IsActive
-            
-            var query = $"{track.Artist} {track.Title}";
-            var results = new ConcurrentBag<Track>();
-            
-            // Search with 30s timeout
-            using var searchCts = CancellationTokenSource.CreateLinkedTokenSource(trackCt);
-            searchCts.CancelAfter(TimeSpan.FromSeconds(30)); 
-
-            try 
-            {
-                await _soulseek.SearchAsync(
-                    query,
-                    null, // TODO: Get format filter from Config
-                    (null, null), // TODO: Get bitrate filter from Config
-                    DownloadMode.Normal,
-                    (found) => {
-                        foreach (var f in found) results.Add(f);
-                    },
-                    searchCts.Token
-                );
-            }
-            catch (OperationCanceledException) { /* Timeout or Cancelled */ }
-            catch (Exception ex)
-            {
-                _logger.LogWarning(ex, "Search error for {Query}", query);
-                // Continue if we have any results, else fail
-            }
-
-            if (results.IsEmpty)
+            // --- 1. Search for potential files ---
+            var searchResults = await SearchForTrackAsync(track, trackCt);
+            if (searchResults == null || !searchResults.Any())
             {
                 track.State = PlaylistTrackState.Failed;
-                track.Model.Status = TrackStatus.Failed;
                 track.ErrorMessage = "No results found";
-                await PersistPlaylistTrackAsync(track.Model);
+                await PersistPlaylistTrackAsync(track.Model); // Persist failure
                 return;
             }
 
-            // Select Best Match
-            var preferredFormat = _config.PreferredFormats?.FirstOrDefault() ?? "mp3";
-            var minBitrate = _config.PreferredMinBitrate; // Fixed: already int
-            
-            var bestMatch = results
-                .Where(t => t.Bitrate >= minBitrate)
-                // .Where(t => t.GetExtension().Contains(preferredFormat)) // Simple filter
-                .OrderByDescending(t => t.Bitrate)
-                .ThenByDescending(t => t.Length ?? 0)
-                .FirstOrDefault();
-
-            if (bestMatch == null)
-            {
-                // Relaxed fallback
-                 bestMatch = results.OrderByDescending(t => t.Bitrate).FirstOrDefault();
-            }
-            
+            // --- 2. Select the best match from the results ---
+            var bestMatch = SelectBestMatch(searchResults);
             if (bestMatch == null)
             {
                 track.State = PlaylistTrackState.Failed;
-                track.Model.Status = TrackStatus.Failed;
                 track.ErrorMessage = "No suitable match found";
                 await PersistPlaylistTrackAsync(track.Model);
                 return;
             }
 
             // --- 2. Download Phase ---
-            track.State = PlaylistTrackState.Downloading;
-            
-            // Update model with the specific file info we found
-            track.Model.Status = TrackStatus.Missing; // Still missing until done
-            
-            // Use resolved path or fallback
-            var finalPath = track.Model.ResolvedFilePath;
-            if (string.IsNullOrEmpty(finalPath))
-            {
-                finalPath = Path.Combine(_config.DownloadDirectory ?? "Downloads", 
-                    $"{track.Artist} - {track.Title}.{bestMatch.GetExtension()}");
-            }
-             // Ensure directory exists
-            var dir = System.IO.Path.GetDirectoryName(finalPath); // Fixed: Path, not Directory
-            if (dir != null) System.IO.Directory.CreateDirectory(dir);
-
-            var progress = new Progress<double>(p => track.Progress = p * 100);
-            
-            var success = await _soulseek.DownloadAsync(
-                bestMatch.Username!,
-                bestMatch.Filename!,
-                finalPath,
-                bestMatch.Size,
-                progress,
-                trackCt
-            );
-
-            if (success)
-            {
-                track.State = PlaylistTrackState.Completed;
-                track.Progress = 100;
-                track.Model.Status = TrackStatus.Downloaded;
-                track.Model.ResolvedFilePath = finalPath;
-                
-                // Tagging
-                try 
-                {
-                    await _taggerService.TagFileAsync(bestMatch, finalPath);
-                }
-                catch (Exception ex)
-                {
-                    _logger.LogWarning("Tagging error: {Msg}", ex.Message);
-                }
-
-                await PersistPlaylistTrackAsync(track.Model);
-            }
-            else
-            {
-                track.State = PlaylistTrackState.Failed;
-                track.Model.Status = TrackStatus.Failed;
-                track.ErrorMessage = "Download failed (Transfer)";
-                await PersistPlaylistTrackAsync(track.Model);
-            }
+            await DownloadFileAsync(track, bestMatch, trackCt);
         }
         catch (OperationCanceledException)
         {
             // If the user paused it, the VM state is already Paused.
             // If the user cancelled it, the VM state is already Cancelled (or should be).
             // We only set it to Cancelled if it's not already Paused/Cancelled.
-            
             if (track.State != PlaylistTrackState.Paused && track.State != PlaylistTrackState.Cancelled)
             {
                 track.State = PlaylistTrackState.Cancelled;
             }
             _logger.LogInformation("Track processing stopped: {Artist} - {Title} ({State})", track.Artist, track.Title, track.State);
+            // State change will be persisted by OnTrackPropertyChanged
         }
         catch (Exception ex)
         {
             track.State = PlaylistTrackState.Failed;
-            track.Model.Status = TrackStatus.Failed;
             track.ErrorMessage = ex.Message;
             _logger.LogError(ex, "ProcessTrackAsync fatal error");
-
-            await PersistPlaylistTrackAsync(track.Model);
+            // State change will be persisted by OnTrackPropertyChanged
         }
     }
-    
+
+    private async Task<IProducerConsumerCollection<Track>?> SearchForTrackAsync(PlaylistTrackViewModel track, CancellationToken ct)
+    {
+        track.State = PlaylistTrackState.Searching;
+        track.Progress = 0;
+
+        var query = $"{track.Artist} {track.Title}";
+        var results = new ConcurrentBag<Track>();
+
+        using var searchCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+        searchCts.CancelAfter(TimeSpan.FromSeconds(30));
+
+        try
+        {
+            await _soulseek.SearchAsync(
+                query,
+                _config.PreferredFormats?.ToArray(),
+                (_config.PreferredMinBitrate, null),
+                DownloadMode.Normal,
+                (found) => {
+                    foreach (var f in found) results.Add(f);
+                },
+                searchCts.Token
+            );
+        }
+        catch (OperationCanceledException) { /* Timeout or user cancellation is expected */ }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Search for '{Query}' failed.", query);
+        }
+
+        return results.IsEmpty ? null : results;
+    }
+
+    private Track? SelectBestMatch(IProducerConsumerCollection<Track> results)
+    {
+        var minBitrate = _config.PreferredMinBitrate;
+
+        var bestMatch = results
+            .Where(t => t.Bitrate >= minBitrate)
+            .OrderByDescending(t => t.Bitrate)
+            .ThenByDescending(t => t.Length ?? 0)
+            .FirstOrDefault();
+
+        // If no match meets the criteria, relax the constraints and take the highest bitrate available.
+        return bestMatch ?? results.OrderByDescending(t => t.Bitrate).FirstOrDefault();
+    }
+
+    private async Task DownloadFileAsync(PlaylistTrackViewModel track, Track bestMatch, CancellationToken ct)
+    {
+        track.State = PlaylistTrackState.Downloading;
+
+        var finalPath = track.Model.ResolvedFilePath;
+        if (string.IsNullOrEmpty(finalPath))
+        {
+            finalPath = Path.Combine(_config.DownloadDirectory ?? "Downloads",
+                _fileNameFormatter.Format(_config.NameFormat ?? "{artist} - {title}", bestMatch) + $".{bestMatch.GetExtension()}");
+        }
+
+        var dir = Path.GetDirectoryName(finalPath);
+        if (dir != null) Directory.CreateDirectory(dir);
+
+        var progress = new Progress<double>(p => track.Progress = p * 100);
+
+        var success = await _soulseek.DownloadAsync(
+            bestMatch.Username!,
+            bestMatch.Filename!,
+            finalPath,
+            bestMatch.Size,
+            progress,
+            ct
+        );
+
+        if (success)
+        {
+            track.State = PlaylistTrackState.Completed;
+            track.Progress = 100;
+            track.Model.ResolvedFilePath = finalPath;
+
+            try
+            {
+                await _taggerService.TagFileAsync(bestMatch, finalPath);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Tagging failed for {File}", finalPath);
+            }
+        }
+        else
+        {
+            track.State = PlaylistTrackState.Failed;
+            track.ErrorMessage = "Download transfer failed or was cancelled.";
+        }
+        
+        // The state change will trigger OnTrackPropertyChanged, which handles all persistence.
+    }
+
     // Properties for UI Summary (Aggregated from Collection)
     // Determining these efficiently is tricky with ObservableCollection. 
     // Ideally the UI binds to the Collection directly and filters count.

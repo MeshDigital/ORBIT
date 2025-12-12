@@ -103,11 +103,11 @@ public class LibraryViewModel : INotifyPropertyChanged
         // Subscribe to global track updates for live project track status
         _downloadManager.TrackUpdated += OnGlobalTrackUpdated;
 
-        // Subscribe to project added events for real-time Library updates
+        // Subscribe to project added events
         _downloadManager.ProjectAdded += OnProjectAdded;
         
-        // NEW: Subscribe to project updated events for project header/progress updates
-        _downloadManager.ProjectUpdated += OnProjectUpdated; // ADDED
+        // NEW: Subscribe to updates
+        _downloadManager.ProjectUpdated += OnProjectUpdated;
 
         // Subscribe to project deletion events for real-time Library updates
         _libraryService.ProjectDeleted += OnProjectDeleted;
@@ -116,43 +116,26 @@ public class LibraryViewModel : INotifyPropertyChanged
         _ = LoadProjectsAsync();
     }
 
-    /// <summary>
-    /// Handles updates to the project header (e.g., successful/failed count change)
-    /// </summary>
     private async void OnProjectUpdated(object? sender, Guid jobId)
     {
-        _logger.LogDebug("OnProjectUpdated ENTRY for job {JobId}", jobId);
-        
-        // 1. Fetch the updated job data from persistence
+        // Fetch the freshest data from DB
         var updatedJob = await _libraryService.FindPlaylistJobAsync(jobId);
-
-        if (updatedJob == null)
-        {
-            _logger.LogWarning("OnProjectUpdated: Could not find job {JobId} in library service.", jobId);
-            return;
-        }
+        if (updatedJob == null) return;
 
         if (System.Windows.Application.Current is null) return;
         
         await System.Windows.Application.Current.Dispatcher.InvokeAsync(() =>
         {
-            // 2. Find the existing job object in the master collection
+            // Update the existing object in the list so the UI binding triggers
             var existingJob = AllProjects.FirstOrDefault(j => j.Id == jobId);
-
             if (existingJob != null)
             {
-                // 3. Update the existing job's properties directly to trigger PropertyChanged for UI binding
-                existingJob.SuccessfulCount = updatedJob.SuccessfulCount; // Triggers PropertyChanged
-                existingJob.FailedCount = updatedJob.FailedCount;       // Triggers PropertyChanged
-                existingJob.MissingCount = updatedJob.MissingCount;     // Forces re-calculation/refresh
+                existingJob.SuccessfulCount = updatedJob.SuccessfulCount;
+                existingJob.FailedCount = updatedJob.FailedCount;
+                existingJob.MissingCount = updatedJob.MissingCount;
                 
-                _logger.LogInformation("Updated progress counts for project: {Title}", existingJob.SourceTitle);
-            }
-            else
-            {
-                 // Fallback to full refresh if the job isn't in the collection (e.g., load hasn't finished yet)
-                 _logger.LogWarning("Project {JobId} updated, but not found in AllProjects collection. Forcing a refresh.", jobId);
-                 _ = LoadProjectsAsync();
+                // Force UI refresh if needed (ProgressPercentage relies on these)
+                _logger.LogDebug("Refreshed UI counts for project {Title}: {Succ}/{Total}", existingJob.SourceTitle, existingJob.SuccessfulCount, existingJob.TotalTracks);
             }
         });
     }

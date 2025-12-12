@@ -1150,7 +1150,7 @@ public class MainViewModel : INotifyPropertyChanged
                     Microsoft.Extensions.Logging.Abstractions.NullLogger<ImportPreviewViewModel>.Instance,
                     _downloadManager,
                     _libraryService); // Pass library service for duplicate checking
-                ImportPreviewViewModel.InitializePreview(
+                await ImportPreviewViewModel.InitializePreviewAsync(
                     queries.FirstOrDefault()?.SourceTitle ?? "Spotify Playlist",
                     "Spotify",
                     queries);

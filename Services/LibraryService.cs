@@ -34,12 +34,6 @@ public class LibraryService : ILibraryService
 
     // ===== INDEX 1: LibraryEntry (Main Global Index - DB backed) =====
 
-    public LibraryEntry? FindLibraryEntry(string uniqueHash)
-    {
-        var entity = _databaseService.FindLibraryEntryAsync(uniqueHash).Result;
-        return entity != null ? EntityToLibraryEntry(entity) : null;
-    }
-
     public async Task<LibraryEntry?> FindLibraryEntryAsync(string uniqueHash)
     {
         var entity = await _databaseService.FindLibraryEntryAsync(uniqueHash);
@@ -86,12 +80,6 @@ public class LibraryService : ILibraryService
             _logger.LogError(ex, "Failed to load playlist jobs from database");
             return new List<PlaylistJob>();
         }
-    }
-
-    public PlaylistJob? FindPlaylistJob(Guid playlistId)
-    {
-        var job = _databaseService.LoadPlaylistJobAsync(playlistId).Result;
-        return job != null ? EntityToPlaylistJob(job) : null;
     }
 
     public async Task<PlaylistJob?> FindPlaylistJobAsync(Guid playlistId)
