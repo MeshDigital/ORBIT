@@ -151,13 +151,14 @@
                               Foreground="White"
                               Margin="0,0,0,20"/>
 
-                    <Button x:Name="SignInButton"
+                     <Button x:Name="SignInButton"
                             Content="Sign In" 
                             Click="SignInButton_Click"
                             Style="{StaticResource PrimaryButtonStyle}"
                             Height="44"
                             FontSize="14"
-                            FontWeight="SemiBold"/>
+                            FontWeight="SemiBold"
+                            IsDefault="True"/>
                 </StackPanel>
             </Border>
         </Grid>
