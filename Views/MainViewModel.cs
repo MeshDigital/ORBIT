@@ -113,6 +113,8 @@ public class MainViewModel : INotifyPropertyChanged
     public ICommand NavigateLibraryCommand { get; }
     public ICommand NavigateDownloadsCommand { get; }
     public ICommand NavigateSettingsCommand { get; }
+    public ICommand ShowLoginCommand { get; }
+    public ICommand DismissLoginCommand { get; }
     private readonly INotificationService _notificationService;
     private readonly INavigationService _navigationService;
 
@@ -203,6 +205,19 @@ public class MainViewModel : INotifyPropertyChanged
         NavigateDownloadsCommand = new RelayCommand(() => _navigationService.NavigateTo("Downloads"));
         NavigateSettingsCommand = new RelayCommand(() => _navigationService.NavigateTo("Settings"));
         
+        // Initialize login overlay commands
+        ShowLoginCommand = new RelayCommand(() => 
+        {
+            _loginDismissed = false;
+            OnPropertyChanged(nameof(IsLoginOverlayVisible));
+        });
+        
+        DismissLoginCommand = new RelayCommand(() => 
+        {
+            _loginDismissed = true;
+            OnPropertyChanged(nameof(IsLoginOverlayVisible));
+        });
+        
         // Subscribe to download events
         // REMOVED: DownloadManager events are deprecated in Bundle 1 refactor.
         // Subscribe to download events
@@ -246,6 +261,11 @@ public class MainViewModel : INotifyPropertyChanged
     {
         _logger.LogInformation("OnViewLoaded called");
         
+        // Log configuration state for debugging
+        _logger.LogInformation($"Config - Username: {(_config.Username != null ? "<set>" : "<null>")}, " +
+                              $"Password: {(_config.Password != null ? "<set>" : "<null>")}, " +
+                              $"RememberPassword: {_config.RememberPassword}");
+        
         // Attempt auto-login if credentials are saved
         if (!string.IsNullOrEmpty(_config.Username) && 
             !string.IsNullOrEmpty(_config.Password) &&
@@ -253,6 +273,10 @@ public class MainViewModel : INotifyPropertyChanged
         {
             _logger.LogInformation("Auto-login: credentials found, attempting...");
             _ = AutoLoginAsync();
+        }
+        else
+        {
+            _logger.LogInformation("Auto-login: skipped (no valid credentials)");
         }
         
         // Load library asynchronously to avoid blocking UI thread
@@ -263,6 +287,17 @@ public class MainViewModel : INotifyPropertyChanged
     {
         try
         {
+            // Give user 2 seconds to dismiss the overlay if they want
+            _logger.LogInformation("Auto-login: waiting 2 seconds before attempting login...");
+            await Task.Delay(2000);
+            
+            // Check if user manually dismissed the overlay during the delay
+            if (_loginDismissed)
+            {
+                _logger.LogInformation("Auto-login cancelled - user dismissed overlay");
+                return;
+            }
+            
             var decryptedPassword = _protectedDataService.Unprotect(_config.Password);
             Username = _config.Username ?? "";
             await LoginAsync(decryptedPassword);
@@ -410,18 +445,6 @@ public class MainViewModel : INotifyPropertyChanged
     /// Login overlay is visible when not connected AND user hasn't dismissed it.
     /// </summary>
     public bool IsLoginOverlayVisible => !IsConnected && !_loginDismissed;
-    
-    public ICommand ShowLoginCommand => new RelayCommand(() => 
-    {
-        _loginDismissed = false;
-        OnPropertyChanged(nameof(IsLoginOverlayVisible));
-    });
-    
-    public ICommand DismissLoginCommand => new RelayCommand(() => 
-    {
-        _loginDismissed = true;
-        OnPropertyChanged(nameof(IsLoginOverlayVisible));
-    });
 
     /// <summary>
     /// Connection status string for display (e.g., "Connected", "Disconnected").
