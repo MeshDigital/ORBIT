@@ -135,19 +135,19 @@ public class DownloadManager : INotifyPropertyChanged, IDisposable
             // Non-critical error, continue to queue tracks.
         }
 
-        // 2. Queue the tracks using the existing method for collection add and individual track persistence
-        QueueProject(job.PlaylistTracks);
+        // 2. Queue the tracks using the internal method for collection add and individual track persistence
+        QueueTracks(job.PlaylistTracks);
         
         // 3. Fire event for Library UI to refresh
         ProjectAdded?.Invoke(this, new ProjectEventArgs(job));
     }
 
     /// <summary>
-    /// Queues a list of individual tracks for processing (e.g. from an existing project or ad-hoc).
+    /// Internal method to queue a list of individual tracks for processing (e.g. from an existing project or ad-hoc).
     /// </summary>
-    public void QueueProject(List<PlaylistTrack> tracks)
+    private void QueueTracks(List<PlaylistTrack> tracks)
     {
-        _logger.LogInformation("Queueing project with {Count} tracks", tracks.Count);
+        _logger.LogInformation("Queueing project tracks with {Count} tracks", tracks.Count);
         lock (_collectionLock)
         {
             foreach (var track in tracks)
@@ -360,7 +360,7 @@ public class DownloadManager : INotifyPropertyChanged, IDisposable
              TrackUniqueHash = track.UniqueHash
         };
         
-        QueueProject(new List<PlaylistTrack> { playlistTrack });
+        QueueTracks(new List<PlaylistTrack> { playlistTrack });
     }
 
     public async Task StartAsync(CancellationToken ct = default)

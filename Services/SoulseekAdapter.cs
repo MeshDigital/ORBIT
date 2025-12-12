@@ -78,6 +78,15 @@ public class SoulseekAdapter : IDisposable
         }
     }
 
+    public void Disconnect()
+    {
+        if (_client != null)
+        {
+            _client.Disconnect();
+            _logger.LogInformation("Disconnected from Soulseek");
+        }
+    }
+
     public async Task<int> SearchAsync(
         string query,
         IEnumerable<string>? formatFilter,

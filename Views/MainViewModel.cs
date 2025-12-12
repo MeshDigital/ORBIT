@@ -115,6 +115,7 @@ public class MainViewModel : INotifyPropertyChanged
     public ICommand NavigateSettingsCommand { get; }
     public ICommand ShowLoginCommand { get; }
     public ICommand DismissLoginCommand { get; }
+    public ICommand DisconnectCommand { get; }
     private readonly INotificationService _notificationService;
     private readonly INavigationService _navigationService;
 
@@ -216,6 +217,15 @@ public class MainViewModel : INotifyPropertyChanged
         {
             _loginDismissed = true;
             OnPropertyChanged(nameof(IsLoginOverlayVisible));
+        });
+        
+        DisconnectCommand = new RelayCommand(() =>
+        {
+            _soulseek.Disconnect();
+            IsConnected = false;
+            _loginDismissed = false; // Show login overlay again
+            OnPropertyChanged(nameof(IsLoginOverlayVisible));
+            StatusText = "Disconnected";
         });
         
         // Subscribe to download events
@@ -320,7 +330,7 @@ public class MainViewModel : INotifyPropertyChanged
             if (state == "Connected" || state == "LoggedIn")
             {
                 IsConnected = true;
-                StatusText = $"Connected as {Username}";
+                StatusText = "";
             }
             else if (state == "Disconnected")
             {
@@ -680,7 +690,7 @@ public class MainViewModel : INotifyPropertyChanged
             StatusText = "Connecting...";
             await _soulseek.ConnectAsync(password);
             IsConnected = true;
-            StatusText = $"Connected as {Username}";
+            StatusText = "";
             
             // Save config to persist credentials
             _configManager.Save(_config);
@@ -690,6 +700,10 @@ public class MainViewModel : INotifyPropertyChanged
         catch (Exception ex)
         {
             var message = ex.Message.ToLowerInvariant();
+            
+            // Show login overlay again on failed login attempt
+            _loginDismissed = false;
+            OnPropertyChanged(nameof(IsLoginOverlayVisible));
             
             // Provide specific, user-friendly error messages
             if (message.Contains("invalid username or password") || 
@@ -1310,17 +1324,45 @@ public class MainViewModel : INotifyPropertyChanged
                 }
             });
 
-            // 3. DOWNLOAD: Auto-enqueue all selected best matches
+            // 3. CREATE PLAYLIST JOB and QUEUE: Auto-enqueue all selected best matches as a single project
             if (bestMatchesPerQuery.Count > 0)
             {
+                // Create a PlaylistJob to group all these tracks together
+                var playlistJob = new PlaylistJob
+                {
+                    Id = Guid.NewGuid(),
+                    SourceTitle = "Spotify Playlist",
+                    SourceType = "Spotify",
+                    CreatedAt = DateTime.UtcNow,
+                    PlaylistTracks = new List<PlaylistTrack>()
+                };
+
+                // Convert ranked Tracks to PlaylistTracks with PlaylistId linking
+                foreach (var track in bestMatchesPerQuery.OrderByDescending(t => t.CurrentRank))
+                {
+                    var playlistTrack = new PlaylistTrack
+                    {
+                        Id = Guid.NewGuid(),
+                        PlaylistId = playlistJob.Id,
+                        Artist = track.Artist ?? "Unknown",
+                        Title = track.Title ?? "Unknown",
+                        Album = track.Album ?? "Unknown",
+                        Status = TrackStatus.Missing,
+                        ResolvedFilePath = Path.Combine(
+                            _config.DownloadDirectory ?? Environment.GetFolderPath(Environment.SpecialFolder.MyMusic),
+                            (new FileNameFormatter()).Format(_config.NameFormat ?? "{artist} - {title}", track) + "." + track.GetExtension()),
+                        TrackUniqueHash = track.UniqueHash
+                    };
+                    playlistJob.PlaylistTracks.Add(playlistTrack);
+                }
+
+                // Queue the entire job (this fires ProjectAdded event for Library UI)
+                await _downloadManager.QueueProject(playlistJob);
+                
                 System.Windows.Application.Current.Dispatcher.Invoke(() =>
                 {
-                    foreach (var track in bestMatchesPerQuery)
-                    {
-                        _downloadManager.EnqueueTrack(track);
-                    }
-                    StatusText = $"Auto-queued {bestMatchesPerQuery.Count} best matches for batch download...";
-                    _logger.LogInformation("Orchestration: queued {Count} best matches for download", bestMatchesPerQuery.Count);
+                    StatusText = $"Created Spotify Playlist job with {bestMatchesPerQuery.Count} tracks. Starting download...";
+                    _logger.LogInformation("Orchestration: queued {Count} best matches as PlaylistJob", bestMatchesPerQuery.Count);
                 });
 
                 // Auto-start downloads

@@ -191,12 +191,12 @@ public class SpotifyImportViewModel : INotifyPropertyChanged
         {
             Id = Guid.NewGuid(),
             SourceTitle = PlaylistTitle,
-            SourceType = "Spotify",
+            SourceType = "Spotify (UI)",
             CreatedAt = DateTime.Now,
             DestinationFolder = "" // Will use default from config
         };
 
-        // Convert SelectableTracks to PlaylistTracks
+        // Convert SelectableTracks to PlaylistTracks and attach the PlaylistId
         foreach (var selectable in selectedTracks)
         {
             var playlistTrack = new PlaylistTrack
@@ -214,7 +214,7 @@ public class SpotifyImportViewModel : INotifyPropertyChanged
             job.PlaylistTracks.Add(playlistTrack);
         }
 
-        // Use the new DownloadManager overload to save job and queue tracks
+        // Use the new DownloadManager overload which persists the PlaylistJob and queues the tracks
         await _downloadManager.QueueProject(job);
 
         StatusMessage = $"Queued {selectedTracks.Count} tracks for download";
