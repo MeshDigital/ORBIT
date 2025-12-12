@@ -105,8 +105,8 @@ public class DatabaseService
             
             // Recalculate the aggregate counts
             int successfulCount = relatedTracks.Count(t => t.Status == TrackStatus.Downloaded);
-            // Treat Failed and Cancelled as terminal failures for job progress
-            int failedCount = relatedTracks.Count(t => t.Status == TrackStatus.Failed || t.Status == TrackStatus.Cancelled);
+            // Treat Failed and Skipped as terminal failures for job progress
+            int failedCount = relatedTracks.Count(t => t.Status == TrackStatus.Failed || t.Status == TrackStatus.Skipped);
             
             // Only update if counts have actually changed
             if (jobEntity.SuccessfulCount != successfulCount || jobEntity.FailedCount != failedCount)
@@ -250,7 +250,6 @@ public class DatabaseService
         } 
         var statuses = await context.PlaylistTracks.AsNoTracking()
             .Where(t => t.PlaylistId == playlistId)
-            .Select(t => t.Status)
             .Select(t => t.Status)
             .ToListAsync();
 

@@ -20,6 +20,7 @@ public class ImportPreviewViewModel : INotifyPropertyChanged
 {
     private readonly ILogger<ImportPreviewViewModel> _logger;
     private readonly DownloadManager _downloadManager;
+    private readonly ILibraryService? _libraryService;
     
     private string _sourceTitle = "Import Preview";
     private string _sourceType = "";
@@ -93,10 +94,12 @@ public class ImportPreviewViewModel : INotifyPropertyChanged
 
     public ImportPreviewViewModel(
         ILogger<ImportPreviewViewModel> logger,
-        DownloadManager downloadManager)
+        DownloadManager downloadManager,
+        ILibraryService? libraryService = null)
     {
         _logger = logger;
         _downloadManager = downloadManager;
+        _libraryService = libraryService;
 
         AddToLibraryCommand = new AsyncRelayCommand(AddToLibraryAsync, () => CanAddToLibrary);
         SelectAllCommand = new RelayCommand(SelectAll);
