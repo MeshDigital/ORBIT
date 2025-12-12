@@ -1144,13 +1144,9 @@ public class MainViewModel : INotifyPropertyChanged
             if (queries.Any())
             {
                 _logger.LogInformation("Showing import preview for {Count} Spotify tracks", queries.Count);
-                
-                // Initialize preview view model
-                ImportPreviewViewModel = new ImportPreviewViewModel(
-                    Microsoft.Extensions.Logging.Abstractions.NullLogger<ImportPreviewViewModel>.Instance,
-                    _downloadManager,
-                    _libraryService); // Pass library service for duplicate checking
-                await ImportPreviewViewModel.InitializePreviewAsync(
+
+                // The ImportPreviewViewModel is now a singleton managed by DI. We initialize it here.
+                await _importPreviewViewModel.InitializePreviewAsync(
                     queries.FirstOrDefault()?.SourceTitle ?? "Spotify Playlist",
                     "Spotify",
                     queries);
@@ -1163,12 +1159,12 @@ public class MainViewModel : INotifyPropertyChanged
                 ImportPreviewViewModel.Cancelled += (s, e) =>
                 {
                     ImportPreviewViewModel = null;
-                    StatusText = "Import preview cancelled";
-                    _navigationService.NavigateTo("Search");
+                    StatusText = "Import cancelled";
+                    _navigationService.GoBack();
                 };
                 
-                // Stay on the Search page and show embedded preview
-                _navigationService.NavigateTo("Search");
+                // Navigate to the dedicated import preview page
+                _navigationService.NavigateTo("ImportPreview");
                 StatusText = $"Preview: {queries.Count} tracks loaded from Spotify";
             }
             else
@@ -1196,29 +1192,8 @@ public class MainViewModel : INotifyPropertyChanged
                 _logger.LogInformation("PlaylistJob added from ImportPreview: {Title} with {Count} tracks", 
                     job.SourceTitle, job.OriginalTracks.Count);
             
-                // Build relational PlaylistTrack entries and queue the project so Library/Downloads update
-                var playlistTracks = new List<PlaylistTrack>();
-                int idx = 1;
-                foreach (var track in job.OriginalTracks)
-                {
-                    var pt = new PlaylistTrack
-                    {
-                        Id = Guid.NewGuid(),
-                        PlaylistId = job.Id,
-                        Artist = track.Artist ?? string.Empty,
-                        Title = track.Title ?? string.Empty,
-                        Album = track.Album ?? string.Empty,
-                        TrackUniqueHash = track.UniqueHash,
-                        Status = TrackStatus.Missing,
-                        ResolvedFilePath = string.Empty,
-                        TrackNumber = idx++
-                    };
-                    playlistTracks.Add(pt);
-                }
-                job.PlaylistTracks = playlistTracks;
-                _logger.LogInformation("PlaylistTracks prepared: {Count}", playlistTracks.Count);
-
                 // Queue project through DownloadManager to persist, add to Library, and fire ProjectAdded
+                // The DownloadManager will now handle the conversion from OriginalTracks to PlaylistTracks.
                 await _downloadManager.QueueProject(job);
             
                 // Convert original tracks to SearchQueries for orchestration

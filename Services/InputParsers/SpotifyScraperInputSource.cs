@@ -201,27 +201,46 @@ public class SpotifyScraperInputSource
     {
         try
         {
+            // CRITICAL FIX: Convert to embed URL for reliable scraping
+            // The embed version contains simpler JSON structures that are easier to parse
+            string embedUrl = url;
+            if (!url.Contains("/embed/"))
+            {
+                // Convert "https://open.spotify.com/playlist/XYZ" 
+                // to "https://open.spotify.com/embed/playlist/XYZ"
+                embedUrl = url.Replace("open.spotify.com/", "open.spotify.com/embed/");
+                _logger.LogDebug("Converted to embed URL: {EmbedUrl}", embedUrl);
+            }
+
             // Rate limiting to avoid IP bans
             await Task.Delay(Random.Shared.Next(500, 1500));
 
-            var html = await _httpClient.GetStringAsync(url);
+            var html = await _httpClient.GetStringAsync(embedUrl);
 
             if (string.IsNullOrWhiteSpace(html))
             {
-                _logger.LogWarning("Spotify scrape: empty HTML for {Url}", url);
+                _logger.LogWarning("Spotify scrape: empty HTML for {Url}", embedUrl);
                 return new List<SearchQuery>();
             }
 
             _logger.LogDebug("Spotify scrape: fetched HTML length {Length}", html.Length);
 
-            // Try __NEXT_DATA__ first
-            var tracks = ExtractTracksFromHtml(html, url);
+            // Strategy 1: Try embed-specific "resource" variable extraction (simplest and most reliable for embeds)
+            var tracks = ExtractTracksFromEmbedResource(html, url);
+            if (tracks.Any())
+            {
+                _logger.LogDebug("Successfully extracted tracks from embed resource variable");
+                return tracks;
+            }
+
+            // Strategy 2: Try __NEXT_DATA__ extraction
+            tracks = ExtractTracksFromHtml(html, url);
             if (tracks.Any())
                 return tracks;
 
             _logger.LogDebug("Spotify scrape: __NEXT_DATA__ yielded 0 tracks");
 
-            // Try JSON-LD as fallback
+            // Strategy 3: Try JSON-LD as fallback
             tracks = ExtractTracksFromJsonLd(html, url);
             if (tracks.Any())
                 return tracks;
@@ -235,6 +254,66 @@ public class SpotifyScraperInputSource
             _logger.LogDebug(ex, "HTML scraping failed, returning empty list");
             return new List<SearchQuery>();
         }
+    }
+
+    /// <summary>
+    /// Extracts tracks from the Spotify embed's "resource" JavaScript variable.
+    /// The embed version uses a simple: var resource = {...}; pattern
+    /// </summary>
+    private List<SearchQuery> ExtractTracksFromEmbedResource(string html, string sourceUrl)
+    {
+        var tracks = new List<SearchQuery>();
+        try
+        {
+            // Look for the resource variable pattern in embed pages
+            var resourcePattern = @"resource\s*=\s*(\{.*?\});";
+            var match = System.Text.RegularExpressions.Regex.Match(html, resourcePattern, System.Text.RegularExpressions.RegexOptions.Singleline);
+            
+            if (!match.Success)
+            {
+                _logger.LogDebug("Embed resource variable not found in HTML");
+                return tracks;
+            }
+
+            var jsonContent = match.Groups[1].Value;
+            using var doc = JsonDocument.Parse(jsonContent);
+            var root = doc.RootElement;
+
+            // Extract playlist title
+            var playlistTitle = "Spotify Playlist";
+            if (root.TryGetProperty("name", out var nameElem))
+            {
+                playlistTitle = nameElem.GetString() ?? playlistTitle;
+            }
+
+            // Extract tracks from the resource structure
+            // Common patterns: resource.tracks.items or resource.trackList
+            if (root.TryGetProperty("tracks", out var tracksObj))
+            {
+                if (tracksObj.TryGetProperty("items", out var itemsArray))
+                {
+                    ExtractTracksFromItemsArray(itemsArray, playlistTitle, tracks);
+                }
+            }
+            else if (root.TryGetProperty("trackList", out var trackList))
+            {
+                ExtractTracksRecursive(trackList, tracks, playlistTitle);
+            }
+            else
+            {
+                // Fallback: recursively search for track objects
+                ExtractTracksRecursive(root, tracks, playlistTitle);
+            }
+
+            if (tracks.Count > 0)
+                _logger.LogDebug("Extracted {TrackCount} tracks from embed resource variable", tracks.Count);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogDebug(ex, "Embed resource extraction failed");
+        }
+
+        return tracks;
     }
 
     /// <summary>

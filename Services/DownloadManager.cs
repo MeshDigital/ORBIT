@@ -127,6 +127,32 @@ public class DownloadManager : INotifyPropertyChanged, IDisposable
     /// </summary>
     public async Task QueueProject(PlaylistJob job)
     {
+        // Robustness: If the job comes from an import preview, it will have OriginalTracks
+        // but no PlaylistTracks. We must convert them before proceeding.
+        if (job.PlaylistTracks.Count == 0 && job.OriginalTracks.Count > 0)
+        {
+            _logger.LogInformation("QueueProject: Converting {Count} OriginalTracks to PlaylistTracks for job '{Title}'.", job.OriginalTracks.Count, job.SourceTitle);
+            var playlistTracks = new List<PlaylistTrack>();
+            int idx = 1;
+            foreach (var track in job.OriginalTracks)
+            {
+                var pt = new PlaylistTrack
+                {
+                    Id = Guid.NewGuid(),
+                    PlaylistId = job.Id,
+                    Artist = track.Artist ?? string.Empty,
+                    Title = track.Title ?? string.Empty,
+                    Album = track.Album ?? string.Empty,
+                    TrackUniqueHash = track.UniqueHash,
+                    Status = TrackStatus.Missing,
+                    ResolvedFilePath = string.Empty, // Will be determined during download
+                    TrackNumber = idx++
+                };
+                playlistTracks.Add(pt);
+            }
+            job.PlaylistTracks = playlistTracks;
+        }
+
         _logger.LogInformation(
             "Queueing project. Title: {Title}, TrackCount: {Count}, JobId: {JobId}, Thread: {ThreadId}",
             job.SourceTitle,
@@ -505,8 +531,6 @@ public class DownloadManager : INotifyPropertyChanged, IDisposable
             {
                 track.State = PlaylistTrackState.Completed;
                 track.Progress = 100;
-                track.Model.Status = TrackStatus.Downloaded;
-                await PersistPlaylistTrackAsync(track.Model);
                 return;
             }
 
@@ -516,7 +540,6 @@ public class DownloadManager : INotifyPropertyChanged, IDisposable
             {
                 track.State = PlaylistTrackState.Failed;
                 track.ErrorMessage = "No results found";
-                await PersistPlaylistTrackAsync(track.Model); // Persist failure
                 return;
             }
 
@@ -526,7 +549,6 @@ public class DownloadManager : INotifyPropertyChanged, IDisposable
             {
                 track.State = PlaylistTrackState.Failed;
                 track.ErrorMessage = "No suitable match found";
-                await PersistPlaylistTrackAsync(track.Model);
                 return;
             }
 
@@ -664,22 +686,5 @@ public class DownloadManager : INotifyPropertyChanged, IDisposable
     {
         _globalCts.Cancel();
         _concurrencySemaphore.Dispose();
-    }
-
-    private async Task PersistPlaylistTrackAsync(PlaylistTrack trackModel)
-    {
-        if (trackModel.PlaylistId == Guid.Empty)
-        {
-            return;
-        }
-
-        try
-        {
-            await _libraryService.UpdatePlaylistTrackAsync(trackModel);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Failed to persist playlist track {PlaylistId}/{TrackId}", trackModel.PlaylistId, trackModel.TrackUniqueHash);
-        }
     }
 }

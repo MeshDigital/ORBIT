@@ -136,10 +136,18 @@ public class ImportPreviewViewModel : INotifyPropertyChanged
         // Check for duplicates asynchronously
         if (_libraryService != null)
         {
-            foreach (var track in tempTracks)
+            try
             {
-                var entry = await _libraryService.FindLibraryEntryAsync(track.UniqueHash);
-                track.IsInLibrary = entry != null;
+                foreach (var track in tempTracks)
+                {
+                    var entry = await _libraryService.FindLibraryEntryAsync(track.UniqueHash);
+                    track.IsInLibrary = entry != null;
+                }
+            }
+            catch (Exception ex)
+            {
+                // Database might not be initialized yet on first run - this is non-critical
+                _logger.LogDebug(ex, "Could not check library for duplicates (database may not be initialized)");
             }
         }
 

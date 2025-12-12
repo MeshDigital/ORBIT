@@ -74,6 +74,10 @@ public partial class App : System.Windows.Application
 
         try
         {
+            // Initialize database before anything else
+            var databaseService = Services.GetRequiredService<DatabaseService>();
+            databaseService.InitAsync().GetAwaiter().GetResult();
+            
             var mainWindow = Services.GetRequiredService<MainWindow>();
             
             // Eagerly instantiate LibraryViewModel so it subscribes to ProjectAdded events
@@ -164,11 +168,13 @@ public partial class App : System.Windows.Application
 
         // Pages for navigation
         services.AddSingleton<SLSKDONET.ViewModels.LibraryViewModel>();
+        services.AddSingleton<ImportPreviewViewModel>(); // Make the preview VM a singleton to hold state during navigation
         services.AddTransient<SearchPage>();
         services.AddTransient<DownloadsPage>();
         services.AddTransient<LibraryPage>();
         services.AddTransient<SettingsPage>();
-    services.AddTransient<ImportPreviewPage>();
+        services.AddTransient<ImportPreviewPage>();
+
 
         // Utilities can be registered as singletons as they are stateless.
         services.AddSingleton<SearchQueryNormalizer>();

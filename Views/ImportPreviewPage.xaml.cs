@@ -1,31 +1,27 @@
 using System.Windows.Controls;
-using System.Windows.Input;
 using SLSKDONET.ViewModels;
-using SLSKDONET.Models;
 
-namespace SLSKDONET.Views;
-
-public partial class ImportPreviewPage : Page
+namespace SLSKDONET.Views
 {
-    private ImportPreviewViewModel? _viewModel;
-
-    public ImportPreviewPage()
+    /// <summary>
+    /// Interaction logic for ImportPreviewPage.xaml
+    /// </summary>
+    public partial class ImportPreviewPage : Page
     {
-        InitializeComponent();
-        DataContextChanged += (s, e) => 
-        {
-            _viewModel = DataContext as ImportPreviewViewModel;
-        };
-    }
+        private readonly ImportPreviewViewModel _viewModel;
 
-    private void TrackCard_MouseDown(object sender, System.Windows.Input.MouseEventArgs e)
-    {
-        if (sender is Border border && border.DataContext is Track track)
+        public ImportPreviewPage(ImportPreviewViewModel viewModel)
         {
-            // Toggle selection on click
-            track.IsSelected = !track.IsSelected;
-            _viewModel?.UpdateSelectedCount();
-            e.Handled = true;
+            InitializeComponent();
+            _viewModel = viewModel;
+            DataContext = _viewModel;
+        }
+
+        private void OnTrackSelectionChanged(object sender, System.Windows.RoutedEventArgs e)
+        {
+            // This is a simple way to trigger the count update without complex eventing inside the track view model.
+            // For a more advanced implementation, the IsSelected property on the track VM would raise an event.
+            _viewModel.UpdateSelectedCount();
         }
     }
 }
