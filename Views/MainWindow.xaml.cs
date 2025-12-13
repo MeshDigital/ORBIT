@@ -239,6 +239,7 @@ public partial class MainWindow : Window
                 if (trackVm != null)
                 {
                     LogToFile($"Dropped track: {trackVm.Artist} - {trackVm.Title}");
+                    LogToFile($"ResolvedFilePath from Model: {trackVm.Model?.ResolvedFilePath}");
                     if (!string.IsNullOrEmpty(trackVm.Model?.ResolvedFilePath))
                     {
                          _viewModel.PlayerViewModel.PlayTrack(trackVm.Model.ResolvedFilePath, trackVm.Title ?? "Unknown", trackVm.Artist ?? "Unknown Artist");

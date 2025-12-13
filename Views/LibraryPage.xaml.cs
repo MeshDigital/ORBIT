@@ -27,6 +27,15 @@ namespace SLSKDONET.Views
         {
             InitializeComponent();
             DataContext = viewModel;
+            
+            // Lazy-load projects when page is accessed
+            Loaded += (s, e) =>
+            {
+                if (viewModel.AllProjects.Count == 0)
+                {
+                    _ = viewModel.LoadProjectsAsync();
+                }
+            };
         }
 
 

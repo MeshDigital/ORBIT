@@ -151,6 +151,7 @@ namespace SLSKDONET.ViewModels
         // Helper to load track
         public void PlayTrack(string filePath, string title, string artist)
         {
+            Console.WriteLine($"[PlayerViewModel] PlayTrack called with: {filePath}");
             TrackTitle = title;
             TrackArtist = artist;
             _playerService.Play(filePath);

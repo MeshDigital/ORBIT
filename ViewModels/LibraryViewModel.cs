@@ -314,8 +314,7 @@ public class LibraryViewModel : INotifyPropertyChanged
         // Subscribe to project deletion events for real-time Library updates
         _libraryService.ProjectDeleted += OnProjectDeleted;
 
-        // Load projects asynchronously
-        _ = LoadProjectsAsync();
+        // Projects will be loaded when Library page is accessed
     }
 
     private async void OnProjectUpdated(object? sender, Guid jobId)
@@ -471,6 +470,15 @@ public class LibraryViewModel : INotifyPropertyChanged
                     
                     // Save to database
                     await _libraryService.UpdatePlaylistTrackAsync(track);
+                }
+                else
+                {
+                    // Log why match failed (first 5 only to avoid spam)
+                    if (resolved < 5)
+                    {
+                        _logger.LogInformation("❌ No match for '{Artist} - {Title}' (Status: {Status})", 
+                            track.Artist, track.Title, track.Status);
+                    }
                 }
             }
             
@@ -934,6 +942,13 @@ public class LibraryViewModel : INotifyPropertyChanged
                     }
 
                     tracks.Add(vm);
+                    
+                    // Log if track has resolved path (for debugging)
+                    if (!string.IsNullOrEmpty(track.ResolvedFilePath))
+                    {
+                        _logger.LogDebug("Track {Artist} - {Title} loaded with path: {Path}", 
+                            track.Artist, track.Title, track.ResolvedFilePath);
+                    }
                 }
             }
 
@@ -950,7 +965,7 @@ public class LibraryViewModel : INotifyPropertyChanged
         }
     }
 
-    private async Task LoadProjectsAsync()
+    public async Task LoadProjectsAsync()
     {
         try
         {

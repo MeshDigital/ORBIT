@@ -41,9 +41,8 @@ public class LibraryService : ILibraryService
         _databaseService = databaseService;
 
         _logger.LogDebug("LibraryService initialized with database persistence for playlists");
-        
-        // Initialize playlists from database
-        _ = InitializePlaylistsAsync();
+    
+        // Playlists will be loaded on-demand when accessed
     }
 
     public Task RefreshPlaylistsAsync() => InitializePlaylistsAsync();

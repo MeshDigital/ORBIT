@@ -105,8 +105,9 @@ namespace SLSKDONET.Services
                 _mediaPlayer.Stop();
             }
             
-            // Create media from file path (NOT URI)
-            var media = new Media(_libVLC, cleanPath, FromType.FromPath);
+            // Create media from LOCAL PATH (not URI)
+            // CRITICAL: Use FromType.FromLocation to avoid URI encoding
+            var media = new Media(_libVLC, cleanPath, FromType.FromLocation);
             media.Parse(MediaParseOptions.ParseLocal);
             
             _mediaPlayer.Play(media);
