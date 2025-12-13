@@ -1,3 +1,4 @@
+using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using SLSKDONET.Data;
@@ -13,6 +14,9 @@ namespace SLSKDONET.Services;
 public class DatabaseService
 {
     private readonly ILogger<DatabaseService> _logger;
+    
+    // Semaphore to serialize database write operations and prevent SQLite locking issues
+    private static readonly SemaphoreSlim _writeSemaphore = new SemaphoreSlim(1, 1);
 
     public DatabaseService(ILogger<DatabaseService> logger)
     {
@@ -97,64 +101,93 @@ public class DatabaseService
 
     public async Task SaveTrackAsync(TrackEntity track)
     {
-        const int maxRetries = 3;
+        const int maxRetries = 5;
         
-        for (int attempt = 0; attempt < maxRetries; attempt++)
+        // Serialize all database writes to prevent SQLite locking
+        await _writeSemaphore.WaitAsync();
+        try
         {
-            try
+            for (int attempt = 0; attempt < maxRetries; attempt++)
             {
-                using var context = new AppDbContext();
+                try
+                {
+                    using var context = new AppDbContext();
 
-                // Find existing entity by GlobalId (primary key)
-                var existingTrack = await context.Tracks
-                    .FirstOrDefaultAsync(t => t.GlobalId == track.GlobalId);
+                    // Find existing entity by GlobalId (primary key)
+                    var existingTrack = await context.Tracks
+                        .FirstOrDefaultAsync(t => t.GlobalId == track.GlobalId);
 
-                if (existingTrack == null)
-                {
-                    // Case 1: New track - INSERT
-                    context.Tracks.Add(track);
-                }
-                else
-                {
-                    // Case 2: Existing track - UPDATE
-                    // Apply only the properties that may change during download lifecycle
-                    existingTrack.State = track.State;
-                    existingTrack.Filename = track.Filename;
-                    existingTrack.ErrorMessage = track.ErrorMessage;
-                    existingTrack.CoverArtUrl = track.CoverArtUrl;
-                    existingTrack.Artist = track.Artist;
-                    existingTrack.Title = track.Title;
-                    existingTrack.Size = track.Size;
-                    
-                    // Don't update AddedAt - preserve original
-                    // context.Tracks.Update() is not needed - EF Core tracks changes automatically
-                }
+                    if (existingTrack == null)
+                    {
+                        // Case 1: New track - INSERT
+                        context.Tracks.Add(track);
+                    }
+                    else
+                    {
+                        // Case 2: Existing track - UPDATE
+                        // Apply only the properties that may change during download lifecycle
+                        existingTrack.State = track.State;
+                        existingTrack.Filename = track.Filename;
+                        existingTrack.ErrorMessage = track.ErrorMessage;
+                        existingTrack.CoverArtUrl = track.CoverArtUrl;
+                        existingTrack.Artist = track.Artist;
+                        existingTrack.Title = track.Title;
+                        existingTrack.Size = track.Size;
+                        
+                        // Don't update AddedAt - preserve original
+                        // context.Tracks.Update() is not needed - EF Core tracks changes automatically
+                    }
 
-                await context.SaveChangesAsync();
-                return; // Success - exit method
-            }
-            catch (DbUpdateConcurrencyException ex)
-            {
-                if (attempt < maxRetries - 1)
-                {
-                    // Retry after a brief delay
-                    _logger.LogWarning("Concurrency conflict saving track {GlobalId}, attempt {Attempt}/{Max}. Retrying...", 
-                        track.GlobalId, attempt + 1, maxRetries);
-                    await Task.Delay(50 * (attempt + 1)); // Exponential backoff: 50ms, 100ms, 150ms
+                    await context.SaveChangesAsync();
+                    return; // Success - exit method
                 }
-                else
+                catch (DbUpdateException ex) when (ex.InnerException is SqliteException sqliteEx && sqliteEx.SqliteErrorCode == 5)
                 {
-                    // Final attempt failed
-                    _logger.LogError(ex, "Failed to save track {GlobalId} after {Max} attempts due to concurrency conflicts", 
-                        track.GlobalId, maxRetries);
+                    // SQLite Error 5: Database is locked
+                    if (attempt < maxRetries - 1)
+                    {
+                        _logger.LogWarning(
+                            "SQLite database locked saving track {GlobalId}, attempt {Attempt}/{Max}. Retrying...", 
+                            track.GlobalId, attempt + 1, maxRetries);
+                        await Task.Delay(100 * (attempt + 1)); // Exponential backoff: 100ms, 200ms, 300ms, 400ms
+                        continue; // Retry
+                    }
+                    else
+                    {
+                        _logger.LogError(ex, 
+                            "Failed to save track {GlobalId} after {Max} attempts - database remains locked", 
+                            track.GlobalId, maxRetries);
+                        throw;
+                    }
+                }
+                catch (DbUpdateConcurrencyException ex)
+                {
+                    if (attempt < maxRetries - 1)
+                    {
+                        // Retry after a brief delay
+                        _logger.LogWarning("Concurrency conflict saving track {GlobalId}, attempt {Attempt}/{Max}. Retrying...", 
+                            track.GlobalId, attempt + 1, maxRetries);
+                        await Task.Delay(50 * (attempt + 1)); // Exponential backoff: 50ms, 100ms, 150ms, 200ms
+                        continue;
+                    }
+                    else
+                    {
+                        // Final attempt failed
+                        _logger.LogError(ex, "Failed to save track {GlobalId} after {Max} attempts due to concurrency conflicts", 
+                            track.GlobalId, maxRetries);
+                        throw;
+                    }
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Unexpected error saving track {GlobalId}", track.GlobalId);
                     throw;
                 }
             }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Unexpected error saving track {GlobalId}", track.GlobalId);
-                throw;
-            }
+        }
+        finally
+        {
+            _writeSemaphore.Release();
         }
     }
     
