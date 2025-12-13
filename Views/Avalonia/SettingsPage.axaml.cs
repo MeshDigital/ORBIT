@@ -2,9 +2,9 @@ using Avalonia.Controls;
 
 namespace SLSKDONET.Views.Avalonia
 {
-    public partial class MainWindow : Window
+    public partial class SettingsPage : UserControl
     {
-        public MainWindow()
+        public SettingsPage()
         {
             InitializeComponent();
         }

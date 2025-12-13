@@ -1,38 +1,9 @@
 <Application xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-             x:Class="SLSKDONET.AvaloniaApp"
-             xmlns:converters="clr-namespace:SLSKDONET.Converters"
+             x:Class="SLSKDONET.App"
              RequestedThemeVariant="Dark">
     
     <Application.Styles>
-        <FluentTheme />
-        
-        <!-- Custom styles will go here -->
-        <StyleInclude Source="avares://SLSKDONET/Themes/AvaloniaTheme.axaml"/>
+        <FluentTheme/>
     </Application.Styles>
-    
-    <Application.Resources>
-        <ResourceDictionary>
-            <!-- Converters -->
-            <converters:StatusToBrushConverter x:Key="StatusToBrushConverter"/>
-            <converters:BitrateToQualityColorConverter x:Key="BitrateToQualityColorConverter"/>
-            <converters:FormatTagConverter x:Key="FormatTagConverter"/>
-            <converters:QualityTagConverter x:Key="QualityTagConverter"/>
-            <converters:ViewModeToggleConverter x:Key="ViewModeToggleConverter"/>
-            <converters:ViewModeToVisibilityConverter x:Key="ViewModeToVisibilityConverter"/>
-            <converters:StringToVisibilityConverter x:Key="StringToVisibilityConverter"/>
-            <converters:StateToEmojiConverter x:Key="StateToEmojiConverter"/>
-            <converters:ConnectionStatusColorConverter x:Key="ConnectionStatusColorConverter"/>
-            <converters:ConnectionStatusTextConverter x:Key="ConnectionStatusTextConverter"/>
-            <converters:CountToVisibilityConverter x:Key="CountToVisibilityConverter"/>
-            <converters:BytesToReadableStringConverter x:Key="BytesToReadableStringConverter"/>
-            <converters:BooleanToPlayPauseIconConverter x:Key="BooleanToPlayPauseIconConverter"/>
-            <converters:NullToVisibilityConverter x:Key="NullToVisibilityConverter"/>
-            <converters:InverseNullToVisibilityConverter x:Key="InverseNullToVisibilityConverter"/>
-            <converters:InverseBooleanConverter x:Key="InverseBooleanConverter"/>
-            <converters:InverseBooleanToVisibilityConverter x:Key="InverseBooleanToVisibilityConverter"/>
-            <converters:IsSelectedToBackgroundConverter x:Key="IsSelectedToBackgroundConverter"/>
-            <converters:IsSelectedToBorderConverter x:Key="IsSelectedToBorderConverter"/>
-        </ResourceDictionary>
-    </Application.Resources>
 </Application>

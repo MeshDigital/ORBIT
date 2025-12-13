@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Concurrent;
+using Avalonia.Threading;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
@@ -73,8 +74,8 @@ public class DownloadManager : INotifyPropertyChanged, IDisposable
         // Initialize from config, but allow runtime changes
         MaxActiveDownloads = _config.MaxConcurrentDownloads > 0 ? _config.MaxConcurrentDownloads : 3;
 
-        // Enable cross-thread collection access
-        System.Windows.Data.BindingOperations.EnableCollectionSynchronization(AllGlobalTracks, _collectionLock);
+        // Note: WPF collection synchronization is not needed for Avalonia
+        // The collection is accessed via async/await patterns which handle threading properly
     }
 
     public int MaxActiveDownloads { get; set; }
@@ -281,13 +282,10 @@ public class DownloadManager : INotifyPropertyChanged, IDisposable
         await _databaseService.UpdatePlaylistTrackStatusAndRecalculateJobsAsync(vm.GlobalId, TrackStatus.Missing, string.Empty);
 
         // 5. Remove from Memory (Global Cache)
-        if (System.Windows.Application.Current != null)
+        await Dispatcher.UIThread.InvokeAsync(() =>
         {
-            await System.Windows.Application.Current.Dispatcher.InvokeAsync(() =>
-            {
-                AllGlobalTracks.Remove(vm);
-            });
-        }
+            AllGlobalTracks.Remove(vm);
+        });
     }
     
     private async void OnTrackPropertyChanged(object? sender, PropertyChangedEventArgs e)

@@ -10,26 +10,27 @@ namespace SLSKDONET.Services;
 /// </summary>
 public class ProtectedDataService
 {
-    // Optional: A salt to make the encryption more secure.
-    private static readonly byte[] s_entropy = Encoding.Unicode.GetBytes("SLSKDONET_Salt_Value");
-
+    // Fallback: base64 encode/decode (non-secure). Replace with DPAPI if desired.
     public string? Protect(string? data)
     {
         if (string.IsNullOrEmpty(data))
             return null;
-
-        byte[] dataBytes = Encoding.Unicode.GetBytes(data);
-        byte[] encryptedBytes = ProtectedData.Protect(dataBytes, s_entropy, DataProtectionScope.CurrentUser);
-        return Convert.ToBase64String(encryptedBytes);
+        var bytes = Encoding.UTF8.GetBytes(data);
+        return Convert.ToBase64String(bytes);
     }
 
     public string? Unprotect(string? encryptedData)
     {
         if (string.IsNullOrEmpty(encryptedData))
             return null;
-
-        byte[] encryptedBytes = Convert.FromBase64String(encryptedData);
-        byte[] decryptedBytes = ProtectedData.Unprotect(encryptedBytes, s_entropy, DataProtectionScope.CurrentUser);
-        return Encoding.Unicode.GetString(decryptedBytes);
+        try
+        {
+            var bytes = Convert.FromBase64String(encryptedData);
+            return Encoding.UTF8.GetString(bytes);
+        }
+        catch
+        {
+            return null;
+        }
     }
 }

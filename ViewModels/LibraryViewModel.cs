@@ -4,12 +4,11 @@ using System.ComponentModel;
 using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Threading.Tasks;
-using System.Windows.Input;
 using Microsoft.Extensions.Logging;
 using SLSKDONET.Models;
 using SLSKDONET.Services;
-using System.Windows.Data;
 using SLSKDONET.Views;
+using Avalonia.Threading;
 
 namespace SLSKDONET.ViewModels;
 
@@ -23,7 +22,7 @@ public class LibraryViewModel : INotifyPropertyChanged
     private readonly ImportHistoryViewModel _importHistoryViewModel;
     private readonly INavigationService _navigationService;
     private readonly IUserInputService _userInputService;
-    private MainViewModel? _mainViewModel; // Set after construction to avoid circular dependency
+    private Views.MainViewModel? _mainViewModel; // Set after construction to avoid circular dependency
 
 
     private bool FilterTracks(object obj)
@@ -55,22 +54,22 @@ public class LibraryViewModel : INotifyPropertyChanged
     private string _noProjectSelectedMessage = "Select an import job to view its tracks";
     private readonly PlaylistJob _allTracksJob = new() { Id = Guid.Empty, SourceTitle = "All Tracks", SourceType = "Global Library" };
 
-    public ICommand HardRetryCommand { get; }
-    public ICommand PauseCommand { get; }
-    public ICommand ResumeCommand { get; }
-    public ICommand CancelCommand { get; }
-    public ICommand OpenProjectCommand { get; }
-    public ICommand DeleteProjectCommand { get; }
-    public ICommand RefreshLibraryCommand { get; }
-    public ICommand PauseProjectCommand { get; }
-    public ICommand ResumeProjectCommand { get; }
-    public ICommand LoadAllTracksCommand { get; }
-    public ICommand OpenFolderCommand { get; }
-    public ICommand RemoveTrackCommand { get; }
-    public ICommand AddPlaylistCommand { get; }
-    public ICommand PlayTrackCommand { get; }
+    public System.Windows.Input.ICommand HardRetryCommand { get; }
+    public System.Windows.Input.ICommand PauseCommand { get; }
+    public System.Windows.Input.ICommand ResumeCommand { get; }
+    public System.Windows.Input.ICommand CancelCommand { get; }
+    public System.Windows.Input.ICommand OpenProjectCommand { get; }
+    public System.Windows.Input.ICommand DeleteProjectCommand { get; }
+    public System.Windows.Input.ICommand RefreshLibraryCommand { get; }
+    public System.Windows.Input.ICommand PauseProjectCommand { get; }
+    public System.Windows.Input.ICommand ResumeProjectCommand { get; }
+    public System.Windows.Input.ICommand LoadAllTracksCommand { get; }
+    public System.Windows.Input.ICommand OpenFolderCommand { get; }
+    public System.Windows.Input.ICommand RemoveTrackCommand { get; }
+    public System.Windows.Input.ICommand AddPlaylistCommand { get; }
+    public System.Windows.Input.ICommand PlayTrackCommand { get; }
 
-    public ICommand ViewHistoryCommand { get; }
+    public System.Windows.Input.ICommand ViewHistoryCommand { get; }
 
     // Master List: All import jobs/projects
     public ObservableCollection<PlaylistJob> AllProjects
@@ -102,22 +101,36 @@ public class LibraryViewModel : INotifyPropertyChanged
         { 
             _currentProjectTracks = value; 
             OnPropertyChanged();
-            
-            // Re-create Filtered View when collection changes
-            var filteredView = new ListCollectionView(_currentProjectTracks);
-            filteredView.Filter = FilterTracks;
-            filteredView.IsLiveFiltering = true;
-            filteredView.LiveFilteringProperties.Add(nameof(PlaylistTrackViewModel.State));
-            filteredView.LiveFilteringProperties.Add(nameof(PlaylistTrackViewModel.Artist));
-            filteredView.LiveFilteringProperties.Add(nameof(PlaylistTrackViewModel.Title));
-            
-            FilteredTracks = filteredView;
-            OnPropertyChanged(nameof(FilteredTracks));
+            RefreshFilteredTracks();
         }
     }
 
-    public ICollectionView? FilteredTracks { get; private set; }
-    public ICollectionView ActiveDownloadsView { get; private set; } // For HUD
+    private ObservableCollection<PlaylistTrackViewModel> _filteredTracks = new();
+    public ObservableCollection<PlaylistTrackViewModel> FilteredTracks
+    {
+        get => _filteredTracks;
+        private set
+        {
+            if (_filteredTracks != value)
+            {
+                _filteredTracks = value;
+                OnPropertyChanged();
+            }
+        }
+    }
+
+    private void RefreshFilteredTracks()
+    {
+        var filtered = _currentProjectTracks
+            .Where(FilterTracks)
+            .ToList();
+        
+        _filteredTracks.Clear();
+        foreach (var track in filtered)
+        {
+            _filteredTracks.Add(track);
+        }
+    }
 
     private string _searchText = "";
     public string SearchText
@@ -129,7 +142,7 @@ public class LibraryViewModel : INotifyPropertyChanged
             {
                 _searchText = value;
                 OnPropertyChanged();
-                FilteredTracks?.Refresh();
+                RefreshFilteredTracks();
             }
         }
     }
@@ -145,7 +158,7 @@ public class LibraryViewModel : INotifyPropertyChanged
             {
                 _isFilterAll = value;
                 OnPropertyChanged();
-                if (value) FilteredTracks?.Refresh();
+                RefreshFilteredTracks();
             }
         }
     }
@@ -160,7 +173,7 @@ public class LibraryViewModel : INotifyPropertyChanged
             {
                 _isFilterDownloaded = value;
                 OnPropertyChanged();
-                if (value) FilteredTracks?.Refresh();
+                RefreshFilteredTracks();
             }
         }
     }
@@ -175,7 +188,7 @@ public class LibraryViewModel : INotifyPropertyChanged
             {
                 _isFilterPending = value;
                 OnPropertyChanged();
-                if (value) FilteredTracks?.Refresh();
+                RefreshFilteredTracks();
             }
         }
     }
@@ -195,7 +208,7 @@ public class LibraryViewModel : INotifyPropertyChanged
         }
     }
     
-    public ICommand ToggleActiveDownloadsCommand { get; }
+    public System.Windows.Input.ICommand ToggleActiveDownloadsCommand { get; }
 
     public int MaxDownloads 
     {
@@ -247,12 +260,12 @@ public class LibraryViewModel : INotifyPropertyChanged
 
     public bool IsDataGridReadOnly => !IsEditMode;
 
-    public ICommand ToggleEditModeCommand { get; }
+    public System.Windows.Input.ICommand ToggleEditModeCommand { get; }
 
     private bool _initialLoadCompleted = false;
 
     // Public setter to inject MainViewModel after construction (avoids circular dependency)
-    public void SetMainViewModel(MainViewModel mainViewModel)
+    public void SetMainViewModel(Views.MainViewModel mainViewModel)
     {
         _mainViewModel = mainViewModel;
     }
@@ -295,13 +308,6 @@ public class LibraryViewModel : INotifyPropertyChanged
         OpenFolderCommand = new RelayCommand<object>(_ => { /* TODO: Implement Open Folder */ });
         RemoveTrackCommand = new RelayCommand<PlaylistTrackViewModel>(ExecuteRemoveTrack); // Replaced TODO
 
-        // Initialize Views
-        var activeView = new ListCollectionView(_downloadManager.AllGlobalTracks);
-        activeView.Filter = o => (o as PlaylistTrackViewModel)?.IsActive == true;
-        activeView.IsLiveFiltering = true;
-        activeView.LiveFilteringProperties.Add(nameof(PlaylistTrackViewModel.IsActive));
-        ActiveDownloadsView = activeView;
-
         // Subscribe to global track updates for live project track status
         _downloadManager.TrackUpdated += OnGlobalTrackUpdated;
 
@@ -323,9 +329,7 @@ public class LibraryViewModel : INotifyPropertyChanged
         var updatedJob = await _libraryService.FindPlaylistJobAsync(jobId);
         if (updatedJob == null) return;
 
-        if (System.Windows.Application.Current is null) return;
-        
-        await System.Windows.Application.Current.Dispatcher.InvokeAsync(() =>
+        await Dispatcher.UIThread.InvokeAsync(() =>
         {
             // Update the existing object in the list so the UI binding triggers
             var existingJob = AllProjects.FirstOrDefault(j => j.Id == jobId);
@@ -344,9 +348,8 @@ public class LibraryViewModel : INotifyPropertyChanged
     private async void OnProjectDeleted(object? sender, Guid projectId)
     {
         _logger.LogInformation("OnProjectDeleted event received for job {JobId}", projectId);
-        if (System.Windows.Application.Current is null) return;
 
-        await System.Windows.Application.Current.Dispatcher.InvokeAsync(() =>
+        await Dispatcher.UIThread.InvokeAsync(() =>
         {
             var jobToRemove = AllProjects.FirstOrDefault(p => p.Id == projectId);
             if (jobToRemove != null)
@@ -362,20 +365,7 @@ public class LibraryViewModel : INotifyPropertyChanged
     
     private async Task ExecuteRefreshAsync()
     {
-        // Confirmation dialog for intensive operation
-        var result = System.Windows.MessageBox.Show(
-            "This will scan your download folder and resolve missing file paths.\n\n" +
-            "On large libraries, this may take some time.\n\n" +
-            "Continue with refresh?",
-            "Confirm Refresh",
-            System.Windows.MessageBoxButton.YesNo,
-            System.Windows.MessageBoxImage.Question);
-        
-        if (result != System.Windows.MessageBoxResult.Yes)
-        {
-            _logger.LogInformation("Refresh cancelled by user");
-            return;
-        }
+        // Proceed without WPF MessageBox prompt in Avalonia stub
         
         _logger.LogInformation("Manual refresh requested - reloading projects and resolving file paths");
         
@@ -546,9 +536,8 @@ public class LibraryViewModel : INotifyPropertyChanged
     private async void OnProjectAdded(object? sender, ProjectEventArgs e)
     {
         _logger.LogInformation("OnProjectAdded ENTRY for job {JobId}. Current project count: {ProjectCount}, Global track count: {TrackCount}", e.Job.Id, AllProjects.Count, _downloadManager.AllGlobalTracks.Count);
-        if (System.Windows.Application.Current is null) return;
         
-        await System.Windows.Application.Current.Dispatcher.InvokeAsync(() =>
+        await Dispatcher.UIThread.InvokeAsync(() =>
         {
             // Check if the job already exists in the collection (race condition safety)
             if (AllProjects.Any(j => j.Id == e.Job.Id))
@@ -636,8 +625,6 @@ public class LibraryViewModel : INotifyPropertyChanged
     {
         if (vm == null) return;
 
-        _logger.LogInformation("Cancel requested for {Artist} - {Title}", vm.Artist, vm.Title);
-        _downloadManager.CancelTrack(vm.GlobalId);
         _logger.LogInformation("Cancel requested for {Artist} - {Title}", vm.Artist, vm.Title);
         _downloadManager.CancelTrack(vm.GlobalId);
     }
@@ -882,13 +869,9 @@ public class LibraryViewModel : INotifyPropertyChanged
              return; 
         }
 
-        var result = System.Windows.MessageBox.Show(
-            $"Remove '{track.Title}' from playlist?", 
-            "Confirm Remove", 
-            System.Windows.MessageBoxButton.YesNo, 
-            System.Windows.MessageBoxImage.Question);
-
-        if (result != System.Windows.MessageBoxResult.Yes) return;
+        // Proceed without modal prompt in Avalonia migration; consider adding custom dialog if needed.
+        var confirmed = true;
+        if (!confirmed) return;
 
         try
         {
@@ -1001,8 +984,7 @@ public class LibraryViewModel : INotifyPropertyChanged
                 }
             }
 
-            if (System.Windows.Application.Current is null) return;
-            await System.Windows.Application.Current.Dispatcher.InvokeAsync(() =>
+            await Dispatcher.UIThread.InvokeAsync(() =>
             {
                 CurrentProjectTracks = tracks;
             });
@@ -1030,8 +1012,7 @@ public class LibraryViewModel : INotifyPropertyChanged
                     job.Id, job.SourceTitle, job.TotalTracks, job.CreatedAt);
             }
 
-            if (System.Windows.Application.Current is null) return;
-            await System.Windows.Application.Current.Dispatcher.InvokeAsync(() =>
+            await Dispatcher.UIThread.InvokeAsync(() =>
             {
                 if (_initialLoadCompleted)
                 {
@@ -1109,9 +1090,8 @@ public class LibraryViewModel : INotifyPropertyChanged
     {
         if (updatedTrack == null || CurrentProjectTracks == null) return;
 
-        if (System.Windows.Application.Current is null) return;
         // Use Dispatcher for UI thread safety
-        System.Windows.Application.Current.Dispatcher.Invoke(() =>
+        Dispatcher.UIThread.Post(() =>
         {
             var localTrack = CurrentProjectTracks
                 .FirstOrDefault(t => t.GlobalId == updatedTrack.GlobalId);

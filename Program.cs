@@ -1,5 +1,3 @@
-// Program.cs (Standard Avalonia Desktop Entry Point)
-
 using Avalonia;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.ReactiveUI;
@@ -9,8 +7,8 @@ namespace SLSKDONET
 {
     class Program
     {
-        // Initialization code. Don't use any Avalonia or WPF types until BuildAvaloniaApp
-        // is called.
+        // Initialization code. Don't use any Avalonia or WPF types until Get
+        // Instance() is called.
         [STAThread]
         public static void Main(string[] args) => BuildAvaloniaApp()
             .StartWithClassicDesktopLifetime(args);

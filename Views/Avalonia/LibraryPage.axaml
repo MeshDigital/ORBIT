@@ -1,0 +1,38 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Class="SLSKDONET.Views.Avalonia.LibraryPage"
+             Background="#1E1E1E" Foreground="White">
+    <Border Padding="16">
+        <Grid RowDefinitions="Auto,*">
+        <!-- Header -->
+        <StackPanel Orientation="Horizontal" Spacing="12" Grid.Row="0">
+            <TextBlock Text="Imported Library" FontSize="20" FontWeight="Bold"/>
+            <Button Content="🔄 Refresh" Command="{Binding RefreshLibraryCommand}" 
+                    Background="#0078D4" Foreground="White" Padding="12,8"/>
+            <Button Content="⬆️ Import Folder" Command="{Binding ImportFolderCommand}" 
+                    Background="#0078D4" Foreground="White" Padding="12,8"/>
+        </StackPanel>
+
+        <!-- Library Grid -->
+        <DataGrid Grid.Row="1" ItemsSource="{Binding LibraryTracks}" Margin="0,12,0,0"
+                  Background="#252526" Foreground="White" GridLinesVisibility="Horizontal"
+                  AutoGenerateColumns="False">
+            <DataGrid.Columns>
+                <DataGridTextColumn Header="Artist" Binding="{Binding Artist}" Width="150"/>
+                <DataGridTextColumn Header="Title" Binding="{Binding Title}" Width="250"/>
+                <DataGridTextColumn Header="Album" Binding="{Binding Album}" Width="200"/>
+                <DataGridTextColumn Header="Length" Binding="{Binding Length}" Width="80"/>
+                <DataGridTextColumn Header="Bitrate" Binding="{Binding Bitrate}" Width="80"/>
+                <DataGridTemplateColumn Header="Action" Width="100">
+                    <DataGridTemplateColumn.CellTemplate>
+                        <DataTemplate>
+                            <Button Content="❌ Remove" Command="{Binding DataContext.RemoveTrackCommand, RelativeSource={RelativeSource AncestorType=DataGrid}}" 
+                                    CommandParameter="{Binding}" Background="#D94040" Foreground="White" Padding="8,4"/>
+                        </DataTemplate>
+                    </DataGridTemplateColumn.CellTemplate>
+                </DataGridTemplateColumn>
+            </DataGrid.Columns>
+        </DataGrid>
+        </Grid>
+    </Border>
+</UserControl>

@@ -218,7 +218,6 @@ public class DownloadJob : INotifyPropertyChanged
         if (EqualityComparer<T>.Default.Equals(field, value)) return false;
         field = value;
         OnPropertyChanged(propertyName);
-        System.Windows.Input.CommandManager.InvalidateRequerySuggested();
         return true;
     }
 }

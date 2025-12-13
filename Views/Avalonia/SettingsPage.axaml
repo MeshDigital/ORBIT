@@ -1,0 +1,70 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Class="SLSKDONET.Views.Avalonia.SettingsPage"
+             Background="#1E1E1E" Foreground="White">
+    <ScrollViewer Padding="16">
+        <StackPanel Spacing="16">
+            <TextBlock Text="Settings" FontSize="20" FontWeight="Bold"/>
+
+            <!-- Connection Settings -->
+            <Border Background="#252526" Padding="12" CornerRadius="4">
+                <StackPanel Spacing="12">
+                    <TextBlock Text="Connection Settings" FontSize="14" FontWeight="Bold"/>
+                    
+                    <Grid ColumnDefinitions="150,*">
+                        <TextBlock Text="Username:" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                        <TextBox Grid.Column="1" Text="{Binding SoulseekUsername}" Background="#1E1E1E" Foreground="White"/>
+                    </Grid>
+
+                    <Grid ColumnDefinitions="150,*">
+                        <TextBlock Text="Password:" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                        <TextBox Grid.Column="1" Text="{Binding SoulseekPassword}" Background="#1E1E1E" Foreground="White"/>
+                    </Grid>
+
+                    <Grid ColumnDefinitions="150,*">
+                        <TextBlock Text="Download Folder:" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                        <Grid ColumnDefinitions="*,Auto">
+                            <TextBox Grid.Column="0" Text="{Binding DownloadFolder}" Background="#1E1E1E" Foreground="White" Margin="0,0,8,0"/>
+                            <Button Grid.Column="1" Content="Browse..." Command="{Binding BrowseFolderCommand}" 
+                                    Background="#0078D4" Foreground="White" Padding="12,8"/>
+                        </Grid>
+                    </Grid>
+
+                    <Button Content="💾 Save Settings" Command="{Binding SaveSettingsCommand}" 
+                            Background="#0078D4" Foreground="White" Padding="12,8"/>
+                </StackPanel>
+            </Border>
+
+            <!-- Audio Settings -->
+            <Border Background="#252526" Padding="12" CornerRadius="4">
+                <StackPanel Spacing="12">
+                    <TextBlock Text="Audio Settings" FontSize="14" FontWeight="Bold"/>
+                    
+                    <Grid ColumnDefinitions="150,*">
+                        <TextBlock Text="Preferred Format:" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                        <ComboBox Grid.Column="1" SelectedItem="{Binding PreferredAudioFormat}">
+                            <ComboBoxItem>FLAC</ComboBoxItem>
+                            <ComboBoxItem>MP3 320K</ComboBoxItem>
+                            <ComboBoxItem>MP3 256K</ComboBoxItem>
+                            <ComboBoxItem>MP3 128K</ComboBoxItem>
+                            <ComboBoxItem>Any</ComboBoxItem>
+                        </ComboBox>
+                    </Grid>
+
+                    <Grid ColumnDefinitions="150,*">
+                        <CheckBox Grid.Column="0" IsChecked="{Binding ApplyMetadata}" Content="Apply Metadata" VerticalAlignment="Center"/>
+                    </Grid>
+                </StackPanel>
+            </Border>
+
+            <!-- About -->
+            <Border Background="#252526" Padding="12" CornerRadius="4">
+                <StackPanel Spacing="8">
+                    <TextBlock Text="About" FontSize="14" FontWeight="Bold"/>
+                    <TextBlock Text="SLSKDONET - Soulseek Music Downloader" Foreground="#A0A0A0"/>
+                    <TextBlock Text="Built with Avalonia UI" Foreground="#A0A0A0"/>
+                </StackPanel>
+            </Border>
+        </StackPanel>
+    </ScrollViewer>
+</UserControl>

@@ -7,6 +7,7 @@ namespace SLSKDONET.Views;
 
 /// <summary>
 /// An ICommand implementation that supports asynchronous operations.
+/// Avalonia-compatible version without WPF CommandManager dependency.
 /// </summary>
 public class AsyncRelayCommand<T> : ICommand
 {
@@ -14,11 +15,7 @@ public class AsyncRelayCommand<T> : ICommand
     private readonly Func<T?, bool>? _canExecute;
     private bool _isExecuting;
 
-    public event EventHandler? CanExecuteChanged
-    {
-        add { CommandManager.RequerySuggested += value; }
-        remove { CommandManager.RequerySuggested -= value; }
-    }
+    public event EventHandler? CanExecuteChanged;
 
     public AsyncRelayCommand(Func<T?, Task> execute, Func<T?, bool>? canExecute = null)
     {
@@ -38,7 +35,7 @@ public class AsyncRelayCommand<T> : ICommand
             try
             {
                 _isExecuting = true;
-                CommandManager.InvalidateRequerySuggested();
+                RaiseCanExecuteChanged();
                 await _execute((T?)parameter);
             }
             catch (Exception ex)
@@ -51,14 +48,22 @@ public class AsyncRelayCommand<T> : ICommand
             finally
             {
                 _isExecuting = false;
-                CommandManager.InvalidateRequerySuggested();
+                RaiseCanExecuteChanged();
             }
         }
+    }
+
+    /// <summary>
+    /// Raises the CanExecuteChanged event to re-evaluate the command's execution status.
+    /// </summary>
+    public void RaiseCanExecuteChanged()
+    {
+        CanExecuteChanged?.Invoke(this, EventArgs.Empty);
     }
 }
 
 /// <summary>
-/// A generic version of AsyncRelayCommand for commands that accept a parameter.
+/// A non-generic version of AsyncRelayCommand.
 /// </summary>
 public class AsyncRelayCommand : AsyncRelayCommand<object>
 {

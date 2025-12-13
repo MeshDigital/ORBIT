@@ -3,7 +3,6 @@ using System;
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
 using System.Windows.Input; // For ICommand
-using System.Windows.Media; // For Brush
 using SLSKDONET.Models;
 using SLSKDONET.Views; // For RelayCommand
 
@@ -210,21 +209,21 @@ public class PlaylistTrackViewModel : INotifyPropertyChanged
     public bool CanHardRetry => State == PlaylistTrackState.Failed || State == PlaylistTrackState.Cancelled; // Or Completed if we want to re-download
     public bool CanDeleteFile => State == PlaylistTrackState.Completed || State == PlaylistTrackState.Failed || State == PlaylistTrackState.Cancelled;
 
-    // Visuals
-    public System.Windows.Media.Brush StatusColor
+    // Visuals - Color codes for Avalonia (replacing WPF Brushes)
+    public string StatusColor
     {
         get
         {
             return State switch
             {
-                PlaylistTrackState.Completed => System.Windows.Media.Brushes.LightGreen,
-                PlaylistTrackState.Downloading => System.Windows.Media.Brushes.DeepSkyBlue,
-                PlaylistTrackState.Searching => System.Windows.Media.Brushes.CornflowerBlue,
-                PlaylistTrackState.Queued => System.Windows.Media.Brushes.Cyan,
-                PlaylistTrackState.Paused => System.Windows.Media.Brushes.Orange,
-                PlaylistTrackState.Failed => System.Windows.Media.Brushes.Red,
-                PlaylistTrackState.Cancelled => System.Windows.Media.Brushes.Gray,
-                _ => System.Windows.Media.Brushes.LightGray
+                PlaylistTrackState.Completed => "#90EE90",      // Light Green
+                PlaylistTrackState.Downloading => "#00BFFF",    // Deep Sky Blue
+                PlaylistTrackState.Searching => "#6495ED",      // Cornflower Blue
+                PlaylistTrackState.Queued => "#00FFFF",         // Cyan
+                PlaylistTrackState.Paused => "#FFA500",         // Orange
+                PlaylistTrackState.Failed => "#FF0000",         // Red
+                PlaylistTrackState.Cancelled => "#808080",      // Gray
+                _ => "#D3D3D3"                                  // LightGray
             };
         }
     }

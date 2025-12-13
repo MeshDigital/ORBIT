@@ -1,0 +1,41 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Class="SLSKDONET.Views.Avalonia.DownloadsPage"
+             Background="#1E1E1E" Foreground="White">
+    <Border Padding="16">
+        <Grid RowDefinitions="Auto,*">
+        <!-- Header -->
+        <StackPanel Orientation="Horizontal" Spacing="12" Grid.Row="0">
+            <TextBlock Text="Downloads" FontSize="20" FontWeight="Bold"/>
+            <Button Content="⏸️ Pause All" Command="{Binding PauseAllCommand}" 
+                    Background="#FFA500" Foreground="White" Padding="12,8"/>
+            <Button Content="▶️ Resume All" Command="{Binding ResumeAllCommand}" 
+                    Background="#0078D4" Foreground="White" Padding="12,8"/>
+            <Button Content="🗑️ Clear Done" Command="{Binding ClearCompletedCommand}" 
+                    Background="#D94040" Foreground="White" Padding="12,8"/>
+        </StackPanel>
+
+        <!-- Downloads Grid -->
+        <DataGrid Grid.Row="1" ItemsSource="{Binding ActiveDownloads}" Margin="0,12,0,0"
+                  Background="#252526" Foreground="White" GridLinesVisibility="Horizontal"
+                  AutoGenerateColumns="False">
+            <DataGrid.Columns>
+                <DataGridTextColumn Header="Artist" Binding="{Binding Artist}" Width="120"/>
+                <DataGridTextColumn Header="Title" Binding="{Binding Title}" Width="200"/>
+                <DataGridTextColumn Header="Status" Binding="{Binding Status}" Width="100"/>
+                <DataGridTextColumn Header="Progress" Binding="{Binding ProgressPercent}" Width="80"/>
+                <DataGridTextColumn Header="Speed" Binding="{Binding Speed}" Width="100"/>
+                <DataGridTextColumn Header="ETA" Binding="{Binding EstimatedTime}" Width="80"/>
+                <DataGridTemplateColumn Header="Action" Width="80">
+                    <DataGridTemplateColumn.CellTemplate>
+                        <DataTemplate>
+                            <Button Content="❌" Command="{Binding DataContext.CancelDownloadCommand, RelativeSource={RelativeSource AncestorType=DataGrid}}" 
+                                    CommandParameter="{Binding}" Background="#D94040" Foreground="White" Padding="8,4"/>
+                        </DataTemplate>
+                    </DataGridTemplateColumn.CellTemplate>
+                </DataGridTemplateColumn>
+            </DataGrid.Columns>
+        </DataGrid>
+        </Grid>
+    </Border>
+</UserControl>

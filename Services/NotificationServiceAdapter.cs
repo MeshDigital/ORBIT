@@ -6,57 +6,39 @@ using SLSKDONET.Views;
 namespace SLSKDONET.Services;
 
 /// <summary>
-/// Adapter that implements the view-level INotificationService and delegates
-/// to the Wpf.Ui notification service when available. Falls back to logging.
+/// Adapter that implements the view-level INotificationService for Avalonia.
+/// Falls back to logging when no UI notification service is available.
 /// </summary>
 public class NotificationServiceAdapter : SLSKDONET.Views.INotificationService
 {
     private readonly ILogger<NotificationServiceAdapter> _logger;
-    private readonly object? _wpfNotificationService;
-    private readonly Type? _wpfNotificationTypeEnum;
 
-    public NotificationServiceAdapter(ILogger<NotificationServiceAdapter> logger, object? wpfNotificationService = null)
+    public NotificationServiceAdapter(ILogger<NotificationServiceAdapter> logger)
     {
         _logger = logger;
-        _wpfNotificationService = wpfNotificationService;
-
-        if (_wpfNotificationService != null)
-        {
-            // Find the Wpf.Ui NotificationType enum dynamically to avoid a hard reference
-            _wpfNotificationTypeEnum = _wpfNotificationService.GetType().Assembly.GetType("Wpf.Ui.Controls.NotificationType");
-        }
     }
 
     public void Show(string title, string message, NotificationType type = NotificationType.Information, TimeSpan? duration = null)
     {
-        if (_wpfNotificationService == null || _wpfNotificationTypeEnum == null)
+        // Log the notification (Avalonia doesn't have built-in toast notifications like WPF)
+        var logMessage = $"{type}: {title} - {message}";
+        
+        switch (type)
         {
-            _logger.LogInformation("Notification (fallback): {Title} - {Message}", title, message);
-            return;
+            case NotificationType.Error:
+                _logger.LogError(logMessage);
+                break;
+            case NotificationType.Warning:
+                _logger.LogWarning(logMessage);
+                break;
+            case NotificationType.Success:
+            case NotificationType.Information:
+            default:
+                _logger.LogInformation(logMessage);
+                break;
         }
-
-        try
-        {
-            // Map our local enum to the Wpf.Ui enum value
-            object wpfType = Enum.Parse(_wpfNotificationTypeEnum, type.ToString());
-
-            // Get the Show method with the correct signature if available
-            var showMethod = _wpfNotificationService.GetType().GetMethod("Show", new[] { typeof(string), typeof(string), _wpfNotificationTypeEnum, typeof(TimeSpan) });
-
-            if (showMethod != null)
-            {
-                showMethod.Invoke(_wpfNotificationService, new object[] { title, message, wpfType, duration ?? TimeSpan.FromSeconds(5) });
-            }
-            else
-            {
-                _logger.LogWarning("Could not find 'Show' method on Wpf.Ui.INotificationService with the expected signature.");
-                _logger.LogInformation("Notification (fallback): {Title} - {Message}", title, message);
-            }
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Failed to show notification via Wpf.Ui service.");
-            _logger.LogInformation("Notification (fallback): {Title} - {Message}", title, message);
-        }
+        
+        // TODO: Implement proper Avalonia toast notifications here
+        // Can use third-party libraries like Notification.Avalonia or custom toast windows
     }
 }

@@ -1,5 +1,3 @@
-// App.axaml.cs (Avalonia Application & DI Setup)
-
 using Avalonia;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Markup.Xaml;
@@ -9,6 +7,7 @@ using SLSKDONET.Configuration;
 using SLSKDONET.Services;
 using SLSKDONET.Services.InputParsers;
 using SLSKDONET.ViewModels;
+using SLSKDONET.Views;
 using System;
 using System.IO;
 
@@ -147,6 +146,7 @@ public partial class App : Application
         // Navigation and UI services
         services.AddSingleton<INavigationService, NavigationService>();
         services.AddSingleton<IUserInputService, UserInputService>();
+        services.AddSingleton<IFileInteractionService, FileInteractionService>();
 
         // ViewModels
         services.AddSingleton<MainViewModel>();
