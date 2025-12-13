@@ -59,6 +59,13 @@ public class MainViewModel : INotifyPropertyChanged
         set => SetProperty(ref _isAlbumSearch, value);
     }
 
+    private string _applicationVersion = "Unknown";
+    public string ApplicationVersion
+    {
+        get => _applicationVersion;
+        set => SetProperty(ref _applicationVersion, value);
+    }
+
     public ObservableCollection<Track> SearchResults { get; } = new();
     public ObservableCollection<AlbumResultViewModel> AlbumResults { get; } = new();
     public ObservableCollection<DownloadJob> Downloads { get; } = new();
@@ -336,6 +343,20 @@ public class MainViewModel : INotifyPropertyChanged
                 }
             }
         });
+        
+        
+        // Set application version from assembly
+        try
+        {
+            var version = System.Reflection.Assembly.GetExecutingAssembly().GetName().Version;
+            ApplicationVersion = version != null ? $"{version.Major}.{version.Minor}.{version.Build}" : "1.0.0";
+            _logger.LogInformation($"Application Version: {ApplicationVersion}");
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Failed to get application version");
+            ApplicationVersion = "1.0.0";
+        }
         
         _logger.LogInformation($"MainViewModel initialized. IsConnected={_isConnected}, IsSearching={_isSearching}, StatusText={_statusText}");
         _logger.LogInformation("=== MainViewModel Constructor Completed ===");

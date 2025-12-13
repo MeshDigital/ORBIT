@@ -39,6 +39,7 @@ namespace SLSKDONET.Views
         {
             _dragStartPoint = e.GetPosition(null);
             System.Diagnostics.Debug.WriteLine($"[DRAG] MouseDown at {_dragStartPoint}");
+            Console.WriteLine($"[DRAG] MouseDown at {_dragStartPoint}"); // Also output to console
         }
 
         // Removed Redundant DataGridRow_PreviewMouseDown
@@ -56,6 +57,7 @@ namespace SLSKDONET.Views
                     if (sender is DataGridRow row && row.DataContext is PlaylistTrackViewModel trackVm)
                     {
                         System.Diagnostics.Debug.WriteLine($"[DRAG] Starting drag for: {trackVm.Artist} - {trackVm.Title}");
+                        Console.WriteLine($"[DRAG] Starting drag for: {trackVm.Artist} - {trackVm.Title}");
                         
                         // Start Drag
                         _layer = AdornerLayer.GetAdornerLayer(row);
@@ -64,18 +66,22 @@ namespace SLSKDONET.Views
                         {
                             _layer.Add(_adorner);
                             System.Diagnostics.Debug.WriteLine("[DRAG] Adorner added to layer");
+                            Console.WriteLine("[DRAG] Adorner added to layer");
                         }
                         else
                         {
                             System.Diagnostics.Debug.WriteLine("[DRAG] WARNING: Could not get AdornerLayer!");
+                            Console.WriteLine("[DRAG] WARNING: Could not get AdornerLayer!");
                         }
 
                         try
                         {
                             var dragData = new System.Windows.DataObject(typeof(PlaylistTrackViewModel), trackVm);
                             System.Diagnostics.Debug.WriteLine("[DRAG] Calling DoDragDrop...");
+                            Console.WriteLine("[DRAG] Calling DoDragDrop...");
                             var result = DragDrop.DoDragDrop(row, dragData, System.Windows.DragDropEffects.Move);
                             System.Diagnostics.Debug.WriteLine($"[DRAG] DoDragDrop completed with result: {result}");
+                            Console.WriteLine($"[DRAG] DoDragDrop completed with result: {result}");
                         }
                         finally
                         {
@@ -135,15 +141,18 @@ namespace SLSKDONET.Views
         private void DataGridRow_MouseDoubleClick(object sender, MouseButtonEventArgs e)
         {
             System.Diagnostics.Debug.WriteLine("[PLAYBACK] DataGridRow_MouseDoubleClick fired");
+            Console.WriteLine("[PLAYBACK] DataGridRow_MouseDoubleClick fired");
             if (sender is DataGridRow row && row.DataContext is PlaylistTrackViewModel track)
             {
                 System.Diagnostics.Debug.WriteLine($"[PLAYBACK] Playing: {track.Artist} - {track.Title}");
+                Console.WriteLine($"[PLAYBACK] Playing: {track.Artist} - {track.Title}");
                 var vm = DataContext as LibraryViewModel;
                 vm?.PlayTrackCommand.Execute(track);
             }
             else
             {
                 System.Diagnostics.Debug.WriteLine("[PLAYBACK] WARNING: Sender is not DataGridRow or DataContext is not PlaylistTrackViewModel");
+                Console.WriteLine("[PLAYBACK] WARNING: Sender is not DataGridRow or DataContext is not PlaylistTrackViewModel");
             }
         }
     }
