@@ -29,9 +29,68 @@ namespace SLSKDONET.Views
             DataContext = viewModel;
         }
 
+
+
+        private System.Windows.Point _dragStartPoint;
+        private DragAdorner _adorner;
+        private AdornerLayer _layer;
+
         private void DataGridRow_PreviewMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
         {
-            // Optional: Start Drag logic here if manual start is needed
+            _dragStartPoint = e.GetPosition(null);
+            System.Diagnostics.Debug.WriteLine($"[DRAG] MouseDown at {_dragStartPoint}");
+        }
+
+        // Removed Redundant DataGridRow_PreviewMouseDown
+        
+        private void DataGridRow_PreviewMouseMove(object sender, System.Windows.Input.MouseEventArgs e)
+        {
+            if (e.LeftButton == MouseButtonState.Pressed)
+            {
+                System.Windows.Point mousePos = e.GetPosition(null);
+                Vector diff = _dragStartPoint - mousePos;
+
+                if (Math.Abs(diff.X) > SystemParameters.MinimumHorizontalDragDistance ||
+                    Math.Abs(diff.Y) > SystemParameters.MinimumVerticalDragDistance)
+                {
+                    if (sender is DataGridRow row && row.DataContext is PlaylistTrackViewModel trackVm)
+                    {
+                        System.Diagnostics.Debug.WriteLine($"[DRAG] Starting drag for: {trackVm.Artist} - {trackVm.Title}");
+                        
+                        // Start Drag
+                        _layer = AdornerLayer.GetAdornerLayer(row);
+                        _adorner = new DragAdorner(row, row, 0.7);
+                        if (_layer != null)
+                        {
+                            _layer.Add(_adorner);
+                            System.Diagnostics.Debug.WriteLine("[DRAG] Adorner added to layer");
+                        }
+                        else
+                        {
+                            System.Diagnostics.Debug.WriteLine("[DRAG] WARNING: Could not get AdornerLayer!");
+                        }
+
+                        try
+                        {
+                            var dragData = new System.Windows.DataObject(typeof(PlaylistTrackViewModel), trackVm);
+                            System.Diagnostics.Debug.WriteLine("[DRAG] Calling DoDragDrop...");
+                            var result = DragDrop.DoDragDrop(row, dragData, System.Windows.DragDropEffects.Move);
+                            System.Diagnostics.Debug.WriteLine($"[DRAG] DoDragDrop completed with result: {result}");
+                        }
+                        finally
+                        {
+                            // Cleanup Adorner
+                            if (_layer != null && _adorner != null)
+                            {
+                                _layer.Remove(_adorner);
+                                _adorner = null;
+                                _layer = null;
+                                System.Diagnostics.Debug.WriteLine("[DRAG] Adorner cleaned up");
+                            }
+                        }
+                    }
+                }
+            }
         }
 
         private void DataGridRow_Drop(object sender, System.Windows.DragEventArgs e)
@@ -75,10 +134,16 @@ namespace SLSKDONET.Views
 
         private void DataGridRow_MouseDoubleClick(object sender, MouseButtonEventArgs e)
         {
+            System.Diagnostics.Debug.WriteLine("[PLAYBACK] DataGridRow_MouseDoubleClick fired");
             if (sender is DataGridRow row && row.DataContext is PlaylistTrackViewModel track)
             {
+                System.Diagnostics.Debug.WriteLine($"[PLAYBACK] Playing: {track.Artist} - {track.Title}");
                 var vm = DataContext as LibraryViewModel;
                 vm?.PlayTrackCommand.Execute(track);
+            }
+            else
+            {
+                System.Diagnostics.Debug.WriteLine("[PLAYBACK] WARNING: Sender is not DataGridRow or DataContext is not PlaylistTrackViewModel");
             }
         }
     }

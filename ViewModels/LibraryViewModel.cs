@@ -22,18 +22,22 @@ public class LibraryViewModel : INotifyPropertyChanged
     private readonly PlayerViewModel _playerViewModel;
     private readonly ImportHistoryViewModel _importHistoryViewModel;
     private readonly INavigationService _navigationService;
+    private readonly IUserInputService _userInputService;
 
 
     private bool FilterTracks(object obj)
     {
         if (obj is not PlaylistTrackViewModel track) return false;
         
-        // Apply state filter first
-        if (IsFilterDownloaded && track.State != PlaylistTrackState.Completed)
-            return false;
-        
-        if (IsFilterPending && track.State == PlaylistTrackState.Completed)
-            return false;
+        // Apply state filter first (only if not showing all)
+        if (!IsFilterAll)
+        {
+            if (IsFilterDownloaded && track.State != PlaylistTrackState.Completed)
+                return false;
+            
+            if (IsFilterPending && track.State == PlaylistTrackState.Completed)
+                return false;
+        }
         
         // Then apply search filter
         if (string.IsNullOrWhiteSpace(SearchText)) return true;
@@ -111,7 +115,7 @@ public class LibraryViewModel : INotifyPropertyChanged
         }
     }
 
-    public ICollectionView FilteredTracks { get; private set; }
+    public ICollectionView? FilteredTracks { get; private set; }
     public ICollectionView ActiveDownloadsView { get; private set; } // For HUD
 
     private string _searchText = "";
@@ -225,6 +229,25 @@ public class LibraryViewModel : INotifyPropertyChanged
         }
     }
 
+    private bool _isEditMode;
+    public bool IsEditMode
+    {
+        get => _isEditMode;
+        set
+        {
+            if (_isEditMode != value)
+            {
+                _isEditMode = value;
+                OnPropertyChanged();
+                OnPropertyChanged(nameof(IsDataGridReadOnly));
+            }
+        }
+    }
+
+    public bool IsDataGridReadOnly => !IsEditMode;
+
+    public ICommand ToggleEditModeCommand { get; }
+
     private bool _initialLoadCompleted = false;
 
     public LibraryViewModel(
@@ -233,7 +256,8 @@ public class LibraryViewModel : INotifyPropertyChanged
         ILibraryService libraryService, 
         PlayerViewModel playerViewModel,
         ImportHistoryViewModel importHistoryViewModel,
-        INavigationService navigationService)
+        INavigationService navigationService,
+        IUserInputService userInputService)
     {
         _logger = logger;
         _downloadManager = downloadManager;
@@ -241,6 +265,7 @@ public class LibraryViewModel : INotifyPropertyChanged
         _playerViewModel = playerViewModel;
         _importHistoryViewModel = importHistoryViewModel;
         _navigationService = navigationService;
+        _userInputService = userInputService;
 
         // Commands
         HardRetryCommand = new RelayCommand<PlaylistTrackViewModel>(ExecuteHardRetry);
@@ -257,10 +282,11 @@ public class LibraryViewModel : INotifyPropertyChanged
         AddPlaylistCommand = new AsyncRelayCommand(ExecuteAddPlaylistAsync);
         PlayTrackCommand = new RelayCommand<PlaylistTrackViewModel>(ExecutePlayTrack);
         ViewHistoryCommand = new AsyncRelayCommand(ExecuteViewHistoryAsync);
+        ToggleEditModeCommand = new RelayCommand<object>(_ => IsEditMode = !IsEditMode);
         
         // Basic impl for missing commands
         OpenFolderCommand = new RelayCommand<object>(_ => { /* TODO: Implement Open Folder */ });
-        RemoveTrackCommand = new RelayCommand<object>(_ => { /* TODO: Implement Remove Track */ });
+        RemoveTrackCommand = new RelayCommand<PlaylistTrackViewModel>(ExecuteRemoveTrack); // Replaced TODO
 
         // Initialize Views
         var activeView = new ListCollectionView(_downloadManager.AllGlobalTracks);
@@ -370,16 +396,16 @@ public class LibraryViewModel : INotifyPropertyChanged
                 Album = sourceTrack.Album,
                 TrackUniqueHash = sourceTrack.GlobalId,
                 Status = TrackStatus.Downloaded, // Assuming we dragged a downloaded/existing track
-                ResolvedFilePath = sourceTrack.Model.ResolvedFilePath,
-                TrackNumber = targetPlaylist.TotalTracks + 1, // Append to end
-                AddedAt = DateTime.UtcNow,
                 SortOrder = targetPlaylist.TotalTracks + 1 // Default sort order
             };
 
             // 2. Persist to Database
             await _libraryService.SavePlaylistTrackAsync(newTrack);
 
-            // 3. Update Target Playlist Counts/Metadata if needed
+            // 3. Log Activity
+            await _libraryService.LogPlaylistActivityAsync(targetPlaylist.Id, "Add", $"Added track '{sourceTrack.Artist} - {sourceTrack.Title}'");
+
+            // 4. Update Target Playlist Counts/Metadata if needed
             // The service might do this, or we rely on events.
             // Let's manually refresh the target playlist's in-memory list if it's currently selected?
             // If it's NOT selected, we just need to update the TotalTracks count on the job object.
@@ -546,9 +572,13 @@ public class LibraryViewModel : INotifyPropertyChanged
     {
         try
         {
-            // Simple auto-naming strategy
+            // Simple auto-naming strategy as default
             int count = AllProjects.Count(p => p.SourceTitle.StartsWith("New Playlist"));
-            string title = count == 0 ? "New Playlist" : $"New Playlist {count + 1}";
+            string defaultTitle = count == 0 ? "New Playlist" : $"New Playlist {count + 1}";
+
+            string? title = _userInputService.GetInput("Enter a name for the new playlist:", "New Playlist", defaultTitle);
+
+            if (string.IsNullOrWhiteSpace(title)) return; // User cancelled
 
             _logger.LogInformation("Creating new playlist: {Title}", title);
             var job = await _libraryService.CreateEmptyPlaylistAsync(title);
@@ -582,6 +612,50 @@ public class LibraryViewModel : INotifyPropertyChanged
         catch (Exception ex)
         {
             _logger.LogError(ex, "Failed to delete project {Id}", targetJob.Id);
+        }
+    }
+
+    private async void ExecuteRemoveTrack(PlaylistTrackViewModel? track)
+    {
+        if (track == null || SelectedProject == null || SelectedProject.Id == Guid.Empty) return;
+
+        // User didn't strictly say it's restricted to Edit Mode, but it's consistent.
+        if (!IsEditMode) 
+        {
+             // Optional: Show message "Enable Edit Mode to remove tracks"
+             return; 
+        }
+
+        var result = System.Windows.MessageBox.Show(
+            $"Remove '{track.Title}' from playlist?", 
+            "Confirm Remove", 
+            System.Windows.MessageBoxButton.YesNo, 
+            System.Windows.MessageBoxImage.Question);
+
+        if (result != System.Windows.MessageBoxResult.Yes) return;
+
+        try
+        {
+            _logger.LogInformation("Removing track {Track} from playlist {Playlist}", track.Title, SelectedProject.SourceTitle);
+            
+            // 1. Remove from DB
+            await _libraryService.DeletePlaylistTrackAsync(track.Id);
+            
+            // 2. Log Activity
+            await _libraryService.LogPlaylistActivityAsync(SelectedProject.Id, "Remove", $"Removed track '{track.Artist} - {track.Title}'");
+
+            // 3. Update In-Memory list
+            if (CurrentProjectTracks.Contains(track))
+            {
+                CurrentProjectTracks.Remove(track);
+            }
+            
+            // 4. Update counts
+            SelectedProject.TotalTracks--;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to remove track");
         }
     }
 

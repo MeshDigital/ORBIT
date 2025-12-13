@@ -134,7 +134,8 @@
             <Frame x:Name="RootFrame" Grid.Column="1" NavigationUIVisibility="Hidden" Background="Transparent"/>
             
             <!-- Right Sidebar Placeholder (Music Player) -->
-            <Border Grid.Column="2" Background="#222" BorderBrush="#333" BorderThickness="1,0,0,0">
+            <Border Grid.Column="2" Background="#222" BorderBrush="#333" BorderThickness="1,0,0,0" AllowDrop="True" Drop="Player_Drop"
+                    Visibility="{Binding IsPlayerSidebarVisible, Converter={StaticResource BooleanToVisibilityConverter}}">
                 <Grid>
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto"/>

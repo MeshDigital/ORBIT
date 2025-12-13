@@ -56,6 +56,12 @@
     <PackageReference Include="HtmlAgilityPack" Version="1.11.60" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Content Include="tray_icon.png">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+  </ItemGroup>
+
   <!-- Explicitly include XAML pages to ensure generated InitializeComponent and named elements are available. -->
   <ItemGroup>
     <Page Update="Views\MainWindow.xaml" />

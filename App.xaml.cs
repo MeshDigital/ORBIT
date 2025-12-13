@@ -180,7 +180,7 @@ public partial class App : System.Windows.Application
         // Register navigation and UI services used by the app.
         services.AddSingleton<INavigationService, NavigationService>();
         services.AddSingleton<SLSKDONET.Views.INotificationService, NotificationServiceAdapter>();
-        services.AddSingleton<IUserInputService, UserInputService>();
+        services.AddSingleton<IUserInputService, SLSKDONET.Services.UserInputService>();
 
         // Views (add logger for MainWindow)
         services.AddSingleton<MainWindow>();

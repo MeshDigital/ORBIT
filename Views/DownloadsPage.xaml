@@ -116,7 +116,9 @@
                   Foreground="#CCCCCC"
                   GridLinesVisibility="Horizontal"
                   HorizontalGridLinesBrush="#333"
-                  BorderThickness="0">
+
+                  BorderThickness="0"
+                  MouseDoubleClick="DataGrid_MouseDoubleClick">
              
             <DataGrid.Resources>
                 <Style TargetType="DataGridColumnHeader">

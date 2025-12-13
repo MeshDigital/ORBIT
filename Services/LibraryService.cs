@@ -48,6 +48,26 @@ public class LibraryService : ILibraryService
 
     public Task RefreshPlaylistsAsync() => InitializePlaylistsAsync();
 
+    public async Task LogPlaylistActivityAsync(Guid playlistId, string action, string details)
+    {
+        try
+        {
+            var log = new PlaylistActivityLogEntity
+            {
+                Id = Guid.NewGuid(),
+                PlaylistId = playlistId,
+                Action = action,
+                Details = details,
+                Timestamp = DateTime.UtcNow
+            };
+            await _databaseService.LogActivityAsync(log);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to log playlist activity");
+        }
+    }
+
     private async Task InitializePlaylistsAsync()
     {
         try
@@ -336,6 +356,16 @@ public class LibraryService : ILibraryService
             _logger.LogError(ex, "Failed to save playlist track");
             throw;
         }
+    }
+
+    public async Task DeletePlaylistTracksAsync(Guid jobId)
+    {
+         await _databaseService.DeletePlaylistTracksAsync(jobId);
+    }
+    
+    public async Task DeletePlaylistTrackAsync(Guid playlistTrackId)
+    {
+        await _databaseService.DeleteSinglePlaylistTrackAsync(playlistTrackId);
     }
 
     public async Task UpdatePlaylistTrackAsync(PlaylistTrack track)

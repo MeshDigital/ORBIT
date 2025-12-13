@@ -4,6 +4,7 @@
       xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
       xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
       xmlns:viewmodels="clr-namespace:SLSKDONET.ViewModels"
+      xmlns:converters="clr-namespace:SLSKDONET.Converters"
       mc:Ignorable="d" 
       d:DataContext="{d:DesignInstance Type=viewmodels:LibraryViewModel}"
       d:DesignHeight="800" d:DesignWidth="1200"
@@ -11,6 +12,7 @@
 
     <Page.Resources>
         <BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter"/>
+        <converters:BooleanToTextConverter x:Key="BooleanToTextConverter"/>
         
         <!-- Filter Tab Style -->
         <Style x:Key="FilterTabStyle" TargetType="RadioButton">
@@ -68,7 +70,7 @@
                 </Grid>
 
                 <!-- New Playlist Button -->
-                <Button Grid.Row="1" Command="{Binding CreatePlaylistCommand}" 
+                <Button Grid.Row="1" Command="{Binding AddPlaylistCommand}" 
                         Margin="12,0,12,10" Background="#2A2A2A" BorderThickness="1" BorderBrush="#333"
                         Cursor="Hand" Height="36">
                     <Button.Template>
@@ -366,7 +368,30 @@
                                         <TextBlock Text="Remove" Foreground="#DDD" FontWeight="SemiBold" FontSize="13"/>
                                     </StackPanel>
                                 </Button>
-                                
+                                <Button Command="{Binding ToggleEditModeCommand}" ToolTip="Toggle Edit Mode"
+                                        Margin="0,0,10,0" Padding="15,8" Background="#222" BorderThickness="1" BorderBrush="#333" Cursor="Hand" Height="38">
+                                    <Button.Resources>
+                                        <Style TargetType="{x:Type Border}">
+                                            <Setter Property="CornerRadius" Value="8"/>
+                                        </Style>
+                                    </Button.Resources>
+                                    <StackPanel Orientation="Horizontal">
+                                        <TextBlock Text="✏️" Margin="0,0,8,0" FontSize="14"/>
+                                        <TextBlock Text="{Binding IsEditMode, Converter={StaticResource BooleanToTextConverter}, ConverterParameter='Done|Edit'}" 
+                                                   Foreground="#DDD" FontWeight="SemiBold" FontSize="13"/>
+                                    </StackPanel>
+                                    <Button.Style>
+                                        <Style TargetType="Button">
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding IsEditMode}" Value="True">
+                                                    <Setter Property="Background" Value="#1B5E20"/>
+                                                    <Setter Property="BorderBrush" Value="#2E7D32"/>
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </Button.Style>
+                                </Button>
+
                                 <Button Command="{Binding DeleteProjectCommand}" ToolTip="Delete Playlist"
                                         Margin="0,0,0,0" Padding="15,8" Background="#3E2723" BorderThickness="0" Cursor="Hand" Height="38">
                                     <Button.Resources>
@@ -499,7 +524,8 @@
                           Padding="0"
                           CanUserAddRows="False"
                           CanUserDeleteRows="False"
-                          IsReadOnly="False">
+                          SelectionMode="Single"
+                          IsReadOnly="{Binding IsDataGridReadOnly}">
                     
                     <DataGrid.Resources>
                         <Style TargetType="DataGridColumnHeader">
@@ -540,6 +566,7 @@
                         
                         <Style TargetType="DataGridRow">
                             <EventSetter Event="PreviewMouseLeftButtonDown" Handler="DataGridRow_PreviewMouseLeftButtonDown"/>
+                            <EventSetter Event="PreviewMouseMove" Handler="DataGridRow_PreviewMouseMove"/>
                             <EventSetter Event="Drop" Handler="DataGridRow_Drop"/>
                             <EventSetter Event="PreviewDragOver" Handler="OnPreviewDragOver"/>
                             <Setter Property="Background" Value="Transparent"/>

@@ -63,7 +63,10 @@ public interface ILibraryService
     /// <summary>
     /// Loads historical (completed/cancelled) jobs for history view.
     /// </summary>
-    Task<List<PlaylistJob>> GetHistoricalJobsAsync();
+        Task<List<PlaylistJob>> GetHistoricalJobsAsync();
+        
+        // Activity Logging
+        Task LogPlaylistActivityAsync(Guid playlistId, string action, string details);
 
     /// <summary>
     /// Loads a specific playlist job by ID (asynchronous).
@@ -87,6 +90,8 @@ public interface ILibraryService
     /// Deletes a playlist job and its related PlaylistTrack entries.
     /// </summary>
     Task DeletePlaylistJobAsync(Guid playlistId);
+    Task DeletePlaylistTracksAsync(Guid jobId);
+    Task DeletePlaylistTrackAsync(Guid playlistTrackId);
 
     /// <summary>
     /// Creates a new empty user playlist.

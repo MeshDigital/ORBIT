@@ -10,6 +10,7 @@ public class AppDbContext : DbContext
     public DbSet<LibraryEntryEntity> LibraryEntries { get; set; }
     public DbSet<PlaylistJobEntity> PlaylistJobs { get; set; }
     public DbSet<PlaylistTrackEntity> PlaylistTracks { get; set; }
+    public DbSet<PlaylistActivityLogEntity> ActivityLogs { get; set; }
 
     protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
     {
@@ -56,5 +57,11 @@ public class AppDbContext : DbContext
 
         // Phase 1C: Implement Global Query Filter for Soft Deletes
         modelBuilder.Entity<PlaylistJobEntity>().HasQueryFilter(j => !j.IsDeleted);
+        // Playlist Activity Logs
+        modelBuilder.Entity<PlaylistJobEntity>()
+            .HasMany<PlaylistActivityLogEntity>()
+            .WithOne(l => l.Job)
+            .HasForeignKey(l => l.PlaylistId)
+            .OnDelete(DeleteBehavior.Cascade);
     }
 }

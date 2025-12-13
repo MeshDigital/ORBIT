@@ -65,6 +65,8 @@ public partial class MainWindow : Window
             LogToFile("Starting library load...");
             _viewModel.OnViewLoaded();
             LogToFile("Library load initiated");
+
+            SetupTrayIcon();
             
             LogToFile("=== MainWindow Constructor Completed Successfully ===");
         }
@@ -78,6 +80,50 @@ public partial class MainWindow : Window
                 System.Windows.MessageBoxImage.Error);
             throw;
         }
+    }
+
+    private System.Windows.Forms.NotifyIcon _notifyIcon;
+
+    private void SetupTrayIcon()
+    {
+        try
+        {
+            _notifyIcon = new System.Windows.Forms.NotifyIcon();
+            _notifyIcon.Text = "Soulseek Downloader";
+            _notifyIcon.Visible = true;
+            
+            string iconPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "tray_icon.png");
+            if (File.Exists(iconPath))
+            {
+                // Loading Bitmap from file and converting to Icon
+                // This requires System.Drawing.Common which is available in .NET Windows Desktop
+                using (var bitmap = new System.Drawing.Bitmap(iconPath))
+                {
+                    _notifyIcon.Icon = System.Drawing.Icon.FromHandle(bitmap.GetHicon());
+                }
+            }
+            else
+            {
+                LogToFile($"Tray Icon not found at {iconPath}");
+            }
+
+            _notifyIcon.Click += (s, e) =>
+            {
+                this.Show();
+                this.WindowState = WindowState.Normal;
+                this.Activate();
+            };
+        }
+        catch (Exception ex)
+        {
+            LogToFile($"SetupTrayIcon Error: {ex.Message}");
+        }
+    }
+
+    protected override void OnClosed(EventArgs e)
+    {
+        _notifyIcon?.Dispose();
+        base.OnClosed(e);
     }
     
     private void LogToFile(string message)
@@ -180,4 +226,35 @@ public partial class MainWindow : Window
         }
     }
 
+    private void Player_Drop(object sender, System.Windows.DragEventArgs e)
+    {
+        try
+        {
+            LogToFile("Player_Drop event fired");
+            
+            // Handle Drag & Drop from Library (PlaylistTrackViewModel)
+            if (e.Data.GetDataPresent(typeof(SLSKDONET.ViewModels.PlaylistTrackViewModel)))
+            {
+                var trackVm = e.Data.GetData(typeof(SLSKDONET.ViewModels.PlaylistTrackViewModel)) as SLSKDONET.ViewModels.PlaylistTrackViewModel;
+                if (trackVm != null)
+                {
+                    LogToFile($"Dropped track: {trackVm.Artist} - {trackVm.Title}");
+                    if (!string.IsNullOrEmpty(trackVm.Model?.ResolvedFilePath))
+                    {
+                         _viewModel.PlayerViewModel.PlayTrack(trackVm.Model.ResolvedFilePath, trackVm.Title ?? "Unknown", trackVm.Artist ?? "Unknown Artist");
+                         // Ensure sidebar is visible
+                         _viewModel.IsPlayerSidebarVisible = true;
+                    }
+                    else
+                    {
+                        LogToFile("Track has no resolved file path, cannot play.");
+                    }
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+             LogToFile($"Player_Drop ERROR: {ex.Message}");
+        }
+    }
 }

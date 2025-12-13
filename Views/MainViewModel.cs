@@ -84,7 +84,7 @@ public class MainViewModel : INotifyPropertyChanged
         set => SetProperty(ref _isNavigationCollapsed, value);
     }
     
-    private bool _isPlayerSidebarVisible;
+    private bool _isPlayerSidebarVisible = true;
     public bool IsPlayerSidebarVisible
     {
         get => _isPlayerSidebarVisible;

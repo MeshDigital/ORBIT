@@ -56,6 +56,33 @@ public class DatabaseService
         {
             _logger.LogError(ex, "Failed to patch database schema");
         }
+            // 3. Check for ActivityLogs table
+            // Since it's a new table, we can check if it exists in sqlite_master
+            try 
+            {
+               // This works but might be complex to parse. Better: try select
+               await context.Database.ExecuteSqlRawAsync("SELECT Id FROM ActivityLogs LIMIT 1");
+            }
+            catch
+            {
+                 _logger.LogWarning("Schema Patch: Creating missing table 'ActivityLogs'");
+                 // Create table script matching the Entity
+                 var createTableSql = @"
+                    CREATE TABLE IF NOT EXISTS ActivityLogs (
+                        Id TEXT NOT NULL CONSTRAINT PK_ActivityLogs PRIMARY KEY,
+                        PlaylistId TEXT NOT NULL,
+                        Action TEXT NOT NULL,
+                        Details TEXT NOT NULL,
+                        Timestamp TEXT NOT NULL,
+                        CONSTRAINT FK_ActivityLogs_PlaylistJobs_PlaylistId FOREIGN KEY (PlaylistId) REFERENCES PlaylistJobs (Id) ON DELETE CASCADE
+                    );
+                    CREATE INDEX IF NOT EXISTS IX_ActivityLogs_PlaylistId ON ActivityLogs (PlaylistId);
+                 ";
+                 await context.Database.ExecuteSqlRawAsync(createTableSql);
+            }
+
+
+
 
         _logger.LogInformation("Database initialized and schema verified.");
     }
@@ -334,7 +361,20 @@ public class DatabaseService
         }
         
         await context.SaveChangesAsync();
+        await context.SaveChangesAsync();
         _logger.LogInformation("Deleted {Count} playlist tracks for job {JobId}", tracks.Count, jobId);
+    }
+
+    public async Task DeleteSinglePlaylistTrackAsync(Guid playlistTrackId)
+    {
+        using var context = new AppDbContext();
+        var track = await context.PlaylistTracks.FindAsync(playlistTrackId);
+        if (track != null)
+        {
+            context.PlaylistTracks.Remove(track);
+            await UpdatePlaylistJobCountersAsync(context, track.PlaylistId);
+            await context.SaveChangesAsync();
+        }
     }
 
     /// <summary>
@@ -368,19 +408,14 @@ public class DatabaseService
 
             if (exists)
             {
-                // Update existing job
                 context.PlaylistJobs.Update(jobEntity);
             }
             else
             {
-                // Insert new job
                 context.PlaylistJobs.Add(jobEntity);
             }
             
             // For tracks, we also need to handle Add vs Update. 
-            // In a bulk import, they are usually all new, but we must be safe.
-            // Optimization: If job is new, tracks are definitely new.
-            
             if (!exists)
             {
                 var trackEntities = job.PlaylistTracks.Select(track => new PlaylistTrackEntity
@@ -401,15 +436,6 @@ public class DatabaseService
             }
             else
             {
-                // Job exists, track logic is more complex (upsert). 
-                // For now, fall back to Update which works for existing tracks, 
-                // BUT for new tracks in existing job, we need to check.
-                // Given this method is primarily for "Save Job WITH Tracks" (Import), 
-                // we'll check each track or use a more robust upsert strategy?
-                // Checking 1000 tracks is slow.
-                // Assumption: This method is used for NEW imports or Full Saves.
-                // Let's check existence of IDs in bulk?
-                
                 var trackIds = job.PlaylistTracks.Select(t => t.Id).ToList();
                 var existingTrackIds = await context.PlaylistTracks
                     .Where(t => trackIds.Contains(t.Id))
@@ -514,5 +540,12 @@ public class DatabaseService
             .Where(t => validJobIds.Contains(t.PlaylistId))
             .OrderByDescending(t => t.AddedAt)
             .ToListAsync();
+    }
+
+    public async Task LogActivityAsync(PlaylistActivityLogEntity log)
+    {
+        using var context = new AppDbContext();
+        context.ActivityLogs.Add(log);
+        await context.SaveChangesAsync();
     }
 }

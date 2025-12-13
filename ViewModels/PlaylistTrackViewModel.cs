@@ -52,6 +52,7 @@ public class PlaylistTrackViewModel : INotifyPropertyChanged
     }
 
     public Guid SourceId { get; set; } // Project ID (PlaylistJob.Id)
+    public Guid Id => Model.Id;
     public string GlobalId { get; set; } // TrackUniqueHash
     
     // Properties linked to Model and Notification
