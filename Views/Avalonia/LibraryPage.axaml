@@ -207,6 +207,7 @@
             
             <!-- Track DataGrid -->
             <DataGrid Grid.Row="2"
+                      x:Name="TrackDataGrid"
                       ItemsSource="{Binding FilteredTracks}"
                       AutoGenerateColumns="False"
                       Background="Transparent"
@@ -218,7 +219,19 @@
                       CanUserReorderColumns="False"
                       CanUserResizeColumns="True"
                       CanUserSortColumns="False"
-                      IsReadOnly="{Binding IsDataGridReadOnly}">
+                      IsReadOnly="{Binding IsDataGridReadOnly}"
+                      DragDrop.AllowDrop="True">
+                
+                <!-- Row Styles for Visual Feedback -->
+                <DataGrid.Styles>
+                    <Style Selector="DataGridRow:pointerover">
+                        <Setter Property="Background" Value="#1AFFFFFF"/>
+                        <Setter Property="Cursor" Value="Hand"/>
+                    </Style>
+                    <Style Selector="DataGridRow:selected">
+                        <Setter Property="Background" Value="#2A0078D4"/>
+                    </Style>
+                </DataGrid.Styles>
                 
                 <DataGrid.Columns>
                     <!-- # -->
