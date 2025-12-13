@@ -62,25 +62,8 @@ public class MainViewModel : INotifyPropertyChanged
     public ObservableCollection<AlbumResultViewModel> AlbumResults { get; } = new();
     public ObservableCollection<DownloadJob> Downloads { get; } = new();
     public ObservableCollection<SearchQuery> ImportedQueries { get; } = new();
-    public ObservableCollection<Track> LibraryEntries { get; } = new();
-    public ObservableCollection<OrchestratedQueryProgress> OrchestratedQueries { get; } = new();
-
-    private ImportPreviewViewModel? _importPreviewViewModel;
-    public ImportPreviewViewModel? ImportPreviewViewModel
-    {
-        get => _importPreviewViewModel;
-        set
-        {
-            if (SetProperty(ref _importPreviewViewModel, value))
-            {
-                OnPropertyChanged(nameof(IsImportPreviewVisible));
-            }
-        }
-    }
-
-    public bool IsImportPreviewVisible => ImportPreviewViewModel != null;
-
-    // Surface download manager counters for binding in the Downloads view.
+    public ObservableCollection<LibraryEntry> LibraryEntries { get; } = new();
+    public ObservableCollection<OrchestratedQueryProgress> OrchestratedQueries { get; } = new();    // Surface download manager counters for binding in the Downloads view.
     // Surface download manager counters compatibility
     public int SuccessfulCount => _downloadManager.AllGlobalTracks.Count(t => t.State == ViewModels.PlaylistTrackState.Completed);
     public int FailedCount => _downloadManager.AllGlobalTracks.Count(t => t.State == ViewModels.PlaylistTrackState.Failed);
@@ -150,7 +133,7 @@ public class MainViewModel : INotifyPropertyChanged
         AppConfig config,
         SoulseekAdapter soulseek,
         DownloadManager downloadManager,
-        ILibraryService libraryService,
+        ILibraryService libraryService,        
         SpotifyScraperInputSource spotifyScraperInputSource,
         SpotifyInputSource spotifyInputSource,
         SearchQueryNormalizer searchQueryNormalizer,
@@ -1143,30 +1126,12 @@ public class MainViewModel : INotifyPropertyChanged
             // Show preview page instead of auto-searching
             if (queries.Any())
             {
-                _logger.LogInformation("Showing import preview for {Count} Spotify tracks", queries.Count);
-
-                // The ImportPreviewViewModel is now a singleton managed by DI. We initialize it here.
-                await _importPreviewViewModel.InitializePreviewAsync(
-                    queries.FirstOrDefault()?.SourceTitle ?? "Spotify Playlist",
-                    "Spotify",
-                    queries);
-                
-                // Subscribe to AddedToLibrary event to trigger search
-                ImportPreviewViewModel.AddedToLibrary += async (s, job) =>
-                {
-                    await HandlePlaylistJobAddedAsync(job);
-                };
-                ImportPreviewViewModel.Cancelled += (s, e) =>
-                {
-                    ImportPreviewViewModel = null;
-                    StatusText = "Import cancelled";
-                };
-                
-                // Navigate to the dedicated import preview page
+                _logger.LogInformation("Navigating to ImportPreviewPage for {Count} Spotify tracks", queries.Count);
+                // The NavigationService will create the page and its ViewModel via DI.
+                // We pass the queries as a parameter to the navigation call.
                 _navigationService.NavigateTo("ImportPreview");
                 StatusText = $"Preview: {queries.Count} tracks loaded from Spotify";
-            }
-            else
+            } else
             {
                 StatusText = "No tracks found in the Spotify playlist";
             }
@@ -1214,9 +1179,6 @@ public class MainViewModel : INotifyPropertyChanged
                 _notificationService.Show("Added to Library", 
                     $"✓ {job.OriginalTracks.Count} tracks added. Starting search...", 
                     NotificationType.Success, TimeSpan.FromSeconds(3));
-            
-                // Clear preview view model
-                ImportPreviewViewModel = null;
             
                 // Navigate to Library to see the job
                 _navigationService.NavigateTo("Library");
@@ -2024,7 +1986,7 @@ public class MainViewModel : INotifyPropertyChanged
     /// Updates FilteredLibraryEntries based on the selected import.
     /// Shows all imported queries (search entries) from the same source playlist/CSV.
     /// </summary>
-    private void UpdateFilteredTracks()
+    private async void UpdateFilteredTracks()
     {
         System.Windows.Application.Current.Dispatcher.Invoke(() =>
         {
@@ -2034,7 +1996,7 @@ public class MainViewModel : INotifyPropertyChanged
             {
                 // No import selected - show nothing or show all library entries from downloaded files
                 foreach (var track in LibraryEntries)
-                {
+                { 
                     FilteredLibraryEntries.Add(track);
                 }
             }

@@ -40,20 +40,12 @@ public class NavigationService : INavigationService
             var page = _serviceProvider.GetService(pageType) as Page;
             if (page != null)
             {
-                // FIX: Only set the DataContext if the page doesn't already have one.
-                // Pages with dedicated ViewModels (like LibraryPage) set their own DataContext
-                // in their constructor via dependency injection.
+                // The DataContext is now consistently set in the Page's constructor via DI.
+                // We no longer need to manually assign it here, which was causing issues.
                 if (page.DataContext == null)
                 {
                     var mainVm = _serviceProvider.GetService(typeof(MainViewModel)) as MainViewModel;
-                    if (page is ImportPreviewPage && mainVm?.ImportPreviewViewModel != null)
-                    {
-                        page.DataContext = mainVm.ImportPreviewViewModel;
-                    }
-                    else
-                    {
-                        page.DataContext = mainVm;
-                    }
+                    page.DataContext = mainVm;
                 }
                 _frame.Navigate(page);
             }
