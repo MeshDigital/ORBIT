@@ -11,6 +11,29 @@
 
     <Page.Resources>
         <BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter"/>
+        
+        <!-- Filter Tab Style -->
+        <Style x:Key="FilterTabStyle" TargetType="RadioButton">
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="RadioButton">
+                        <Border x:Name="Border" Background="Transparent" BorderBrush="#444" BorderThickness="1" 
+                                CornerRadius="4" Padding="12,6" Margin="0">
+                            <TextBlock Text="{TemplateBinding Content}" Foreground="#AAA" FontSize="12" FontWeight="SemiBold"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsChecked" Value="True">
+                                <Setter TargetName="Border" Property="Background" Value="#007ACC"/>
+                                <Setter TargetName="Border" Property="BorderBrush" Value="#007ACC"/>
+                            </Trigger>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Border" Property="BorderBrush" Value="#007ACC"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
     </Page.Resources>
 
     <Grid Background="#121212">
@@ -25,6 +48,7 @@
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto"/>
                     <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
                     <RowDefinition Height="*"/>
                 </Grid.RowDefinitions>
 
@@ -34,39 +58,47 @@
                         <ColumnDefinition Width="*"/>
                         <ColumnDefinition Width="Auto"/>
                     </Grid.ColumnDefinitions>
-                    <TextBlock Text="My Library" FontSize="24" FontWeight="Bold" Foreground="White"/>
-                    <StackPanel Grid.Column="1" Orientation="Horizontal">
-                        <Button Command="{Binding CreatePlaylistCommand}" 
-                                Background="#2A2A2A" BorderThickness="0" Foreground="#DDD" Cursor="Hand"
-                                Padding="12,6" Margin="0,0,8,0" VerticalAlignment="Center">
-                            <StackPanel Orientation="Horizontal">
-                                <TextBlock Text="➕" Margin="0,0,6,0" FontSize="12"/>
-                                <TextBlock Text="New Playlist" FontSize="12" FontWeight="SemiBold"/>
-                            </StackPanel>
-                            <Button.Resources>
-                                <Style TargetType="{x:Type Border}">
-                                    <Setter Property="CornerRadius" Value="4"/>
-                                </Style>
-                            </Button.Resources>
-                        </Button>
-                        <Button Command="{Binding RefreshLibraryCommand}" 
-                                Background="Transparent" BorderThickness="0" Foreground="#888" Cursor="Hand"
-                                ToolTip="Refresh Library" Margin="0,0,0,0" Padding="6">
-                             <TextBlock Text="🔄" FontSize="16"/>
-                        </Button>
-                    </StackPanel>
+                    <TextBlock Text="My Library" FontSize="20" FontWeight="Bold" Foreground="White" VerticalAlignment="Center"/>
+                    
+                    <Button Grid.Column="1" Command="{Binding RefreshLibraryCommand}" 
+                            Background="Transparent" BorderThickness="0" Foreground="#666" Cursor="Hand"
+                            ToolTip="Refresh Library" Padding="8">
+                         <TextBlock Text="🔄" FontSize="14"/>
+                    </Button>
                 </Grid>
 
+                <!-- New Playlist Button -->
+                <Button Grid.Row="1" Command="{Binding CreatePlaylistCommand}" 
+                        Margin="12,0,12,10" Background="#2A2A2A" BorderThickness="1" BorderBrush="#333"
+                        Cursor="Hand" Height="36">
+                    <Button.Template>
+                        <ControlTemplate TargetType="Button">
+                            <Border x:Name="Border" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="6">
+                                <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center">
+                                    <TextBlock Text="➕" Margin="0,0,8,0" FontSize="12" Foreground="#007ACC"/>
+                                    <TextBlock Text="New Playlist" FontSize="13" FontWeight="SemiBold" Foreground="#DDD"/>
+                                </StackPanel>
+                            </Border>
+                            <ControlTemplate.Triggers>
+                                <Trigger Property="IsMouseOver" Value="True">
+                                    <Setter TargetName="Border" Property="Background" Value="#333"/>
+                                    <Setter TargetName="Border" Property="BorderBrush" Value="#444"/>
+                                </Trigger>
+                            </ControlTemplate.Triggers>
+                        </ControlTemplate>
+                    </Button.Template>
+                </Button>
+
                 <!-- All Tracks Button -->
-                <Button Grid.Row="1" Command="{Binding LoadAllTracksCommand}" 
+                <Button Grid.Row="2" Command="{Binding LoadAllTracksCommand}" 
                         Margin="12,0,12,10" Background="Transparent" BorderThickness="0" 
                         HorizontalContentAlignment="Left" Cursor="Hand">
                     <Button.Template>
                         <ControlTemplate TargetType="Button">
-                            <Border x:Name="Border" Padding="10,8" CornerRadius="6" Background="Transparent">
+                            <Border x:Name="Border" Padding="12,8" CornerRadius="6" Background="Transparent">
                                 <StackPanel Orientation="Horizontal">
-                                    <TextBlock Text="📂" Margin="0,0,12,0" FontSize="16" VerticalAlignment="Center"/>
-                                    <TextBlock Text="All Tracks" FontSize="14" FontWeight="SemiBold" Foreground="#DDD" VerticalAlignment="Center"/>
+                                    <TextBlock Text="📂" Margin="0,0,12,0" FontSize="16" VerticalAlignment="Center" Foreground="#AAA"/>
+                                    <TextBlock Text="All Tracks" FontSize="14" FontWeight="Medium" Foreground="#DDD" VerticalAlignment="Center"/>
                                 </StackPanel>
                             </Border>
                             <ControlTemplate.Triggers>
@@ -79,7 +111,7 @@
                 </Button>
 
                 <!-- Empty State for Playlist List -->
-                <TextBlock Grid.Row="2" Text="No playlists found." 
+                <TextBlock Grid.Row="3" Text="No playlists found." 
                            Foreground="#888" HorizontalAlignment="Center" VerticalAlignment="Top" Margin="0,20,0,0">
                     <TextBlock.Style>
                         <Style TargetType="TextBlock">
@@ -94,7 +126,7 @@
                 </TextBlock>
 
                 <!-- Playlist List -->
-                <ListBox Grid.Row="2" 
+                <ListBox Grid.Row="3" 
                          ItemsSource="{Binding AllProjects}" 
                          SelectedItem="{Binding SelectedProject}"
                          Background="Transparent"
@@ -163,7 +195,7 @@
 
             <!-- EMPTY STATE -->
             <Grid Grid.RowSpan="2" Panel.ZIndex="0" 
-                  Visibility="{Binding SelectedProject, Converter={StaticResource NullToVisibilityConverter}, ConverterParameter=Inverse}">
+                  Visibility="{Binding SelectedProject, Converter={StaticResource InverseNullToVisibilityConverter}}">
                 <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center" Opacity="0.5">
                     <TextBlock Text="🎵" FontSize="48" HorizontalAlignment="Center" Margin="0,0,0,20"/>
                     <TextBlock Text="Select a playlist to view tracks" FontSize="18" Foreground="#888"/>
@@ -171,7 +203,7 @@
             </Grid>
 
             <!-- ACTIVE CONTENT -->
-            <Grid Grid.RowSpan="2"
+            <Grid Grid.RowSpan="2" Panel.ZIndex="1"
                    Visibility="{Binding SelectedProject, Converter={StaticResource NullToVisibilityConverter}}">
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto"/>
@@ -209,12 +241,14 @@
                         <!-- Toolbar (Search & Actions) -->
                         <Grid Grid.Row="1">
                             <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="*"/>
-                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="Auto"/> <!-- Search -->
+                                <ColumnDefinition Width="Auto"/> <!-- Filters -->
+                                <ColumnDefinition Width="*"/>    <!-- Spacer -->
+                                <ColumnDefinition Width="Auto"/> <!-- Actions -->
                             </Grid.ColumnDefinitions>
 
                             <!-- SEARCH -->
-                            <Grid Grid.Column="0" HorizontalAlignment="Left" Width="350">
+                            <Grid Grid.Column="0" HorizontalAlignment="Left" Width="300" Margin="0,0,30,0">
                                 <TextBox x:Name="LibSearchBox"
                                          Text="{Binding SearchText, UpdateSourceTrigger=PropertyChanged}"
                                          Background="#222" Foreground="White" BorderThickness="1" BorderBrush="#333"
@@ -240,11 +274,24 @@
                                 </TextBlock>
                             </Grid>
 
-                            <!-- ACTIONS -->
+                            <!-- FILTER TABS -->
                             <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
-                                <!-- Start/Pause Controls -->
+                                <RadioButton Content="All" GroupName="TrackFilter" 
+                                             IsChecked="{Binding IsFilterAll, Mode=TwoWay}"
+                                             Style="{StaticResource FilterTabStyle}" Margin="0,0,8,0"/>
+                                <RadioButton Content="Downloaded" GroupName="TrackFilter" 
+                                             IsChecked="{Binding IsFilterDownloaded, Mode=TwoWay}"
+                                             Style="{StaticResource FilterTabStyle}" Margin="0,0,8,0"/>
+                                <RadioButton Content="Pending/Ongoing" GroupName="TrackFilter" 
+                                             IsChecked="{Binding IsFilterPending, Mode=TwoWay}"
+                                             Style="{StaticResource FilterTabStyle}"/>
+                            </StackPanel>
+
+                            <!-- ACTIONS -->
+                            <StackPanel Grid.Column="3" Orientation="Horizontal" VerticalAlignment="Center">
+                                <!-- Start Controls -->
                                 <Button Command="{Binding ResumeProjectCommand}" ToolTip="Start All Active / Resume"
-                                        Margin="10,0,0,0" Padding="15,8" Background="#1B5E20" BorderThickness="0" Cursor="Hand" Height="38">
+                                        Margin="0,0,10,0" Padding="15,8" Background="#1B5E20" BorderThickness="0" Cursor="Hand" Height="38">
                                     <Button.Resources>
                                         <Style TargetType="{x:Type Border}">
                                             <Setter Property="CornerRadius" Value="8"/>
@@ -257,7 +304,7 @@
                                 </Button>
 
                                 <Button Command="{Binding PauseProjectCommand}" ToolTip="Pause All"
-                                        Margin="10,0,0,0" Padding="15,8" Background="#262626" BorderThickness="0" Cursor="Hand" Height="38">
+                                        Margin="0,0,20,0" Padding="15,8" Background="#262626" BorderThickness="0" Cursor="Hand" Height="38">
                                     <Button.Resources>
                                         <Style TargetType="{x:Type Border}">
                                             <Setter Property="CornerRadius" Value="8"/>
@@ -269,9 +316,9 @@
                                     </StackPanel>
                                 </Button>
 
-                                <!-- Open Folder -->
+                                <!-- Management Controls -->
                                 <Button Command="{Binding OpenFolderCommand}" ToolTip="Open Folder"
-                                        Margin="20,0,0,0" Padding="15,8" Background="#262626" BorderThickness="0" Cursor="Hand" Height="38">
+                                        Margin="0,0,10,0" Padding="15,8" Background="#222" BorderThickness="1" BorderBrush="#333" Cursor="Hand" Height="38">
                                     <Button.Resources>
                                         <Style TargetType="{x:Type Border}">
                                             <Setter Property="CornerRadius" Value="8"/>
@@ -283,9 +330,8 @@
                                     </StackPanel>
                                 </Button>
 
-                                <!-- Remove Track -->
                                 <Button Command="{Binding RemoveTrackCommand}" ToolTip="Remove Selected"
-                                        Margin="10,0,0,0" Padding="15,8" Background="#262626" BorderThickness="0" Cursor="Hand" Height="38">
+                                        Margin="0,0,10,0" Padding="15,8" Background="#222" BorderThickness="1" BorderBrush="#333" Cursor="Hand" Height="38">
                                     <Button.Resources>
                                         <Style TargetType="{x:Type Border}">
                                             <Setter Property="CornerRadius" Value="8"/>
@@ -297,17 +343,16 @@
                                     </StackPanel>
                                 </Button>
                                 
-                                <!-- Delete Playlist -->
                                 <Button Command="{Binding DeleteProjectCommand}" ToolTip="Delete Playlist"
-                                        Margin="10,0,0,0" Padding="15,8" Background="#3E2723" BorderThickness="0" Cursor="Hand" Height="38">
+                                        Margin="0,0,0,0" Padding="15,8" Background="#3E2723" BorderThickness="0" Cursor="Hand" Height="38">
                                     <Button.Resources>
                                         <Style TargetType="{x:Type Border}">
                                             <Setter Property="CornerRadius" Value="8"/>
                                         </Style>
                                     </Button.Resources>
                                     <StackPanel Orientation="Horizontal">
-                                        <TextBlock Text="❌" Margin="0,0,8,0" FontSize="14"/>
-                                        <TextBlock Text="Delete" Foreground="#FF8A80" FontWeight="SemiBold" FontSize="13"/>
+                                        <TextBlock Text="❌" Margin="0,0,6,0" FontSize="12"/>
+                                        <TextBlock Text="Delete" Foreground="#FFAB91" FontWeight="SemiBold" FontSize="13"/>
                                     </StackPanel>
                                 </Button>
                             </StackPanel>
@@ -316,19 +361,56 @@
                 </Border>
 
                 <!-- ACTIVE DOWNLOADS HUD -->
-                <Expander Grid.Row="1" Header="Active Downloads &amp; Concurrency" Foreground="#DDD" 
-                          Background="#1A1A1A" BorderBrush="#333" BorderThickness="0,0,0,1" Padding="10" IsExpanded="True">
-                    <Grid Height="120">
+                <!-- ACTIVE DOWNLOADS HUD -->
+                <Grid Grid.Row="1">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
+
+                    <!-- Header / Toggle -->
+                    <Button Command="{Binding ToggleActiveDownloadsCommand}" Background="#1A1A1A" BorderThickness="0,0,0,1" BorderBrush="#333"
+                            HorizontalContentAlignment="Stretch" Padding="10" Cursor="Hand">
+                        <Button.Template>
+                            <ControlTemplate TargetType="Button">
+                                <Border Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}">
+                                    <Grid Margin="{TemplateBinding Padding}">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="Auto"/>
+                                            <ColumnDefinition Width="*"/>
+                                        </Grid.ColumnDefinitions>
+                                        
+                                        <!-- Arrow Icon -->
+                                        <TextBlock Text="▼" Foreground="#DDD" FontSize="10" VerticalAlignment="Center" Margin="0,0,8,0">
+                                            <TextBlock.Style>
+                                                <Style TargetType="TextBlock">
+                                                    <Style.Triggers>
+                                                        <DataTrigger Binding="{Binding IsActiveDownloadsVisible}" Value="False">
+                                                            <Setter Property="Text" Value="▶"/>
+                                                        </DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </TextBlock.Style>
+                                        </TextBlock>
+                                        
+                                        <TextBlock Grid.Column="1" Text="Active Downloads &amp; Concurrency" Foreground="#DDD" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                                    </Grid>
+                                </Border>
+                            </ControlTemplate>
+                        </Button.Template>
+                    </Button>
+
+                    <Grid Grid.Row="1" Height="120" Visibility="{Binding IsActiveDownloadsVisible, Converter={StaticResource BooleanToVisibilityConverter}}">
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="*"/>
                             <ColumnDefinition Width="220"/>
                         </Grid.ColumnDefinitions>
                         
                         <!-- List -->
-                        <ListView Grid.Column="0" ItemsSource="{Binding ActiveDownloadsView}" Background="Transparent" BorderThickness="0" Foreground="White">
+                        <ListView Grid.Column="0" ItemsSource="{Binding ActiveDownloadsView}" Background="#111" BorderThickness="0" Foreground="White" ScrollViewer.HorizontalScrollBarVisibility="Disabled">
                             <ListView.ItemTemplate>
                                 <DataTemplate>
-                                    <Grid Margin="0,2" Width="450">
+                                    <Grid Margin="0,4" Width="450">
                                         <Grid.ColumnDefinitions>
                                             <ColumnDefinition Width="*"/>
                                             <ColumnDefinition Width="100"/>
@@ -338,15 +420,34 @@
                                             <TextBlock Text="{Binding Title}" Foreground="White" FontWeight="SemiBold" TextTrimming="CharacterEllipsis"/>
                                             <TextBlock Text="{Binding Artist}" Foreground="#AAA" FontSize="11" TextTrimming="CharacterEllipsis"/>
                                         </StackPanel>
-                                        <ProgressBar Grid.Column="1" Value="{Binding Progress}" Maximum="100" Height="4" Margin="10,0" VerticalAlignment="Center" Foreground="#007ACC" Background="#333"/>
+                                        <ProgressBar Grid.Column="1" Value="{Binding Progress}" Maximum="100" Height="4" Margin="10,0" VerticalAlignment="Center" Foreground="#007ACC" Background="#333" BorderThickness="0"/>
                                         <TextBlock Grid.Column="2" Text="{Binding CurrentSpeed}" Foreground="#888" HorizontalAlignment="Right" VerticalAlignment="Center" FontSize="11"/>
                                     </Grid>
                                 </DataTemplate>
                             </ListView.ItemTemplate>
+                            <ListView.ItemContainerStyle>
+                                <Style TargetType="ListViewItem">
+                                    <Setter Property="Background" Value="Transparent"/>
+                                    <Setter Property="Template">
+                                        <Setter.Value>
+                                            <ControlTemplate TargetType="ListViewItem">
+                                                <Border Background="{TemplateBinding Background}" Padding="8,2">
+                                                    <ContentPresenter/>
+                                                </Border>
+                                            </ControlTemplate>
+                                        </Setter.Value>
+                                    </Setter>
+                                    <Style.Triggers>
+                                        <Trigger Property="IsMouseOver" Value="True">
+                                            <Setter Property="Background" Value="#222"/>
+                                        </Trigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </ListView.ItemContainerStyle>
                         </ListView>
 
                         <!-- Controls -->
-                        <StackPanel Grid.Column="1" Margin="20,0,0,0" VerticalAlignment="Top">
+                        <StackPanel Grid.Column="1" Margin="20,10,10,0" VerticalAlignment="Top">
                             <TextBlock Text="Max Concurrent Downloads" Foreground="#AAA" FontSize="12" Margin="0,0,0,8"/>
                             <StackPanel Orientation="Horizontal">
                                 <Slider Value="{Binding MaxDownloads}" Minimum="1" Maximum="10" Width="150" 
@@ -356,7 +457,7 @@
                             <TextBlock Text="Limit active downloads to share bandwidth." Foreground="#666" FontSize="10" Margin="0,5,0,0" TextWrapping="Wrap"/>
                         </StackPanel>
                     </Grid>
-                </Expander>
+                </Grid>
 
                 <!-- TRACK LIST DATAGRID -->
                 <DataGrid Grid.Row="2" 

@@ -65,6 +65,16 @@ public class MainViewModel : INotifyPropertyChanged
     public ObservableCollection<SearchQuery> ImportedQueries { get; } = new();
     public ObservableCollection<LibraryEntry> LibraryEntries { get; } = new();
     public ObservableCollection<OrchestratedQueryProgress> OrchestratedQueries { get; } = new();
+    
+    // Import Preview ViewModel (for CSV/Spotify imports)
+    public ImportPreviewViewModel? ImportPreviewViewModel { get; private set; }
+    
+    private bool _isImportPreviewVisible;
+    public bool IsImportPreviewVisible
+    {
+        get => _isImportPreviewVisible;
+        set => SetProperty(ref _isImportPreviewVisible, value);
+    }
 
     // --- Downloads Page Search & Filtering ---
     private string _downloadsSearchText = "";
@@ -1115,21 +1125,41 @@ public class MainViewModel : INotifyPropertyChanged
             StatusText = "Importing CSV...";
             var queries = await _csvInputSource.ParseAsync(filePath);
 
-            _notificationService.Show("CSV Import Complete",
-                $"{queries.Count} tracks imported successfully.", NotificationType.Success, TimeSpan.FromSeconds(5));
-
-            System.Windows.Application.Current.Dispatcher.Invoke(() =>
+            // Show preview page instead of auto-importing
+            if (queries.Any())
             {
-                ImportedQueries.Clear();
-                foreach (var query in queries)
+                _logger.LogInformation("Initializing ImportPreviewViewModel for {Count} CSV tracks", queries.Count);
+                
+                // Get the ImportPreviewViewModel from DI and initialize it with the queries
+                var importPreviewVm = App.Current.Services.GetService(typeof(ImportPreviewViewModel)) as ImportPreviewViewModel;
+                if (importPreviewVm != null)
                 {
-                    ImportedQueries.Add(query);
+                    var fileName = System.IO.Path.GetFileNameWithoutExtension(filePath);
+                    await importPreviewVm.InitializePreviewAsync(
+                        fileName ?? "CSV Import",
+                        "CSV",
+                        queries);
+                    
+                    // Assign to property so UI can bind
+                    ImportPreviewViewModel = importPreviewVm;
+                    OnPropertyChanged(nameof(ImportPreviewViewModel));
+                    
+                    // Show the preview in the search page
+                    IsImportPreviewVisible = true;
+                    OnPropertyChanged(nameof(IsImportPreviewVisible));
+                    
+                    StatusText = $"Preview: {queries.Count} tracks loaded from CSV";
                 }
-                RebuildUniqueImports();
-            });
-
-            StatusText = $"Imported {queries.Count} queries from CSV.";
-            _logger.LogInformation("Imported {Count} items from CSV", queries.Count);
+                else
+                {
+                    _logger.LogError("Failed to resolve ImportPreviewViewModel from DI");
+                    StatusText = "Import failed: Could not create preview";
+                }
+            }
+            else
+            {
+                StatusText = "No tracks found in the CSV file";
+            }
         }
         catch (Exception ex)
         {
@@ -1175,6 +1205,10 @@ public class MainViewModel : INotifyPropertyChanged
                         queries.FirstOrDefault()?.SourceTitle ?? "Spotify Playlist",
                         "Spotify",
                         queries);
+                    
+                    // Assign to property so UI can bind
+                    ImportPreviewViewModel = importPreviewVm;
+                    OnPropertyChanged(nameof(ImportPreviewViewModel));
                     
                     // Now navigate to the preview page
                     _navigationService.NavigateTo("ImportPreview");
@@ -2083,7 +2117,9 @@ public class MainViewModel : INotifyPropertyChanged
         {
             return (vm.Artist?.Contains(DownloadsSearchText, StringComparison.OrdinalIgnoreCase) ?? false) ||
                    (vm.Title?.Contains(DownloadsSearchText, StringComparison.OrdinalIgnoreCase) ?? false) ||
+                   (vm.Album?.Contains(DownloadsSearchText, StringComparison.OrdinalIgnoreCase) ?? false) ||
                    (vm.GlobalId?.Contains(DownloadsSearchText, StringComparison.OrdinalIgnoreCase) ?? false) ||
+                   (vm.ErrorMessage?.Contains(DownloadsSearchText, StringComparison.OrdinalIgnoreCase) ?? false) ||
                    (vm.State.ToString().Contains(DownloadsSearchText, StringComparison.OrdinalIgnoreCase));
         }
         return false;

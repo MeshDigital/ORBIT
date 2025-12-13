@@ -11,6 +11,7 @@
     <Grid Background="#1E1E1E">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/> <!-- Control Buttons -->
             <RowDefinition Height="*"/>
         </Grid.RowDefinitions>
 
@@ -61,8 +62,52 @@
             </Grid>
         </Border>
 
+        <!-- Control Buttons -->
+        <Border Grid.Row="1" Background="#2A2A2A" BorderBrush="#333" BorderThickness="0,0,0,1" Padding="20,12">
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Left">
+                <Button Command="{Binding StartDownloadsCommand}" ToolTip="Start All Pending Downloads"
+                        Margin="0,0,10,0" Padding="15,8" Background="#1B5E20" BorderThickness="0" Cursor="Hand" Height="36">
+                    <Button.Resources>
+                        <Style TargetType="{x:Type Border}">
+                            <Setter Property="CornerRadius" Value="6"/>
+                        </Style>
+                    </Button.Resources>
+                    <StackPanel Orientation="Horizontal">
+                        <TextBlock Text="▶" Margin="0,0,6,0" FontSize="12"/>
+                        <TextBlock Text="Start All" Foreground="#C8E6C9" FontWeight="SemiBold" FontSize="13"/>
+                    </StackPanel>
+                </Button>
+
+                <Button Command="{Binding ShowPauseComingSoonCommand}" ToolTip="Pause All Active Downloads (Coming Soon)"
+                        Margin="0,0,10,0" Padding="15,8" Background="#424242" BorderThickness="0" Cursor="Hand" Height="36">
+                    <Button.Resources>
+                        <Style TargetType="{x:Type Border}">
+                            <Setter Property="CornerRadius" Value="6"/>
+                        </Style>
+                    </Button.Resources>
+                    <StackPanel Orientation="Horizontal">
+                        <TextBlock Text="⏸" Margin="0,0,6,0" FontSize="12"/>
+                        <TextBlock Text="Pause All" Foreground="#DDD" FontWeight="SemiBold" FontSize="13"/>
+                    </StackPanel>
+                </Button>
+
+                <Button Command="{Binding CancelDownloadsCommand}" ToolTip="Cancel All Active Downloads"
+                        Margin="0,0,0,0" Padding="15,8" Background="#3E2723" BorderThickness="0" Cursor="Hand" Height="36">
+                    <Button.Resources>
+                        <Style TargetType="{x:Type Border}">
+                            <Setter Property="CornerRadius" Value="6"/>
+                        </Style>
+                    </Button.Resources>
+                    <StackPanel Orientation="Horizontal">
+                        <TextBlock Text="⏹" Margin="0,0,6,0" FontSize="12"/>
+                        <TextBlock Text="Cancel All" Foreground="#FF8A80" FontWeight="SemiBold" FontSize="13"/>
+                    </StackPanel>
+                </Button>
+            </StackPanel>
+        </Border>
+
         <!-- Global Read-Only Grid -->
-        <DataGrid Grid.Row="1" 
+        <DataGrid Grid.Row="2" 
                   ItemsSource="{Binding FilteredGlobalTracks}" 
                   AutoGenerateColumns="False"
                   IsReadOnly="True"

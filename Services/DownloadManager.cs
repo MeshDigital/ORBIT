@@ -196,7 +196,7 @@ public class DownloadManager : INotifyPropertyChanged, IDisposable
     /// <summary>
     /// Internal method to queue a list of individual tracks for processing (e.g. from an existing project or ad-hoc).
     /// </summary>
-    private void QueueTracks(List<PlaylistTrack> tracks)
+    public void QueueTracks(List<PlaylistTrack> tracks)
     {
         _logger.LogInformation("Queueing project tracks with {Count} tracks", tracks.Count);
         lock (_collectionLock)

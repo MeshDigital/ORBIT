@@ -23,6 +23,15 @@ public class LibraryViewModel : INotifyPropertyChanged
     private bool FilterTracks(object obj)
     {
         if (obj is not PlaylistTrackViewModel track) return false;
+        
+        // Apply state filter first
+        if (IsFilterDownloaded && track.State != PlaylistTrackState.Completed)
+            return false;
+        
+        if (IsFilterPending && track.State == PlaylistTrackState.Completed)
+            return false;
+        
+        // Then apply search filter
         if (string.IsNullOrWhiteSpace(SearchText)) return true;
 
         var search = SearchText.Trim();
@@ -49,6 +58,7 @@ public class LibraryViewModel : INotifyPropertyChanged
     public ICommand LoadAllTracksCommand { get; }
     public ICommand OpenFolderCommand { get; }
     public ICommand RemoveTrackCommand { get; }
+    public ICommand AddPlaylistCommand { get; }
 
     // Master List: All import jobs/projects
     public ObservableCollection<PlaylistJob> AllProjects
@@ -84,8 +94,14 @@ public class LibraryViewModel : INotifyPropertyChanged
             OnPropertyChanged();
             
             // Re-create Filtered View when collection changes
-            FilteredTracks = new ListCollectionView(_currentProjectTracks);
-            FilteredTracks.Filter = FilterTracks;
+            var filteredView = new ListCollectionView(_currentProjectTracks);
+            filteredView.Filter = FilterTracks;
+            filteredView.IsLiveFiltering = true;
+            filteredView.LiveFilteringProperties.Add(nameof(PlaylistTrackViewModel.State));
+            filteredView.LiveFilteringProperties.Add(nameof(PlaylistTrackViewModel.Artist));
+            filteredView.LiveFilteringProperties.Add(nameof(PlaylistTrackViewModel.Title));
+            
+            FilteredTracks = filteredView;
             OnPropertyChanged(nameof(FilteredTracks));
         }
     }
@@ -107,6 +123,69 @@ public class LibraryViewModel : INotifyPropertyChanged
             }
         }
     }
+    
+    // Filter state properties
+    private bool _isFilterAll = true;
+    public bool IsFilterAll
+    {
+        get => _isFilterAll;
+        set
+        {
+            if (_isFilterAll != value)
+            {
+                _isFilterAll = value;
+                OnPropertyChanged();
+                if (value) FilteredTracks?.Refresh();
+            }
+        }
+    }
+    
+    private bool _isFilterDownloaded;
+    public bool IsFilterDownloaded
+    {
+        get => _isFilterDownloaded;
+        set
+        {
+            if (_isFilterDownloaded != value)
+            {
+                _isFilterDownloaded = value;
+                OnPropertyChanged();
+                if (value) FilteredTracks?.Refresh();
+            }
+        }
+    }
+    
+    private bool _isFilterPending;
+    public bool IsFilterPending
+    {
+        get => _isFilterPending;
+        set
+        {
+            if (_isFilterPending != value)
+            {
+                _isFilterPending = value;
+                OnPropertyChanged();
+                if (value) FilteredTracks?.Refresh();
+            }
+        }
+    }
+    
+    // Active Downloads HUD controls
+    private bool _isActiveDownloadsVisible = true;
+    public bool IsActiveDownloadsVisible
+    {
+        get => _isActiveDownloadsVisible;
+        set
+        {
+            if (_isActiveDownloadsVisible != value)
+            {
+                _isActiveDownloadsVisible = value;
+                OnPropertyChanged();
+            }
+        }
+    }
+    
+    public ICommand ToggleActiveDownloadsCommand { get; }
 
     private int _maxDownloads;
     public int MaxDownloads 
@@ -164,6 +243,8 @@ public class LibraryViewModel : INotifyPropertyChanged
         PauseProjectCommand = new RelayCommand<PlaylistJob>(ExecutePauseProject);
         ResumeProjectCommand = new RelayCommand<PlaylistJob>(ExecuteResumeProject);
         LoadAllTracksCommand = new RelayCommand(() => SelectedProject = _allTracksJob);
+        ToggleActiveDownloadsCommand = new RelayCommand<object>(_ => IsActiveDownloadsVisible = !IsActiveDownloadsVisible);
+        AddPlaylistCommand = new AsyncRelayCommand(ExecuteAddPlaylistAsync);
         
         // Basic impl for missing commands
         OpenFolderCommand = new RelayCommand<object>(_ => { /* TODO: Implement Open Folder */ });
@@ -353,31 +434,93 @@ public class LibraryViewModel : INotifyPropertyChanged
 
     private void ExecuteResumeProject(PlaylistJob? job)
     {
-        var tracks = CurrentProjectTracks.ToList();
-        _logger.LogInformation("Resuming all {Count} tracks in current view", tracks.Count);
+        // Use local snapshot to avoid collection modified exception
+        var tracks = CurrentProjectTracks?.ToList();
+        if (tracks == null || !tracks.Any()) return;
+
+        _logger.LogInformation("Start All: Processing {Count} tracks in current view", tracks.Count);
+        
+        int resumed = 0, requeued = 0, alreadyActive = 0;
+        
         foreach (var t in tracks)
         {
-            if (t.CanResume) _downloadManager.ResumeTrack(t.GlobalId);
-            else if (t.CanHardRetry) _downloadManager.HardRetryTrack(t.GlobalId);
+            // 1. Check if track is actually known to the DownloadManager
+            var liveTrack = _downloadManager.AllGlobalTracks.FirstOrDefault(x => x.GlobalId == t.GlobalId);
+            
+            if (liveTrack == null)
+            {
+                // ORPHAN DETECTED: Track exists in UI but not in Manager
+                // Re-queue it unless it's genuinely completed/downloading (unlikely for orphan)
+                if (t.State != PlaylistTrackState.Completed && t.State != PlaylistTrackState.Downloading)
+                {
+                    _downloadManager.QueueTracks(new List<PlaylistTrack> { t.Model });
+                    requeued++;
+                }
+                continue;
+            }
+            
+            // 2. Existing Track Logic
+            if (liveTrack.State == PlaylistTrackState.Paused || liveTrack.State == PlaylistTrackState.Failed)
+            {
+                _downloadManager.ResumeTrack(t.GlobalId);
+                resumed++;
+            }
+            else if (liveTrack.State == PlaylistTrackState.Pending)
+            {
+                // Already pending in manager. 
+                // We'll leave it to the loop, but we won't skip logic if we needed to do something else.
+            }
+            else if (liveTrack.IsActive)
+            {
+                alreadyActive++;
+            }
+        }
+        
+        _logger.LogInformation("Start All Summary: Resumed {Resumed}, Re-Queued {Requeued}, AlreadyActive {Active}", resumed, requeued, alreadyActive);
+    }
+        
+
+
+    private async Task ExecuteAddPlaylistAsync()
+    {
+        try
+        {
+            // Simple auto-naming strategy
+            int count = AllProjects.Count(p => p.SourceTitle.StartsWith("New Playlist"));
+            string title = count == 0 ? "New Playlist" : $"New Playlist {count + 1}";
+
+            _logger.LogInformation("Creating new playlist: {Title}", title);
+            var job = await _libraryService.CreateEmptyPlaylistAsync(title);
+            
+            // UI Update
+            AllProjects.Add(job);
+            SelectedProject = job;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to create new playlist");
         }
     }
 
     private async Task ExecuteDeleteProjectAsync(PlaylistJob? job)
     {
-        if (job == null) return;
+        // Fallback to selected project if null (e.g. called from header button without parameter)
+        var targetJob = job ?? SelectedProject;
+        
+        if (targetJob == null || targetJob == _allTracksJob) return;
 
-        _logger.LogInformation("Soft-deleting project: {Title} ({Id})", job.SourceTitle, job.Id);
+        _logger.LogInformation("Soft-deleting project: {Title} ({Id})", targetJob.SourceTitle, targetJob.Id);
 
         try
         {
             // Soft-delete via database service
-            await _libraryService.DeletePlaylistJobAsync(job.Id);
+            await _libraryService.DeletePlaylistJobAsync(targetJob.Id);
             // The UI update will now be handled by the OnProjectDeleted event handler.
-            _logger.LogInformation("Deletion request for project {Title} processed. Event will trigger UI update.", job.SourceTitle);
+            _logger.LogInformation("Deletion request for project {Title} processed. Event will trigger UI update.", targetJob.SourceTitle);
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to delete project {Id}", job.Id);
+            _logger.LogError(ex, "Failed to delete project {Id}", targetJob.Id);
         }
     }
 
@@ -388,15 +531,18 @@ public class LibraryViewModel : INotifyPropertyChanged
             _logger.LogInformation("Loading tracks for project: {Name}", job.SourceTitle);
             var tracks = new ObservableCollection<PlaylistTrackViewModel>();
 
-            if (job.Id == Guid.Empty) // All Tracks
+            if (job.Id == Guid.Empty || job == _allTracksJob) // All Tracks
             {
+                 var globalCount = _downloadManager.AllGlobalTracks.Count;
+                 _logger.LogInformation("All Tracks mode: GlobalTracks has {Count} items.", globalCount);
+                 
                  // Load ALL global tracks, Sorted by Active first
                  var all = _downloadManager.AllGlobalTracks
                      .OrderByDescending(t => t.IsActive)
                      .ThenBy(t => t.Artist)
                      .ToList();
                  
-                 _logger.LogInformation("All Tracks mode: Found {Count} tracks", all.Count);
+                 _logger.LogInformation("All Tracks mode: Adding {Count} tracks to view.", all.Count);
                  foreach (var t in all) tracks.Add(t);
             }
             else
