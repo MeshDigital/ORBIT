@@ -16,6 +16,7 @@ using SLSKDONET.Services;
 using SLSKDONET.ViewModels;
 using SLSKDONET.Views;
 using Wpf.Ui.Controls;
+using System.Windows.Data;
 using System.Collections.Concurrent;
 using System.IO;
 
@@ -63,7 +64,25 @@ public class MainViewModel : INotifyPropertyChanged
     public ObservableCollection<DownloadJob> Downloads { get; } = new();
     public ObservableCollection<SearchQuery> ImportedQueries { get; } = new();
     public ObservableCollection<LibraryEntry> LibraryEntries { get; } = new();
-    public ObservableCollection<OrchestratedQueryProgress> OrchestratedQueries { get; } = new();    // Surface download manager counters for binding in the Downloads view.
+    public ObservableCollection<OrchestratedQueryProgress> OrchestratedQueries { get; } = new();
+
+    // --- Downloads Page Search & Filtering ---
+    private string _downloadsSearchText = "";
+    public string DownloadsSearchText
+    {
+        get => _downloadsSearchText;
+        set
+        {
+            if (SetProperty(ref _downloadsSearchText, value))
+            {
+                FilteredGlobalTracks?.Refresh();
+            }
+        }
+    }
+
+    public ICollectionView FilteredGlobalTracks { get; private set; }
+    public ICommand DeleteTrackCommand { get; }
+
     // Surface download manager counters compatibility
     public int SuccessfulCount => _downloadManager.AllGlobalTracks.Count(t => t.State == ViewModels.PlaylistTrackState.Completed);
     public int FailedCount => _downloadManager.AllGlobalTracks.Count(t => t.State == ViewModels.PlaylistTrackState.Failed);
@@ -189,6 +208,18 @@ public class MainViewModel : INotifyPropertyChanged
         ImportCsvCommand = new AsyncRelayCommand<string>(ImportCsvAsync, filePath => !string.IsNullOrEmpty(filePath));
         ImportFromSpotifyCommand = new AsyncRelayCommand(() => ImportFromSpotifyAsync());
         // RemoveFromLibraryCommand = new RelayCommand<IList<object>?>(RemoveFromLibrary, items => items is { Count: > 0 }); // LEGACY
+        
+        
+        // Downloads Page Commands
+        DeleteTrackCommand = new AsyncRelayCommand<PlaylistTrackViewModel>(async (vm) => 
+        {
+             if (vm != null) await _downloadManager.DeleteTrackFromDiskAndHistoryAsync(vm);
+        });
+        
+        // Initialize Filtered View explicitly to avoid shared view issues
+        FilteredGlobalTracks = new ListCollectionView(_downloadManager.AllGlobalTracks);
+        FilteredGlobalTracks.Filter = FilterDownloads;
+
         RescanLibraryCommand = new AsyncRelayCommand(RescanLibraryAsync);
         StartDownloadsCommand = new AsyncRelayCommand(StartDownloadsAsync, () => Downloads.Any(j => j.State == DownloadState.Pending));
         CancelDownloadsCommand = new RelayCommand(CancelDownloads);
@@ -2037,6 +2068,20 @@ public class MainViewModel : INotifyPropertyChanged
 
             ImportDownloadStats = stats;
         });
+    }
+
+    private bool FilterDownloads(object item)
+    {
+        if (string.IsNullOrWhiteSpace(DownloadsSearchText)) return true;
+
+        if (item is PlaylistTrackViewModel vm)
+        {
+            return (vm.Artist?.Contains(DownloadsSearchText, StringComparison.OrdinalIgnoreCase) ?? false) ||
+                   (vm.Title?.Contains(DownloadsSearchText, StringComparison.OrdinalIgnoreCase) ?? false) ||
+                   (vm.GlobalId?.Contains(DownloadsSearchText, StringComparison.OrdinalIgnoreCase) ?? false) ||
+                   (vm.State.ToString().Contains(DownloadsSearchText, StringComparison.OrdinalIgnoreCase));
+        }
+        return false;
     }
 
     /// <summary>

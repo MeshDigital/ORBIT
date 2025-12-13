@@ -232,6 +232,61 @@ public class DownloadManager : INotifyPropertyChanged, IDisposable
         // Processing loop picks this up automatically
     }
 
+    public async Task DeleteTrackFromDiskAndHistoryAsync(PlaylistTrackViewModel vm)
+    {
+        if (vm == null) return;
+        
+        _logger.LogInformation("Deleting track from disk and history: {Artist} - {Title} ({Id})", vm.Artist, vm.Title, vm.GlobalId);
+
+        // 1. Cancel active download
+        if (vm.CanCancel)
+        {
+            vm.Cancel();
+        }
+
+        // 2. Delete Physical Files
+        if (!string.IsNullOrEmpty(vm.Model.ResolvedFilePath))
+        {
+            try
+            {
+                if (File.Exists(vm.Model.ResolvedFilePath))
+                {
+                    File.Delete(vm.Model.ResolvedFilePath);
+                    _logger.LogInformation("Deleted file: {Path}", vm.Model.ResolvedFilePath);
+                }
+                
+                // Attempt to delete partial download if exists
+                var partPath = vm.Model.ResolvedFilePath + ".part"; // Convention used by Transfer
+                if (File.Exists(partPath))
+                {
+                    File.Delete(partPath);
+                        _logger.LogInformation("Deleted partial file: {Path}", partPath);
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to delete file(s) for track {Id}", vm.GlobalId);
+                // Continue to remove from history even if file delete fails (orphaned file risk vs stuck DB risk)
+            }
+        }
+
+        // 3. Remove from Global History (DB)
+        await _databaseService.RemoveTrackAsync(vm.GlobalId);
+
+        // 4. Update references in Playlists (DB)
+        // Mark as Missing so user sees it's gone but metadata remains
+        await _databaseService.UpdatePlaylistTrackStatusAndRecalculateJobsAsync(vm.GlobalId, TrackStatus.Missing, string.Empty);
+
+        // 5. Remove from Memory (Global Cache)
+        if (System.Windows.Application.Current != null)
+        {
+            await System.Windows.Application.Current.Dispatcher.InvokeAsync(() =>
+            {
+                AllGlobalTracks.Remove(vm);
+            });
+        }
+    }
+    
     private async void OnTrackPropertyChanged(object? sender, PropertyChangedEventArgs e)
     {
         if (sender is PlaylistTrackViewModel vm)

@@ -8,6 +8,7 @@ using System.Windows.Input;
 using Microsoft.Extensions.Logging;
 using SLSKDONET.Models;
 using SLSKDONET.Services;
+using System.Windows.Data;
 using SLSKDONET.Views;
 
 namespace SLSKDONET.ViewModels;
@@ -18,11 +19,23 @@ public class LibraryViewModel : INotifyPropertyChanged
     private readonly DownloadManager _downloadManager;
     private readonly ILibraryService _libraryService;
 
+
+    private bool FilterTracks(object obj)
+    {
+        if (obj is not PlaylistTrackViewModel track) return false;
+        if (string.IsNullOrWhiteSpace(SearchText)) return true;
+
+        var search = SearchText.Trim();
+        return (track.Artist?.Contains(search, StringComparison.OrdinalIgnoreCase) == true) ||
+               (track.Title?.Contains(search, StringComparison.OrdinalIgnoreCase) == true);
+    }
+
     // Master/Detail pattern properties
     private ObservableCollection<PlaylistJob> _allProjects = new();
     private PlaylistJob? _selectedProject;
     private ObservableCollection<PlaylistTrackViewModel> _currentProjectTracks = new();
     private string _noProjectSelectedMessage = "Select an import job to view its tracks";
+    private readonly PlaylistJob _allTracksJob = new() { Id = Guid.Empty, SourceTitle = "All Tracks", SourceType = "Global Library" };
 
     public ICommand HardRetryCommand { get; }
     public ICommand PauseCommand { get; }
@@ -31,6 +44,11 @@ public class LibraryViewModel : INotifyPropertyChanged
     public ICommand OpenProjectCommand { get; }
     public ICommand DeleteProjectCommand { get; }
     public ICommand RefreshLibraryCommand { get; }
+    public ICommand PauseProjectCommand { get; }
+    public ICommand ResumeProjectCommand { get; }
+    public ICommand LoadAllTracksCommand { get; }
+    public ICommand OpenFolderCommand { get; }
+    public ICommand RemoveTrackCommand { get; }
 
     // Master List: All import jobs/projects
     public ObservableCollection<PlaylistJob> AllProjects
@@ -56,10 +74,52 @@ public class LibraryViewModel : INotifyPropertyChanged
     }
 
     // Detail List: Tracks for selected project (Project Manifest)
+    // Detail List: Tracks for selected project (Project Manifest)
     public ObservableCollection<PlaylistTrackViewModel> CurrentProjectTracks
     {
         get => _currentProjectTracks;
-        set { _currentProjectTracks = value; OnPropertyChanged(); }
+        set 
+        { 
+            _currentProjectTracks = value; 
+            OnPropertyChanged();
+            
+            // Re-create Filtered View when collection changes
+            FilteredTracks = new ListCollectionView(_currentProjectTracks);
+            FilteredTracks.Filter = FilterTracks;
+            OnPropertyChanged(nameof(FilteredTracks));
+        }
+    }
+
+    public ICollectionView FilteredTracks { get; private set; }
+    public ICollectionView ActiveDownloadsView { get; private set; } // For HUD
+
+    private string _searchText = "";
+    public string SearchText
+    {
+        get => _searchText;
+        set
+        {
+            if (_searchText != value)
+            {
+                _searchText = value;
+                OnPropertyChanged();
+                FilteredTracks?.Refresh();
+            }
+        }
+    }
+
+    private int _maxDownloads;
+    public int MaxDownloads 
+    {
+        get => _downloadManager.MaxActiveDownloads;
+        set
+        {
+            if (_downloadManager.MaxActiveDownloads != value)
+            {
+                _downloadManager.MaxActiveDownloads = value;
+                OnPropertyChanged();
+            }
+        }
     }
 
     /// <summary>
@@ -101,6 +161,17 @@ public class LibraryViewModel : INotifyPropertyChanged
         OpenProjectCommand = new RelayCommand<PlaylistJob>(project => SelectedProject = project);
         DeleteProjectCommand = new AsyncRelayCommand<PlaylistJob>(ExecuteDeleteProjectAsync);
         RefreshLibraryCommand = new AsyncRelayCommand(async () => await LoadProjectsAsync());
+        PauseProjectCommand = new RelayCommand<PlaylistJob>(ExecutePauseProject);
+        ResumeProjectCommand = new RelayCommand<PlaylistJob>(ExecuteResumeProject);
+        LoadAllTracksCommand = new RelayCommand(() => SelectedProject = _allTracksJob);
+        
+        // Basic impl for missing commands
+        OpenFolderCommand = new RelayCommand<object>(_ => { /* TODO: Implement Open Folder */ });
+        RemoveTrackCommand = new RelayCommand<object>(_ => { /* TODO: Implement Remove Track */ });
+
+        // Initialize Views
+        ActiveDownloadsView = new ListCollectionView(_downloadManager.AllGlobalTracks);
+        ActiveDownloadsView.Filter = o => (o as PlaylistTrackViewModel)?.IsActive == true;
 
         // Subscribe to global track updates for live project track status
         _downloadManager.TrackUpdated += OnGlobalTrackUpdated;
@@ -266,6 +337,28 @@ public class LibraryViewModel : INotifyPropertyChanged
         _downloadManager.CancelTrack(vm.GlobalId);
     }
 
+    private void ExecutePauseProject(PlaylistJob? job)
+    {
+        // Operate on currently visible tracks
+        var tracks = CurrentProjectTracks.ToList();
+        _logger.LogInformation("Pausing all {Count} tracks in current view", tracks.Count);
+        foreach (var t in tracks)
+        {
+            if (t.CanPause) _downloadManager.PauseTrack(t.GlobalId);
+        }
+    }
+
+    private void ExecuteResumeProject(PlaylistJob? job)
+    {
+        var tracks = CurrentProjectTracks.ToList();
+        _logger.LogInformation("Resuming all {Count} tracks in current view", tracks.Count);
+        foreach (var t in tracks)
+        {
+            if (t.CanResume) _downloadManager.ResumeTrack(t.GlobalId);
+            else if (t.CanHardRetry) _downloadManager.HardRetryTrack(t.GlobalId);
+        }
+    }
+
     private async Task ExecuteDeleteProjectAsync(PlaylistJob? job)
     {
         if (job == null) return;
@@ -292,24 +385,38 @@ public class LibraryViewModel : INotifyPropertyChanged
             _logger.LogInformation("Loading tracks for project: {Name}", job.SourceTitle);
             var tracks = new ObservableCollection<PlaylistTrackViewModel>();
 
-            // N+1 Query Fix: Use the eagerly loaded tracks from the job object itself.
-            foreach (var track in job.PlaylistTracks.OrderBy(t => t.TrackNumber))
+            if (job.Id == Guid.Empty) // All Tracks
             {
-                var vm = new PlaylistTrackViewModel(track);
-
-                // Sync with live DownloadManager state for real-time progress
-                var liveTrack = _downloadManager.AllGlobalTracks
-                    .FirstOrDefault(t => t.GlobalId == track.TrackUniqueHash);
-
-                if (liveTrack != null)
+                 // Load ALL global tracks, Sorted by Active first
+                 var all = _downloadManager.AllGlobalTracks
+                     .OrderByDescending(t => t.IsActive)
+                     .ThenBy(t => t.Artist)
+                     .ToList();
+                 
+                 _logger.LogInformation("All Tracks mode: Found {Count} tracks", all.Count);
+                 foreach (var t in all) tracks.Add(t);
+            }
+            else
+            {
+                // N+1 Query Fix: Use the eagerly loaded tracks from the job object itself.
+                foreach (var track in job.PlaylistTracks.OrderBy(t => t.TrackNumber))
                 {
-                    vm.State = liveTrack.State;
-                    vm.Progress = liveTrack.Progress;
-                    vm.CurrentSpeed = liveTrack.CurrentSpeed;
-                    vm.ErrorMessage = liveTrack.ErrorMessage;
-                }
+                    var vm = new PlaylistTrackViewModel(track);
 
-                tracks.Add(vm);
+                    // Sync with live DownloadManager state for real-time progress
+                    var liveTrack = _downloadManager.AllGlobalTracks
+                        .FirstOrDefault(t => t.GlobalId == track.TrackUniqueHash);
+
+                    if (liveTrack != null)
+                    {
+                        vm.State = liveTrack.State;
+                        vm.Progress = liveTrack.Progress;
+                        vm.CurrentSpeed = liveTrack.CurrentSpeed;
+                        vm.ErrorMessage = liveTrack.ErrorMessage;
+                    }
+
+                    tracks.Add(vm);
+                }
             }
 
             if (System.Windows.Application.Current is null) return;

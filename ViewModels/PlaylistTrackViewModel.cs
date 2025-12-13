@@ -207,6 +207,7 @@ public class PlaylistTrackViewModel : INotifyPropertyChanged
     public bool CanResume => State == PlaylistTrackState.Paused;
     public bool CanCancel => State != PlaylistTrackState.Completed && State != PlaylistTrackState.Cancelled;
     public bool CanHardRetry => State == PlaylistTrackState.Failed || State == PlaylistTrackState.Cancelled; // Or Completed if we want to re-download
+    public bool CanDeleteFile => State == PlaylistTrackState.Completed || State == PlaylistTrackState.Failed || State == PlaylistTrackState.Cancelled;
 
     // Visuals
     public System.Windows.Media.Brush StatusColor

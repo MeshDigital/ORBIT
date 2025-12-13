@@ -16,20 +16,54 @@
 
         <!-- Header / Summary -->
         <Border Grid.Row="0" Background="#252526" BorderBrush="#333" BorderThickness="0,0,0,1" Padding="20">
-            <StackPanel Orientation="Horizontal">
-                <TextBlock Text="🌍 Global Network Activity" FontSize="20" FontWeight="Bold" Foreground="White" VerticalAlignment="Center" Margin="0,0,20,0"/>
-                
-                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                    <TextBlock Text="{Binding SuccessfulCount, StringFormat='✅ {0} Done'}" Foreground="#4CAF50" FontSize="14" Margin="0,0,15,0"/>
-                    <TextBlock Text="{Binding FailedCount, StringFormat='❌ {0} Failed'}" Foreground="#F44336" FontSize="14" Margin="0,0,15,0"/>
-                    <TextBlock Text="{Binding TodoCount, StringFormat='⏳ {0} Active'}" Foreground="#2196F3" FontSize="14"/>
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+
+                <!-- Title & Stats -->
+                <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
+                    <TextBlock Text="🌍 Global Activity" FontSize="20" FontWeight="Bold" Foreground="White" Margin="0,0,20,0"/>
+                    <TextBlock Text="{Binding SuccessfulCount, StringFormat='✅ {0}'}" Foreground="#4CAF50" FontSize="14" Margin="0,0,15,0" VerticalAlignment="Center"/>
+                    <TextBlock Text="{Binding FailedCount, StringFormat='❌ {0}'}" Foreground="#F44336" FontSize="14" Margin="0,0,15,0" VerticalAlignment="Center"/>
+                    <TextBlock Text="{Binding TodoCount, StringFormat='⏳ {0}'}" Foreground="#2196F3" FontSize="14" VerticalAlignment="Center"/>
                 </StackPanel>
-            </StackPanel>
+
+                <!-- Search Box -->
+                <!-- Search Box -->
+                <Grid Grid.Column="1" Margin="40,0,20,0" HorizontalAlignment="Stretch" VerticalAlignment="Center">
+                     <TextBox x:Name="SearchBox"
+                              Text="{Binding DownloadsSearchText, UpdateSourceTrigger=PropertyChanged}"
+                              Background="#1E1E1E" Foreground="White" BorderThickness="1" BorderBrush="#444" 
+                              Padding="15,0" VerticalContentAlignment="Center" FontSize="14"
+                              Height="40">
+                         <TextBox.Resources>
+                             <Style TargetType="{x:Type Border}">
+                                 <Setter Property="CornerRadius" Value="20"/>
+                             </Style>
+                         </TextBox.Resources>
+                     </TextBox>
+                     <TextBlock Text="🔍 Search history..." IsHitTestVisible="False" Foreground="#777" Margin="18,0,0,0" VerticalAlignment="Center" FontSize="14">
+                         <TextBlock.Style>
+                             <Style TargetType="TextBlock">
+                                 <Setter Property="Visibility" Value="Collapsed"/>
+                                 <Style.Triggers>
+                                     <DataTrigger Binding="{Binding Text, ElementName=SearchBox}" Value="">
+                                         <Setter Property="Visibility" Value="Visible"/>
+                                     </DataTrigger>
+                                 </Style.Triggers>
+                             </Style>
+                         </TextBlock.Style>
+                     </TextBlock>
+                </Grid>
+            </Grid>
         </Border>
 
         <!-- Global Read-Only Grid -->
         <DataGrid Grid.Row="1" 
-                  ItemsSource="{Binding AllGlobalTracks}" 
+                  ItemsSource="{Binding FilteredGlobalTracks}" 
                   AutoGenerateColumns="False"
                   IsReadOnly="True"
                   Background="Transparent"
@@ -112,10 +146,16 @@
                                         Visibility="{Binding CanCancel, Converter={StaticResource BooleanToVisibilityConverter}}"
                                         ToolTip="Cancel" Width="24" Height="24" Background="Transparent" Foreground="#F44336" BorderThickness="0"/>
 
-                                <!-- Recycle / Hard Retry (The Orange Button) -->
+                                <!-- Recycle / Hard Retry -->
                                 <Button Content="♻" Command="{Binding FindNewVersionCommand}" 
                                         Visibility="{Binding CanHardRetry, Converter={StaticResource BooleanToVisibilityConverter}}"
                                         ToolTip="Find New Version" Width="24" Height="24" Background="Transparent" Foreground="#FF9800" BorderThickness="0" FontWeight="Bold"/>
+
+                                <!-- Delete File (Disk & History) -->
+                                <Button Content="🗑️" Command="{Binding DataContext.DeleteTrackCommand, RelativeSource={RelativeSource AncestorType=Page}}" 
+                                        CommandParameter="{Binding}"
+                                        Visibility="{Binding CanDeleteFile, Converter={StaticResource BooleanToVisibilityConverter}}"
+                                        ToolTip="Delete File from Disk &amp; History" Width="24" Height="24" Background="Transparent" Foreground="#D32F2F" BorderThickness="0"/>
                             </StackPanel>
                         </DataTemplate>
                     </DataGridTemplateColumn.CellTemplate>

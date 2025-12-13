@@ -136,7 +136,6 @@
                                     <ColumnDefinition Width="*"/>
                                 </Grid.ColumnDefinitions>
                                 
-                                <!-- Icon placeholder -->
                                 <Border Width="40" Height="40" CornerRadius="4" Background="#2A2A2A" Margin="0,0,12,0">
                                     <TextBlock Text="🎵" HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="16"/>
                                 </Border>
@@ -181,90 +180,138 @@
                 </Grid.RowDefinitions>
 
                 <!-- HEADER & ACTIONS -->
-                <Border Grid.Row="0" Padding="30,25,30,20" Background="#181818">
+                <Border Grid.Row="0" Padding="40,30,40,30" Background="#181818" BorderBrush="#222" BorderThickness="0,0,0,1">
                     <Grid>
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="*"/>
-                            <ColumnDefinition Width="Auto"/>
-                            <ColumnDefinition Width="Auto"/>
-                        </Grid.ColumnDefinitions>
-                        
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/> <!-- Title block -->
+                            <RowDefinition Height="Auto"/> <!-- Controls block -->
+                        </Grid.RowDefinitions>
+
                         <!-- Title & Stats -->
-                        <StackPanel Grid.Column="0">
+                        <StackPanel Grid.Row="0" Margin="0,0,0,25">
                             <TextBlock Text="{Binding SelectedProject.SourceTitle}" 
-                                       FontSize="28" FontWeight="Bold" Foreground="White"
-                                       TextTrimming="CharacterEllipsis"/>
-                            <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
-                                <TextBlock Text="{Binding SelectedProject.SourceType}" Foreground="#AAA" Margin="0,0,15,0"/>
-                                <TextBlock Text="•" Foreground="#555" Margin="0,0,15,0"/>
-                                <TextBlock Foreground="#AAA">
-                                    <Run Text="{Binding SelectedProject.SuccessfulCount, Mode=OneWay}"/>
+                                       FontSize="32" FontWeight="Bold" Foreground="White"
+                                       TextTrimming="CharacterEllipsis" Margin="0,0,0,8"/>
+                            
+                            <StackPanel Orientation="Horizontal">
+                                <Border Background="#333" CornerRadius="4" Padding="6,2" Margin="0,0,12,0" VerticalAlignment="Center">
+                                    <TextBlock Text="{Binding SelectedProject.SourceType}" Foreground="#DDD" FontSize="12" FontWeight="SemiBold"/>
+                                </Border>
+                                <TextBlock VerticalAlignment="Center" Foreground="#888" FontSize="14">
+                                    <Run Text="{Binding SelectedProject.SuccessfulCount, Mode=OneWay}" Foreground="#4CAF50"/>
                                     <Run Text="/"/>
                                     <Run Text="{Binding SelectedProject.TotalTracks, Mode=OneWay}"/>
-                                    <Run Text="downloaded"/>
+                                    <Run Text="tracks downloaded"/>
                                 </TextBlock>
                             </StackPanel>
                         </StackPanel>
 
-                        <!-- SEARCH -->
-                         <TextBox Grid.Column="1" Width="200" Margin="0,0,20,0" Padding="8,6" VerticalAlignment="Center"
-                                  Text="{Binding SearchText, UpdateSourceTrigger=PropertyChanged}"
-                                  Background="#2A2A2A" Foreground="White" BorderThickness="0"
-                                  Tag="Search Filter...">
-                                  <TextBox.Resources>
-                                      <Style TargetType="{x:Type Border}">
-                                          <Setter Property="CornerRadius" Value="4"/>
-                                      </Style>
-                                  </TextBox.Resources>
-                         </TextBox>
+                        <!-- Toolbar (Search & Actions) -->
+                        <Grid Grid.Row="1">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
 
-                        <!-- ACTIONS TOOLBAR (New Plugin System) -->
-                        <!-- ACTIONS TOOLBAR (Management) -->
-                        <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
-                            
-                            <!-- Open Folder -->
-                            <Button Command="{Binding OpenFolderCommand}" ToolTip="Open Folder in Explorer"
-                                    Margin="5,0,0,0" Padding="12,6" Background="#262626" BorderThickness="0" Cursor="Hand">
-                                <Button.Resources>
-                                    <Style TargetType="{x:Type Border}">
-                                        <Setter Property="CornerRadius" Value="4"/>
-                                    </Style>
-                                </Button.Resources>
-                                <StackPanel Orientation="Horizontal">
-                                    <TextBlock Text="📂" Margin="0,0,8,0" VerticalAlignment="Center"/>
-                                    <TextBlock Text="Folder" Foreground="#DDD" FontWeight="SemiBold" VerticalAlignment="Center"/>
-                                </StackPanel>
-                            </Button>
+                            <!-- SEARCH -->
+                            <Grid Grid.Column="0" HorizontalAlignment="Left" Width="350">
+                                <TextBox x:Name="LibSearchBox"
+                                         Text="{Binding SearchText, UpdateSourceTrigger=PropertyChanged}"
+                                         Background="#222" Foreground="White" BorderThickness="1" BorderBrush="#333"
+                                         Padding="12,8" VerticalContentAlignment="Center" FontSize="14"
+                                         Height="38">
+                                    <TextBox.Resources>
+                                        <Style TargetType="{x:Type Border}">
+                                            <Setter Property="CornerRadius" Value="19"/>
+                                        </Style>
+                                    </TextBox.Resources>
+                                </TextBox>
+                                <TextBlock Text="🔍 Filter tracks..." IsHitTestVisible="False" Foreground="#666" Margin="14,0,0,0" VerticalAlignment="Center" FontSize="14">
+                                     <TextBlock.Style>
+                                         <Style TargetType="TextBlock">
+                                             <Setter Property="Visibility" Value="Collapsed"/>
+                                             <Style.Triggers>
+                                                 <DataTrigger Binding="{Binding Text, ElementName=LibSearchBox}" Value="">
+                                                     <Setter Property="Visibility" Value="Visible"/>
+                                                 </DataTrigger>
+                                             </Style.Triggers>
+                                         </Style>
+                                     </TextBlock.Style>
+                                </TextBlock>
+                            </Grid>
 
-                            <!-- Remove Track (Context Sensitive) -->
-                            <Button Command="{Binding RemoveTrackCommand}" ToolTip="Remove Selected Track from Playlist"
-                                    Margin="8,0,0,0" Padding="12,6" Background="#262626" BorderThickness="0" Cursor="Hand">
-                                <Button.Resources>
-                                    <Style TargetType="{x:Type Border}">
-                                        <Setter Property="CornerRadius" Value="4"/>
-                                    </Style>
-                                </Button.Resources>
-                                <StackPanel Orientation="Horizontal">
-                                    <TextBlock Text="🗑️" Margin="0,0,8,0" VerticalAlignment="Center"/>
-                                    <TextBlock Text="Remove" Foreground="#DDD" FontWeight="SemiBold" VerticalAlignment="Center"/>
-                                </StackPanel>
-                            </Button>
+                            <!-- ACTIONS -->
+                            <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                                <!-- Start/Pause Controls -->
+                                <Button Command="{Binding ResumeProjectCommand}" ToolTip="Start All Active / Resume"
+                                        Margin="10,0,0,0" Padding="15,8" Background="#1B5E20" BorderThickness="0" Cursor="Hand" Height="38">
+                                    <Button.Resources>
+                                        <Style TargetType="{x:Type Border}">
+                                            <Setter Property="CornerRadius" Value="8"/>
+                                        </Style>
+                                    </Button.Resources>
+                                    <StackPanel Orientation="Horizontal">
+                                        <TextBlock Text="▶" Margin="0,0,6,0" FontSize="12"/>
+                                        <TextBlock Text="Start" Foreground="#C8E6C9" FontWeight="SemiBold" FontSize="13"/>
+                                    </StackPanel>
+                                </Button>
 
-                            <!-- Delete Playlist -->
-                            <Button Command="{Binding DeleteProjectCommand}" ToolTip="Delete Entire Playlist"
-                                    Margin="8,0,0,0" Padding="12,6" Background="#3A1010" BorderThickness="0" Cursor="Hand">
-                                <Button.Resources>
-                                    <Style TargetType="{x:Type Border}">
-                                        <Setter Property="CornerRadius" Value="4"/>
-                                    </Style>
-                                </Button.Resources>
-                                <StackPanel Orientation="Horizontal">
-                                    <TextBlock Text="❌" Margin="0,0,8,0" VerticalAlignment="Center"/>
-                                    <TextBlock Text="Delete" Foreground="#FFCCCC" FontWeight="SemiBold" VerticalAlignment="Center"/>
-                                </StackPanel>
-                            </Button>
-                        </StackPanel>
+                                <Button Command="{Binding PauseProjectCommand}" ToolTip="Pause All"
+                                        Margin="10,0,0,0" Padding="15,8" Background="#262626" BorderThickness="0" Cursor="Hand" Height="38">
+                                    <Button.Resources>
+                                        <Style TargetType="{x:Type Border}">
+                                            <Setter Property="CornerRadius" Value="8"/>
+                                        </Style>
+                                    </Button.Resources>
+                                    <StackPanel Orientation="Horizontal">
+                                        <TextBlock Text="⏸" Margin="0,0,6,0" FontSize="12"/>
+                                        <TextBlock Text="Pause" Foreground="#DDD" FontWeight="SemiBold" FontSize="13"/>
+                                    </StackPanel>
+                                </Button>
 
+                                <!-- Open Folder -->
+                                <Button Command="{Binding OpenFolderCommand}" ToolTip="Open Folder"
+                                        Margin="20,0,0,0" Padding="15,8" Background="#262626" BorderThickness="0" Cursor="Hand" Height="38">
+                                    <Button.Resources>
+                                        <Style TargetType="{x:Type Border}">
+                                            <Setter Property="CornerRadius" Value="8"/>
+                                        </Style>
+                                    </Button.Resources>
+                                    <StackPanel Orientation="Horizontal">
+                                        <TextBlock Text="📂" Margin="0,0,8,0" FontSize="14"/>
+                                        <TextBlock Text="Folder" Foreground="#DDD" FontWeight="SemiBold" FontSize="13"/>
+                                    </StackPanel>
+                                </Button>
+
+                                <!-- Remove Track -->
+                                <Button Command="{Binding RemoveTrackCommand}" ToolTip="Remove Selected"
+                                        Margin="10,0,0,0" Padding="15,8" Background="#262626" BorderThickness="0" Cursor="Hand" Height="38">
+                                    <Button.Resources>
+                                        <Style TargetType="{x:Type Border}">
+                                            <Setter Property="CornerRadius" Value="8"/>
+                                        </Style>
+                                    </Button.Resources>
+                                    <StackPanel Orientation="Horizontal">
+                                        <TextBlock Text="🗑️" Margin="0,0,8,0" FontSize="14"/>
+                                        <TextBlock Text="Remove" Foreground="#DDD" FontWeight="SemiBold" FontSize="13"/>
+                                    </StackPanel>
+                                </Button>
+                                
+                                <!-- Delete Playlist -->
+                                <Button Command="{Binding DeleteProjectCommand}" ToolTip="Delete Playlist"
+                                        Margin="10,0,0,0" Padding="15,8" Background="#3E2723" BorderThickness="0" Cursor="Hand" Height="38">
+                                    <Button.Resources>
+                                        <Style TargetType="{x:Type Border}">
+                                            <Setter Property="CornerRadius" Value="8"/>
+                                        </Style>
+                                    </Button.Resources>
+                                    <StackPanel Orientation="Horizontal">
+                                        <TextBlock Text="❌" Margin="0,0,8,0" FontSize="14"/>
+                                        <TextBlock Text="Delete" Foreground="#FF8A80" FontWeight="SemiBold" FontSize="13"/>
+                                    </StackPanel>
+                                </Button>
+                            </StackPanel>
+                        </Grid>
                     </Grid>
                 </Border>
 
@@ -313,7 +360,7 @@
 
                 <!-- TRACK LIST DATAGRID -->
                 <DataGrid Grid.Row="2" 
-                          ItemsSource="{Binding CurrentProjectTracks}"
+                          ItemsSource="{Binding FilteredTracks}"
                           AutoGenerateColumns="False"
                           Background="Transparent"
                           BorderThickness="0"
@@ -323,7 +370,8 @@
                           Foreground="#DDD"
                           RowHeight="40"
                           HeadersVisibility="Column"
-                          Padding="10"
+                          RowHeaderWidth="0"
+                          Padding="0"
                           CanUserAddRows="False"
                           CanUserDeleteRows="False"
                           IsReadOnly="False">
@@ -336,6 +384,7 @@
                             <Setter Property="FontWeight" Value="SemiBold"/>
                             <Setter Property="BorderThickness" Value="0,0,0,1"/>
                             <Setter Property="BorderBrush" Value="#333"/>
+                            <Setter Property="HorizontalContentAlignment" Value="Left"/>
                         </Style>
                         <Style TargetType="DataGridCell">
                             <Setter Property="BorderThickness" Value="0"/>
@@ -357,6 +406,7 @@
                                 </Trigger>
                             </Style.Triggers>
                         </Style>
+                        
                         <!-- Styles for Editing -->
                         <Style x:Key="TitleColumnStyle" TargetType="TextBlock">
                             <Setter Property="FontWeight" Value="Medium"/>
@@ -384,22 +434,22 @@
 
                     <DataGrid.Columns>
                         <!-- # -->
-                        <DataGridTextColumn Header="#" Binding="{Binding SortOrder}" Width="40" Foreground="#666" IsReadOnly="True"/>
+                        <DataGridTextColumn Header="#" Binding="{Binding SortOrder}" Width="50" Foreground="#666" IsReadOnly="True" ElementStyle="{StaticResource TitleColumnStyle}"/>
                         
                         <!-- Title (Editable) -->
-                        <DataGridTextColumn Header="Title" Binding="{Binding Title, UpdateSourceTrigger=LostFocus}" Width="2*" ElementStyle="{StaticResource TitleColumnStyle}" EditingElementStyle="{StaticResource EditingTextStyle}"/>
+                        <DataGridTextColumn Header="Title" Binding="{Binding Title, UpdateSourceTrigger=LostFocus}" Width="3*" ElementStyle="{StaticResource TitleColumnStyle}" EditingElementStyle="{StaticResource EditingTextStyle}"/>
 
                         <!-- Artist (Editable) -->
-                        <DataGridTextColumn Header="Artist" Binding="{Binding Artist, UpdateSourceTrigger=LostFocus}" Width="1.5*" EditingElementStyle="{StaticResource EditingTextStyle}"/>
+                        <DataGridTextColumn Header="Artist" Binding="{Binding Artist, UpdateSourceTrigger=LostFocus}" Width="2*" EditingElementStyle="{StaticResource EditingTextStyle}"/>
 
                         <!-- Album (Editable) -->
-                        <DataGridTextColumn Header="Album" Binding="{Binding Model.Album, UpdateSourceTrigger=LostFocus}" Width="1.5*" EditingElementStyle="{StaticResource EditingTextStyle}"/>
+                        <DataGridTextColumn Header="Album" Binding="{Binding Model.Album, UpdateSourceTrigger=LostFocus}" Width="2*" EditingElementStyle="{StaticResource EditingTextStyle}"/>
 
                         <!-- Status -->
-                        <DataGridTemplateColumn Header="Status" Width="120">
+                        <DataGridTemplateColumn Header="Status" Width="140">
                             <DataGridTemplateColumn.CellTemplate>
                                 <DataTemplate>
-                                    <Border CornerRadius="4" Padding="6,2" HorizontalAlignment="Left" Background="#22FFFFFF">
+                                    <Border CornerRadius="4" Padding="8,4" HorizontalAlignment="Left" Background="#22FFFFFF">
                                         <TextBlock Text="{Binding State}" FontSize="11" Foreground="#CCC"/>
                                     </Border>
                                 </DataTemplate>
