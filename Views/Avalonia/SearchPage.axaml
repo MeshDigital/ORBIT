@@ -459,8 +459,10 @@
         </Grid>
         
         <!-- Import Preview Overlay - Layer 1 (on top) -->
-        <views:ImportPreviewPage DataContext="{Binding ImportPreviewViewModel}"
-                                IsVisible="{Binding IsImportPreviewVisible}"
-                                ZIndex="1"/>
+        <Border Background="#1E1E1E"
+                IsVisible="{Binding IsImportPreviewVisible}"
+                ZIndex="1">
+            <views:ImportPreviewPage DataContext="{Binding ImportPreviewViewModel}"/>
+        </Border>
     </Grid>
 </UserControl>
