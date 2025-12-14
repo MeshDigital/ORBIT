@@ -1196,14 +1196,35 @@ public class LibraryViewModel : INotifyPropertyChanged
 
                 // Re-sort by CreatedAt descending
                 var sorted = AllProjects.OrderByDescending(j => j.CreatedAt).ToList();
+                AllProjects.Clear();
+                foreach (var job in sorted)
+                {
+                    AllProjects.Add(job);
                 }
-            });
+            }
+            else
+            {
+                // CRITICAL FIX: Only load playlist metadata, NOT tracks
+                // Tracks will be loaded on-demand when user selects a playlist
+                await Dispatcher.UIThread.InvokeAsync(() =>
+                {
+                    AllProjects.Clear();
+                    foreach (var job in jobs.OrderByDescending(j => j.CreatedAt))
+                    {
+                        AllProjects.Add(job);
+                    }
+                });
+
+                _initialLoadCompleted = true;
+                _logger.LogInformation("Initial load completed. Loaded {Count} playlists (tracks will load on-demand)", AllProjects.Count);
+            }
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to load playlist jobs");
+            _logger.LogError(ex, "Failed to load projects");
         }
     }
+
     private void OnGlobalTrackUpdated(object? sender, PlaylistTrackViewModel? updatedTrack)
     {
         if (updatedTrack == null || CurrentProjectTracks == null) return;
