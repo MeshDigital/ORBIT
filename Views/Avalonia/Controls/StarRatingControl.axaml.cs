@@ -90,7 +90,7 @@ namespace SLSKDONET.Views.Avalonia.Controls
             {
                 if (stars[i] != null)
                 {
-                    stars[i].Text = (i < Rating) ? "★" : "☆";
+                    stars[i]!.Text = (i < Rating) ? "★" : "☆";
                 }
             }
         }
