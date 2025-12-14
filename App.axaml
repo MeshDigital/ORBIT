@@ -7,4 +7,20 @@
         <FluentTheme/>
         <StyleInclude Source="avares://SLSKDONET/Themes/AvaloniaTheme.axaml"/>
     </Application.Styles>
+    
+    <!-- System Tray Icon -->
+    <TrayIcon.Icons>
+        <TrayIcons>
+            <TrayIcon ToolTipText="SLSKDONET - Soulseek Music Downloader">
+                <TrayIcon.Menu>
+                    <NativeMenu>
+                        <NativeMenuItem Header="Show Window" Click="ShowWindow_Click"/>
+                        <NativeMenuItem Header="Hide Window" Click="HideWindow_Click"/>
+                        <NativeMenuItemSeparator/>
+                        <NativeMenuItem Header="Exit" Click="Exit_Click"/>
+                    </NativeMenu>
+                </TrayIcon.Menu>
+            </TrayIcon>
+        </TrayIcons>
+    </TrayIcon.Icons>
 </Application>

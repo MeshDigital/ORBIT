@@ -1,4 +1,5 @@
 using Avalonia;
+using Avalonia.Controls;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Markup.Xaml;
 using Microsoft.Extensions.DependencyInjection;
@@ -65,6 +66,35 @@ public partial class App : Application
         }
 
         base.OnFrameworkInitializationCompleted();
+    }
+
+    // Tray Icon Event Handlers
+    private void ShowWindow_Click(object? sender, EventArgs e)
+    {
+        if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop && 
+            desktop.MainWindow != null)
+        {
+            desktop.MainWindow.Show();
+            desktop.MainWindow.WindowState = WindowState.Normal;
+            desktop.MainWindow.Activate();
+        }
+    }
+
+    private void HideWindow_Click(object? sender, EventArgs e)
+    {
+        if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop && 
+            desktop.MainWindow != null)
+        {
+            desktop.MainWindow.Hide();
+        }
+    }
+
+    private void Exit_Click(object? sender, EventArgs e)
+    {
+        if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
+        {
+            desktop.Shutdown();
+        }
     }
 
     private static IServiceProvider ConfigureServices()
