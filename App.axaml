@@ -1,7 +1,13 @@
 <Application xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:converters="clr-namespace:SLSKDONET.Views.Avalonia.Converters"
              x:Class="SLSKDONET.App"
              RequestedThemeVariant="Dark">
+    
+    <Application.Resources>
+        <converters:BoolToHeartConverter x:Key="BoolToHeartConverter"/>
+        <converters:BoolToHeartColorConverter x:Key="BoolToHeartColorConverter"/>
+    </Application.Resources>
     
     <Application.Styles>
         <FluentTheme/>

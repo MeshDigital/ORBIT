@@ -1,6 +1,7 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:vm="clr-namespace:SLSKDONET.ViewModels"
+             xmlns:controls="clr-namespace:SLSKDONET.Views.Avalonia.Controls"
              x:Class="SLSKDONET.Views.Avalonia.NowPlayingPage"
              Background="#121212">
     
@@ -58,7 +59,7 @@
             <StackPanel Grid.Row="2" 
                         HorizontalAlignment="Center"
                         Margin="0,40,0,0"
-                        Spacing="8">
+                        Spacing="16">
                 <TextBlock Text="{Binding TrackTitle}" 
                            FontSize="32" 
                            FontWeight="Bold"
@@ -69,6 +70,42 @@
                            FontSize="20" 
                            Foreground="#B3B3B3"
                            TextAlignment="Center"/>
+                
+                <!-- Rating & Like -->
+                <StackPanel Orientation="Horizontal" 
+                            HorizontalAlignment="Center"
+                            Spacing="24"
+                            Margin="0,16,0,0">
+                    
+                    <!-- Star Rating -->
+                    <StackPanel Orientation="Vertical" Spacing="8" HorizontalAlignment="Center">
+                        <TextBlock Text="Rate this track" 
+                                   FontSize="12" 
+                                   Foreground="#888"
+                                   HorizontalAlignment="Center"/>
+                        <controls:StarRatingControl 
+                            Rating="{Binding CurrentTrack.Rating, Mode=TwoWay}"
+                            StarSize="24"
+                            StarColor="Gold"/>
+                    </StackPanel>
+                    
+                    <!-- Like Button -->
+                    <StackPanel Orientation="Vertical" Spacing="8" HorizontalAlignment="Center">
+                        <TextBlock Text="Like" 
+                                   FontSize="12" 
+                                   Foreground="#888"
+                                   HorizontalAlignment="Center"/>
+                        <ToggleButton IsChecked="{Binding CurrentTrack.IsLiked, Mode=TwoWay}"
+                                      Background="Transparent"
+                                      BorderThickness="0"
+                                      Padding="8"
+                                      HorizontalAlignment="Center">
+                            <TextBlock Text="{Binding CurrentTrack.IsLiked, Converter={StaticResource BoolToHeartConverter}}" 
+                                       FontSize="32"/>
+                        </ToggleButton>
+                    </StackPanel>
+                    
+                </StackPanel>
             </StackPanel>
             
             <!-- Progress Bar -->
