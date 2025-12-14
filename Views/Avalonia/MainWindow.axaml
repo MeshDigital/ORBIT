@@ -162,28 +162,7 @@
                     BorderThickness="1,0,0,0"
                     Width="300"
                     IsVisible="{Binding IsPlayerSidebarVisible}">
-                <StackPanel Margin="16">
-                    <TextBlock Text="Music Player" 
-                               FontSize="16" 
-                               FontWeight="Bold" 
-                               Foreground="White" 
-                               Margin="0,0,0,16"/>
-                    
-                    <TextBlock Text="Drag and drop tracks here to play" 
-                               Foreground="#A0A0A0" 
-                               FontSize="12" 
-                               TextWrapping="Wrap"
-                               Margin="0,0,0,16"/>
-                    
-                    <!-- Player controls will be added here -->
-                    <TextBlock Text="{Binding PlayerViewModel.CurrentTrackTitle}" 
-                               Foreground="White" 
-                               FontSize="14"
-                               TextWrapping="Wrap"/>
-                    <TextBlock Text="{Binding PlayerViewModel.CurrentTrackArtist}" 
-                               Foreground="#A0A0A0" 
-                               FontSize="12"/>
-                </StackPanel>
+                <views:PlayerControl DataContext="{Binding PlayerViewModel}"/>
             </Border>
         </Grid>
 
@@ -262,9 +241,5 @@
                 </StackPanel>
             </Border>
         </Grid>
-        
-        <!-- Bottom Player Bar -->
-        <views:PlayerControl Grid.Row="1" 
-                            DataContext="{Binding PlayerViewModel}"/>
     </Grid>
 </Window>

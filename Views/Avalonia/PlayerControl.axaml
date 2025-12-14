@@ -3,171 +3,161 @@
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              xmlns:vm="clr-namespace:SLSKDONET.ViewModels"
-             mc:Ignorable="d" d:DesignWidth="1200" d:DesignHeight="90"
+             mc:Ignorable="d" d:DesignWidth="300" d:DesignHeight="800"
              x:Class="SLSKDONET.Views.Avalonia.PlayerControl"
-             x:DataType="vm:PlayerViewModel">
+             x:DataType="vm:PlayerViewModel"
+             Background="#252526">
     
-    <!-- Modern Spotify-like Player Bar -->
-    <Border Background="#181818" 
-            BorderBrush="#282828" 
-            BorderThickness="0,1,0,0"
-            Height="90"
-            MaxHeight="90">
-        <Grid ColumnDefinitions="300,*,300" Margin="16,0">
+    <!-- Vertical Player for Right Sidebar -->
+    <Grid RowDefinitions="Auto,Auto,*,Auto">
+        
+        <!-- Header -->
+        <Border Grid.Row="0" 
+                Background="#2D2D2D" 
+                Padding="16,12"
+                BorderBrush="#3E3E3E"
+                BorderThickness="0,0,0,1">
+            <TextBlock Text="Now Playing" 
+                       FontSize="14" 
+                       FontWeight="SemiBold"
+                       Foreground="White"/>
+        </Border>
+        
+        <!-- Album Art & Track Info -->
+        <StackPanel Grid.Row="1" Margin="16,20,16,16" Spacing="16">
+            <!-- Album Art -->
+            <Border Width="260" Height="260" 
+                    Background="#1E1E1E" 
+                    CornerRadius="8"
+                    HorizontalAlignment="Center">
+                <TextBlock Text="🎵" 
+                           FontSize="80" 
+                           HorizontalAlignment="Center" 
+                           VerticalAlignment="Center"
+                           Foreground="#404040"/>
+            </Border>
             
-            <!-- LEFT: Track Info & Album Art -->
-            <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="12" VerticalAlignment="Center">
-                <!-- Album Art Placeholder -->
-                <Border Width="56" Height="56" 
-                        Background="#282828" 
-                        CornerRadius="4">
-                    <TextBlock Text="🎵" 
-                               FontSize="28" 
-                               HorizontalAlignment="Center" 
-                               VerticalAlignment="Center"/>
-                </Border>
-                
-                <!-- Track Info -->
-                <StackPanel VerticalAlignment="Center" Spacing="4">
-                    <TextBlock Text="{Binding TrackTitle}" 
-                               FontSize="14" 
-                               FontWeight="Medium"
-                               Foreground="White"
-                               TextTrimming="CharacterEllipsis"
-                               MaxWidth="200"/>
-                    <TextBlock Text="{Binding TrackArtist}" 
-                               FontSize="12" 
-                               Foreground="#B3B3B3"
-                               TextTrimming="CharacterEllipsis"
-                               MaxWidth="200"/>
-                </StackPanel>
-                
-                <!-- Like Button -->
-                <Button Classes="icon-button" 
-                        Width="32" Height="32"
-                        VerticalAlignment="Center"
-                        ToolTip.Tip="Like">
-                    <TextBlock Text="♡" FontSize="16" Foreground="#B3B3B3"/>
-                </Button>
+            <!-- Track Info -->
+            <StackPanel Spacing="8">
+                <TextBlock Text="{Binding TrackTitle}" 
+                           FontSize="16" 
+                           FontWeight="SemiBold"
+                           Foreground="White"
+                           TextTrimming="CharacterEllipsis"
+                           TextWrapping="Wrap"
+                           MaxLines="2"
+                           TextAlignment="Center"/>
+                <TextBlock Text="{Binding TrackArtist}" 
+                           FontSize="13" 
+                           Foreground="#B3B3B3"
+                           TextTrimming="CharacterEllipsis"
+                           TextAlignment="Center"/>
             </StackPanel>
+        </StackPanel>
+        
+        <!-- Spacer -->
+        <Border Grid.Row="2"/>
+        
+        <!-- Controls Section -->
+        <StackPanel Grid.Row="3" Spacing="16" Margin="16,0,16,20">
             
-            <!-- CENTER: Playback Controls -->
-            <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="8">
-                <!-- Control Buttons -->
-                <StackPanel Orientation="Horizontal" 
-                            HorizontalAlignment="Center" 
-                            Spacing="16">
-                    <!-- Shuffle -->
-                    <Button Classes="icon-button" 
-                            Width="32" Height="32"
-                            ToolTip.Tip="Shuffle">
-                        <TextBlock Text="🔀" FontSize="14" Foreground="#B3B3B3"/>
-                    </Button>
-                    
-                    <!-- Previous -->
-                    <Button Command="{Binding PreviousCommand}"
-                            Classes="icon-button" 
-                            Width="32" Height="32"
-                            ToolTip.Tip="Previous">
-                        <TextBlock Text="⏮️" FontSize="16"/>
-                    </Button>
-                    
-                    <!-- Play/Pause -->
-                    <Button Command="{Binding PlayPauseCommand}"
-                            Background="#1DB954"
-                            Foreground="Black"
-                            Width="40" Height="40"
-                            CornerRadius="20"
-                            BorderThickness="0"
-                            Cursor="Hand">
-                        <Button.Styles>
-                            <Style Selector="Button:pointerover">
-                                <Setter Property="Background" Value="#1ED760"/>
-                            </Style>
-                        </Button.Styles>
-                        <TextBlock Text="{Binding IsPlaying, Converter={StaticResource BoolToPlayPauseIconConverter}}" 
-                                   FontSize="18"
-                                   HorizontalAlignment="Center"
-                                   VerticalAlignment="Center"/>
-                    </Button>
-                    
-                    <!-- Next -->
-                    <Button Command="{Binding NextCommand}"
-                            Classes="icon-button" 
-                            Width="32" Height="32"
-                            ToolTip.Tip="Next">
-                        <TextBlock Text="⏭️" FontSize="16"/>
-                    </Button>
-                    
-                    <!-- Repeat -->
-                    <Button Classes="icon-button" 
-                            Width="32" Height="32"
-                            ToolTip.Tip="Repeat">
-                        <TextBlock Text="🔁" FontSize="14" Foreground="#B3B3B3"/>
-                    </Button>
-                </StackPanel>
+            <!-- Progress Bar -->
+            <StackPanel Spacing="8">
+                <Slider Minimum="0"
+                        Maximum="1"
+                        Value="{Binding Position, Mode=TwoWay}"
+                        Height="20"
+                        Foreground="#1DB954">
+                    <Slider.Styles>
+                        <Style Selector="Slider /template/ Thumb">
+                            <Setter Property="Background" Value="White"/>
+                            <Setter Property="Width" Value="14"/>
+                            <Setter Property="Height" Value="14"/>
+                            <Setter Property="CornerRadius" Value="7"/>
+                        </Style>
+                    </Slider.Styles>
+                </Slider>
                 
-                <!-- Progress Bar -->
-                <Grid ColumnDefinitions="Auto,*,Auto" Margin="0,4,0,0">
-                    <!-- Current Time -->
+                <!-- Time Labels -->
+                <Grid ColumnDefinitions="*,*">
                     <TextBlock Grid.Column="0" 
                                Text="{Binding CurrentTimeStr}" 
                                FontSize="11" 
-                               Foreground="#B3B3B3"
-                               Margin="0,0,12,0"/>
-                    
-                    <!-- Seek Bar -->
-                    <Slider Grid.Column="1"
-                            Minimum="0"
-                            Maximum="1"
-                            Value="{Binding Position, Mode=TwoWay}"
-                            VerticalAlignment="Center"
-                            Height="20">
-                        <Slider.Styles>
-                            <Style Selector="Slider /template/ Thumb">
-                                <Setter Property="Background" Value="White"/>
-                                <Setter Property="Width" Value="12"/>
-                                <Setter Property="Height" Value="12"/>
-                                <Setter Property="CornerRadius" Value="6"/>
-                            </Style>
-                        </Slider.Styles>
-                    </Slider>
-                    
-                    <!-- Total Time -->
-                    <TextBlock Grid.Column="2" 
+                               Foreground="#B3B3B3"/>
+                    <TextBlock Grid.Column="1" 
                                Text="{Binding TotalTimeStr}" 
                                FontSize="11" 
                                Foreground="#B3B3B3"
-                               Margin="12,0,0,0"/>
+                               HorizontalAlignment="Right"/>
                 </Grid>
             </StackPanel>
             
-            <!-- RIGHT: Volume & Queue -->
-            <StackPanel Grid.Column="2" 
-                        Orientation="Horizontal" 
-                        HorizontalAlignment="Right" 
-                        VerticalAlignment="Center" 
-                        Spacing="12">
-                <!-- Queue Button -->
-                <Button Classes="icon-button" 
-                        Width="32" Height="32"
-                        ToolTip.Tip="Queue">
-                    <TextBlock Text="📋" FontSize="14" Foreground="#B3B3B3"/>
+            <!-- Playback Controls -->
+            <StackPanel Orientation="Horizontal" 
+                        HorizontalAlignment="Center" 
+                        Spacing="16">
+                <!-- Previous -->
+                <Button Command="{Binding PreviousCommand}"
+                        Background="Transparent"
+                        BorderThickness="0"
+                        Width="40" Height="40"
+                        ToolTip.Tip="Previous">
+                    <Button.Styles>
+                        <Style Selector="Button:pointerover">
+                            <Setter Property="Background" Value="#2D2D2D"/>
+                        </Style>
+                    </Button.Styles>
+                    <TextBlock Text="⏮️" FontSize="20"/>
                 </Button>
                 
-                <!-- Volume -->
-                <StackPanel Orientation="Horizontal" Spacing="8" Width="120">
-                    <Button Classes="icon-button" 
-                            Width="32" Height="32"
-                            ToolTip.Tip="Mute">
-                        <TextBlock Text="🔊" FontSize="14" Foreground="#B3B3B3"/>
-                    </Button>
+                <!-- Play/Pause -->
+                <Button Command="{Binding PlayPauseCommand}"
+                        Background="#1DB954"
+                        Foreground="Black"
+                        Width="48" Height="48"
+                        CornerRadius="24"
+                        BorderThickness="0"
+                        Cursor="Hand">
+                    <Button.Styles>
+                        <Style Selector="Button:pointerover">
+                            <Setter Property="Background" Value="#1ED760"/>
+                        </Style>
+                    </Button.Styles>
+                    <TextBlock Text="{Binding IsPlaying, Converter={StaticResource BoolToPlayPauseIconConverter}}" 
+                               FontSize="22"
+                               HorizontalAlignment="Center"
+                               VerticalAlignment="Center"/>
+                </Button>
+                
+                <!-- Next -->
+                <Button Command="{Binding NextCommand}"
+                        Background="Transparent"
+                        BorderThickness="0"
+                        Width="40" Height="40"
+                        ToolTip.Tip="Next">
+                    <Button.Styles>
+                        <Style Selector="Button:pointerover">
+                            <Setter Property="Background" Value="#2D2D2D"/>
+                        </Style>
+                    </Button.Styles>
+                    <TextBlock Text="⏭️" FontSize="20"/>
+                </Button>
+            </StackPanel>
+            
+            <!-- Volume Control -->
+            <StackPanel Spacing="8">
+                <Grid ColumnDefinitions="Auto,*">
+                    <TextBlock Grid.Column="0" 
+                               Text="🔊" 
+                               FontSize="14" 
+                               Foreground="#B3B3B3"
+                               VerticalAlignment="Center"
+                               Margin="0,0,12,0"/>
                     
-                    <Slider Minimum="0"
+                    <Slider Grid.Column="1"
+                            Minimum="0"
                             Maximum="100"
                             Value="{Binding Volume, Mode=TwoWay}"
-                            VerticalAlignment="Center"
-                            Width="80"
                             Height="20">
                         <Slider.Styles>
                             <Style Selector="Slider /template/ Thumb">
@@ -178,8 +168,37 @@
                             </Style>
                         </Slider.Styles>
                     </Slider>
-                </StackPanel>
+                </Grid>
             </StackPanel>
-        </Grid>
-    </Border>
+            
+            <!-- Like & Queue Buttons -->
+            <StackPanel Orientation="Horizontal" 
+                        HorizontalAlignment="Center" 
+                        Spacing="12">
+                <Button Background="Transparent"
+                        BorderThickness="0"
+                        Width="36" Height="36"
+                        ToolTip.Tip="Like">
+                    <Button.Styles>
+                        <Style Selector="Button:pointerover">
+                            <Setter Property="Background" Value="#2D2D2D"/>
+                        </Style>
+                    </Button.Styles>
+                    <TextBlock Text="♡" FontSize="18" Foreground="#B3B3B3"/>
+                </Button>
+                
+                <Button Background="Transparent"
+                        BorderThickness="0"
+                        Width="36" Height="36"
+                        ToolTip.Tip="Queue">
+                    <Button.Styles>
+                        <Style Selector="Button:pointerover">
+                            <Setter Property="Background" Value="#2D2D2D"/>
+                        </Style>
+                    </Button.Styles>
+                    <TextBlock Text="📋" FontSize="16" Foreground="#B3B3B3"/>
+                </Button>
+            </StackPanel>
+        </StackPanel>
+    </Grid>
 </UserControl>
