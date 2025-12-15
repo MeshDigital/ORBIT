@@ -46,8 +46,6 @@ public class MainViewModel : INotifyPropertyChanged
     private int _selectedTrackCount;
     private string _preferredFormats = "mp3,flac";
 
-    private int? _minBitrate;
-    private int? _maxBitrate;
     private CancellationTokenSource _searchCts = new();
 
 
@@ -144,6 +142,150 @@ public class MainViewModel : INotifyPropertyChanged
         get => _isImportPreviewVisible;
         set => SetProperty(ref _isImportPreviewVisible, value);
     }
+
+    // --- Unified Search Properties ---
+
+    private SearchInputMode _currentSearchMode = SearchInputMode.AdHoc;
+    public SearchInputMode CurrentSearchMode
+    {
+        get => _currentSearchMode;
+        set
+        {
+            if (SetProperty(ref _currentSearchMode, value))
+            {
+                OnPropertyChanged(nameof(SearchInputPlaceholder));
+            }
+        }
+    }
+
+    public string SearchInputPlaceholder => CurrentSearchMode switch
+    {
+        SearchInputMode.AdHoc => "Search Soulseek (e.g. 'Artist - Title')...",
+        SearchInputMode.SpotifyLink => "Paste Spotify Playlist or Album URL...",
+        SearchInputMode.CsvFile => "Enter path to CSV file or Drag & Drop...",
+        _ => "Search..."
+    };
+
+    private RankingPreset _rankingPreset = RankingPreset.Balanced;
+    public RankingPreset RankingPreset
+    {
+        get => _rankingPreset;
+        set
+        {
+            if (SetProperty(ref _rankingPreset, value))
+            {
+                _config.RankingPreset = value.ToString();
+                _configManager.Save(_config);
+            }
+        }
+    }
+
+    public int MinBitrate
+    {
+        get => _config.PreferredMinBitrate;
+        set
+        {
+            if (_config.PreferredMinBitrate != value)
+            {
+                _config.PreferredMinBitrate = value;
+                OnPropertyChanged();
+                _configManager.Save(_config);
+            }
+        }
+    }
+
+    public int MaxBitrate
+    {
+        get => _config.PreferredMaxBitrate;
+        set
+        {
+            if (_config.PreferredMaxBitrate != value)
+            {
+                _config.PreferredMaxBitrate = value;
+                OnPropertyChanged();
+                _configManager.Save(_config);
+            }
+        }
+    }
+
+
+    private async Task ExecuteUnifiedSearchAsync()
+    {
+        if (string.IsNullOrWhiteSpace(SearchQuery))
+        {
+             _notificationService.Show("Search Error", "Please enter a search term, URL, or file path.", NotificationType.Warning);
+            return;
+        }
+
+        // Auto-detect mode based on input
+        var mode = DetermineInputMode(SearchQuery);
+        
+        // Update the mode property so the UI (placeholder etc) updates if needed
+        CurrentSearchMode = mode;
+
+        switch (mode)
+        {
+            case SearchInputMode.AdHoc:
+                if (!string.IsNullOrWhiteSpace(SearchQuery))
+                {
+                    await SearchAsync(); 
+                }
+                break;
+
+            case SearchInputMode.SpotifyLink:
+                await ImportFromSpotifyAsync(SearchQuery);
+                break;
+
+            case SearchInputMode.CsvFile:
+                await ImportCsvAsync(SearchQuery);
+                break;
+        }
+    }
+
+    private SearchInputMode DetermineInputMode(string query)
+    {
+        if (string.IsNullOrWhiteSpace(query))
+        {
+            return SearchInputMode.AdHoc; 
+        }
+
+        var q = query.Trim();
+
+        // 1. Spotify Autodetection
+        if (q.Contains("spotify.com", StringComparison.OrdinalIgnoreCase) || 
+            q.StartsWith("spotify:", StringComparison.OrdinalIgnoreCase))
+        {
+            return SearchInputMode.SpotifyLink;
+        }
+
+        // 2. CSV Autodetection (check file extension or path chars)
+        // We can be looser here for the detection, verifying existence in the import method
+        if (q.EndsWith(".csv", StringComparison.OrdinalIgnoreCase))
+        {
+            return SearchInputMode.CsvFile;
+        }
+
+        // 3. Ad Hoc (default)
+        return SearchInputMode.AdHoc;
+    }
+
+    public ICommand BrowseCsvCommand { get; }
+
+    private async Task ExecuteBrowseCsvAsync()
+    {
+        var result = await _fileInteractionService.OpenFileDialogAsync(
+            "Select CSV File", 
+            new[] { new FileDialogFilter("CSV Files", new List<string> { "csv" }) });
+
+        if (!string.IsNullOrEmpty(result))
+        {
+            SearchQuery = result;
+            // Optionally trigger the search immediately
+            // await ExecuteUnifiedSearchAsync();
+        }
+    }
+
+
 
     private bool _isNavigationCollapsed;
     public bool IsNavigationCollapsed
@@ -248,10 +390,16 @@ public class MainViewModel : INotifyPropertyChanged
     public ICommand NavigateSettingsCommand { get; }
     public ICommand ShowLoginCommand { get; }
     public ICommand DismissLoginCommand { get; }
-    public ICommand TogglePlayerLocationCommand { get; }
+
     public ICommand DisconnectCommand { get; }
     public ICommand ToggleNavigationCommand { get; }
     public ICommand TogglePlayerCommand { get; }
+    
+    // Unified Search Commands
+    public ICommand UnifiedSearchCommand { get; }
+    public ICommand ClearSearchCommand { get; }
+    public ICommand TogglePlayerLocationCommand { get; }
+
     private readonly INotificationService _notificationService;
     private readonly INavigationService _navigationService;
 
@@ -323,7 +471,7 @@ public class MainViewModel : INotifyPropertyChanged
         ImportCsvCommand = new AsyncRelayCommand<string>(ImportCsvAsync, filePath => !string.IsNullOrEmpty(filePath));
         ImportFromSpotifyCommand = new AsyncRelayCommand(() => ImportFromSpotifyAsync());
         // RemoveFromLibraryCommand = new RelayCommand<IList<object>?>(RemoveFromLibrary, items => items is { Count: > 0 }); // LEGACY
-        
+
         
         // Downloads Page Commands
         DeleteTrackCommand = new AsyncRelayCommand<PlaylistTrackViewModel>(async (vm) => 
@@ -354,6 +502,7 @@ public class MainViewModel : INotifyPropertyChanged
             configManager.Save(_config);
             StatusText = "Settings saved successfully!";
         });
+
 
         // Initialize        // Navigation commands
         NavigateSearchCommand = new RelayCommand(NavigateToSearch);
@@ -432,8 +581,16 @@ public class MainViewModel : INotifyPropertyChanged
         
         _logger.LogInformation($"MainViewModel initialized. IsConnected={_isConnected}, IsSearching={_isSearching}, StatusText={_statusText}");
         _logger.LogInformation("=== MainViewModel Constructor Completed ===");
-        
+
+
         // Set default page to Search
+        // Unified Search Commands
+        // Unified Search Commands
+        UnifiedSearchCommand = new AsyncRelayCommand(ExecuteUnifiedSearchAsync, () => !IsSearching);
+        BrowseCsvCommand = new AsyncRelayCommand(ExecuteBrowseCsvAsync);
+        ClearSearchCommand = new RelayCommand(() => SearchQuery = "", () => !string.IsNullOrEmpty(SearchQuery));
+        TogglePlayerLocationCommand = new RelayCommand(() => IsPlayerAtBottom = !IsPlayerAtBottom);
+        
         NavigateToSearch();
     }
     
@@ -841,24 +998,6 @@ public class MainViewModel : INotifyPropertyChanged
         set => SetProperty(ref _checkForDuplicates, value);
     }
 
-    public int? MinBitrate
-    {
-        get => _minBitrate;
-        set
-        {
-            if (SetProperty(ref _minBitrate, value)) UpdateActiveFiltersSummary();
-        }
-    }
-
-    public int? MaxBitrate
-    {
-        get => _maxBitrate;
-        set
-        {
-            if (SetProperty(ref _maxBitrate, value)) UpdateActiveFiltersSummary();
-        }
-    }
-
     private string _activeFiltersSummary = "No active filters.";
     public string ActiveFiltersSummary
     {
@@ -1112,12 +1251,12 @@ public class MainViewModel : INotifyPropertyChanged
                         }
                     }
                     
-                    if (MinBitrate.HasValue || MaxBitrate.HasValue)
+                    if (MinBitrate > 0 || MaxBitrate > 0)
                     {
                         evaluator.AddPreferred(new BitrateCondition 
                         { 
-                            MinBitrate = MinBitrate, 
-                            MaxBitrate = MaxBitrate 
+                            MinBitrate = MinBitrate > 0 ? MinBitrate : null, 
+                            MaxBitrate = MaxBitrate > 0 ? MaxBitrate : null 
                         });
                     }
                     
@@ -1688,12 +1827,12 @@ public class MainViewModel : INotifyPropertyChanged
             {
                 evaluator.AddRequired(new FormatCondition { AllowedFormats = formatFilter.ToList() });
             }
-            if (MinBitrate.HasValue || MaxBitrate.HasValue)
+            if (MinBitrate > 0 || MaxBitrate > 0)
             {
                 evaluator.AddPreferred(new BitrateCondition 
                 { 
-                    MinBitrate = MinBitrate, 
-                    MaxBitrate = MaxBitrate 
+                    MinBitrate = MinBitrate > 0 ? MinBitrate : null, 
+                    MaxBitrate = MaxBitrate > 0 ? MaxBitrate : null 
                 });
             }
 
@@ -1996,8 +2135,8 @@ public class MainViewModel : INotifyPropertyChanged
     private void UpdateActiveFiltersSummary()
     {
         var filters = new List<string>();
-        if (MinBitrate.HasValue) filters.Add($"Min Bitrate: {MinBitrate}kbps");
-        if (MaxBitrate.HasValue) filters.Add($"Max Bitrate: {MaxBitrate}kbps");
+        if (MinBitrate > 0) filters.Add($"Min Bitrate: {MinBitrate}kbps");
+        if (MaxBitrate > 0) filters.Add($"Max Bitrate: {MaxBitrate}kbps");
         if (!string.IsNullOrEmpty(PreferredFormats)) filters.Add($"Formats: {PreferredFormats}");
 
         ActiveFiltersSummary = filters.Any()
@@ -2020,8 +2159,8 @@ public class MainViewModel : INotifyPropertyChanged
         _config.SpotifyClientSecret = SpotifyClientSecret;
         _config.SpotifyUsePublicOnly = !UseSpotifyApi;
 
-        _config.PreferredMinBitrate = MinBitrate ?? _config.PreferredMinBitrate;
-        _config.PreferredMaxBitrate = MaxBitrate ?? _config.PreferredMaxBitrate;
+        _config.PreferredMinBitrate = MinBitrate;
+        _config.PreferredMaxBitrate = MaxBitrate;
     }
 
 
@@ -2195,7 +2334,27 @@ public class MainViewModel : INotifyPropertyChanged
 
     private ImportPreviewViewModel CreateImportPreviewViewModel()
     {
+        // Use NullLogger for now - the important part is the event wiring
         var importLogger = NullLogger<ImportPreviewViewModel>.Instance;
-        return new ImportPreviewViewModel(importLogger, _downloadManager, _navigationService, _libraryService);
+        var vm = new ImportPreviewViewModel(importLogger, _downloadManager, _navigationService, _libraryService);
+        
+        // Wire up Cancel event to hide preview and return to search
+        vm.Cancelled += (s, e) =>
+        {
+            _logger.LogInformation("Import preview cancelled by user");
+            IsImportPreviewVisible = false;
+            OnPropertyChanged(nameof(IsImportPreviewVisible));
+        };
+        
+        // Wire up AddedToLibrary event to process the job
+        vm.AddedToLibrary += async (s, job) =>
+        {
+            _logger.LogInformation("Import preview confirmed, adding {Count} tracks to library", job.OriginalTracks.Count);
+            await vm.HandlePlaylistJobAddedAsync(job);
+            IsImportPreviewVisible = false;
+            OnPropertyChanged(nameof(IsImportPreviewVisible));
+        };
+        
+        return vm;
     }
 }
