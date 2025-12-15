@@ -119,15 +119,46 @@ dotnet build
 dotnet run
 ```
 
+### Spotify API Setup (Required for Playlist Import)
+
+To import playlists from Spotify, you need to create a Spotify Developer account and obtain API credentials:
+
+#### Step 1: Create Spotify Developer Account
+1. Go to [Spotify Developer Dashboard](https://developer.spotify.com/dashboard)
+2. Log in with your Spotify account (or create one)
+3. Accept the Terms of Service
+
+#### Step 2: Create an App
+1. Click **"Create an App"**
+2. Fill in the details:
+   - **App Name**: `QMUSICSLSK` (or any name you prefer)
+   - **App Description**: `Music downloader for personal use`
+   - **Redirect URI**: `http://localhost:8888/callback` (important!)
+3. Check the agreement boxes
+4. Click **"Create"**
+
+#### Step 3: Get Your Credentials
+1. On your app's dashboard, click **"Settings"**
+2. Copy your **Client ID**
+3. Click **"View client secret"** and copy your **Client Secret**
+
+#### Step 4: Configure QMUSICSLSK
+1. Open the app and go to **Settings**
+2. Navigate to the **Spotify** section
+3. Paste your **Client ID** and **Client Secret**
+4. Click **Save**
+
+> **Note**: Your credentials are stored securely using Windows Data Protection API (DPAPI). They never leave your computer.
+
+**Detailed Guide**: [How to Generate Spotify API Key](https://codewolfy.com/how-to-generate-spotify-api-key/)
+
 ### First-Time Setup
-1. **Sign in** with your Soulseek credentials
-2. **Configure** download directory in Settings
-3. **Import** music from Spotify, CSV, or paste a tracklist
-4. **Download** and enjoy!
 
----
-
-## 🎵 How It Works
+1. **Sign in** with your Soulseek credentials (stored securely)
+2. **Configure Spotify API** (see above) for playlist import
+3. **Set download directory** in Settings
+4. **Import music** from Spotify, CSV, or paste a tracklist
+5. **Start downloading** and enjoy! It Works
 
 ### Typical Workflow
 1. **Import** → Paste a Spotify playlist URL or tracklist from YouTube
