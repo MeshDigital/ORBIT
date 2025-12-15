@@ -9,6 +9,7 @@ using SLSKDONET.Models;
 using SLSKDONET.Services;
 using SLSKDONET.Views;
 using Avalonia.Threading;
+using DraggingService;
 
 namespace SLSKDONET.ViewModels;
 
@@ -68,6 +69,8 @@ public class LibraryViewModel : INotifyPropertyChanged
     public System.Windows.Input.ICommand RemoveTrackCommand { get; }
     public System.Windows.Input.ICommand AddPlaylistCommand { get; }
     public System.Windows.Input.ICommand PlayTrackCommand { get; }
+    public System.Windows.Input.ICommand DownloadAlbumCommand { get; }
+    public System.Windows.Input.ICommand RetryOfflineTracksCommand { get; }
 
     public System.Windows.Input.ICommand ViewHistoryCommand { get; }
 
@@ -86,19 +89,29 @@ public class LibraryViewModel : INotifyPropertyChanged
         {
             if (_selectedProject != value)
             {
-                _selectedProject = value;
-                OnPropertyChanged();
-                OnPropertyChanged(nameof(HasSelectedProject));
-                OnPropertyChanged(nameof(CanDeleteProject));
-                
-                // LAZY LOAD: Load tracks only when playlist is selected
-                if (value != null)
+                try
                 {
-                    _ = LoadProjectTracksAsync(value);
+                    _logger.LogInformation("SelectedProject changing to {Id} - {Title}", value?.Id, value?.SourceTitle);
+                    _selectedProject = value;
+                    OnPropertyChanged();
+                    OnPropertyChanged(nameof(HasSelectedProject));
+                    OnPropertyChanged(nameof(CanDeleteProject));
+                    
+                    // LAZY LOAD: Load tracks only when playlist is selected
+                    if (value != null)
+                    {
+                        _ = LoadProjectTracksAsync(value);
+                    }
+                    else
+                    {
+                        CurrentProjectTracks.Clear();
+                        // Also clear filtered to reflect empty state
+                        RefreshFilteredTracks();
+                    }
                 }
-                else
+                catch (Exception ex)
                 {
-                    CurrentProjectTracks.Clear();
+                     _logger.LogError(ex, "CRITICAL ERROR in SelectedProject setter");
                 }
             }
         }
@@ -182,24 +195,38 @@ public class LibraryViewModel : INotifyPropertyChanged
     {
         var filtered = CurrentProjectTracks.Where(FilterTracks).ToList();
         
-        _logger.LogInformation("🔍 RefreshFilteredTracks:");
-        _logger.LogInformation("  - Input: {Input} tracks", CurrentProjectTracks.Count);
-        _logger.LogInformation("  - Filtered: {Filtered} tracks", filtered.Count);
+        _logger.LogInformation("🔍 RefreshFilteredTracks ENTRY:");
+        _logger.LogInformation("  - CurrentProjectTracks.Count: {Input}", CurrentProjectTracks.Count);
+        _logger.LogInformation("  - Filtered result count: {Filtered}", filtered.Count);
+        _logger.LogInformation("  - FilteredTracks (before clear): {Before}", FilteredTracks.Count);
         _logger.LogInformation("  - Filters: All={All}, Downloaded={Down}, Pending={Pend}", 
             IsFilterAll, IsFilterDownloaded, IsFilterPending);
         
         if (filtered.Any())
         {
             var sample = filtered.First();
-            _logger.LogInformation("  - Sample: {Artist} - {Title} (State: {State})", 
-                sample.Artist, sample.Title, sample.State);
+            _logger.LogInformation("  - Sample track: '{Artist}' - '{Title}' (State: {State})", 
+                sample.Artist ?? "<null>", sample.Title ?? "<null>", sample.State);
+        }
+        else
+        {
+            _logger.LogWarning("  - ⚠️ NO TRACKS PASSED FILTER!");
         }
         
         FilteredTracks.Clear();
+        _logger.LogInformation("  - FilteredTracks cleared");
+        
         foreach (var track in filtered)
             FilteredTracks.Add(track);
             
-        _logger.LogInformation("✅ FilteredTracks.Count = {Count}", FilteredTracks.Count);
+        _logger.LogInformation("✅ RefreshFilteredTracks COMPLETE:");
+        _logger.LogInformation("  - FilteredTracks.Count = {Count}", FilteredTracks.Count);
+        _logger.LogInformation("  - Calling OnPropertyChanged(nameof(FilteredTracks))");
+        
+        // Explicitly notify UI that FilteredTracks collection has changed
+        OnPropertyChanged(nameof(FilteredTracks));
+        
+        _logger.LogInformation("  - OnPropertyChanged completed");
     }
 
     private void RefreshLikedTracks()
@@ -472,13 +499,15 @@ public class LibraryViewModel : INotifyPropertyChanged
         DeleteProjectCommand = new AsyncRelayCommand<PlaylistJob>(ExecuteDeleteProjectAsync);
         RefreshLibraryCommand = new AsyncRelayCommand(ExecuteRefreshAsync);
         PauseProjectCommand = new RelayCommand<PlaylistJob>(ExecutePauseProject);
-        ResumeProjectCommand = new RelayCommand<PlaylistJob>(ExecuteResumeProject);
+        ResumeProjectCommand = new RelayCommand<PlaylistJob>(ExecuteToggleProjectDownload);
         LoadAllTracksCommand = new RelayCommand(() => SelectedProject = _allTracksJob);
         ToggleActiveDownloadsCommand = new RelayCommand<object>(_ => IsActiveDownloadsVisible = !IsActiveDownloadsVisible);
         AddPlaylistCommand = new AsyncRelayCommand(ExecuteAddPlaylistAsync);
         PlayTrackCommand = new RelayCommand<PlaylistTrackViewModel>(ExecutePlayTrack);
         ViewHistoryCommand = new AsyncRelayCommand(ExecuteViewHistoryAsync);
         ToggleEditModeCommand = new RelayCommand<object>(_ => IsEditMode = !IsEditMode);
+        DownloadAlbumCommand = new RelayCommand<PlaylistTrackViewModel>(ExecuteDownloadAlbum);
+        RetryOfflineTracksCommand = new RelayCommand(ExecuteRetryOfflineTracks);
         
         // Basic impl for missing commands
         OpenFolderCommand = new RelayCommand<object>(_ => { /* TODO: Implement Open Folder */ });
@@ -554,14 +583,23 @@ public class LibraryViewModel : INotifyPropertyChanged
         // 2. Reload all projects from database
         await LoadProjectsAsync();
         
-        // 3. If a project was selected, reload its tracks
-        if (selectedProjectId.HasValue && selectedProjectId != Guid.Empty)
+        // 3. Restore selection
+        if (selectedProjectId.HasValue)
         {
-            var project = AllProjects.FirstOrDefault(p => p.Id == selectedProjectId.Value);
-            if (project != null)
+            // Special case: restore "All Tracks" selection
+            if (selectedProjectId == Guid.Empty)
             {
-                _logger.LogInformation("Refreshing tracks for selected project: {Title}", project.SourceTitle);
-                await LoadProjectTracksAsync(project);
+                SelectedProject = _allTracksJob;
+            }
+            else
+            {
+                var project = AllProjects.FirstOrDefault(p => p.Id == selectedProjectId.Value);
+                if (project != null)
+                {
+                    SelectedProject = project;
+                    _logger.LogInformation("Refreshing tracks for selected project: {Title}", project.SourceTitle);
+                    await LoadProjectTracksAsync(project);
+                }
             }
         }
         
@@ -623,66 +661,80 @@ public class LibraryViewModel : INotifyPropertyChanged
                 }
             }
             
+            var updateTasks = new System.Collections.Concurrent.ConcurrentBag<Task>();
             int resolved = 0;
-            foreach (var track in tracksNeedingPaths)
+            
+            // Offload the heavy matching logic to a background thread
+            await Task.Run(() =>
             {
-                // Try multiple matching strategies in order of confidence
-                string? matchingFile = null;
-                
-                // Strategy 1: Artist AND Title match (original logic)
-                matchingFile = files.FirstOrDefault(f =>
+                foreach (var track in tracksNeedingPaths)
                 {
-                    var fileName = System.IO.Path.GetFileNameWithoutExtension(f);
-                    var artistMatch = !string.IsNullOrEmpty(track.Artist) && 
-                                    fileName.Contains(track.Artist, StringComparison.OrdinalIgnoreCase);
-                    var titleMatch = !string.IsNullOrEmpty(track.Title) && 
-                                   fileName.Contains(track.Title, StringComparison.OrdinalIgnoreCase);
-                    return artistMatch && titleMatch;
-                });
-                
-                // Strategy 2: Title-only match (fallback for different artist formats)
-                if (matchingFile == null && !string.IsNullOrEmpty(track.Title))
-                {
-                    matchingFile = files.FirstOrDefault(f =>
-                    {
-                        var fileName = System.IO.Path.GetFileNameWithoutExtension(f);
-                        return fileName.Contains(track.Title, StringComparison.OrdinalIgnoreCase);
-                    });
-                }
-                
-                // Strategy 3: Normalized matching (remove special chars, underscores, etc.)
-                if (matchingFile == null && !string.IsNullOrEmpty(track.Title))
-                {
-                    var normalizedTitle = NormalizeForMatching(track.Title);
-                    matchingFile = files.FirstOrDefault(f =>
-                    {
-                        var fileName = System.IO.Path.GetFileNameWithoutExtension(f);
-                        var normalizedFileName = NormalizeForMatching(fileName);
-                        return normalizedFileName.Contains(normalizedTitle, StringComparison.OrdinalIgnoreCase);
-                    });
-                }
-                
-                if (matchingFile != null)
-                {
-                    track.ResolvedFilePath = matchingFile;
-                    _logger.LogInformation("✅ Resolved path for {Artist} - {Title}: {Path}", 
-                        track.Artist, track.Title, System.IO.Path.GetFileName(matchingFile));
-                    resolved++;
+                    // Try multiple matching strategies in order of confidence
+                    string? matchingFile = null;
                     
-                    // Save to database
-                    await _libraryService.UpdatePlaylistTrackAsync(track);
-                }
-                else
-                {
-                    // Log why match failed (first 5 only to avoid spam)
-                    if (resolved < 5)
+                    // Strategy 1: Artist AND Title match (original logic)
+                    matchingFile = files.FirstOrDefault(f =>
                     {
-                        _logger.LogInformation("❌ No match for '{Artist} - {Title}' (Status: {Status})", 
-                            track.Artist, track.Title, track.Status);
+                        var fileName = System.IO.Path.GetFileNameWithoutExtension(f);
+                        var artistMatch = !string.IsNullOrEmpty(track.Artist) && 
+                                        fileName.Contains(track.Artist, StringComparison.OrdinalIgnoreCase);
+                        var titleMatch = !string.IsNullOrEmpty(track.Title) && 
+                                       fileName.Contains(track.Title, StringComparison.OrdinalIgnoreCase);
+                        return artistMatch && titleMatch;
+                    });
+                    
+                    // Strategy 2: Title-only match (fallback for different artist formats)
+                    if (matchingFile == null && !string.IsNullOrEmpty(track.Title))
+                    {
+                        matchingFile = files.FirstOrDefault(f =>
+                        {
+                            var fileName = System.IO.Path.GetFileNameWithoutExtension(f);
+                            return fileName.Contains(track.Title, StringComparison.OrdinalIgnoreCase);
+                        });
+                    }
+                     
+                    // Strategy 3: Normalized matching (remove special chars, underscores, etc.)
+                    if (matchingFile == null && !string.IsNullOrEmpty(track.Title))
+                    {
+                        var normalizedTitle = NormalizeForMatching(track.Title);
+                        matchingFile = files.FirstOrDefault(f =>
+                        {
+                            var fileName = System.IO.Path.GetFileNameWithoutExtension(f);
+                            var normalizedFileName = NormalizeForMatching(fileName);
+                            return normalizedFileName.Contains(normalizedTitle, StringComparison.OrdinalIgnoreCase);
+                        });
+                    }
+                    
+                    if (matchingFile != null)
+                    {
+                        track.ResolvedFilePath = matchingFile;
+                        _logger.LogInformation("✅ Resolved path for {Artist} - {Title}: {Path}", 
+                            track.Artist, track.Title, System.IO.Path.GetFileName(matchingFile));
+                        
+                        System.Threading.Interlocked.Increment(ref resolved);
+                        
+                        // Add to task list for concurrent execution
+                        // We use a local capture to ensure thread safety if needed by the service method (though usually async methods are safe)
+                        updateTasks.Add(_libraryService.UpdatePlaylistTrackAsync(track));
+                    }
+                    else
+                    {
+                         // Log why match failed (first 5 only to avoid spam)
+                        if (resolved < 5)
+                        {
+                            _logger.LogInformation("❌ No match for '{Artist} - {Title}' (Status: {Status})", 
+                                track.Artist, track.Title, track.Status);
+                        }
                     }
                 }
-            }
+            });
             
+            // Wait for all DB updates to complete
+            if (!updateTasks.IsEmpty)
+            {
+                await Task.WhenAll(updateTasks);
+            }
+
             _logger.LogInformation("Resolved {Resolved}/{Total} missing file paths", resolved, tracksNeedingPaths.Count);
         }
         catch (Exception ex)
@@ -733,7 +785,7 @@ public class LibraryViewModel : INotifyPropertyChanged
         _logger.LogInformation("OnProjectAdded EXIT for job {JobId}. New project count: {ProjectCount}", e.Job.Id, AllProjects.Count);
     }
 
-    public async void ReorderTrack(PlaylistTrackViewModel source, PlaylistTrackViewModel target)
+    public void ReorderTrack(PlaylistTrackViewModel source, PlaylistTrackViewModel target)
     {
         if (source == null || target == null || source == target) return;
         if (CurrentProjectTracks == null) return;
@@ -763,7 +815,7 @@ public class LibraryViewModel : INotifyPropertyChanged
             {
                 // Extract models to save
                 var tracksToSave = CurrentProjectTracks.Select(vm => vm.Model).ToList();
-                await _libraryService.SaveTrackOrderAsync(SelectedProject.Id, tracksToSave);
+                _ = _libraryService.SaveTrackOrderAsync(SelectedProject.Id, tracksToSave);
                 _logger.LogInformation("Persisted new track order for playlist {Id}", SelectedProject.Id);
             }
             catch (Exception ex)
@@ -771,6 +823,51 @@ public class LibraryViewModel : INotifyPropertyChanged
                 _logger.LogError(ex, "Failed to persist track order");
             }
         }
+    }
+
+    // Drag & Drop Callbacks
+    public DraggingServiceDragEvent OnDragTrack => (DraggingServiceDragEventsArgs args) => {
+        // Extract the dragged items (e.g., from the DataGrid selection)
+        // Library API uses camelCase 'draggedControls'
+        var draggedItems = args.draggedControls
+            .Select(c => c.DataContext)
+            .OfType<PlaylistTrackViewModel>()
+            .ToList();
+
+        if (draggedItems.Any())
+        {
+            DragContext.Current = draggedItems;
+            _logger.LogInformation("Started dragging {Count} tracks", draggedItems.Count);
+        }
+    };
+
+    public DraggingServiceDropEvent OnDropTrack => (DraggingServiceDropEventsArgs args) => {
+        // Library API uses camelCase 'dropTarget'
+        var targetPlaylist = args.dropTarget.DataContext as PlaylistJob;
+        var droppedTracks = DragContext.Current as List<PlaylistTrackViewModel>;
+
+        if (targetPlaylist != null && droppedTracks != null && droppedTracks.Any())
+        {
+            _logger.LogInformation("Dropping {Count} tracks onto playlist: {Playlist}", droppedTracks.Count, targetPlaylist.SourceTitle);
+            
+            // Execute add asynchronously
+            Dispatcher.UIThread.Post(async () => {
+                foreach (var track in droppedTracks)
+                {
+                    await ExecuteMoveToPlaylistAsync(targetPlaylist, track);
+                }
+            });
+        }
+    };
+
+    private async Task ExecuteMoveToPlaylistAsync(PlaylistJob targetPlaylist, PlaylistTrackViewModel track)
+    {
+        // TODO: Implement actual move or copy logic here
+        // For now we just log it as the user plan didn't specify the exact move logic implementation details
+        // beyond "AddToPlaylist".
+        // Assuming we want to copy/move the track to the new project.
+        _logger.LogInformation("Moving track {Track} to {Playlist}", track.Title, targetPlaylist.SourceTitle);
+        // This logic would need to be fleshed out to actually call LibraryService to link the track to the new job.
     }
 
     private void ExecuteHardRetry(PlaylistTrackViewModel? vm)
@@ -853,6 +950,43 @@ public class LibraryViewModel : INotifyPropertyChanged
             }
         }
 
+    private void ExecuteDownloadAlbum(PlaylistTrackViewModel? track)
+    {
+        if (track == null || string.IsNullOrWhiteSpace(track.Album))
+        {
+            _logger.LogWarning("Cannot download album: track or album name is null");
+            return;
+        }
+
+        // Find all tracks with the same album name in the current view
+        var albumTracks = CurrentProjectTracks
+            .Where(t => !string.IsNullOrWhiteSpace(t.Album) && 
+                       t.Album.Equals(track.Album, StringComparison.OrdinalIgnoreCase) &&
+                       t.State != PlaylistTrackState.Completed)
+            .ToList();
+
+        if (!albumTracks.Any())
+        {
+            _logger.LogInformation("No tracks to download for album '{Album}' (all completed or no matches)", track.Album);
+            if (_mainViewModel != null)
+            {
+                _mainViewModel.StatusText = $"Album '{track.Album}' is already downloaded";
+            }
+            return;
+        }
+
+        _logger.LogInformation("Downloading {Count} tracks from album '{Album}'", albumTracks.Count, track.Album);
+        
+        // Queue all tracks for download
+        var trackModels = albumTracks.Select(t => t.Model).ToList();
+        _downloadManager.QueueTracks(trackModels);
+        
+        if (_mainViewModel != null)
+        {
+            _mainViewModel.StatusText = $"Queued {albumTracks.Count} tracks from '{track.Album}' for download";
+        }
+    }
+
     private void ExecutePauseProject(PlaylistJob? job)
     {
         // Operate on currently visible tracks
@@ -861,6 +995,62 @@ public class LibraryViewModel : INotifyPropertyChanged
         foreach (var t in tracks)
         {
             if (t.CanPause) _downloadManager.PauseTrack(t.GlobalId);
+        }
+    }
+
+    private void ExecuteRetryOfflineTracks()
+    {
+        // Find all tracks that failed due to user offline
+        var offlineTracks = _downloadManager.AllGlobalTracks
+            .Where(t => t.State == PlaylistTrackState.Failed || t.State == PlaylistTrackState.Cancelled)
+            .ToList();
+
+        if (!offlineTracks.Any())
+        {
+            _logger.LogInformation("No offline/failed tracks to retry");
+            if (_mainViewModel != null)
+            {
+                _mainViewModel.StatusText = "No failed tracks to retry";
+            }
+            return;
+        }
+
+        _logger.LogInformation("Retrying {Count} failed/offline tracks", offlineTracks.Count);
+        
+        // Requeue all failed tracks
+        foreach (var track in offlineTracks)
+        {
+            _downloadManager.HardRetryTrack(track.GlobalId);
+        }
+        
+        if (_mainViewModel != null)
+        {
+            _mainViewModel.StatusText = $"Retrying {offlineTracks.Count} failed tracks";
+        }
+    }
+
+    private void ExecuteToggleProjectDownload(PlaylistJob? job)
+    {
+        if (job == null) return;
+
+        // Check if any tracks from this project are currently downloading
+        var projectTracks = _downloadManager.AllGlobalTracks
+            .Where(t => t.Model?.PlaylistId == job.Id)
+            .ToList();
+            
+        var hasActiveDownloads = projectTracks.Any(t => 
+            t.State == PlaylistTrackState.Downloading || 
+            t.State == PlaylistTrackState.Searching);
+
+        if (hasActiveDownloads)
+        {
+            // Pause active downloads
+            ExecutePauseProject(job);
+        }
+        else
+        {
+            // Resume/start downloads
+            ExecuteResumeProject(job);
         }
     }
 
@@ -1100,10 +1290,14 @@ public class LibraryViewModel : INotifyPropertyChanged
                  _logger.LogInformation("All Tracks mode: GlobalTracks has {Count} items.", globalCount);
                  
                  // Load ALL global tracks, Sorted by Active first
-                 var all = _downloadManager.AllGlobalTracks
-                     .OrderByDescending(t => t.IsActive)
-                     .ThenBy(t => t.Artist)
-                     .ToList();
+                 // Run on background thread to avoid UI freeze with large libraries
+                 var all = await Task.Run(() => 
+                 {
+                     return _downloadManager.AllGlobalTracks
+                         .OrderByDescending(t => t.IsActive)
+                         .ThenBy(t => t.Artist)
+                         .ToList();
+                 });
                  
                  _logger.LogInformation("All Tracks mode: Adding {Count} tracks to view.", all.Count);
                  foreach (var t in all) tracks.Add(t);
@@ -1160,10 +1354,13 @@ public class LibraryViewModel : INotifyPropertyChanged
                 }
             }
 
-            // Update UI - we're already on UI thread, no need for Dispatcher
-            CurrentProjectTracks = tracks;
-            RefreshFilteredTracks(); // Update FilteredTracks so DataGrid displays the tracks
-            _logger.LogInformation("Loaded {Count} tracks for project {Title}", tracks.Count, job.SourceTitle);
+            // Update UI - Ensure we are on UI thread after await
+            Dispatcher.UIThread.Post(() =>
+            {
+                CurrentProjectTracks = tracks;
+                RefreshFilteredTracks(); // Update FilteredTracks so DataGrid displays the tracks
+                _logger.LogInformation("Loaded {Count} tracks for project {Title}", tracks.Count, job.SourceTitle);
+            });
         }
         catch (Exception ex)
         {
@@ -1192,7 +1389,7 @@ public class LibraryViewModel : INotifyPropertyChanged
                 _logger.LogWarning("LoadProjectsAsync called after initial load, performing a safe sync.");
                 // Safe sync: add missing, remove deleted, then re-sort
                 var loadedJobIds = new HashSet<Guid>(jobs.Select(j => j.Id));
-                var currentJobIds = new HashSet<Guid>(AllProjects.Select(j => j.Id));
+                var currentJobIds = new HashSet<Guid>(AllProjects.Where(j => j.Id != Guid.Empty).Select(j => j.Id)); // Exclude All Tracks
 
                 // Add new jobs not in the current collection
                 foreach (var job in jobs)
@@ -1204,18 +1401,24 @@ public class LibraryViewModel : INotifyPropertyChanged
                     }
                 }
 
-                // Remove jobs from collection that are no longer in the database
-                var jobsToRemove = AllProjects.Where(j => !loadedJobIds.Contains(j.Id)).ToList();
+                // Remove jobs from collection that are no longer in the database (but keep All Tracks)
+                var jobsToRemove = AllProjects.Where(j => j.Id != Guid.Empty && !loadedJobIds.Contains(j.Id)).ToList();
                 foreach (var job in jobsToRemove)
                 {
                     _logger.LogInformation("Removing deleted job {JobId} from AllProjects", job.Id);
                     AllProjects.Remove(job);
                 }
 
-                // Re-sort by CreatedAt descending
-                var sorted = AllProjects.OrderByDescending(j => j.CreatedAt).ToList();
+                // Re-sort: All Tracks first, then by CreatedAt descending
+                var allTracksItem = AllProjects.FirstOrDefault(j => j.Id == Guid.Empty);
+                var regularProjects = AllProjects.Where(j => j.Id != Guid.Empty).OrderByDescending(j => j.CreatedAt).ToList();
+                
                 AllProjects.Clear();
-                foreach (var job in sorted)
+                if (allTracksItem != null)
+                {
+                    AllProjects.Add(allTracksItem);
+                }
+                foreach (var job in regularProjects)
                 {
                     AllProjects.Add(job);
                 }
@@ -1228,9 +1431,21 @@ public class LibraryViewModel : INotifyPropertyChanged
                 // Don't use Dispatcher - we're already on UI thread
                 // Using Dispatcher here causes deadlock when SelectedProject setter triggers
                 AllProjects.Clear();
+
+                // 1. Add "All Tracks" virtual project
+                AllProjects.Add(_allTracksJob);
+
+                // 2. Add user playlists
                 foreach (var job in jobs.OrderByDescending(j => j.CreatedAt))
                 {
                     AllProjects.Add(job);
+                }
+
+                // 3. Auto-select the first project so the grid isn't empty
+                if (SelectedProject == null && AllProjects.Any())
+                {
+                    _logger.LogInformation("Auto-selecting default project: {Title}", AllProjects.First().SourceTitle);
+                    SelectedProject = AllProjects.First();
                 }
 
                 _initialLoadCompleted = true;

@@ -10,6 +10,7 @@
         Title="QMusic SLSK"
         Width="1400" Height="900"
         MinWidth="360" MinHeight="500"
+        FontSize="{Binding BaseFontSize}"
         Background="#1E1E1E">
 
     <Window.Styles>
@@ -74,9 +75,17 @@
 
                 <!-- Center: Status Message + Version -->
                 <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center" HorizontalAlignment="Center" Spacing="20">
-                    <TextBlock Text="{Binding StatusText}" 
-                               Foreground="#A0A0A0"
-                               FontSize="12"/>
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                        <!-- Loading Spinner -->
+                        <TextBlock Text="⏳" 
+                                   Foreground="#4EC9B0"
+                                   FontSize="12"
+                                   IsVisible="{Binding IsInitializing}"/>
+                        
+                        <TextBlock Text="{Binding StatusText}" 
+                                   Foreground="#A0A0A0"
+                                   FontSize="12"/>
+                    </StackPanel>
                     
                     <TextBlock Text="{Binding ApplicationVersion, StringFormat='v{0}'}" 
                                Foreground="#666666"
@@ -84,7 +93,7 @@
                                FontStyle="Italic"/>
                 </StackPanel>
 
-                <!-- Right: Download Progress + Player Toggle -->
+                <!-- Right: Download Progress + Player Toggle + Zoom Controls -->
                 <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center" Spacing="12">
                     <TextBlock Text="{Binding TodoCount, StringFormat='📥 {0} in progress'}" 
                                Foreground="#A0A0A0" FontSize="11"/>
@@ -93,6 +102,39 @@
                     <TextBlock Text="{Binding FailedCount, StringFormat='✗ {0} failed'}" 
                                Foreground="#A0A0A0" FontSize="11"/>
                     
+                    <Border Width="1" Height="14" Background="#404040"/>
+                    
+                    <!-- Zoom Controls -->
+                    <StackPanel Orientation="Horizontal" Spacing="4">
+                        <Button Command="{Binding ZoomOutCommand}"
+                                Background="Transparent"
+                                BorderThickness="0"
+                                Padding="6,2"
+                                ToolTip.Tip="Zoom Out">
+                            <TextBlock Text="🔍-" FontSize="12" Foreground="#A0A0A0"/>
+                        </Button>
+                        <TextBlock Text="{Binding UIScalePercentage}"
+                                   Foreground="#A0A0A0"
+                                   FontSize="11"
+                                   VerticalAlignment="Center"
+                                   MinWidth="40"
+                                   TextAlignment="Center"/>
+                        <Button Command="{Binding ZoomInCommand}"
+                                Background="Transparent"
+                                BorderThickness="0"
+                                Padding="6,2"
+                                ToolTip.Tip="Zoom In">
+                            <TextBlock Text="🔍+" FontSize="12" Foreground="#A0A0A0"/>
+                        </Button>
+                        <Button Command="{Binding ResetZoomCommand}"
+                                Background="Transparent"
+                                BorderThickness="0"
+                                Padding="6,2"
+                                ToolTip.Tip="Reset Zoom (100%)">
+                            <TextBlock Text="↺" FontSize="12" Foreground="#A0A0A0"/>
+                        </Button>
+                    </StackPanel>
+
                     <Border Width="1" Height="14" Background="#404040"/>
 
                     <Button Command="{Binding TogglePlayerCommand}" 
@@ -162,7 +204,12 @@
                     BorderThickness="1,0,0,0"
                     Width="300"
                     IsVisible="{Binding IsPlayerSidebarVisible}">
-                <views:PlayerControl DataContext="{Binding PlayerViewModel}"/>
+                <Grid>
+                    <views:PlayerControl DataContext="{Binding PlayerViewModel}" 
+                                       IsVisible="{Binding !IsQueueOpen}"/>
+                    <views:QueuePanel DataContext="{Binding PlayerViewModel}" 
+                                    IsVisible="{Binding IsQueueOpen}"/>
+                </Grid>
             </Border>
         </Grid>
 

@@ -25,96 +25,82 @@ public class DatabaseService
 
     public async Task InitAsync()
     {
+        var sw = System.Diagnostics.Stopwatch.StartNew();
+        _logger.LogInformation("[{Ms}ms] Database Init: Starting", sw.ElapsedMilliseconds);
+        
         using var context = new AppDbContext();
         await context.Database.EnsureCreatedAsync();
+        _logger.LogInformation("[{Ms}ms] Database Init: EnsureCreated completed", sw.ElapsedMilliseconds);
 
         // Manual Schema Migration for existing databases
         try 
         {
-            // 1. Check for SortOrder in PlaylistTracks
-            // We can't easily read results with ExecuteSqlRaw, but we can try to add and catch error, 
-            // OR use a safe add column syntax if SQLite supports it (it doesn't support IF NOT EXISTS for columns directly in all versions).
-            // A safer way: Try select.
-            try
+            // Optimize: Check all columns at once using PRAGMA table_info
+            var connection = context.Database.GetDbConnection();
+            await connection.OpenAsync();
+            
+            using var cmd = connection.CreateCommand();
+            cmd.CommandText = "PRAGMA table_info(PlaylistTracks)";
+            var existingColumns = new HashSet<string>();
+            
+            using (var reader = await cmd.ExecuteReaderAsync())
             {
-                await context.Database.ExecuteSqlRawAsync("SELECT SortOrder FROM PlaylistTracks LIMIT 1");
+                while (await reader.ReadAsync())
+                {
+                    existingColumns.Add(reader.GetString(1)); // Column name is at index 1
+                }
             }
-            catch
+            
+            _logger.LogInformation("[{Ms}ms] Database Init: Column check completed", sw.ElapsedMilliseconds);
+            
+            // Add missing columns to PlaylistTracks
+            var columnsToAdd = new List<(string Name, string Definition)>();
+            
+            if (!existingColumns.Contains("SortOrder"))
+                columnsToAdd.Add(("SortOrder", "SortOrder INTEGER DEFAULT 0"));
+            if (!existingColumns.Contains("Rating"))
+                columnsToAdd.Add(("Rating", "Rating INTEGER DEFAULT 0"));
+            if (!existingColumns.Contains("IsLiked"))
+                columnsToAdd.Add(("IsLiked", "IsLiked INTEGER DEFAULT 0"));
+            if (!existingColumns.Contains("PlayCount"))
+                columnsToAdd.Add(("PlayCount", "PlayCount INTEGER DEFAULT 0"));
+            if (!existingColumns.Contains("LastPlayedAt"))
+                columnsToAdd.Add(("LastPlayedAt", "LastPlayedAt TEXT NULL"));
+            
+            foreach (var (name, definition) in columnsToAdd)
             {
-                _logger.LogWarning("Schema Patch: Adding missing column 'SortOrder' to PlaylistTracks");
-                await context.Database.ExecuteSqlRawAsync("ALTER TABLE PlaylistTracks ADD COLUMN SortOrder INTEGER DEFAULT 0");
+                _logger.LogWarning("Schema Patch: Adding missing column '{Column}' to PlaylistTracks", name);
+                await context.Database.ExecuteSqlRawAsync($"ALTER TABLE PlaylistTracks ADD COLUMN {definition}");
             }
-
-            // 2. Check for IsDeleted in PlaylistJobs
-            try
+            
+            // Check PlaylistJobs table
+            cmd.CommandText = "PRAGMA table_info(PlaylistJobs)";
+            existingColumns.Clear();
+            
+            using (var reader = await cmd.ExecuteReaderAsync())
             {
-                 await context.Database.ExecuteSqlRawAsync("SELECT IsDeleted FROM PlaylistJobs LIMIT 1");
+                while (await reader.ReadAsync())
+                {
+                    existingColumns.Add(reader.GetString(1));
+                }
             }
-            catch
+            
+            if (!existingColumns.Contains("IsDeleted"))
             {
                 _logger.LogWarning("Schema Patch: Adding missing column 'IsDeleted' to PlaylistJobs");
                 await context.Database.ExecuteSqlRawAsync("ALTER TABLE PlaylistJobs ADD COLUMN IsDeleted INTEGER DEFAULT 0");
             }
-
-            // 3. Check for Rating in PlaylistTracks (Phase 2)
-            try
-            {
-                await context.Database.ExecuteSqlRawAsync("SELECT Rating FROM PlaylistTracks LIMIT 1");
-            }
-            catch
-            {
-                _logger.LogWarning("Schema Patch: Adding missing column 'Rating' to PlaylistTracks");
-                await context.Database.ExecuteSqlRawAsync("ALTER TABLE PlaylistTracks ADD COLUMN Rating INTEGER DEFAULT 0");
-            }
-
-            // 4. Check for IsLiked in PlaylistTracks (Phase 2)
-            try
-            {
-                await context.Database.ExecuteSqlRawAsync("SELECT IsLiked FROM PlaylistTracks LIMIT 1");
-            }
-            catch
-            {
-                _logger.LogWarning("Schema Patch: Adding missing column 'IsLiked' to PlaylistTracks");
-                await context.Database.ExecuteSqlRawAsync("ALTER TABLE PlaylistTracks ADD COLUMN IsLiked INTEGER DEFAULT 0");
-            }
-
-            // 5. Check for PlayCount in PlaylistTracks (Phase 2)
-            try
-            {
-                await context.Database.ExecuteSqlRawAsync("SELECT PlayCount FROM PlaylistTracks LIMIT 1");
-            }
-            catch
-            {
-                _logger.LogWarning("Schema Patch: Adding missing column 'PlayCount' to PlaylistTracks");
-                await context.Database.ExecuteSqlRawAsync("ALTER TABLE PlaylistTracks ADD COLUMN PlayCount INTEGER DEFAULT 0");
-            }
-
-            // 6. Check for LastPlayedAt in PlaylistTracks (Phase 2)
-            try
-            {
-                await context.Database.ExecuteSqlRawAsync("SELECT LastPlayedAt FROM PlaylistTracks LIMIT 1");
-            }
-            catch
-            {
-                _logger.LogWarning("Schema Patch: Adding missing column 'LastPlayedAt' to PlaylistTracks");
-                await context.Database.ExecuteSqlRawAsync("ALTER TABLE PlaylistTracks ADD COLUMN LastPlayedAt TEXT NULL");
-            }
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Failed to patch database schema");
-        }
-            // 7. Check for ActivityLogs table
-            // Since it's a new table, we can check if it exists in sqlite_master
+            
+            _logger.LogInformation("[{Ms}ms] Database Init: Schema patches completed", sw.ElapsedMilliseconds);
+            
+            // Check for ActivityLogs table
             try 
             {
-               // This works but might be complex to parse. Better: try select
                await context.Database.ExecuteSqlRawAsync("SELECT Id FROM ActivityLogs LIMIT 1");
             }
             catch
             {
                  _logger.LogWarning("Schema Patch: Creating missing table 'ActivityLogs'");
-                 // Create table script matching the Entity
                  var createTableSql = @"
                     CREATE TABLE IF NOT EXISTS ActivityLogs (
                         Id TEXT NOT NULL CONSTRAINT PK_ActivityLogs PRIMARY KEY,
@@ -128,11 +114,15 @@ public class DatabaseService
                  ";
                  await context.Database.ExecuteSqlRawAsync(createTableSql);
             }
+            
+            await connection.CloseAsync();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to patch database schema");
+        }
 
-
-
-
-        _logger.LogInformation("Database initialized and schema verified.");
+        _logger.LogInformation("[{Ms}ms] Database initialized and schema verified.", sw.ElapsedMilliseconds);
     }
 
     // ===== Track Methods =====

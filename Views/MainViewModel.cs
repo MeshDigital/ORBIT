@@ -39,6 +39,7 @@ public class MainViewModel : INotifyPropertyChanged
     private bool _isConnected = false;
     private bool _isSearching = false;
     private bool _isDiagnosticsRunning;
+    private bool _isInitializing = true;
     private string _statusText = "Disconnected";
     private string _downloadPath = "";
     private string _sharedFolderPath = "";
@@ -59,6 +60,49 @@ public class MainViewModel : INotifyPropertyChanged
     }
 
     private string _applicationVersion = "Unknown";
+    public bool IsInitializing
+    {
+        get => _isInitializing;
+        set => SetProperty(ref _isInitializing, value);
+    }
+
+    private double _baseFontSize = 14.0;
+    public double BaseFontSize
+    {
+        get => _baseFontSize;
+        set
+        {
+            if (SetProperty(ref _baseFontSize, Math.Clamp(value, 8.0, 24.0)))
+            {
+                // Update global font size resources
+                UpdateFontSizeResources();
+                
+                // Notify all derived font size properties
+                OnPropertyChanged(nameof(FontSizeSmall));
+                OnPropertyChanged(nameof(FontSizeMedium));
+                OnPropertyChanged(nameof(FontSizeLarge));
+                OnPropertyChanged(nameof(UIScalePercentage));
+            }
+        }
+    }
+
+    private void UpdateFontSizeResources()
+    {
+        if (global::Avalonia.Application.Current?.Resources != null)
+        {
+            global::Avalonia.Application.Current.Resources["FontSizeSmall"] = BaseFontSize * 0.85;
+            global::Avalonia.Application.Current.Resources["FontSizeMedium"] = BaseFontSize;
+            global::Avalonia.Application.Current.Resources["FontSizeLarge"] = BaseFontSize * 1.2;
+            global::Avalonia.Application.Current.Resources["FontSizeXLarge"] = BaseFontSize * 1.4;
+        }
+    }
+
+    // Derived font sizes
+    public double FontSizeSmall => BaseFontSize * 0.85;
+    public double FontSizeMedium => BaseFontSize;
+    public double FontSizeLarge => BaseFontSize * 1.2;
+    public string UIScalePercentage => $"{(BaseFontSize / 14.0):P0}";
+
     public string ApplicationVersion
     {
         get => _applicationVersion;
@@ -388,6 +432,9 @@ public class MainViewModel : INotifyPropertyChanged
 
     public ObservableCollection<PlaylistTrackViewModel> FilteredGlobalTracks { get; private set; } = new();
     public ICommand DeleteTrackCommand { get; }
+    public RelayCommand ZoomInCommand { get; }
+    public RelayCommand ZoomOutCommand { get; }
+    public RelayCommand ResetZoomCommand { get; }
 
     // Surface download manager counters compatibility
     public int SuccessfulCount => _downloadManager.AllGlobalTracks.Count(t => t.State == ViewModels.PlaylistTrackState.Completed);
@@ -550,7 +597,7 @@ public class MainViewModel : INotifyPropertyChanged
         BrowseSharedFolderCommand = new RelayCommand(BrowseSharedFolder);
         SearchAllImportedCommand = new AsyncRelayCommand(SearchAllImportedAsync, () => ImportedQueries.Any() && !IsSearching);
         RunDiagnosticsCommand = new AsyncRelayCommand(RunDiagnosticsHarnessAsync);
-        ShowPauseComingSoonCommand = new RelayCommand(() => StatusText = "Pause functionality is planned for a future update!");
+        ShowPauseComingSoonCommand = new RelayCommand(PauseDownloads);
         CancelSearchCommand = new RelayCommand(CancelSearch, () => IsSearching);
         ChangeViewModeCommand = new RelayCommand<string?>(mode => { if (!string.IsNullOrEmpty(mode)) CurrentViewMode = mode; });
         SelectImportCommand = new RelayCommand<SearchQuery?>(import => SelectedImport = import);
@@ -561,6 +608,10 @@ public class MainViewModel : INotifyPropertyChanged
             configManager.Save(_config);
             StatusText = "Settings saved successfully!";
         });
+
+        ZoomInCommand = new RelayCommand(ZoomIn);
+        ZoomOutCommand = new RelayCommand(ZoomOut);
+        ResetZoomCommand = new RelayCommand(ResetZoom);
 
 
         // Initialize        // Navigation commands
@@ -2134,11 +2185,69 @@ public class MainViewModel : INotifyPropertyChanged
 
     private void CancelDownloads()
     {
-        foreach(var t in _downloadManager.AllGlobalTracks)
+        try
         {
-             t.CancelCommand?.Execute(null);
+            var tracks = _downloadManager.AllGlobalTracks.ToList(); // Snapshot to avoid collection modification
+            int cancelled = 0;
+            
+            foreach(var t in tracks)
+            {
+                if (t.CanCancel)
+                {
+                    _downloadManager.CancelTrack(t.GlobalId);
+                    cancelled++;
+                }
+            }
+            
+            StatusText = $"Cancelled {cancelled} download(s)";
+            _logger.LogInformation("Cancelled {Count} downloads", cancelled);
         }
-        StatusText = "Downloads cancelled";
+        catch (Exception ex)
+        {
+            StatusText = $"Cancel failed: {ex.Message}";
+            _logger.LogError(ex, "Failed to cancel downloads");
+        }
+    }
+
+    private void PauseDownloads()
+    {
+        try
+        {
+            var tracks = _downloadManager.AllGlobalTracks.ToList(); // Snapshot to avoid collection modification
+            int paused = 0;
+            
+            foreach(var t in tracks)
+            {
+                if (t.CanPause)
+                {
+                    _downloadManager.PauseTrack(t.GlobalId);
+                    paused++;
+                }
+            }
+            
+            StatusText = $"Paused {paused} download(s)";
+            _logger.LogInformation("Paused {Count} downloads", paused);
+        }
+        catch (Exception ex)
+        {
+            StatusText = $"Pause failed: {ex.Message}";
+            _logger.LogError(ex, "Failed to pause downloads");
+        }
+    }
+
+    private void ZoomIn()
+    {
+        BaseFontSize += 1.0;
+    }
+
+    private void ZoomOut()
+    {
+        BaseFontSize -= 1.0;
+    }
+
+    private void ResetZoom()
+    {
+        BaseFontSize = 14.0;
     }
 
     // LEGACY: This method is no longer used. Library management now handled by LibraryViewModel.

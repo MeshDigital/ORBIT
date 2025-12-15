@@ -77,6 +77,15 @@ SLSKDONET/
 | `MainViewModel` | MVVM logic | `IsConnected`, `SearchQuery`, `SearchResults`, `Downloads` |
 | `MainWindow` | WPF window | Data context binding |
 
+### Key Dependencies
+| Package | Purpose |
+|---------|---------|
+| `Avalonia` | UI Framework |
+| `Soulseek` | Soulseek Protocol |
+| `Simple-Avalonia-DragnDrop-Service` | Drag & Drop Utils |
+| `LibVLCSharp` | Audio Playback |
+| `EntityFrameworkCore` | Database (SQLite) |
+
 ## Build Instructions
 
 ### Prerequisites

@@ -2,10 +2,12 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:ds="clr-namespace:DraggingService;assembly=Simple-Avalonia-DragnDrop-Service"
+             xmlns:vm="clr-namespace:SLSKDONET.ViewModels"
              mc:Ignorable="d" d:DesignWidth="1200" d:DesignHeight="800"
              x:Class="SLSKDONET.Views.Avalonia.LibraryPage"
              Background="#1E1E1E" Foreground="White">
-    
+
     <Grid ColumnDefinitions="280,*">
         
         <!-- LEFT PANEL: Playlist List -->
@@ -54,6 +56,18 @@
                         </StackPanel>
                     </Button>
                     
+                    <!-- Retry Offline Tracks Button -->
+                    <Button Command="{Binding RetryOfflineTracksCommand}" 
+                            Classes="nav"
+                            HorizontalContentAlignment="Left"
+                            Padding="12,10"
+                            ToolTip.Tip="Retry all failed/offline tracks">
+                        <StackPanel Orientation="Horizontal" Spacing="10">
+                            <TextBlock Text="🔄" FontSize="16"/>
+                            <TextBlock Text="Retry Offline" FontSize="13" Foreground="#FFA500"/>
+                        </StackPanel>
+                    </Button>
+                    
                 </StackPanel>
                 
                 <!-- Playlist List -->
@@ -62,7 +76,9 @@
                          SelectedItem="{Binding SelectedProject, Mode=TwoWay}"
                          Background="Transparent"
                          BorderThickness="0"
-                         Padding="12">
+                         Padding="12"
+                         ds:DraggingServiceAttached.IsDropEnable="True"
+                         ds:DraggingServiceAttached.DropCallback="{Binding OnDropTrack}">
                     <ListBox.ItemTemplate>
                         <DataTemplate>
                             <!-- Modern Card Design -->
@@ -79,7 +95,7 @@
                                     </Style>
                                 </Border.Styles>
                                 
-                                <Grid RowDefinitions="Auto,Auto,Auto,Auto">
+                                <Grid RowDefinitions="Auto,Auto,Auto,Auto,Auto">
                                     <!-- Playlist Title -->
                                     <TextBlock Grid.Row="0" 
                                                Text="{Binding SourceTitle}" 
@@ -123,6 +139,23 @@
                                             <Run Text="{Binding FailedCount}"/>
                                         </TextBlock>
                                     </StackPanel>
+                                    
+                                    <!-- Download/Pause Album Button -->
+                                    <Button Grid.Row="4"
+                                            Command="{Binding $parent[UserControl].((vm:LibraryViewModel)DataContext).ResumeProjectCommand}"
+                                            CommandParameter="{Binding}"
+                                            Background="#1A4CAF50"
+                                            BorderBrush="#4CAF50"
+                                            BorderThickness="1"
+                                            CornerRadius="6"
+                                            Padding="10,6"
+                                            Margin="0,8,0,0"
+                                            HorizontalContentAlignment="Center">
+                                        <StackPanel Orientation="Horizontal" Spacing="6">
+                                            <TextBlock Text="⬇️" FontSize="12"/>
+                                            <TextBlock Text="Download Album" FontSize="11" Foreground="#4CAF50" FontWeight="Medium"/>
+                                        </StackPanel>
+                                    </Button>
                                 </Grid>
                             </Border>
                         </DataTemplate>
@@ -248,7 +281,7 @@
                     </Button>
                 </Grid>
             </Border>
-            
+
             <!-- Track DataGrid -->
             <DataGrid Grid.Row="2"
                       x:Name="TrackDataGrid"
@@ -264,9 +297,31 @@
                       CanUserResizeColumns="True"
                       CanUserSortColumns="False"
                       IsReadOnly="{Binding IsDataGridReadOnly}"
+                      ds:DraggingServiceAttached.IsDragEnable="True"
+                      ds:DraggingServiceAttached.DragCallback="{Binding OnDragTrack}"
                       DragDrop.AllowDrop="True">
                 
-                <!-- Row Styles for Visual Feedback -->
+                <DataGrid.ContextMenu>
+                    <ContextMenu>
+                        <MenuItem Header="Add to Queue" 
+                                  Command="{Binding $parent[UserControl].((vm:LibraryViewModel)DataContext).PlayerViewModel.AddToQueueCommand}"
+                                  CommandParameter="{Binding}"
+                                  InputGesture="Ctrl+Q">
+                             <MenuItem.Icon>
+                                 <TextBlock Text="📋"/>
+                             </MenuItem.Icon>
+                        </MenuItem>
+                        
+                        <MenuItem Header="Download Album" 
+                                  Command="{Binding $parent[UserControl].((vm:LibraryViewModel)DataContext).DownloadAlbumCommand}"
+                                  CommandParameter="{Binding}">
+                             <MenuItem.Icon>
+                                 <TextBlock Text="💿"/>
+                             </MenuItem.Icon>
+                        </MenuItem>
+                    </ContextMenu>
+                </DataGrid.ContextMenu>
+                
                 <DataGrid.Styles>
                     <Style Selector="DataGridRow:pointerover">
                         <Setter Property="Background" Value="#1AFFFFFF"/>

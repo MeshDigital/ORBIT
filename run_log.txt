@@ -1,0 +1,19 @@
+[19:00:13 INF] : Starting QMUSICSLSK application
+[19:00:14 INF] SLSKDONET.Services.DatabaseService: Database initialized and schema verified.
+[AudioPlayerService] Initializing LibVLC from: C:\Users\quint\Github Hauwei\QMUSICSLSK\bin\Debug\net8.0\libvlc\win-x64
+[AudioPlayerService] LibVLC path exists: True
+[AudioPlayerService] Initialization successful!
+[19:00:30 INF] SLSKDONET.Views.MainViewModel: === MainViewModel Constructor Started ===
+[19:00:30 INF] SLSKDONET.Views.MainViewModel: Dependencies injected successfully
+[19:00:30 INF] SLSKDONET.Views.MainViewModel: Application Version: 1.0.0
+[19:00:30 INF] SLSKDONET.Views.MainViewModel: MainViewModel initialized. IsConnected=False, IsSearching=False, StatusText=Disconnected
+[19:00:30 INF] SLSKDONET.Views.MainViewModel: === MainViewModel Constructor Completed ===
+[19:00:30 INF] SLSKDONET.ViewModels.LibraryViewModel: LoadProjectsAsync ENTRY. Current AllProjects.Count: 0
+[19:00:30 INF] SLSKDONET.ViewModels.LibraryViewModel: Loading all playlist jobs from database...
+[19:00:31 INF] SLSKDONET.ViewModels.LibraryViewModel: LoadProjectsAsync: Loaded 0 jobs from database
+[19:00:31 INF] SLSKDONET.ViewModels.LibraryViewModel: Initial load completed. Loaded 0 playlists (tracks will load on-demand)
+[19:00:31 INF] SLSKDONET.Services.DatabaseService: Database initialized and schema verified.
+[19:00:31 INF] SLSKDONET.Services.DownloadManager: Hydrated 0 tracks from database.
+[19:00:31 INF] SLSKDONET.Services.DownloadManager: DownloadManager Orchestrator started.
+[19:00:31 INF] SLSKDONET.Services.DatabaseService: Database initialized and schema verified.
+[19:00:31 INF] SLSKDONET.Services.DownloadManager: Hydrated 0 tracks from database.

@@ -1,0 +1,15 @@
+  Determining projects to restore...
+  All projects are up-to-date for restore.
+C:\Users\quint\Github Hauwei\QMUSICSLSK\ViewModels\PlayerViewModel.cs(7,7): warning CS0105: The using directive for 'System.Collections.ObjectModel' appeared previously in this namespace [C:\Users\quint\Github Hauwei\QMUSICSLSK\SLSKDONET.csproj]
+C:\Users\quint\Github Hauwei\QMUSICSLSK\Views/Avalonia/LibraryPage.axaml(1,2,1,2): Avalonia error AVLN2000: Unable to resolve suitable regular or attached property IsRootOfDraggingInstance on type Simple-Avalonia-DragnDrop-Service:DraggingService.DraggingServiceAttached Line 1, position 2. [C:\Users\quint\Github Hauwei\QMUSICSLSK\SLSKDONET.csproj]
+C:\Users\quint\Github Hauwei\QMUSICSLSK\Views/Avalonia/QueuePanel.axaml(1,2,1,2): Avalonia error AVLN2000: Unable to resolve suitable regular or attached property IsRootOfDraggingInstance on type Simple-Avalonia-DragnDrop-Service:DraggingService.DraggingServiceAttached Line 1, position 2. [C:\Users\quint\Github Hauwei\QMUSICSLSK\SLSKDONET.csproj]
+
+Build FAILED.
+
+C:\Users\quint\Github Hauwei\QMUSICSLSK\ViewModels\PlayerViewModel.cs(7,7): warning CS0105: The using directive for 'System.Collections.ObjectModel' appeared previously in this namespace [C:\Users\quint\Github Hauwei\QMUSICSLSK\SLSKDONET.csproj]
+C:\Users\quint\Github Hauwei\QMUSICSLSK\Views/Avalonia/LibraryPage.axaml(1,2,1,2): Avalonia error AVLN2000: Unable to resolve suitable regular or attached property IsRootOfDraggingInstance on type Simple-Avalonia-DragnDrop-Service:DraggingService.DraggingServiceAttached Line 1, position 2. [C:\Users\quint\Github Hauwei\QMUSICSLSK\SLSKDONET.csproj]
+C:\Users\quint\Github Hauwei\QMUSICSLSK\Views/Avalonia/QueuePanel.axaml(1,2,1,2): Avalonia error AVLN2000: Unable to resolve suitable regular or attached property IsRootOfDraggingInstance on type Simple-Avalonia-DragnDrop-Service:DraggingService.DraggingServiceAttached Line 1, position 2. [C:\Users\quint\Github Hauwei\QMUSICSLSK\SLSKDONET.csproj]
+    1 Warning(s)
+    2 Error(s)
+
+Time Elapsed 00:00:05.91

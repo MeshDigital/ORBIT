@@ -18,9 +18,8 @@ namespace SLSKDONET.Services
 
         public AudioPlayerService()
         {
-            // Lazy initialization or explicit? 
-            // We'll initialize in constructor for now, assuming Core.Initialize is safe.
-            Initialize();
+            // Defer initialization until first use to avoid blocking app startup
+            // Initialize() will be called lazily when Play() is first invoked
         }
 
         private void Initialize()
@@ -33,12 +32,12 @@ namespace SLSKDONET.Services
             var appDir = AppDomain.CurrentDomain.BaseDirectory;
             var libVlcPath = Path.Combine(appDir, "libvlc", Environment.Is64BitProcess ? "win-x64" : "win-x86");
             
-            Console.WriteLine($"[AudioPlayerService] Initializing LibVLC from: {libVlcPath}");
-            Console.WriteLine($"[AudioPlayerService] LibVLC path exists: {Directory.Exists(libVlcPath)}");
+            Console.WriteLine($"[{DateTime.Now:HH:mm:ss.fff}] [AudioPlayerService] Initializing LibVLC from: {libVlcPath}");
+            Console.WriteLine($"[{DateTime.Now:HH:mm:ss.fff}] [AudioPlayerService] LibVLC path exists: {Directory.Exists(libVlcPath)}");
             
             if (!Directory.Exists(libVlcPath))
             {
-                Console.WriteLine($"[AudioPlayerService] ERROR: LibVLC directory not found!");
+                Console.WriteLine($"[{DateTime.Now:HH:mm:ss.fff}] [AudioPlayerService] ERROR: LibVLC directory not found!");
                 return;
             }
             
@@ -55,7 +54,7 @@ namespace SLSKDONET.Services
             _mediaPlayer.PausableChanged += (s, e) => PausableChanged?.Invoke(this, EventArgs.Empty);
 
             _isInitialized = true;
-            Console.WriteLine($"[AudioPlayerService] Initialization successful!");
+            Console.WriteLine($"[{DateTime.Now:HH:mm:ss.fff}] [AudioPlayerService] Initialization successful!");
         }
         catch (Exception ex)
         {

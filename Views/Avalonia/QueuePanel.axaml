@@ -1,6 +1,7 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:vm="clr-namespace:SLSKDONET.ViewModels"
+             xmlns:ds="clr-namespace:DraggingService;assembly=Simple-Avalonia-DragnDrop-Service"
              x:Class="SLSKDONET.Views.Avalonia.QueuePanel"
              Background="#1E1E1E">
     
@@ -39,7 +40,9 @@
                  SelectedIndex="{Binding CurrentQueueIndex}"
                  Background="Transparent"
                  BorderThickness="0"
-                 Padding="0">
+                 Padding="0"
+                 ds:DraggingServiceAttached.IsDropEnable="True"
+                 ds:DraggingServiceAttached.DropCallback="{Binding OnDropQueue}">
             <ListBox.ItemTemplate>
                 <DataTemplate>
                     <Border Padding="12,8" 

@@ -36,30 +36,54 @@ public partial class App : Application
 
             try
             {
-                // Initialize database before anything else
+                // Initialize database before anything else (required for app to function)
                 var databaseService = Services.GetRequiredService<DatabaseService>();
                 databaseService.InitAsync().GetAwaiter().GetResult();
 
-                // Create main window
+                // Create main window and show it immediately
+                var mainVm = Services.GetRequiredService<MainViewModel>();
+                mainVm.StatusText = "Initializing application...";
+                
                 var mainWindow = new Views.Avalonia.MainWindow
                 {
-                    DataContext = Services.GetRequiredService<MainViewModel>()
+                    DataContext = mainVm
                 };
 
-                // Eagerly instantiate LibraryViewModel so it subscribes to ProjectAdded events
-                var libraryViewModel = Services.GetRequiredService<LibraryViewModel>();
-                var mainViewModel = Services.GetRequiredService<MainViewModel>();
-                libraryViewModel.SetMainViewModel(mainViewModel);
-                
-                // Load playlists from database
-                libraryViewModel.LoadProjectsAsync().GetAwaiter().GetResult();
-
-                // Start the Download Manager loop
-                var downloadManager = Services.GetRequiredService<DownloadManager>();
-                downloadManager.InitAsync().GetAwaiter().GetResult();
-                _ = downloadManager.StartAsync();
-
                 desktop.MainWindow = mainWindow;
+                
+                // Start background initialization (non-blocking)
+                _ = Task.Run(async () =>
+                {
+                    try
+                    {
+                        // Initialize DownloadManager
+                        var downloadManager = Services.GetRequiredService<DownloadManager>();
+                        await downloadManager.InitAsync();
+                        _ = downloadManager.StartAsync();
+                        
+                        // Initialize LibraryViewModel
+                        var libraryViewModel = Services.GetRequiredService<LibraryViewModel>();
+                        libraryViewModel.SetMainViewModel(mainVm);
+                        await libraryViewModel.LoadProjectsAsync();
+                        
+                        // Update UI on completion
+                        await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() =>
+                        {
+                            mainVm.IsInitializing = false;
+                            mainVm.StatusText = "Ready";
+                            Serilog.Log.Information("Background initialization completed");
+                        });
+                    }
+                    catch (Exception ex)
+                    {
+                        Serilog.Log.Error(ex, "Background initialization failed");
+                        await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() =>
+                        {
+                            mainVm.StatusText = "Initialization failed - check logs";
+                            mainVm.IsInitializing = false;
+                        });
+                    }
+                });
             }
             catch (Exception ex)
             {
@@ -145,9 +169,15 @@ public partial class App : Application
 
         // Import Plugin System
         services.AddSingleton<ImportOrchestrator>();
-        services.AddSingleton<IImportProvider, Services.ImportProviders.SpotifyImportProvider>();
-        services.AddSingleton<IImportProvider, Services.ImportProviders.CsvImportProvider>();
-        services.AddSingleton<IImportProvider, Services.ImportProviders.TracklistImportProvider>();
+        // Register concrete types for direct injection
+        services.AddSingleton<Services.ImportProviders.SpotifyImportProvider>();
+        services.AddSingleton<Services.ImportProviders.CsvImportProvider>();
+        services.AddSingleton<Services.ImportProviders.TracklistImportProvider>();
+        
+        // Register as interface for Orchestrator
+        services.AddSingleton<IImportProvider>(sp => sp.GetRequiredService<Services.ImportProviders.SpotifyImportProvider>());
+        services.AddSingleton<IImportProvider>(sp => sp.GetRequiredService<Services.ImportProviders.CsvImportProvider>());
+        services.AddSingleton<IImportProvider>(sp => sp.GetRequiredService<Services.ImportProviders.TracklistImportProvider>());
 
         // Library Action System
         services.AddSingleton<Services.LibraryActions.LibraryActionProvider>();

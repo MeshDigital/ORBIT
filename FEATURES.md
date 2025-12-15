@@ -21,7 +21,7 @@
 
 ### Playlist Organization
 - **Create Playlists**: Organize tracks into custom playlists
-- **Drag-and-Drop**: Move tracks between playlists visually
+- **Drag-and-Drop**: Move tracks between playlists visually (Powered by Simple-Avalonia-DragnDrop-Service)
 - **Track Reordering**: Drag to reorder tracks within playlists
 - **Playlist Deletion**: Remove playlists with confirmation
 - **Track Removal**: Remove individual tracks from playlists

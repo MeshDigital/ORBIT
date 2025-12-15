@@ -2,16 +2,19 @@ using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Linq;
-using System.Windows.Input; // For ICommand
+using System.Windows.Input;
 using Avalonia.Threading;
+using Microsoft.Extensions.Logging;
+using SLSKDONET.Models;
 using SLSKDONET.Services;
 using SLSKDONET.Views;
-using SLSKDONET.Models;
-using System.ComponentModel;
-using System.Runtime.CompilerServices;
+using DraggingService;
 
 namespace SLSKDONET.ViewModels
 {
+    using System.ComponentModel;
+    using System.Runtime.CompilerServices;
+
     public partial class PlayerViewModel : INotifyPropertyChanged
     {
         public event PropertyChangedEventHandler? PropertyChanged;
@@ -129,6 +132,14 @@ namespace SLSKDONET.ViewModels
             set => SetProperty(ref _currentDockLocation, value);
         }
         
+        // Queue Visibility
+        private bool _isQueueOpen;
+        public bool IsQueueOpen
+        {
+            get => _isQueueOpen;
+            set => SetProperty(ref _isQueueOpen, value);
+        }
+        
         // Shuffle history to prevent immediate repeats
         private readonly List<int> _shuffleHistory = new();
 
@@ -142,6 +153,7 @@ namespace SLSKDONET.ViewModels
         public ICommand ToggleShuffleCommand { get; }
         public ICommand ToggleRepeatCommand { get; }
         public ICommand TogglePlayerDockCommand { get; }
+        public ICommand ToggleQueueCommand { get; }
 
         public PlayerViewModel(IAudioPlayerService playerService)
         {
@@ -176,6 +188,12 @@ namespace SLSKDONET.ViewModels
             ToggleShuffleCommand = new RelayCommand(ToggleShuffle);
             ToggleRepeatCommand = new RelayCommand(ToggleRepeat);
             TogglePlayerDockCommand = new RelayCommand(TogglePlayerDock);
+            ToggleQueueCommand = new RelayCommand(ToggleQueue);
+        }
+        
+        private void ToggleQueue()
+        {
+            IsQueueOpen = !IsQueueOpen;
         }
         
         // Queue Management Methods
@@ -403,17 +421,46 @@ namespace SLSKDONET.ViewModels
                 : PlayerDockLocation.BottomBar;
         }
 
+        private string? _currentFilePath;
+
         private void TogglePlayPause()
         {
             if (IsPlaying)
+            {
                 _playerService.Pause();
+                IsPlaying = false; // Update immediate state
+            }
             else
             {
-                // If nothing loaded, maybe play current?
-                // For now, Pause works as toggle if media is loaded.
-                _playerService.Pause(); // LibVLC Pause toggles.
+                // Case 1: Track is loaded but paused/stopped
+                // Check _currentFilePath (Ad-hoc play) OR CurrentTrack (Queue play)
+                string? path = _currentFilePath ?? CurrentTrack?.Model?.ResolvedFilePath;
+                string title = TrackTitle;
+                string artist = TrackArtist;
+
+                if (!string.IsNullOrEmpty(path))
+                {
+                    // Try to resume
+                    _playerService.Pause(); 
+                    
+                    // Verify if it actually resumed (if it was Stopped, Pause() might fail depending on LibVLC version/state)
+                    // If still not playing, force a full Play()
+                    if (!_playerService.IsPlaying)
+                    {
+                        Console.WriteLine("[PlayerViewModel] Resume failed (was stopped?), restarting track.");
+                        PlayTrack(path, title, artist);
+                    }
+                }
+                // Case 2: No track loaded, but Queue has items
+                else if (Queue.Any())
+                {
+                    // Start from beginning or current index
+                    if (CurrentQueueIndex < 0) CurrentQueueIndex = 0;
+                    PlayTrackAtIndex(CurrentQueueIndex);
+                }
+                
+                IsPlaying = _playerService.IsPlaying;
             }
-            IsPlaying = _playerService.IsPlaying;
         }
 
         private void Stop()
@@ -440,10 +487,25 @@ namespace SLSKDONET.ViewModels
         public void PlayTrack(string filePath, string title, string artist)
         {
             Console.WriteLine($"[PlayerViewModel] PlayTrack called with: {filePath}");
+            _currentFilePath = filePath;
             TrackTitle = title;
             TrackArtist = artist;
             _playerService.Play(filePath);
             IsPlaying = true;
         }
+
+        // Drag & Drop
+        public DraggingServiceDropEvent OnDropQueue => (DraggingServiceDropEventsArgs args) => {
+            var droppedTracks = DragContext.Current as List<PlaylistTrackViewModel>;
+            if (droppedTracks != null && droppedTracks.Any())
+            {
+                Dispatcher.UIThread.Post(() => {
+                    foreach (var track in droppedTracks)
+                    {
+                        AddToQueue(track);
+                    }
+                });
+            }
+        };
     }
 }

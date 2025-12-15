@@ -225,7 +225,8 @@
                     <TextBlock Text="♡" FontSize="18" Foreground="#B3B3B3"/>
                 </Button>
                 
-                <Button Background="Transparent"
+                <Button Command="{Binding ToggleQueueCommand}"
+                        Background="Transparent"
                         BorderThickness="0"
                         Width="36" Height="36"
                         ToolTip.Tip="Queue">
@@ -234,7 +235,7 @@
                             <Setter Property="Background" Value="#2D2D2D"/>
                         </Style>
                     </Button.Styles>
-                    <TextBlock Text="📋" FontSize="16" Foreground="#B3B3B3"/>
+                    <TextBlock Text="📋" FontSize="16" Foreground="{Binding IsQueueOpen, Converter={StaticResource BoolToColorConverter}}"/>
                 </Button>
             </StackPanel>
         </StackPanel>
