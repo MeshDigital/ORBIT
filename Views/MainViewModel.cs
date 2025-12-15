@@ -33,6 +33,7 @@ public class MainViewModel : INotifyPropertyChanged
     private readonly DownloadManager _downloadManager;
     private readonly ILibraryService _libraryService;
     private readonly IFileInteractionService _fileInteractionService;
+    private readonly Services.ImportProviders.TracklistImportProvider _tracklistImportProvider;
     private string _username = "";
     private PlaylistJob? _currentPlaylistJob;
     private bool _isConnected = false;
@@ -270,6 +271,7 @@ public class MainViewModel : INotifyPropertyChanged
     }
 
     public ICommand BrowseCsvCommand { get; }
+    public ICommand PasteTracklistCommand { get; }
 
     private async Task ExecuteBrowseCsvAsync()
     {
@@ -282,6 +284,61 @@ public class MainViewModel : INotifyPropertyChanged
             SearchQuery = result;
             // Optionally trigger the search immediately
             // await ExecuteUnifiedSearchAsync();
+        }
+    }
+
+    private async Task ExecutePasteTracklistAsync()
+    {
+        try
+        {
+            // Get multi-line input from user
+            var rawText = _userInputService.GetInput(
+                "Paste your tracklist here (timestamps will be removed automatically):",
+                "Paste Tracklist");
+
+            if (string.IsNullOrWhiteSpace(rawText))
+                return;
+
+            _logger.LogInformation("Processing pasted tracklist ({Length} chars)", rawText.Length);
+
+            // Use the TracklistImportProvider to parse
+            var result = await _tracklistImportProvider.ImportAsync(rawText);
+
+            if (!result.Success)
+            {
+                StatusText = result.ErrorMessage ?? "Failed to parse tracklist";
+                _logger.LogWarning("Tracklist parse failed: {Error}", result.ErrorMessage);
+                return;
+            }
+
+            // Show preview page
+            if (result.Tracks.Any())
+            {
+                _logger.LogInformation("Initializing ImportPreviewViewModel for {Count} pasted tracks", result.Tracks.Count);
+                var importPreviewVm = CreateImportPreviewViewModel();
+                await importPreviewVm.InitializePreviewAsync(
+                    result.SourceTitle,
+                    "Pasted Tracklist",
+                    result.Tracks);
+
+                ImportPreviewViewModel = importPreviewVm;
+                OnPropertyChanged(nameof(ImportPreviewViewModel));
+
+                // Show the preview in the search page
+                IsImportPreviewVisible = true;
+                OnPropertyChanged(nameof(IsImportPreviewVisible));
+
+                StatusText = $"Preview: {result.Tracks.Count} tracks loaded from pasted text";
+            }
+            else
+            {
+                StatusText = "No tracks found in pasted text";
+            }
+        }
+        catch (Exception ex)
+        {
+            StatusText = $"Paste failed: {ex.Message}";
+            _logger.LogError(ex, "Failed to paste tracklist");
         }
     }
 
@@ -422,6 +479,7 @@ public class MainViewModel : INotifyPropertyChanged
         IUserInputService userInputService,
         CsvInputSource csvInputSource, // Add CsvInputSource dependency
         IFileInteractionService fileInteractionService,
+        Services.ImportProviders.TracklistImportProvider tracklistImportProvider,
         PlayerViewModel playerViewModel)
     {
         _logger = logger;
@@ -442,6 +500,7 @@ public class MainViewModel : INotifyPropertyChanged
         _userInputService = userInputService;
         _searchQueryNormalizer = searchQueryNormalizer; // Store it
         _fileInteractionService = fileInteractionService;
+        _tracklistImportProvider = tracklistImportProvider;
         SpotifyClientId = _config.SpotifyClientId;
         SpotifyClientSecret = _config.SpotifyClientSecret;
         
@@ -588,6 +647,7 @@ public class MainViewModel : INotifyPropertyChanged
         // Unified Search Commands
         UnifiedSearchCommand = new AsyncRelayCommand(ExecuteUnifiedSearchAsync, () => !IsSearching);
         BrowseCsvCommand = new AsyncRelayCommand(ExecuteBrowseCsvAsync);
+        PasteTracklistCommand = new AsyncRelayCommand(ExecutePasteTracklistAsync);
         ClearSearchCommand = new RelayCommand(() => SearchQuery = "", () => !string.IsNullOrEmpty(SearchQuery));
         TogglePlayerLocationCommand = new RelayCommand(() => IsPlayerAtBottom = !IsPlayerAtBottom);
         

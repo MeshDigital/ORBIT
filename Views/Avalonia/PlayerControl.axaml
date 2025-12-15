@@ -144,6 +144,44 @@
                 </Button>
             </StackPanel>
             
+            <!-- Shuffle & Repeat Controls -->
+            <StackPanel Orientation="Horizontal" 
+                        HorizontalAlignment="Center" 
+                        Spacing="16"
+                        Margin="0,12,0,0">
+                <!-- Shuffle -->
+                <Button Command="{Binding ToggleShuffleCommand}"
+                        Background="Transparent"
+                        BorderThickness="0"
+                        Width="36" Height="36"
+                        ToolTip.Tip="Shuffle">
+                    <Button.Styles>
+                        <Style Selector="Button:pointerover">
+                            <Setter Property="Background" Value="#2D2D2D"/>
+                        </Style>
+                    </Button.Styles>
+                    <TextBlock Text="🔀" 
+                               FontSize="16" 
+                               Foreground="{Binding IsShuffling, Converter={StaticResource BoolToColorConverter}}"/>
+                </Button>
+                
+                <!-- Repeat -->
+                <Button Command="{Binding ToggleRepeatCommand}"
+                        Background="Transparent"
+                        BorderThickness="0"
+                        Width="36" Height="36"
+                        ToolTip.Tip="{Binding RepeatMode}">
+                    <Button.Styles>
+                        <Style Selector="Button:pointerover">
+                            <Setter Property="Background" Value="#2D2D2D"/>
+                        </Style>
+                    </Button.Styles>
+                    <TextBlock Text="{Binding RepeatMode, Converter={StaticResource RepeatModeIconConverter}}" 
+                               FontSize="16" 
+                               Foreground="{Binding RepeatMode, Converter={StaticResource RepeatModeColorConverter}}"/>
+                </Button>
+            </StackPanel>
+            
             <!-- Volume Control -->
             <StackPanel Spacing="8">
                 <Grid ColumnDefinitions="Auto,*">

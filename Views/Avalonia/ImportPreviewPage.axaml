@@ -108,18 +108,22 @@
                                     Binding="{Binding Model.Title}" 
                                     Width="3*"/>
                 
-                <!-- Album -->
+                <!-- Album (hide on tablet/mobile) -->
                 <DataGridTextColumn Header="Album" 
                                     Binding="{Binding Model.Album}" 
-                                    Width="2*"/>
+                                    Width="2*"
+                                    IsVisible="{Binding $parent[Window].Bounds.Width, Converter={StaticResource WidthToVisibilityConverter}, ConverterParameter=800}"/>
                 
-                <!-- Length -->
+                <!-- Length (hide on mobile) -->
                 <DataGridTextColumn Header="Length" 
                                     Binding="{Binding Model.Length, StringFormat='{}{0:mm\\:ss}'}" 
-                                    Width="80"/>
+                                    Width="80"
+                                    IsVisible="{Binding $parent[Window].Bounds.Width, Converter={StaticResource WidthToVisibilityConverter}, ConverterParameter=600}"/>
                 
-                <!-- In Library Status -->
-                <DataGridTemplateColumn Header="Status" Width="100">
+                <!-- In Library Status (hide on very small screens) -->
+                <DataGridTemplateColumn Header="Status" 
+                                        Width="100"
+                                        IsVisible="{Binding $parent[Window].Bounds.Width, Converter={StaticResource WidthToVisibilityConverter}, ConverterParameter=500}">
                     <DataGridTemplateColumn.CellTemplate>
                         <DataTemplate>
                             <Border CornerRadius="4" 

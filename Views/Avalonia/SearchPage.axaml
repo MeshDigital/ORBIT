@@ -26,7 +26,7 @@
         <Border Grid.Row="1" Background="#1E1E1E" Padding="24,20">
             <StackPanel Spacing="16">
                 <!-- Unified Input Row -->
-                <Grid ColumnDefinitions="*,Auto,Auto">
+                <Grid ColumnDefinitions="*,Auto,Auto,Auto">
                     
                     <!-- Main Search Input -->
                     <Border Grid.Column="0" 
@@ -71,8 +71,19 @@
                             Padding="12,0"
                             VerticalAlignment="Top"/>
 
+                    <!-- Paste Tracklist Button -->
+                    <Button Grid.Column="2" 
+                            Content="📋 Paste Tracklist" 
+                            Command="{Binding PasteTracklistCommand}"
+                            Classes="secondary"
+                            Height="42"
+                            Margin="12,0,0,0"
+                            Padding="12,0"
+                            ToolTip.Tip="Paste a tracklist from YouTube, SoundCloud, etc."
+                            VerticalAlignment="Top"/>
+
                     <!-- Search Button -->
-                    <Button Grid.Column="2"
+                    <Button Grid.Column="3"
                             Classes="primary"
                             Command="{Binding UnifiedSearchCommand}"
                             Height="42"
@@ -114,10 +125,22 @@
                         <!-- Bitrate Range -->
                         <Grid ColumnDefinitions="Auto,Auto,Auto,Auto" RowDefinitions="Auto">
                              <TextBlock Grid.Column="0" Text="Min Bitrate:" VerticalAlignment="Center" Margin="0,0,12,0"/>
-                             <NumericUpDown Grid.Column="1" Value="{Binding MinBitrate}" Minimum="0" Maximum="5000" Increment="32" Width="100"/>
+                             <NumericUpDown Grid.Column="1" 
+                                            Value="{Binding MinBitrate}" 
+                                            Minimum="0" 
+                                            Maximum="5000" 
+                                            Increment="32" 
+                                            Width="120"
+                                            FormatString="0 kbps"/>
                              
                              <TextBlock Grid.Column="2" Text="Max Bitrate:" VerticalAlignment="Center" Margin="24,0,12,0"/>
-                             <NumericUpDown Grid.Column="3" Value="{Binding MaxBitrate}" Minimum="0" Maximum="5000" Increment="32" Width="100"/>
+                             <NumericUpDown Grid.Column="3" 
+                                            Value="{Binding MaxBitrate}" 
+                                            Minimum="0" 
+                                            Maximum="5000" 
+                                            Increment="32" 
+                                            Width="120"
+                                            FormatString="0 kbps"/>
                         </Grid>
                     </StackPanel>
                 </Expander>

@@ -20,7 +20,11 @@
         
         <!-- Utility Converters -->
         <converters:RepeatModeIconConverter x:Key="RepeatModeIconConverter"/>
+        <converters:RepeatModeColorConverter x:Key="RepeatModeColorConverter"/>
         <converters:EqualityConverter x:Key="EqualityConverter"/>
+        <converters:WidthToVisibilityConverter x:Key="WidthToVisibilityConverter"/>
+        <converters:PlayerLocationConverter x:Key="PlayerLocationConverter"/>
+        <converters:PlayerDockIconConverter x:Key="PlayerDockIconConverter"/>
     </Application.Resources>
     
     <Application.Styles>

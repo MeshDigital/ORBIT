@@ -121,6 +121,14 @@ namespace SLSKDONET.ViewModels
             set => SetProperty(ref _repeatMode, value);
         }
         
+        // Player Dock Location
+        private PlayerDockLocation _currentDockLocation = PlayerDockLocation.RightSidebar;
+        public PlayerDockLocation CurrentDockLocation
+        {
+            get => _currentDockLocation;
+            set => SetProperty(ref _currentDockLocation, value);
+        }
+        
         // Shuffle history to prevent immediate repeats
         private readonly List<int> _shuffleHistory = new();
 
@@ -133,6 +141,7 @@ namespace SLSKDONET.ViewModels
         public ICommand ClearQueueCommand { get; }
         public ICommand ToggleShuffleCommand { get; }
         public ICommand ToggleRepeatCommand { get; }
+        public ICommand TogglePlayerDockCommand { get; }
 
         public PlayerViewModel(IAudioPlayerService playerService)
         {
@@ -166,6 +175,7 @@ namespace SLSKDONET.ViewModels
             ClearQueueCommand = new RelayCommand(ClearQueue, () => Queue.Any());
             ToggleShuffleCommand = new RelayCommand(ToggleShuffle);
             ToggleRepeatCommand = new RelayCommand(ToggleRepeat);
+            TogglePlayerDockCommand = new RelayCommand(TogglePlayerDock);
         }
         
         // Queue Management Methods
@@ -384,6 +394,13 @@ namespace SLSKDONET.ViewModels
                 RepeatMode.One => RepeatMode.Off,
                 _ => RepeatMode.Off
             };
+        }
+        
+        private void TogglePlayerDock()
+        {
+            CurrentDockLocation = CurrentDockLocation == PlayerDockLocation.BottomBar 
+                ? PlayerDockLocation.RightSidebar 
+                : PlayerDockLocation.BottomBar;
         }
 
         private void TogglePlayPause()

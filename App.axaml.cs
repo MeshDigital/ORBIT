@@ -147,6 +147,7 @@ public partial class App : Application
         services.AddSingleton<ImportOrchestrator>();
         services.AddSingleton<IImportProvider, Services.ImportProviders.SpotifyImportProvider>();
         services.AddSingleton<IImportProvider, Services.ImportProviders.CsvImportProvider>();
+        services.AddSingleton<IImportProvider, Services.ImportProviders.TracklistImportProvider>();
 
         // Library Action System
         services.AddSingleton<Services.LibraryActions.LibraryActionProvider>();
