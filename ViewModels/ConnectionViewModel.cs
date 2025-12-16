@@ -9,6 +9,8 @@ using SLSKDONET.Configuration;
 using SLSKDONET.Services;
 using SLSKDONET.Views; // For AsyncRelayCommand and RelayCommand
 
+using SLSKDONET.Models;
+
 namespace SLSKDONET.ViewModels;
 
 public class ConnectionViewModel : INotifyPropertyChanged
@@ -16,7 +18,7 @@ public class ConnectionViewModel : INotifyPropertyChanged
     private readonly ILogger<ConnectionViewModel> _logger;
     private readonly AppConfig _config;
     private readonly ConfigManager _configManager;
-    private readonly SoulseekAdapter _soulseek;
+    private readonly ISoulseekAdapter _soulseek;
     private readonly ISoulseekCredentialService _credentialService;
 
     // Connection State
@@ -81,8 +83,9 @@ public class ConnectionViewModel : INotifyPropertyChanged
         ILogger<ConnectionViewModel> logger,
         AppConfig config,
         ConfigManager configManager,
-        SoulseekAdapter soulseek,
-        ISoulseekCredentialService credentialService)
+        ISoulseekAdapter soulseek,
+        ISoulseekCredentialService credentialService,
+        IEventBus eventBus)
     {
         _logger = logger;
         _config = config;
@@ -103,29 +106,23 @@ public class ConnectionViewModel : INotifyPropertyChanged
         DisconnectCommand = new RelayCommand(Disconnect);
 
         // Subscribe to Soulseek state changes
-        _soulseek.EventBus.Subscribe(evt =>
+        // Subscribe to Soulseek state changes
+        eventBus.GetEvent<SoulseekStateChangedEvent>().Subscribe(evt =>
         {
             try
             {
-                if (evt.eventType == "state_changed")
+                if (evt.IsConnected)
                 {
-                    dynamic data = evt.data;
-                    string state = data.state;
-                    HandleStateChange(state);
+                    HandleStateChange("Connected");
                 }
-                else if (evt.eventType == "connection_status")
+                else
                 {
-                    dynamic data = evt.data;
-                    string status = data.status;
-                    if (status.Equals("connected", StringComparison.OrdinalIgnoreCase))
-                    {
-                        HandleStateChange("Connected");
-                    }
+                    HandleStateChange(evt.State);
                 }
             }
             catch (Exception ex)
             {
-                _logger.LogWarning(ex, "Failed to handle internal event: {EventType}", evt.eventType);
+                _logger.LogWarning(ex, "Failed to handle state change event: {State}", evt.State);
             }
         });
 

@@ -56,14 +56,9 @@ public class DownloadManager : INotifyPropertyChanged, IDisposable
         FileNameFormatter fileNameFormatter,
         ITaggerService taggerService,
         DatabaseService databaseService,
-<<<<<<< Updated upstream
         ISpotifyMetadataService metadataService,
-        ILibraryService libraryService)
-=======
-        IMetadataService metadataService,
         ILibraryService libraryService,
         IEventBus eventBus)
->>>>>>> Stashed changes
     {
         _logger = logger;
         _config = config;
@@ -73,11 +68,7 @@ public class DownloadManager : INotifyPropertyChanged, IDisposable
         _databaseService = databaseService;
         _metadataService = metadataService;
         _libraryService = libraryService;
-<<<<<<< Updated upstream
-
-=======
         _eventBus = eventBus;
->>>>>>> Stashed changes
 
         // Initialize from config, but allow runtime changes
         MaxActiveDownloads = _config.MaxConcurrentDownloads > 0 ? _config.MaxConcurrentDownloads : 3;

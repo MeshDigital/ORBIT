@@ -12,7 +12,7 @@ namespace SLSKDONET.Services;
 /// <summary>
 /// Real Soulseek.NET adapter for network interactions.
 /// </summary>
-public class SoulseekAdapter : IDisposable
+public class SoulseekAdapter : ISoulseekAdapter, IDisposable
 {
     private readonly ILogger<SoulseekAdapter> _logger;
     private readonly AppConfig _config;

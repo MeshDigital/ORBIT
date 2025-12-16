@@ -20,13 +20,13 @@ namespace SLSKDONET.Services;
 public class SearchOrchestrationService
 {
     private readonly ILogger<SearchOrchestrationService> _logger;
-    private readonly SoulseekAdapter _soulseek;
+    private readonly ISoulseekAdapter _soulseek;
     private readonly SearchQueryNormalizer _searchQueryNormalizer;
     private readonly AppConfig _config;
     
     public SearchOrchestrationService(
         ILogger<SearchOrchestrationService> logger,
-        SoulseekAdapter soulseek,
+        ISoulseekAdapter soulseek,
         SearchQueryNormalizer searchQueryNormalizer,
         AppConfig config)
     {

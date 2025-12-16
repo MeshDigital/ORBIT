@@ -8,6 +8,7 @@ using SLSKDONET.Configuration;
 using SLSKDONET.Data;
 using SLSKDONET.Models;
 using SLSKDONET.Utils;
+using Avalonia.Threading;
 
 namespace SLSKDONET.Services;
 
@@ -21,15 +22,6 @@ public class LibraryService : ILibraryService
     private readonly ILogger<LibraryService> _logger;
     private readonly DatabaseService _databaseService;
     private readonly AppConfig _appConfig;
-<<<<<<< Updated upstream
-
-    public event EventHandler<Guid>? ProjectDeleted;
-    // Unused event required by interface - marking to suppress warning
-    #pragma warning disable CS0067
-    public event EventHandler<ProjectEventArgs>? ProjectUpdated;
-    #pragma warning restore CS0067
-    public event EventHandler<PlaylistJob>? PlaylistAdded;
-=======
     private readonly IEventBus _eventBus;
 
     // Events now published via IEventBus (ProjectDeletedEvent, ProjectUpdatedEvent)
@@ -39,7 +31,6 @@ public class LibraryService : ILibraryService
     /// Auto-syncs with SQLite database.
     /// </summary>
     public ObservableCollection<PlaylistJob> Playlists { get; } = new();
->>>>>>> Stashed changes
 
     public LibraryService(ILogger<LibraryService> logger, DatabaseService databaseService, AppConfig appConfig, IEventBus eventBus)
     {
@@ -183,7 +174,8 @@ public class LibraryService : ILibraryService
             _logger.LogInformation("Saved playlist job: {Title} ({Id})", job.SourceTitle, job.Id);
 
             // Notify listeners (UI updates)
-            PlaylistAdded?.Invoke(this, job);
+            // Legacy event removed: PlaylistAdded?.Invoke(this, job);
+            _eventBus.Publish(new ProjectAddedEvent(job.Id));
         }
         catch (Exception ex)
         {
@@ -200,7 +192,8 @@ public class LibraryService : ILibraryService
             await _databaseService.SavePlaylistJobWithTracksAsync(job).ConfigureAwait(false);
             
             // 2. Notify listeners
-            PlaylistAdded?.Invoke(this, job);
+            // Legacy event removed: PlaylistAdded?.Invoke(this, job);
+            _eventBus.Publish(new ProjectAddedEvent(job.Id));
             _logger.LogInformation("Saved playlist job with tracks and notified listeners: {Title}", job.SourceTitle);
         }
         catch (Exception ex)
@@ -218,10 +211,6 @@ public class LibraryService : ILibraryService
             await _databaseService.SoftDeletePlaylistJobAsync(playlistId).ConfigureAwait(false);
             _logger.LogInformation("Deleted playlist job: {Id}", playlistId);
 
-<<<<<<< Updated upstream
-            // Notify listeners
-            ProjectDeleted?.Invoke(this, playlistId);
-=======
             // REACTIVE: Auto-remove from observable collection
             Dispatcher.UIThread.Post(() =>
             {
@@ -235,7 +224,6 @@ public class LibraryService : ILibraryService
 
             // Emit the event so subscribers (like LibraryViewModel) can react.
             _eventBus.Publish(new ProjectDeletedEvent(playlistId));
->>>>>>> Stashed changes
         }
         catch (Exception ex)
         {

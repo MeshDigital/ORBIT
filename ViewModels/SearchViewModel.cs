@@ -25,6 +25,9 @@ public class SearchViewModel : INotifyPropertyChanged
     private readonly INavigationService _navigationService;
     private readonly IFileInteractionService _fileInteractionService;
     private readonly IClipboardService _clipboardService;
+    private readonly SearchOrchestrationService _searchOrchestration;
+
+    public IEnumerable<string> PreferredFormats => new[] { "mp3", "flac", "m4a", "wav" }; // TODO: Load from config
 
     // Import Preview VM is needed for setting up the view, but orchestration happens via ImportOrchestrator
     public ImportPreviewViewModel ImportPreviewViewModel { get; }
@@ -102,10 +105,12 @@ public class SearchViewModel : INotifyPropertyChanged
         DownloadManager downloadManager,
         INavigationService navigationService,
         IFileInteractionService fileInteractionService,
-        IClipboardService clipboardService)
+        IClipboardService clipboardService,
+        SearchOrchestrationService searchOrchestration)
     {
         _logger = logger;
         _soulseek = soulseek;
+        _importOrchestrator = importOrchestrator;
         _importOrchestrator = importOrchestrator;
         _importProviders = importProviders;
         ImportPreviewViewModel = importPreviewViewModel;
@@ -113,6 +118,7 @@ public class SearchViewModel : INotifyPropertyChanged
         _navigationService = navigationService;
         _fileInteractionService = fileInteractionService;
         _clipboardService = clipboardService;
+        _searchOrchestration = searchOrchestration;
 
         UnifiedSearchCommand = new AsyncRelayCommand(ExecuteUnifiedSearchAsync, () => CanSearch);
         ClearSearchCommand = new RelayCommand(() => SearchQuery = "");
@@ -155,7 +161,7 @@ public class SearchViewModel : INotifyPropertyChanged
             // Pass the callback to handle results as they stream in
             var result = await _searchOrchestration.SearchAsync(
                 SearchQuery,
-                PreferredFormats,
+                string.Join(",", PreferredFormats),
                 MinBitrate, 
                 MaxBitrate,
                 IsAlbumSearch,

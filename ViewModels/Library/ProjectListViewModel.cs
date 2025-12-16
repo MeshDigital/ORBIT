@@ -103,7 +103,8 @@ public class ProjectListViewModel : INotifyPropertyChanged
         ILibraryService libraryService,
         DownloadManager downloadManager,
         ImportOrchestrator importOrchestrator,
-        Services.ImportProviders.SpotifyLikedSongsImportProvider spotifyLikedSongsProvider)
+        Services.ImportProviders.SpotifyLikedSongsImportProvider spotifyLikedSongsProvider,
+        IEventBus eventBus)
     {
         _logger = logger;
         _libraryService = libraryService;
@@ -120,9 +121,14 @@ public class ProjectListViewModel : INotifyPropertyChanged
         ImportLikedSongsCommand = new AsyncRelayCommand(ExecuteImportLikedSongsAsync);
 
         // Subscribe to events
-        _libraryService.PlaylistAdded += OnPlaylistAdded;
-        _downloadManager.ProjectUpdated += OnProjectUpdated;
-        _libraryService.ProjectDeleted += OnProjectDeleted;
+        // Subscribe to events
+        eventBus.GetEvent<ProjectAddedEvent>().Subscribe(async evt => 
+        {
+            var job = await _libraryService.FindPlaylistJobAsync(evt.ProjectId);
+            if (job != null) OnPlaylistAdded(this, job);
+        });
+        eventBus.GetEvent<ProjectUpdatedEvent>().Subscribe(evt => OnProjectUpdated(this, evt.ProjectId));
+        eventBus.GetEvent<ProjectDeletedEvent>().Subscribe(evt => OnProjectDeleted(this, evt.ProjectId));
     }
 
     private async Task ExecuteImportLikedSongsAsync()

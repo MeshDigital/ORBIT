@@ -1,0 +1,51 @@
+  Determining projects to restore...
+  All projects are up-to-date for restore.
+C:\Users\quint\Github Hauwei\QMUSICSLSK\Views\MainViewModel.cs(52,12): warning CS8618: Non-nullable field '_eventBus' must contain a non-null value when exiting constructor. Consider adding the 'required' modifier or declaring the field as nullable. [C:\Users\quint\Github Hauwei\QMUSICSLSK\SLSKDONET.csproj]
+C:\Users\quint\Github Hauwei\QMUSICSLSK\Views\MainViewModel.cs(52,12): warning CS8618: Non-nullable field '_downloadManager' must contain a non-null value when exiting constructor. Consider adding the 'required' modifier or declaring the field as nullable. [C:\Users\quint\Github Hauwei\QMUSICSLSK\SLSKDONET.csproj]
+C:\Users\quint\Github Hauwei\QMUSICSLSK\Views\MainViewModel.cs(255,65): error CS0103: The name 'OnTrackUpdated' does not exist in the current context [C:\Users\quint\Github Hauwei\QMUSICSLSK\SLSKDONET.csproj]
+C:\Users\quint\Github Hauwei\QMUSICSLSK\Views\MainViewModel.cs(256,73): error CS0103: The name 'HandleStateChange' does not exist in the current context [C:\Users\quint\Github Hauwei\QMUSICSLSK\SLSKDONET.csproj]
+C:\Users\quint\Github Hauwei\QMUSICSLSK\Views\MainViewModel.cs(260,39): error CS0103: The name 'SuccessfulCount' does not exist in the current context [C:\Users\quint\Github Hauwei\QMUSICSLSK\SLSKDONET.csproj]
+C:\Users\quint\Github Hauwei\QMUSICSLSK\Views\MainViewModel.cs(261,39): error CS0103: The name 'FailedCount' does not exist in the current context [C:\Users\quint\Github Hauwei\QMUSICSLSK\SLSKDONET.csproj]
+C:\Users\quint\Github Hauwei\QMUSICSLSK\Views\MainViewModel.cs(262,39): error CS0103: The name 'TodoCount' does not exist in the current context [C:\Users\quint\Github Hauwei\QMUSICSLSK\SLSKDONET.csproj]
+C:\Users\quint\Github Hauwei\QMUSICSLSK\Views\MainViewModel.cs(263,39): error CS0103: The name 'DownloadProgressPercentage' does not exist in the current context [C:\Users\quint\Github Hauwei\QMUSICSLSK\SLSKDONET.csproj]
+C:\Users\quint\Github Hauwei\QMUSICSLSK\ViewModels\SettingsViewModel.cs(31,16): warning CS8603: Possible null reference return. [C:\Users\quint\Github Hauwei\QMUSICSLSK\SLSKDONET.csproj]
+C:\Users\quint\Github Hauwei\QMUSICSLSK\ViewModels\SettingsViewModel.cs(85,16): warning CS8603: Possible null reference return. [C:\Users\quint\Github Hauwei\QMUSICSLSK\SLSKDONET.csproj]
+C:\Users\quint\Github Hauwei\QMUSICSLSK\ViewModels\SettingsViewModel.cs(91,16): warning CS8603: Possible null reference return. [C:\Users\quint\Github Hauwei\QMUSICSLSK\SLSKDONET.csproj]
+C:\Users\quint\Github Hauwei\QMUSICSLSK\Services\SoulseekAdapter.cs(60,78): warning CS8604: Possible null reference argument for parameter 'Username' in 'SoulseekConnectionStatusEvent.SoulseekConnectionStatusEvent(string Status, string Username)'. [C:\Users\quint\Github Hauwei\QMUSICSLSK\SLSKDONET.csproj]
+C:\Users\quint\Github Hauwei\QMUSICSLSK\ViewModels\SearchResult.cs(17,29): warning CS8603: Possible null reference return. [C:\Users\quint\Github Hauwei\QMUSICSLSK\SLSKDONET.csproj]
+C:\Users\quint\Github Hauwei\QMUSICSLSK\ViewModels\SearchResult.cs(18,28): warning CS8603: Possible null reference return. [C:\Users\quint\Github Hauwei\QMUSICSLSK\SLSKDONET.csproj]
+C:\Users\quint\Github Hauwei\QMUSICSLSK\ViewModels\SearchResult.cs(19,28): warning CS8603: Possible null reference return. [C:\Users\quint\Github Hauwei\QMUSICSLSK\SLSKDONET.csproj]
+C:\Users\quint\Github Hauwei\QMUSICSLSK\ViewModels\SearchResult.cs(22,31): warning CS8603: Possible null reference return. [C:\Users\quint\Github Hauwei\QMUSICSLSK\SLSKDONET.csproj]
+C:\Users\quint\Github Hauwei\QMUSICSLSK\ViewModels\Library\ProjectListViewModel.cs(225,30): warning CS8601: Possible null reference assignment. [C:\Users\quint\Github Hauwei\QMUSICSLSK\SLSKDONET.csproj]
+C:\Users\quint\Github Hauwei\QMUSICSLSK\ViewModels\Library\ProjectListViewModel.cs(226,29): warning CS8601: Possible null reference assignment. [C:\Users\quint\Github Hauwei\QMUSICSLSK\SLSKDONET.csproj]
+C:\Users\quint\Github Hauwei\QMUSICSLSK\ViewModels\Library\ProjectListViewModel.cs(227,29): warning CS8601: Possible null reference assignment. [C:\Users\quint\Github Hauwei\QMUSICSLSK\SLSKDONET.csproj]
+C:\Users\quint\Github Hauwei\QMUSICSLSK\Services\DatabaseService.cs(209,49): warning EF1002: Method 'ExecuteSqlRawAsync' inserts interpolated strings directly into the SQL, without any protection against SQL injection. Consider using 'ExecuteSqlAsync' instead, which protects against SQL injection, or make sure that the value is sanitized and suppress the warning. [C:\Users\quint\Github Hauwei\QMUSICSLSK\SLSKDONET.csproj]
+C:\Users\quint\Github Hauwei\QMUSICSLSK\Services\DatabaseService.cs(246,49): warning EF1002: Method 'ExecuteSqlRawAsync' inserts interpolated strings directly into the SQL, without any protection against SQL injection. Consider using 'ExecuteSqlAsync' instead, which protects against SQL injection, or make sure that the value is sanitized and suppress the warning. [C:\Users\quint\Github Hauwei\QMUSICSLSK\SLSKDONET.csproj]
+
+Build FAILED.
+
+C:\Users\quint\Github Hauwei\QMUSICSLSK\Views\MainViewModel.cs(52,12): warning CS8618: Non-nullable field '_eventBus' must contain a non-null value when exiting constructor. Consider adding the 'required' modifier or declaring the field as nullable. [C:\Users\quint\Github Hauwei\QMUSICSLSK\SLSKDONET.csproj]
+C:\Users\quint\Github Hauwei\QMUSICSLSK\Views\MainViewModel.cs(52,12): warning CS8618: Non-nullable field '_downloadManager' must contain a non-null value when exiting constructor. Consider adding the 'required' modifier or declaring the field as nullable. [C:\Users\quint\Github Hauwei\QMUSICSLSK\SLSKDONET.csproj]
+C:\Users\quint\Github Hauwei\QMUSICSLSK\ViewModels\SettingsViewModel.cs(31,16): warning CS8603: Possible null reference return. [C:\Users\quint\Github Hauwei\QMUSICSLSK\SLSKDONET.csproj]
+C:\Users\quint\Github Hauwei\QMUSICSLSK\ViewModels\SettingsViewModel.cs(85,16): warning CS8603: Possible null reference return. [C:\Users\quint\Github Hauwei\QMUSICSLSK\SLSKDONET.csproj]
+C:\Users\quint\Github Hauwei\QMUSICSLSK\ViewModels\SettingsViewModel.cs(91,16): warning CS8603: Possible null reference return. [C:\Users\quint\Github Hauwei\QMUSICSLSK\SLSKDONET.csproj]
+C:\Users\quint\Github Hauwei\QMUSICSLSK\Services\SoulseekAdapter.cs(60,78): warning CS8604: Possible null reference argument for parameter 'Username' in 'SoulseekConnectionStatusEvent.SoulseekConnectionStatusEvent(string Status, string Username)'. [C:\Users\quint\Github Hauwei\QMUSICSLSK\SLSKDONET.csproj]
+C:\Users\quint\Github Hauwei\QMUSICSLSK\ViewModels\SearchResult.cs(17,29): warning CS8603: Possible null reference return. [C:\Users\quint\Github Hauwei\QMUSICSLSK\SLSKDONET.csproj]
+C:\Users\quint\Github Hauwei\QMUSICSLSK\ViewModels\SearchResult.cs(18,28): warning CS8603: Possible null reference return. [C:\Users\quint\Github Hauwei\QMUSICSLSK\SLSKDONET.csproj]
+C:\Users\quint\Github Hauwei\QMUSICSLSK\ViewModels\SearchResult.cs(19,28): warning CS8603: Possible null reference return. [C:\Users\quint\Github Hauwei\QMUSICSLSK\SLSKDONET.csproj]
+C:\Users\quint\Github Hauwei\QMUSICSLSK\ViewModels\SearchResult.cs(22,31): warning CS8603: Possible null reference return. [C:\Users\quint\Github Hauwei\QMUSICSLSK\SLSKDONET.csproj]
+C:\Users\quint\Github Hauwei\QMUSICSLSK\ViewModels\Library\ProjectListViewModel.cs(225,30): warning CS8601: Possible null reference assignment. [C:\Users\quint\Github Hauwei\QMUSICSLSK\SLSKDONET.csproj]
+C:\Users\quint\Github Hauwei\QMUSICSLSK\ViewModels\Library\ProjectListViewModel.cs(226,29): warning CS8601: Possible null reference assignment. [C:\Users\quint\Github Hauwei\QMUSICSLSK\SLSKDONET.csproj]
+C:\Users\quint\Github Hauwei\QMUSICSLSK\ViewModels\Library\ProjectListViewModel.cs(227,29): warning CS8601: Possible null reference assignment. [C:\Users\quint\Github Hauwei\QMUSICSLSK\SLSKDONET.csproj]
+C:\Users\quint\Github Hauwei\QMUSICSLSK\Services\DatabaseService.cs(209,49): warning EF1002: Method 'ExecuteSqlRawAsync' inserts interpolated strings directly into the SQL, without any protection against SQL injection. Consider using 'ExecuteSqlAsync' instead, which protects against SQL injection, or make sure that the value is sanitized and suppress the warning. [C:\Users\quint\Github Hauwei\QMUSICSLSK\SLSKDONET.csproj]
+C:\Users\quint\Github Hauwei\QMUSICSLSK\Services\DatabaseService.cs(246,49): warning EF1002: Method 'ExecuteSqlRawAsync' inserts interpolated strings directly into the SQL, without any protection against SQL injection. Consider using 'ExecuteSqlAsync' instead, which protects against SQL injection, or make sure that the value is sanitized and suppress the warning. [C:\Users\quint\Github Hauwei\QMUSICSLSK\SLSKDONET.csproj]
+C:\Users\quint\Github Hauwei\QMUSICSLSK\Views\MainViewModel.cs(255,65): error CS0103: The name 'OnTrackUpdated' does not exist in the current context [C:\Users\quint\Github Hauwei\QMUSICSLSK\SLSKDONET.csproj]
+C:\Users\quint\Github Hauwei\QMUSICSLSK\Views\MainViewModel.cs(256,73): error CS0103: The name 'HandleStateChange' does not exist in the current context [C:\Users\quint\Github Hauwei\QMUSICSLSK\SLSKDONET.csproj]
+C:\Users\quint\Github Hauwei\QMUSICSLSK\Views\MainViewModel.cs(260,39): error CS0103: The name 'SuccessfulCount' does not exist in the current context [C:\Users\quint\Github Hauwei\QMUSICSLSK\SLSKDONET.csproj]
+C:\Users\quint\Github Hauwei\QMUSICSLSK\Views\MainViewModel.cs(261,39): error CS0103: The name 'FailedCount' does not exist in the current context [C:\Users\quint\Github Hauwei\QMUSICSLSK\SLSKDONET.csproj]
+C:\Users\quint\Github Hauwei\QMUSICSLSK\Views\MainViewModel.cs(262,39): error CS0103: The name 'TodoCount' does not exist in the current context [C:\Users\quint\Github Hauwei\QMUSICSLSK\SLSKDONET.csproj]
+C:\Users\quint\Github Hauwei\QMUSICSLSK\Views\MainViewModel.cs(263,39): error CS0103: The name 'DownloadProgressPercentage' does not exist in the current context [C:\Users\quint\Github Hauwei\QMUSICSLSK\SLSKDONET.csproj]
+    15 Warning(s)
+    6 Error(s)
+
+Time Elapsed 00:00:03.19

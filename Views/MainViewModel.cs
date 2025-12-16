@@ -9,6 +9,7 @@ using SLSKDONET.Services;
 using SLSKDONET.ViewModels;
 using Avalonia.Threading;
 using System.Collections.Generic; // Added this using directive
+using SLSKDONET.Models;
 
 namespace SLSKDONET.Views;
 
@@ -21,9 +22,11 @@ public class MainViewModel : INotifyPropertyChanged
     private readonly ILogger<MainViewModel> _logger;
     private readonly AppConfig _config;
     private readonly ConfigManager _configManager;
-    private readonly SoulseekAdapter _soulseek;
+    private readonly ISoulseekAdapter _soulseek;
     private readonly ISoulseekCredentialService _credentialService;
     private readonly INavigationService _navigationService;
+    private readonly IEventBus _eventBus;
+    private readonly DownloadManager _downloadManager;
 
     // Child ViewModels
     public PlayerViewModel PlayerViewModel { get; }
@@ -50,7 +53,7 @@ public class MainViewModel : INotifyPropertyChanged
         ILogger<MainViewModel> logger,
         AppConfig config,
         ConfigManager configManager,
-        SoulseekAdapter soulseek,
+        ISoulseekAdapter soulseek,
         ISoulseekCredentialService credentialService,
         INavigationService navigationService,
         PlayerViewModel playerViewModel,
@@ -140,6 +143,7 @@ public class MainViewModel : INotifyPropertyChanged
         }
     }
 
+
     public bool IsPlayerInSidebar => !_isPlayerAtBottom;
 
     private double _baseFontSize = 14.0;
@@ -179,11 +183,7 @@ public class MainViewModel : INotifyPropertyChanged
     }
 
     // Expose download manager for backward compatibility
-    public System.Collections.ObjectModel.ObservableCollection<PlaylistTrackViewModel> AllGlobalTracks { get; } = new();
-
-
-
-
+    public System.Collections.ObjectModel.ObservableCollection<PlaylistTrackViewModel> AllGlobalTracks => _downloadManager.AllGlobalTracks;
 
     // Navigation Commands
 
@@ -211,22 +211,13 @@ public class MainViewModel : INotifyPropertyChanged
         SoulseekAdapter soulseek,
         ISoulseekCredentialService credentialService,
         INavigationService navigationService,
-<<<<<<< Updated upstream
         PlayerViewModel playerViewModel,
         LibraryViewModel libraryViewModel,
         SearchViewModel searchViewModel,
-        ConnectionViewModel connectionViewModel)
-=======
-        DownloadLogService downloadLogService,
-        INotificationService notificationService,
-        ProtectedDataService protectedDataService,
-        IUserInputService userInputService,
-        CsvInputSource csvInputSource, // Add CsvInputSource dependency
-        IFileInteractionService fileInteractionService,
-        Services.ImportProviders.TracklistImportProvider tracklistImportProvider,
-        PlayerViewModel playerViewModel,
-        IEventBus eventBus)
->>>>>>> Stashed changes
+        ConnectionViewModel connectionViewModel,
+        SettingsViewModel settingsViewModel, // Restored this parameter
+        IEventBus eventBus,
+        DownloadManager downloadManager) // Added this parameter
     {
         _logger = logger;
         _config = config;
@@ -234,11 +225,14 @@ public class MainViewModel : INotifyPropertyChanged
         _soulseek = soulseek;
         _credentialService = credentialService;
         _navigationService = navigationService;
+        _eventBus = eventBus; // Initialized
+        _downloadManager = downloadManager; // Initialized
 
         PlayerViewModel = playerViewModel;
         LibraryViewModel = libraryViewModel;
         SearchViewModel = searchViewModel;
         ConnectionViewModel = connectionViewModel;
+        SettingsViewModel = settingsViewModel; // Assigned from parameter
 
         // Initialize commands
         NavigateSearchCommand = new RelayCommand(NavigateToSearch);
@@ -254,9 +248,6 @@ public class MainViewModel : INotifyPropertyChanged
 
 
 
-<<<<<<< Updated upstream
-        // Set application version
-=======
         ToggleNavigationCommand = new RelayCommand(() => IsNavigationCollapsed = !IsNavigationCollapsed);
         TogglePlayerCommand = new RelayCommand(() => IsPlayerSidebarVisible = !IsPlayerSidebarVisible);
         
@@ -274,7 +265,6 @@ public class MainViewModel : INotifyPropertyChanged
         
         
         // Set application version from assembly
->>>>>>> Stashed changes
         try
         {
             var version = System.Reflection.Assembly.GetExecutingAssembly().GetName().Version;
@@ -356,6 +346,33 @@ public class MainViewModel : INotifyPropertyChanged
     private void ZoomIn() => BaseFontSize += 1;
     private void ZoomOut() => BaseFontSize -= 1;
     private void ResetZoom() => BaseFontSize = 14.0;
+
+    // Add missing properties for binding
+    public int SuccessfulCount => _downloadManager?.SuccessfulCount ?? 0;
+    public int FailedCount => _downloadManager?.FailedCount ?? 0;
+    public int TodoCount => _downloadManager?.TodoCount ?? 0;
+    public double DownloadProgressPercentage => _downloadManager?.DownloadProgressPercentage ?? 0;
+    
+    private void OnTrackUpdated(object? sender, PlaylistTrackViewModel track)
+    {
+        // Trigger UI updates for aggregate stats
+        OnPropertyChanged(nameof(SuccessfulCount));
+        OnPropertyChanged(nameof(FailedCount));
+        OnPropertyChanged(nameof(TodoCount));
+        OnPropertyChanged(nameof(DownloadProgressPercentage));
+    }
+
+    private void HandleStateChange(string state)
+    {
+         if (state == "Login failed")
+         {
+             StatusText = "Login failed";
+         }
+         else if (state == "Connected")
+         {
+             StatusText = "Ready";
+         }
+    }
 
     protected void OnPropertyChanged([CallerMemberName] string? propertyName = null)
     {

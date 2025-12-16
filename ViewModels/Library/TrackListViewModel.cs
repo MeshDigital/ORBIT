@@ -118,7 +118,8 @@ public class TrackListViewModel : INotifyPropertyChanged
         ILogger<TrackListViewModel> logger,
         ILibraryService libraryService,
         DownloadManager downloadManager,
-        ArtworkCacheService artworkCache)
+        ArtworkCacheService artworkCache,
+        IEventBus eventBus)
     {
         _logger = logger;
         _libraryService = libraryService;
@@ -126,7 +127,8 @@ public class TrackListViewModel : INotifyPropertyChanged
         _artworkCache = artworkCache;
 
         // Subscribe to global track updates
-        _downloadManager.TrackUpdated += OnGlobalTrackUpdated;
+        // Subscribe to global track updates
+        eventBus.GetEvent<TrackUpdatedEvent>().Subscribe(evt => OnGlobalTrackUpdated(this, evt.Track));
     }
 
     /// <summary>

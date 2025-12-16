@@ -176,6 +176,7 @@ public partial class App : Application
 
         // Services
         services.AddSingleton<SoulseekAdapter>();
+        services.AddSingleton<ISoulseekAdapter>(sp => sp.GetRequiredService<SoulseekAdapter>());
         services.AddSingleton<FileNameFormatter>();
         services.AddSingleton<ProtectedDataService>();
         services.AddSingleton<ISoulseekCredentialService, SoulseekCredentialService>();
@@ -253,6 +254,7 @@ public partial class App : Application
         
         // Orchestration Services
         services.AddSingleton<SearchOrchestrationService>();
+        services.AddSingleton<DownloadOrchestrationService>();
         
         // Phase 0: ViewModel Refactoring - Library child ViewModels
         services.AddTransient<ViewModels.Library.ProjectListViewModel>();

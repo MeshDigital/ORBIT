@@ -17,7 +17,6 @@ public interface ILibraryService
     /// <summary>
     /// Fired when a new playlist job is created/added.
     /// </summary>
-    event EventHandler<PlaylistJob>? PlaylistAdded;
 
 
 
