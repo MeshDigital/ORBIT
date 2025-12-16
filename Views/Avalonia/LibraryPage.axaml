@@ -22,6 +22,48 @@
                 
                 <!-- Actions -->
                 <StackPanel Grid.Row="1" Margin="16,0,16,12" Spacing="8">
+                    <!-- Smart Playlists -->
+                    <TextBlock Text="Smart Playlists" FontSize="12" Foreground="#A0A0A0" Margin="0,4,0,4"/>
+                    
+                    <ListBox ItemsSource="{Binding SmartPlaylists.SmartPlaylists}"
+                             SelectedItem="{Binding SmartPlaylists.SelectedSmartPlaylist, Mode=TwoWay}"
+                             Background="Transparent"
+                             BorderThickness="0"
+                             Padding="0">
+                        <ListBox.ItemsPanel>
+                            <ItemsPanelTemplate>
+                                <StackPanel Spacing="4"/>
+                            </ItemsPanelTemplate>
+                        </ListBox.ItemsPanel>
+                        <ListBox.Styles>
+                            <Style Selector="ListBoxItem">
+                                <Setter Property="Padding" Value="8,6"/>
+                                <Setter Property="CornerRadius" Value="6"/>
+                            </Style>
+                        </ListBox.Styles>
+                        <ListBox.ItemTemplate>
+                            <DataTemplate>
+                                <StackPanel Orientation="Horizontal" Spacing="10">
+                                    <TextBlock Text="{Binding Icon}" FontSize="16"/>
+                                    <TextBlock Text="{Binding Name}" VerticalAlignment="Center" FontSize="13"/>
+                                </StackPanel>
+                            </DataTemplate>
+                        </ListBox.ItemTemplate>
+                    </ListBox>
+                    
+                    <Rectangle Height="1" Fill="#3E3E3E" Margin="0,8"/>
+
+                    <Button Command="{Binding Projects.ImportLikedSongsCommand}"
+                            Classes="nav"
+                            HorizontalContentAlignment="Left"
+                            Padding="12,10"
+                            Foreground="#1DB954">
+                         <StackPanel Orientation="Horizontal" Spacing="10">
+                             <TextBlock Text="❤️" FontSize="16"/>
+                             <TextBlock Text="Import Liked Songs" FontSize="13" FontWeight="SemiBold"/>
+                         </StackPanel>
+                    </Button>
+                    
                     <Button Command="{Binding AddPlaylistCommand}" 
                             Classes="nav"
                             HorizontalContentAlignment="Left"
@@ -364,6 +406,35 @@
                     <DataGridTextColumn Header="Album" 
                                         Binding="{Binding Album}" 
                                         Width="2*"/>
+
+                    <!-- Duration -->
+                    <DataGridTextColumn Header="🕒" 
+                                        Binding="{Binding DurationDisplay}" 
+                                        Width="60"
+                                        IsReadOnly="True"/>
+
+                    <!-- Popularity -->
+                    <DataGridTemplateColumn Header="🔥" Width="80" IsReadOnly="True">
+                        <DataGridTemplateColumn.CellTemplate>
+                            <DataTemplate>
+                                <ProgressBar Value="{Binding Popularity}" 
+                                             Maximum="100" 
+                                             Height="4" 
+                                             VerticalAlignment="Center"
+                                             Margin="4,0"
+                                             Background="#333" 
+                                             Foreground="#FFA500"
+                                             BorderThickness="0"
+                                             ToolTip.Tip="{Binding Popularity}"/>
+                            </DataTemplate>
+                        </DataGridTemplateColumn.CellTemplate>
+                    </DataGridTemplateColumn>
+
+                    <!-- Genres -->
+                    <DataGridTextColumn Header="Genres" 
+                                        Binding="{Binding GenresDisplay}" 
+                                        Width="1.5*"
+                                        IsReadOnly="True"/>
                     
                     <!-- Status -->
                     <DataGridTemplateColumn Header="Status" Width="120">

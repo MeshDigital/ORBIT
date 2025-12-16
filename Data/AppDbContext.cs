@@ -11,7 +11,8 @@ public class AppDbContext : DbContext
     public DbSet<PlaylistJobEntity> PlaylistJobs { get; set; }
     public DbSet<PlaylistTrackEntity> PlaylistTracks { get; set; }
     public DbSet<PlaylistActivityLogEntity> ActivityLogs { get; set; }
-    public DbSet<QueueItemEntity> QueueItems { get; set; } // Phase 0: Queue persistence
+    public DbSet<QueueItemEntity> QueueItems { get; set; }
+    public DbSet<Entities.SpotifyMetadataCacheEntity> SpotifyMetadataCache { get; set; }
 
     protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
     {

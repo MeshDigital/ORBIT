@@ -248,6 +248,41 @@ public class PlaylistTrackViewModel : INotifyPropertyChanged
     public string? AlbumArtUrl => Model.AlbumArtUrl;
     public string? SpotifyAlbumId => Model.SpotifyAlbumId;
 
+    // Phase 1: UI Metadata
+    public int? Popularity => Model.Popularity;
+    
+    public string GenresDisplay
+    {
+        get
+        {
+            if (string.IsNullOrWhiteSpace(Model.Genres)) return string.Empty;
+            try
+            {
+                var list = System.Text.Json.JsonSerializer.Deserialize<List<string>>(Model.Genres);
+                return list != null ? string.Join(", ", list) : string.Empty;
+            }
+            catch
+            {
+                return Model.Genres ?? string.Empty;
+            }
+        }
+    }
+
+    public string DurationDisplay
+    {
+        get
+        {
+            if (Model.CanonicalDuration.HasValue)
+            {
+                var t = TimeSpan.FromMilliseconds(Model.CanonicalDuration.Value);
+                return $"{(int)t.TotalMinutes}:{t.Seconds:D2}";
+            }
+            return string.Empty;
+        }
+    }
+
+    public string ReleaseYear => Model.ReleaseDate.HasValue ? Model.ReleaseDate.Value.Year.ToString() : string.Empty;
+
     /// <summary>
     /// Loads the album artwork from cache or downloads it.
     /// Should be called by the ViewModel after construction.

@@ -35,6 +35,7 @@ public class AppConfig
     public string? SpotifyClientId { get; set; }
     public string? SpotifyClientSecret { get; set; }
     public bool SpotifyUsePublicOnly { get; set; } = true; // Default to public scraping only
+    public bool SpotifyUseApi { get; set; } = false; // Enable Spotify API integration (requires auth)
     
     // Spotify OAuth settings
     public string SpotifyRedirectUri { get; set; } = "http://localhost:5000/callback/";

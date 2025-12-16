@@ -8,6 +8,7 @@ using SLSKDONET.Configuration;
 using SLSKDONET.Services;
 using SLSKDONET.ViewModels;
 using Avalonia.Threading;
+using System.Collections.Generic; // Added this using directive
 
 namespace SLSKDONET.Views;
 
@@ -24,10 +25,12 @@ public class MainViewModel : INotifyPropertyChanged
     private readonly ISoulseekCredentialService _credentialService;
     private readonly INavigationService _navigationService;
 
+    // Child ViewModels
     public PlayerViewModel PlayerViewModel { get; }
     public LibraryViewModel LibraryViewModel { get; }
     public SearchViewModel SearchViewModel { get; }
     public ConnectionViewModel ConnectionViewModel { get; }
+    public SettingsViewModel SettingsViewModel { get; }
 
     public event PropertyChangedEventHandler? PropertyChanged;
 
@@ -38,6 +41,63 @@ public class MainViewModel : INotifyPropertyChanged
         get => _currentPage;
         set => SetProperty(ref _currentPage, value);
     }
+    
+    // ... (StatusText property omitted for brevity, keeping existing) ...
+
+    // ... (UI State properties omitted for brevity, keeping existing) ...
+
+    public MainViewModel(
+        ILogger<MainViewModel> logger,
+        AppConfig config,
+        ConfigManager configManager,
+        SoulseekAdapter soulseek,
+        ISoulseekCredentialService credentialService,
+        INavigationService navigationService,
+        PlayerViewModel playerViewModel,
+        LibraryViewModel libraryViewModel,
+        SearchViewModel searchViewModel,
+        ConnectionViewModel connectionViewModel,
+        SettingsViewModel settingsViewModel)
+    {
+        _logger = logger;
+        _config = config;
+        _configManager = configManager;
+        _soulseek = soulseek;
+        _credentialService = credentialService;
+        _navigationService = navigationService;
+
+        PlayerViewModel = playerViewModel;
+        LibraryViewModel = libraryViewModel;
+        SearchViewModel = searchViewModel;
+        ConnectionViewModel = connectionViewModel;
+        SettingsViewModel = settingsViewModel;
+
+        // Initialize commands
+        NavigateSearchCommand = new RelayCommand(NavigateToSearch);
+        NavigateLibraryCommand = new RelayCommand(NavigateToLibrary);
+        NavigateDownloadsCommand = new RelayCommand(NavigateToDownloads);
+        NavigateSettingsCommand = new RelayCommand(NavigateToSettings);
+        ToggleNavigationCommand = new RelayCommand(() => IsNavigationCollapsed = !IsNavigationCollapsed);
+        TogglePlayerCommand = new RelayCommand(() => IsPlayerSidebarVisible = !IsPlayerSidebarVisible);
+        TogglePlayerLocationCommand = new RelayCommand(() => IsPlayerAtBottom = !IsPlayerAtBottom);
+        ZoomInCommand = new RelayCommand(ZoomIn);
+        ZoomOutCommand = new RelayCommand(ZoomOut);
+        ResetZoomCommand = new RelayCommand(ResetZoom);
+        
+        // ... (Rest of constructor) ...
+    }
+
+    // ... (Navigate methods) ...
+
+    private void NavigateToSettings()
+    {
+        if (_settingsPage == null)
+        {
+            _settingsPage = new Avalonia.SettingsPage { DataContext = SettingsViewModel };
+        }
+        CurrentPage = _settingsPage;
+    }
+
 
     // Connection logic moved to ConnectionViewModel
     // StatusText is now delegated/coordinated via ConnectionViewModel binding in UI
@@ -199,8 +259,22 @@ public class MainViewModel : INotifyPropertyChanged
 
         _logger.LogInformation("MainViewModel initialized");
 
+        // Register pages for navigation service
+        _navigationService.RegisterPage("ImportPreview", typeof(Avalonia.ImportPreviewPage));
+        
+        // Subscribe to navigation events
+        _navigationService.Navigated += OnNavigated;
+
         // Navigate to Search page by default
         NavigateToSearch();
+    }
+
+    private void OnNavigated(object? sender, global::Avalonia.Controls.UserControl page)
+    {
+        if (page != null)
+        {
+            CurrentPage = page;
+        }
     }
 
     private void NavigateToSearch()
@@ -230,14 +304,7 @@ public class MainViewModel : INotifyPropertyChanged
         CurrentPage = _downloadsPage;
     }
 
-    private void NavigateToSettings()
-    {
-        if (_settingsPage == null)
-        {
-            _settingsPage = new Avalonia.SettingsPage { DataContext = this };
-        }
-        CurrentPage = _settingsPage;
-    }
+
 
 
 

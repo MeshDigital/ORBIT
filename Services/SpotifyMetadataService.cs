@@ -15,13 +15,13 @@ namespace SLSKDONET.Services;
 /// Service for enriching tracks with Spotify metadata (IDs, artwork, genres, popularity).
 /// Implements rate limiting and caching to avoid API spam.
 /// </summary>
-public class SpotifyMetadataService
+public class SpotifyMetadataService : ISpotifyMetadataService
 {
     private readonly ILogger<SpotifyMetadataService> _logger;
     private readonly AppConfig _config;
     private readonly SpotifyAuthService? _authService;
     private readonly SemaphoreSlim _rateLimiter;
-    private readonly Dictionary<string, SpotifyMetadata> _cache;
+    private readonly DatabaseService _databaseService; // Use DatabaseService wrapper for cache access
     
     // Spotify API rate limit: 30 requests per second (we'll be conservative)
     private const int MaxRequestsPerSecond = 20;
@@ -30,13 +30,14 @@ public class SpotifyMetadataService
     public SpotifyMetadataService(
         ILogger<SpotifyMetadataService> logger,
         AppConfig config,
+        DatabaseService databaseService,
         SpotifyAuthService? authService = null)
     {
         _logger = logger;
         _config = config;
+        _databaseService = databaseService;
         _authService = authService;
         _rateLimiter = new SemaphoreSlim(MaxRequestsPerSecond, MaxRequestsPerSecond);
-        _cache = new Dictionary<string, SpotifyMetadata>();
     }
 
     /// <summary>
@@ -52,7 +53,7 @@ public class SpotifyMetadataService
 
         try
         {
-            var metadata = await GetTrackMetadataAsync(track.Artist, track.Title);
+            var metadata = await SearchTrackAsync(track.Artist, track.Title);
             if (metadata == null)
             {
                 _logger.LogDebug("No Spotify metadata found for {Artist} - {Title}", track.Artist, track.Title);
@@ -60,18 +61,18 @@ public class SpotifyMetadataService
             }
 
             // Apply metadata to track
-            track.SpotifyTrackId = metadata.TrackId;
-            track.SpotifyAlbumId = metadata.AlbumId;
-            track.SpotifyArtistId = metadata.ArtistId;
+            track.SpotifyTrackId = metadata.Id;
+            track.SpotifyAlbumId = metadata.SpotifyAlbumId;
+            track.SpotifyArtistId = metadata.SpotifyArtistId;
             track.AlbumArtUrl = metadata.AlbumArtUrl;
             track.ArtistImageUrl = metadata.ArtistImageUrl;
             track.Genres = metadata.Genres != null ? JsonSerializer.Serialize(metadata.Genres) : null;
             track.Popularity = metadata.Popularity;
             track.CanonicalDuration = metadata.DurationMs;
-            track.ReleaseDate = metadata.ReleaseDate;
+            track.ReleaseDate = ParseReleaseDate(metadata.ReleaseDate); // Parse string from record
 
             _logger.LogInformation("Enriched track {Artist} - {Title} with Spotify ID: {Id}", 
-                track.Artist, track.Title, metadata.TrackId);
+                track.Artist, track.Title, metadata.Id);
             
             return true;
         }
@@ -85,15 +86,15 @@ public class SpotifyMetadataService
     /// <summary>
     /// Searches Spotify for track metadata by artist and title.
     /// </summary>
-    public async Task<SpotifyMetadata?> GetTrackMetadataAsync(string artist, string title)
+    public async Task<SpotifyMetadata?> SearchTrackAsync(string artist, string title)
     {
-        var cacheKey = $"{artist}|{title}".ToLowerInvariant();
+        var cacheKey = $"search:{artist}|{title}".ToLowerInvariant();
         
-        // Check cache first
-        if (_cache.TryGetValue(cacheKey, out var cached))
+        // Check persistent cache
+        if (await _databaseService.GetCachedSpotifyMetadataAsync(cacheKey) is { } cached) 
         {
-            _logger.LogDebug("Cache hit for {Artist} - {Title}", artist, title);
-            return cached;
+             _logger.LogDebug("Cache hit for {Artist} - {Title}", artist, title);
+             return cached;
         }
 
         // Rate limiting
@@ -125,24 +126,31 @@ public class SpotifyMetadataService
             // Find best match (first result is usually best, but we could add fuzzy matching here)
             var track = searchResponse.Tracks.Items.First();
             
-            var metadata = new SpotifyMetadata
-            {
-                TrackId = track.Id,
-                AlbumId = track.Album?.Id,
-                ArtistId = track.Artists?.FirstOrDefault()?.Id,
-                AlbumArtUrl = track.Album?.Images?.FirstOrDefault()?.Url,
-                ArtistImageUrl = null, // Would need separate artist lookup
-                Genres = null, // Genres are on artist/album, not track
-                Popularity = track.Popularity,
-                DurationMs = track.DurationMs,
-                ReleaseDate = ParseReleaseDate(track.Album?.ReleaseDate)
-            };
+            var metadata = new SpotifyMetadata(
+                Id: track.Id,
+                Title: track.Name,
+                Artist: track.Artists?.FirstOrDefault()?.Name ?? artist,
+                Album: track.Album?.Name ?? string.Empty,
+                AlbumArtUrl: track.Album?.Images?.FirstOrDefault()?.Url ?? string.Empty,
+                ArtistImageUrl: string.Empty, // Would need separate artist lookup
+                ReleaseDate: track.Album?.ReleaseDate ?? string.Empty,
+                Popularity: track.Popularity,
+                DurationMs: track.DurationMs,
+                Genres: new List<string>(), // Genres are on artist/album, not track
+                SpotifyAlbumId: track.Album?.Id ?? string.Empty,
+                SpotifyArtistId: track.Artists?.FirstOrDefault()?.Id ?? string.Empty
+            );
 
             // Cache the result
-            _cache[cacheKey] = metadata;
+            await _databaseService.CacheSpotifyMetadataAsync(cacheKey, metadata);
+            // Also cache by ID for faster future lookups
+            if (!string.IsNullOrEmpty(metadata.Id))
+            {
+                 await _databaseService.CacheSpotifyMetadataAsync($"id:{metadata.Id}", metadata);
+            }
             
             _logger.LogDebug("Found Spotify metadata for {Artist} - {Title}: {Id}", 
-                artist, title, metadata.TrackId);
+                artist, title, metadata.Id);
             
             return metadata;
         }
@@ -161,11 +169,11 @@ public class SpotifyMetadataService
     /// <summary>
     /// Gets track metadata by Spotify ID (faster than search).
     /// </summary>
-    public async Task<SpotifyMetadata?> GetTrackByIdAsync(string spotifyTrackId)
+    public async Task<SpotifyMetadata?> GetTrackByIdAsync(string spotifyId)
     {
-        var cacheKey = $"id:{spotifyTrackId}";
+        var cacheKey = $"id:{spotifyId}";
         
-        if (_cache.TryGetValue(cacheKey, out var cached))
+        if (await _databaseService.GetCachedSpotifyMetadataAsync(cacheKey) is { } cached) 
             return cached;
 
         await _rateLimiter.WaitAsync();
@@ -175,25 +183,29 @@ public class SpotifyMetadataService
             if (client == null)
                 return null;
 
-            var track = await client.Tracks.Get(spotifyTrackId);
+            var track = await client.Tracks.Get(spotifyId);
             
-            var metadata = new SpotifyMetadata
-            {
-                TrackId = track.Id,
-                AlbumId = track.Album?.Id,
-                ArtistId = track.Artists?.FirstOrDefault()?.Id,
-                AlbumArtUrl = track.Album?.Images?.FirstOrDefault()?.Url,
-                Popularity = track.Popularity,
-                DurationMs = track.DurationMs,
-                ReleaseDate = ParseReleaseDate(track.Album?.ReleaseDate)
-            };
+            var metadata = new SpotifyMetadata(
+                Id: track.Id,
+                Title: track.Name,
+                Artist: track.Artists?.FirstOrDefault()?.Name ?? "Unknown",
+                Album: track.Album?.Name ?? string.Empty,
+                AlbumArtUrl: track.Album?.Images?.FirstOrDefault()?.Url ?? string.Empty,
+                ArtistImageUrl: string.Empty,
+                ReleaseDate: track.Album?.ReleaseDate ?? string.Empty,
+                Popularity: track.Popularity,
+                DurationMs: track.DurationMs,
+                Genres: new List<string>(),
+                SpotifyAlbumId: track.Album?.Id ?? string.Empty,
+                SpotifyArtistId: track.Artists?.FirstOrDefault()?.Id ?? string.Empty
+            );
 
-            _cache[cacheKey] = metadata;
+            await _databaseService.CacheSpotifyMetadataAsync(cacheKey, metadata);
             return metadata;
         }
         catch (APIException ex)
         {
-            _logger.LogError(ex, "Spotify API error fetching track {Id}", spotifyTrackId);
+            _logger.LogError(ex, "Spotify API error fetching track {Id}", spotifyId);
             return null;
         }
         finally
@@ -278,18 +290,4 @@ public class SpotifyMetadataService
     }
 }
 
-/// <summary>
-/// Spotify metadata for a track.
-/// </summary>
-public class SpotifyMetadata
-{
-    public string? TrackId { get; set; }
-    public string? AlbumId { get; set; }
-    public string? ArtistId { get; set; }
-    public string? AlbumArtUrl { get; set; }
-    public string? ArtistImageUrl { get; set; }
-    public List<string>? Genres { get; set; }
-    public int? Popularity { get; set; }
-    public int? DurationMs { get; set; }
-    public DateTime? ReleaseDate { get; set; }
-}
+

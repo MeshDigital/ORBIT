@@ -133,6 +133,23 @@ public class LibraryService : ILibraryService
         }
     }
 
+    public async Task<PlaylistJob?> FindPlaylistJobBySourceTypeAsync(string sourceType)
+    {
+        try
+        {
+            // Efficiency: Loading all jobs to filter in memory isn't ideal but acceptable for small number of playlists.
+            // A dedicated DB query would be better long term.
+            var entities = await _databaseService.LoadAllPlaylistJobsAsync().ConfigureAwait(false);
+            var entity = entities.FirstOrDefault(e => e.SourceType == sourceType);
+            return entity != null ? EntityToPlaylistJob(entity) : null;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to find playlist job by source type {Type}", sourceType);
+            return null;
+        }
+    }
+
     public async Task SavePlaylistJobAsync(PlaylistJob job)
     {
         try

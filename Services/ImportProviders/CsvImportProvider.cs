@@ -15,7 +15,7 @@ public class CsvImportProvider : IImportProvider
 {
     private readonly ILogger<CsvImportProvider> _logger;
     private readonly CsvInputSource _csvInputSource;
-    private readonly SpotifyMetadataService _metadataService;
+    private readonly ISpotifyMetadataService _metadataService;
 
     public string Name => "CSV";
     public string IconGlyph => "📄";
@@ -23,7 +23,7 @@ public class CsvImportProvider : IImportProvider
     public CsvImportProvider(
         ILogger<CsvImportProvider> logger,
         CsvInputSource csvInputSource,
-        SpotifyMetadataService metadataService)
+        ISpotifyMetadataService metadataService)
     {
         _logger = logger;
         _csvInputSource = csvInputSource;

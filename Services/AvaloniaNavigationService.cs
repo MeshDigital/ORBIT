@@ -16,6 +16,7 @@ public interface INavigationService
     void NavigateTo(string pageKey);
     void GoBack();
     object? CurrentPage { get; }
+    event EventHandler<UserControl>? Navigated;
 }
 
 public class NavigationService : INavigationService
@@ -37,6 +38,8 @@ public class NavigationService : INavigationService
         _pages[key] = pageType;
     }
 
+    public event EventHandler<UserControl>? Navigated;
+
     public void NavigateTo(string pageKey)
     {
         if (_pages.TryGetValue(pageKey, out var pageType))
@@ -53,6 +56,7 @@ public class NavigationService : INavigationService
             {
                 _currentPage = page;
                 OnPageChanged();
+                Navigated?.Invoke(this, page);
             }
         }
     }
@@ -61,8 +65,13 @@ public class NavigationService : INavigationService
     {
         if (_pageHistory.Count > 0)
         {
-            _currentPage = _pageHistory.Pop();
+            var previousPage = _pageHistory.Pop();
+            _currentPage = previousPage;
             OnPageChanged();
+            if (previousPage is UserControl control)
+            {
+                Navigated?.Invoke(this, control);
+            }
         }
     }
 

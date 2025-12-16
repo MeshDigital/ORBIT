@@ -185,7 +185,8 @@ public partial class App : Application
         services.AddSingleton<LocalHttpServer>();
         services.AddSingleton<ISecureTokenStorage>(sp => SecureTokenStorageFactory.Create(sp));
         services.AddSingleton<SpotifyAuthService>();
-        services.AddSingleton<SpotifyMetadataService>();
+        services.AddSingleton<ISpotifyMetadataService, SpotifyMetadataService>();
+        services.AddSingleton<SpotifyMetadataService>(); // Keep concrete registration just in case
         services.AddSingleton<ArtworkCacheService>(); // Phase 0: Artwork caching
 
         // Input parsers
@@ -196,11 +197,13 @@ public partial class App : Application
         // Register concrete types for direct injection
         services.AddSingleton<Services.ImportProviders.SpotifyImportProvider>();
         services.AddSingleton<Services.ImportProviders.CsvImportProvider>();
+        services.AddSingleton<Services.ImportProviders.SpotifyLikedSongsImportProvider>();
         services.AddSingleton<Services.ImportProviders.TracklistImportProvider>();
         
         // Register as interface for Orchestrator
         services.AddSingleton<IImportProvider>(sp => sp.GetRequiredService<Services.ImportProviders.SpotifyImportProvider>());
         services.AddSingleton<IImportProvider>(sp => sp.GetRequiredService<Services.ImportProviders.CsvImportProvider>());
+        services.AddSingleton<IImportProvider>(sp => sp.GetRequiredService<Services.ImportProviders.SpotifyLikedSongsImportProvider>());
         services.AddSingleton<IImportProvider>(sp => sp.GetRequiredService<Services.ImportProviders.TracklistImportProvider>());
 
         // Library Action System
@@ -243,6 +246,7 @@ public partial class App : Application
         services.AddSingleton<MainViewModel>();
         services.AddSingleton<SearchViewModel>();
         services.AddSingleton<ConnectionViewModel>();
+        services.AddSingleton<SettingsViewModel>();
         
         // Phase 0: ViewModel Refactoring - Library child ViewModels
         services.AddTransient<ViewModels.Library.ProjectListViewModel>();
@@ -257,5 +261,7 @@ public partial class App : Application
 
         // Utilities
         services.AddSingleton<SearchQueryNormalizer>();
+        // Views
+        services.AddTransient<Views.Avalonia.ImportPreviewPage>();
     }
 }

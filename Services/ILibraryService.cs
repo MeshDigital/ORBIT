@@ -74,6 +74,12 @@ public interface ILibraryService
     Task<PlaylistJob?> FindPlaylistJobAsync(Guid playlistId);
 
     /// <summary>
+    /// Finds a playlist job by its SourceType (e.g., "Spotify Liked").
+    /// Used to detect if a sync job already exists.
+    /// </summary>
+    Task<PlaylistJob?> FindPlaylistJobBySourceTypeAsync(string sourceType);
+
+    /// <summary>
     /// Saves a new or existing playlist job.
     /// Called when importing a new source.
     /// </summary>

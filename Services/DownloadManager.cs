@@ -31,7 +31,7 @@ public class DownloadManager : INotifyPropertyChanged, IDisposable
     private readonly FileNameFormatter _fileNameFormatter;
     private readonly ITaggerService _taggerService;
     private readonly DatabaseService _databaseService;
-    private readonly IMetadataService _metadataService;
+    private readonly ISpotifyMetadataService _metadataService;
     private readonly ILibraryService _libraryService;
 
     // Concurrency control
@@ -59,7 +59,7 @@ public class DownloadManager : INotifyPropertyChanged, IDisposable
         FileNameFormatter fileNameFormatter,
         ITaggerService taggerService,
         DatabaseService databaseService,
-        IMetadataService metadataService,
+        ISpotifyMetadataService metadataService,
         ILibraryService libraryService)
     {
         _logger = logger;
@@ -158,7 +158,17 @@ public class DownloadManager : INotifyPropertyChanged, IDisposable
                         TrackUniqueHash = track.UniqueHash,
                         Status = TrackStatus.Missing,
                         ResolvedFilePath = string.Empty,
-                        TrackNumber = idx++
+                        TrackNumber = idx++,
+                        // Phase 0: Spotify Metadata Mapping
+                        SpotifyTrackId = track.SpotifyTrackId,
+                        SpotifyAlbumId = track.SpotifyAlbumId,
+                        SpotifyArtistId = track.SpotifyArtistId,
+                        AlbumArtUrl = track.AlbumArtUrl,
+                        ArtistImageUrl = track.ArtistImageUrl,
+                        Genres = track.Genres,
+                        Popularity = track.Popularity,
+                        CanonicalDuration = track.CanonicalDuration,
+                        ReleaseDate = track.ReleaseDate
                     };
                     playlistTracks.Add(pt);
                 }
@@ -207,21 +217,26 @@ public class DownloadManager : INotifyPropertyChanged, IDisposable
                 // Persist new track
                 _ = SaveTrackToDb(vm);
 
-                // Fetch Cover Art (Fire & Forget)
+                // Phase 0: Enrich Metadata (Fire & Forget)
                 _ = Task.Run(async () => 
                 {
                     try 
                     {
-                        var url = await _metadataService.GetAlbumArtUrlAsync(vm.Artist, vm.Model.Album);
-                        if (!string.IsNullOrEmpty(url))
+                        if (await _metadataService.EnrichTrackAsync(vm.Model))
                         {
-                            vm.CoverArtUrl = url;
-                            await SaveTrackToDb(vm); // Persist URL
+                            // Update VM from Model
+                            await Dispatcher.UIThread.InvokeAsync(() =>
+                            {
+                                vm.CoverArtUrl = vm.Model.AlbumArtUrl;
+                                // We could update other fields on VM if they existed (e.g. Popularity tooltip)
+                            });
+                            
+                            await SaveTrackToDb(vm); // Persist enriched metadata
                         }
                     }
                     catch (Exception ex)
                     {
-                         _logger.LogWarning("Failed to fetch art for {Artist} - {Title}: {Msg}", vm.Artist, vm.Title, ex.Message);
+                         _logger.LogWarning("Failed to enrich track {Artist} - {Title}: {Msg}", vm.Artist, vm.Title, ex.Message);
                     }
                 });
             }

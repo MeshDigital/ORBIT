@@ -24,6 +24,17 @@ public class TrackEntity
     public DateTime AddedAt { get; set; }
     public string? ErrorMessage { get; set; }
     public string? CoverArtUrl { get; set; } // Added for Album Art
+
+    // Spotify Metadata (Phase 0: Metadata Gravity Well)
+    public string? SpotifyTrackId { get; set; }
+    public string? SpotifyAlbumId { get; set; }
+    public string? SpotifyArtistId { get; set; }
+    public string? AlbumArtUrl { get; set; }
+    public string? ArtistImageUrl { get; set; }
+    public string? Genres { get; set; }
+    public int? Popularity { get; set; }
+    public int? CanonicalDuration { get; set; }
+    public DateTime? ReleaseDate { get; set; }
 }
 
 /// <summary>
@@ -156,4 +167,15 @@ public class LibraryEntryEntity
     public DateTime AddedAt { get; set; }
     public DateTime LastUsedAt { get; set; }
     public DateTime? FilePathUpdatedAt { get; set; } // Track when path was last resolved/updated
+
+    // Spotify Metadata (Phase 0: Metadata Gravity Well)
+    public string? SpotifyTrackId { get; set; }
+    public string? SpotifyAlbumId { get; set; }
+    public string? SpotifyArtistId { get; set; }
+    public string? AlbumArtUrl { get; set; }
+    public string? ArtistImageUrl { get; set; }
+    public string? Genres { get; set; } // JSON array
+    public int? Popularity { get; set; }
+    public int? CanonicalDuration { get; set; } // milliseconds
+    public DateTime? ReleaseDate { get; set; }
 }

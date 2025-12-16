@@ -19,6 +19,17 @@ public class Track
     public int Bitrate { get; set; } // in kbps
     public Dictionary<string, object>? Metadata { get; set; }
     
+    // Spotify Metadata (Phase 0: Metadata Gravity Well)
+    public string? SpotifyTrackId { get; set; }
+    public string? SpotifyAlbumId { get; set; }
+    public string? SpotifyArtistId { get; set; }
+    public string? AlbumArtUrl { get; set; }
+    public string? ArtistImageUrl { get; set; }
+    public string? Genres { get; set; }
+    public int? Popularity { get; set; }
+    public int? CanonicalDuration { get; set; }
+    public DateTime? ReleaseDate { get; set; } // Use DateTime? instead of string for better type safety where possible
+    
     // Intelligence Metrics
     public bool HasFreeUploadSlot { get; set; }
     public int QueueLength { get; set; }

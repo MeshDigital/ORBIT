@@ -119,36 +119,20 @@ dotnet build
 dotnet run
 ```
 
-### Spotify API Setup (Required for Playlist Import)
-
-To import playlists from Spotify, you need to create a Spotify Developer account and obtain API credentials:
-
-#### Step 1: Create Spotify Developer Account
-1. Go to [Spotify Developer Dashboard](https://developer.spotify.com/dashboard)
-2. Log in with your Spotify account (or create one)
-3. Accept the Terms of Service
-
-#### Step 2: Create an App
-1. Click **"Create an App"**
-2. Fill in the details:
-   - **App Name**: `QMUSICSLSK` (or any name you prefer)
-   - **App Description**: `Music downloader for personal use`
-   - **Redirect URI**: `http://localhost:8888/callback` (important!)
-3. Check the agreement boxes
-4. Click **"Create"**
-
-#### Step 3: Get Your Credentials
-1. On your app's dashboard, click **"Settings"**
-2. Copy your **Client ID**
-3. Click **"View client secret"** and copy your **Client Secret**
-
-#### Step 4: Configure QMUSICSLSK
-1. Open the app and go to **Settings**
-2. Navigate to the **Spotify** section
-3. Paste your **Client ID** and **Client Secret**
-4. Click **Save**
-
-> **Note**: Your credentials are stored securely using Windows Data Protection API (DPAPI). They never leave your computer.
+### Spotify API Setup (Simplified!)
+ 
+ **Good News!** You no longer need to create a developer account manually.
+ 
+ 1. Go to **Settings** in the app.
+ 2. Scroll to **Spotify Integration**.
+ 3. Click **"Connect with Spotify"**.
+ 4. Log in via your browser.
+ 
+ **That's it!** You can now import playlists and your **Liked Songs** directly.
+ 
+ > **Advanced Users**: If you prefer to use your own Client ID, you can still expand "Advanced Options" in Settings to provide your own credentials.
+ 
+ > **Note**: Your credentials are stored securely using Windows Data Protection API (DPAPI). They never leave your computer.
 
 **Detailed Guide**: [How to Generate Spotify API Key](https://codewolfy.com/how-to-generate-spotify-api-key/)
 
@@ -369,10 +353,16 @@ If this project inspires you to build something with AI, give it a star! ⭐
 - ✅ Added UI refresh after playlist modifications
 - ✅ Implemented file path resolution from DownloadManager
 - ✅ Added taskbar icon with transparent background
-- ✅ Migrated to Avalonia UI (cross-platform)
-- ✅ Implemented responsive layout
-- ✅ Added player queue management
-- 🚧 Working on dynamic player docking
+- ✅ **Cross-Platform UI**: Migrated to Avalonia (Windows/macOS/Linux)
+- ✅ **New Feature**: **Spotify Single Sign-On (SSO)** - One-click login.
+- ✅ **New Feature**: **Smart Playlists** (Recently Added, Most Played, Failed Downloads).
+- ✅ **New Feature**: **Import "Liked Songs"** - Sync your Spotify library directly.
+- ✅ **Secure**: Fixed critical startup crashes and implemented secure credential storage.
+- ✅ **Architectural Overhaul**: Refactored `MainViewModel` into `SearchViewModel` and `ConnectionViewModel`.
+- ✅ **UI**: Added "Add to Queue" from Library view.
+- ✅ Fixed database concurrency exception in drag-and-drop
+- ✅ Added UI refresh after playlist modifications
+- ✅ Implemented file path resolution from DownloadManager
 - 📋 Planning Phase 5: Self-Healing Library
 
 ---

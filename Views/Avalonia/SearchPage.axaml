@@ -39,7 +39,7 @@
                             <!-- Input Box -->
                             <TextBox Grid.Column="1"
                                      x:Name="SearchInput"
-                                     Text="{Binding SearchQuery, Mode=TwoWay}"
+                                     Text="{Binding SearchQuery, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
                                      Watermark="Enter song, artist, Spotify URL, or CSV file path..."
                                      Background="Transparent"
                                      BorderThickness="0"

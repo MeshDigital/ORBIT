@@ -134,7 +134,17 @@ public class ImportPreviewViewModel : INotifyPropertyChanged
                     Title = query.Title,
                     Artist = query.Artist,
                     Album = query.Album,
-                    Length = query.Length
+                    Length = query.Length,
+                    // Phase 0: Map Spotify Metadata
+                    SpotifyTrackId = query.SpotifyTrackId,
+                    SpotifyAlbumId = query.SpotifyAlbumId,
+                    SpotifyArtistId = query.SpotifyArtistId,
+                    AlbumArtUrl = query.AlbumArtUrl,
+                    ArtistImageUrl = query.ArtistImageUrl,
+                    Genres = query.Genres,
+                    Popularity = query.Popularity,
+                    CanonicalDuration = query.CanonicalDuration,
+                    ReleaseDate = query.ReleaseDate
                 };
                 tempTracks.Add(track);
                 trackNum++;

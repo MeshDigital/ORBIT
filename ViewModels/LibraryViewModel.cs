@@ -128,9 +128,22 @@ public class LibraryViewModel : INotifyPropertyChanged
     /// Handles project selection event from ProjectListViewModel.
     /// Coordinates loading tracks in TrackListViewModel.
     /// </summary>
+    /// <summary>
+    /// Handles project selection event from ProjectListViewModel.
+    /// Coordinates loading tracks in TrackListViewModel.
+    /// </summary>
     private async void OnProjectSelected(object? sender, PlaylistJob? project)
     {
-        _logger.LogInformation("Project selected: {Title}", project?.SourceTitle);
+        if (project == null) return;
+
+        _logger.LogInformation("Project selected: {Title}", project.SourceTitle);
+        
+        // Deselect smart playlist without triggering its "Load" logic if possible.
+        // But since we can't easily suppress events without a flag, we just check properties.
+        if (SmartPlaylists.SelectedSmartPlaylist != null)
+        {
+            SmartPlaylists.SelectedSmartPlaylist = null;
+        }
         
         // Load tracks for selected project
         await Tracks.LoadProjectTracksAsync(project);
@@ -142,7 +155,15 @@ public class LibraryViewModel : INotifyPropertyChanged
     /// </summary>
     private void OnSmartPlaylistSelected(object? sender, Library.SmartPlaylist? playlist)
     {
-        _logger.LogInformation("Smart playlist selected: {Name}", playlist?.Name);
+        if (playlist == null) return;
+
+        _logger.LogInformation("Smart playlist selected: {Name}", playlist.Name);
+        
+        // Deselect project
+        if (Projects.SelectedProject != null)
+        {
+            Projects.SelectedProject = null;
+        }
         
         // Refresh smart playlist tracks
         var tracks = SmartPlaylists.RefreshSmartPlaylist(playlist);

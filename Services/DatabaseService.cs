@@ -157,6 +157,96 @@ public class DatabaseService
                  ";
                  await context.Database.ExecuteSqlRawAsync(createQueueTableSql);
             }
+
+            // Check for SpotifyMetadataCache table
+            try
+            {
+               await context.Database.ExecuteSqlRawAsync("SELECT SpotifyId FROM SpotifyMetadataCache LIMIT 1");
+            }
+            catch
+            {
+                 _logger.LogWarning("Schema Patch: Creating missing table 'SpotifyMetadataCache'");
+                 var createCacheTableSql = @"
+                    CREATE TABLE IF NOT EXISTS SpotifyMetadataCache (
+                        SpotifyId TEXT NOT NULL CONSTRAINT PK_SpotifyMetadataCache PRIMARY KEY,
+                        DataJson TEXT NOT NULL,
+                        CachedAt TEXT NOT NULL,
+                        ExpiresAt TEXT NOT NULL
+                    );
+                 ";
+                 await context.Database.ExecuteSqlRawAsync(createCacheTableSql);
+            }
+
+            // Patch LibraryEntries columns
+            using (var schemaCmd = connection.CreateCommand())
+            {
+                schemaCmd.CommandText = "PRAGMA table_info(LibraryEntries)";
+                var libColumns = new HashSet<string>();
+                using (var reader = await schemaCmd.ExecuteReaderAsync())
+                {
+                    while (await reader.ReadAsync())
+                    {
+                        libColumns.Add(reader.GetString(1)); // Name is column 1
+                    }
+                }
+
+                if (libColumns.Count > 0) // Only patch if table exists
+                {
+                    var newCols = new List<(string Name, string Def)>();
+                    if (!libColumns.Contains("SpotifyTrackId")) newCols.Add(("SpotifyTrackId", "TEXT NULL"));
+                    if (!libColumns.Contains("SpotifyAlbumId")) newCols.Add(("SpotifyAlbumId", "TEXT NULL"));
+                    if (!libColumns.Contains("SpotifyArtistId")) newCols.Add(("SpotifyArtistId", "TEXT NULL"));
+                    if (!libColumns.Contains("AlbumArtUrl")) newCols.Add(("AlbumArtUrl", "TEXT NULL"));
+                    if (!libColumns.Contains("ArtistImageUrl")) newCols.Add(("ArtistImageUrl", "TEXT NULL"));
+                    if (!libColumns.Contains("Genres")) newCols.Add(("Genres", "TEXT NULL"));
+                    if (!libColumns.Contains("Popularity")) newCols.Add(("Popularity", "INTEGER NULL"));
+                    if (!libColumns.Contains("CanonicalDuration")) newCols.Add(("CanonicalDuration", "INTEGER NULL"));
+                    if (!libColumns.Contains("ReleaseDate")) newCols.Add(("ReleaseDate", "TEXT NULL"));
+
+                    foreach (var (col, def) in newCols)
+                    {
+                         _logger.LogWarning("Schema Patch: Adding missing column '{Col}' to LibraryEntries", col);
+                         await context.Database.ExecuteSqlRawAsync($"ALTER TABLE LibraryEntries ADD COLUMN {col} {def}");
+                    }
+                }
+
+            }
+
+            // Patch Tracks columns
+            using (var schemaCmd = connection.CreateCommand())
+            {
+                schemaCmd.CommandText = "PRAGMA table_info(Tracks)";
+                var tracksColumns = new HashSet<string>();
+                using (var reader = await schemaCmd.ExecuteReaderAsync())
+                {
+                    while (await reader.ReadAsync())
+                    {
+                        tracksColumns.Add(reader.GetString(1));
+                    }
+                }
+
+                if (tracksColumns.Count > 0)
+                {
+                    var newCols = new List<(string Name, string Def)>();
+                    if (!tracksColumns.Contains("SpotifyTrackId")) newCols.Add(("SpotifyTrackId", "TEXT NULL"));
+                    if (!tracksColumns.Contains("SpotifyAlbumId")) newCols.Add(("SpotifyAlbumId", "TEXT NULL"));
+                    if (!tracksColumns.Contains("SpotifyArtistId")) newCols.Add(("SpotifyArtistId", "TEXT NULL"));
+                    if (!tracksColumns.Contains("AlbumArtUrl")) newCols.Add(("AlbumArtUrl", "TEXT NULL"));
+                    if (!tracksColumns.Contains("ArtistImageUrl")) newCols.Add(("ArtistImageUrl", "TEXT NULL"));
+                    if (!tracksColumns.Contains("Genres")) newCols.Add(("Genres", "TEXT NULL"));
+                    if (!tracksColumns.Contains("Popularity")) newCols.Add(("Popularity", "INTEGER NULL"));
+                    if (!tracksColumns.Contains("CanonicalDuration")) newCols.Add(("CanonicalDuration", "INTEGER NULL"));
+                    if (!tracksColumns.Contains("ReleaseDate")) newCols.Add(("ReleaseDate", "TEXT NULL"));
+                    // CoverArtUrl was already there but check just in case
+                    if (!tracksColumns.Contains("CoverArtUrl")) newCols.Add(("CoverArtUrl", "TEXT NULL"));
+                    
+                    foreach (var (col, def) in newCols)
+                    {
+                         _logger.LogWarning("Schema Patch: Adding missing column '{Col}' to Tracks", col);
+                         await context.Database.ExecuteSqlRawAsync($"ALTER TABLE Tracks ADD COLUMN {col} {def}");
+                    }
+                }
+            }
             
             await connection.CloseAsync();
         }
@@ -210,6 +300,17 @@ public class DatabaseService
                         existingTrack.Artist = track.Artist;
                         existingTrack.Title = track.Title;
                         existingTrack.Size = track.Size;
+
+                        // Phase 0: Persist Spotify Metadata
+                        existingTrack.SpotifyTrackId = track.SpotifyTrackId;
+                        existingTrack.SpotifyAlbumId = track.SpotifyAlbumId;
+                        existingTrack.SpotifyArtistId = track.SpotifyArtistId;
+                        existingTrack.AlbumArtUrl = track.AlbumArtUrl;
+                        existingTrack.ArtistImageUrl = track.ArtistImageUrl;
+                        existingTrack.Genres = track.Genres;
+                        existingTrack.Popularity = track.Popularity;
+                        existingTrack.CanonicalDuration = track.CanonicalDuration;
+                        existingTrack.ReleaseDate = track.ReleaseDate;
                         
                         // Don't update AddedAt - preserve original
                         // context.Tracks.Update() is not needed - EF Core tracks changes automatically
@@ -848,5 +949,62 @@ public class DatabaseService
         context.QueueItems.RemoveRange(existingQueue);
         await context.SaveChangesAsync();
         _logger.LogInformation("Cleared saved queue");
+    }
+
+    // ===== Spotify Metadata Cache Methods (Phase 0) =====
+
+    public async Task<SpotifyMetadata?> GetCachedSpotifyMetadataAsync(string cacheKey)
+    {
+        using var context = new AppDbContext();
+        var entity = await context.SpotifyMetadataCache.FindAsync(cacheKey);
+
+        if (entity == null) return null;
+        if (DateTime.UtcNow > entity.ExpiresAt)
+        {
+            // Expired - delete and return null
+            context.SpotifyMetadataCache.Remove(entity);
+            await context.SaveChangesAsync();
+            return null;
+        }
+
+        try
+        {
+            return System.Text.Json.JsonSerializer.Deserialize<SpotifyMetadata>(entity.DataJson);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to deserialize cached metadata for {Key}", cacheKey);
+            return null;
+        }
+    }
+
+    public async Task CacheSpotifyMetadataAsync(string cacheKey, SpotifyMetadata metadata)
+    {
+        using var context = new AppDbContext();
+        var json = System.Text.Json.JsonSerializer.Serialize(metadata);
+        
+        var entity = new Data.Entities.SpotifyMetadataCacheEntity
+        {
+            SpotifyId = cacheKey,
+            DataJson = json,
+            CachedAt = DateTime.UtcNow,
+            ExpiresAt = DateTime.UtcNow.AddDays(7) // Cache for 7 days
+        };
+
+        // Upsert
+        var existing = await context.SpotifyMetadataCache.FindAsync(cacheKey);
+        if (existing != null)
+        {
+            existing.DataJson = json;
+            existing.CachedAt = entity.CachedAt;
+            existing.ExpiresAt = entity.ExpiresAt;
+            context.SpotifyMetadataCache.Update(existing);
+        }
+        else
+        {
+            context.SpotifyMetadataCache.Add(entity);
+        }
+
+        await context.SaveChangesAsync();
     }
 }

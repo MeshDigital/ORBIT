@@ -72,7 +72,10 @@ public class SpotifyInputSource : IInputSource
 						SpotifyTrackId = track.Id,
 						SpotifyAlbumId = track.Album?.Id,
 						SpotifyArtistId = track.Artists?.FirstOrDefault()?.Id,
-						AlbumArtUrl = track.Album?.Images?.FirstOrDefault()?.Url
+						AlbumArtUrl = track.Album?.Images?.FirstOrDefault()?.Url,
+						Popularity = track.Popularity,
+						CanonicalDuration = track.DurationMs,
+						ReleaseDate = DateTime.TryParse(track.Album?.ReleaseDate, out var rd) ? rd : null
 					});
 				}
 			}
