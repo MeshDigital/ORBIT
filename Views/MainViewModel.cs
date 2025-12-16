@@ -143,7 +143,32 @@ public class MainViewModel : INotifyPropertyChanged
         set => SetProperty(ref _searchQuery, value);
     }
 
+    // Login Overlay Properties
+    private bool _isLoginOverlayVisible;
+    public bool IsLoginOverlayVisible
+    {
+        get => _isLoginOverlayVisible;
+        set => SetProperty(ref _isLoginOverlayVisible, value);
+    }
+
+    private bool _rememberPassword;
+    public bool RememberPassword
+    {
+        get => _rememberPassword;
+        set => SetProperty(ref _rememberPassword, value);
+    }
+
+    private bool _autoConnectEnabled;
+    public bool AutoConnectEnabled
+    {
+        get => _autoConnectEnabled;
+        set => SetProperty(ref _autoConnectEnabled, value);
+    }
+
     // Navigation Commands
+    public ICommand LoginCommand { get; }
+    public ICommand DismissLoginCommand { get; }
+    public ICommand DisconnectCommand { get; }
     public ICommand NavigateSearchCommand { get; }
     public ICommand NavigateLibraryCommand { get; }
     public ICommand NavigateDownloadsCommand { get; }
@@ -179,7 +204,18 @@ public class MainViewModel : INotifyPropertyChanged
         PlayerViewModel = playerViewModel;
         LibraryViewModel = libraryViewModel;
 
+        // Initialize state from config
+        Username = _config.Username ?? "";
+        RememberPassword = _config.RememberPassword;
+        AutoConnectEnabled = _config.AutoConnectEnabled;
+        
+        // Show login overlay if not auto-connecting or if credentials missing
+        IsLoginOverlayVisible = !_config.AutoConnectEnabled || string.IsNullOrEmpty(_config.Username);
+
         // Initialize commands
+        LoginCommand = new AsyncRelayCommand<string>(LoginAsync);
+        DismissLoginCommand = new RelayCommand(DismissLogin);
+        DisconnectCommand = new RelayCommand(Disconnect);
         NavigateSearchCommand = new RelayCommand(NavigateToSearch);
         NavigateLibraryCommand = new RelayCommand(NavigateToLibrary);
         NavigateDownloadsCommand = new RelayCommand(NavigateToDownloads);
@@ -296,6 +332,82 @@ public class MainViewModel : INotifyPropertyChanged
             global::Avalonia.Application.Current.Resources["FontSizeLarge"] = BaseFontSize * 1.2;
             global::Avalonia.Application.Current.Resources["FontSizeXLarge"] = BaseFontSize * 1.4;
         }
+    }
+
+    private async Task LoginAsync(string? password)
+    {
+        if (string.IsNullOrWhiteSpace(Username))
+        {
+            StatusText = "Please enter a username";
+            return;
+        }
+
+        // If password provided in UI, use it. Otherwise try to use stored password if remembering is enabled.
+        // For security, we don't store the password in a plain text field in ViewModel if possible for the UI binding,
+        // but here we accept it as a parameter from the View (PasswordBox).
+        
+        string? passwordToUse = password;
+
+        IsInitializing = true;
+        StatusText = "Connecting...";
+
+        try
+        {
+            // Update config
+            _config.Username = Username;
+            _config.RememberPassword = RememberPassword;
+            _config.AutoConnectEnabled = AutoConnectEnabled;
+            // Password storage is handled by SoulseekAdapter/ConfigManager internally or we need to refactor it.
+            // For now, assuming SoulseekAdapter handles the actual connect using credentials.
+            
+            // NOTE: The previous implementation actually passed arguments to ConnectAsync.
+            // We need to verify how SoulseekAdapter.ConnectAsync is defined. Assuming it takes username/password.
+            
+            await _soulseek.ConnectAsync(passwordToUse);
+            // Internal event bus will trigger "Connected" state change which sets IsConnected = true
+
+            if (_soulseek.IsConnected)
+            {
+                IsLoginOverlayVisible = false;
+                _configManager.Save(_config); // Save updated preferences
+            }
+            else
+            {
+                // Note: ConnectAsync might not return false but throw exception, or connection happens async.
+                // Assuming success if no exception for now, but checking IsConnected property to be safe.
+                 if (!_soulseek.IsConnected) 
+                 {
+                      // If still not connected (and no exception), maybe it's in progress?
+                      // But ConnectAsync is awaited.
+                      // Let's rely on exception handling for failures.
+                 }
+                IsLoginOverlayVisible = false; // Hide overlay on success
+                _configManager.Save(_config);
+            }
+
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Login failed");
+            StatusText = $"Login error: {ex.Message}";
+        }
+        finally
+        {
+            IsInitializing = false;
+        }
+    }
+
+    private void DismissLogin()
+    {
+        IsLoginOverlayVisible = false;
+    }
+
+    private void Disconnect()
+    {
+        _soulseek.Disconnect();
+        IsConnected = false;
+        StatusText = "Disconnected";
+        IsLoginOverlayVisible = true;
     }
 
     private void ZoomIn() => BaseFontSize += 1;

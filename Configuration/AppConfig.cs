@@ -9,6 +9,7 @@ public class AppConfig
     public string? Username { get; set; }
     public string? Password { get; set; }
     public bool RememberPassword { get; set; }
+    public bool AutoConnectEnabled { get; set; }
     public int ListenPort { get; set; } = 49998;
     public bool UseUPnP { get; set; } = false;
     public int ConnectTimeout { get; set; } = 20000; // ms
