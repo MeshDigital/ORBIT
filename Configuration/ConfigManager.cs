@@ -76,6 +76,7 @@ public class ConfigManager
                 MaxSearchAttempts = int.TryParse(config["Download:MaxSearchAttempts"], out var msa) ? msa : 3,
                 AutoRetryFailedDownloads = !bool.TryParse(config["Download:AutoRetryFailedDownloads"], out var arf) || arf,
                 MaxDownloadRetries = int.TryParse(config["Download:MaxDownloadRetries"], out var mdr) ? mdr : 2,
+                AutoConnectEnabled = bool.TryParse(config["Soulseek:AutoConnectEnabled"], out var ace) && ace,
             };
             
             // Apply defaults if loaded values are empty (for backward compatibility with old configs)
@@ -108,7 +109,10 @@ public class ConfigManager
         iniContent.AppendLine($"UseUPnP = {config.UseUPnP}");
         iniContent.AppendLine($"ConnectTimeout = {config.ConnectTimeout}");
         iniContent.AppendLine($"SearchTimeout = {config.SearchTimeout}");
+        iniContent.AppendLine($"ConnectTimeout = {config.ConnectTimeout}");
+        iniContent.AppendLine($"SearchTimeout = {config.SearchTimeout}");
         iniContent.AppendLine($"RememberPassword = {config.RememberPassword}");
+        iniContent.AppendLine($"AutoConnectEnabled = {config.AutoConnectEnabled}");
 
         iniContent.AppendLine();
         iniContent.AppendLine("[Spotify]");

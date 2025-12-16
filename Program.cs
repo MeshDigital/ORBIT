@@ -24,6 +24,7 @@ namespace SLSKDONET
 
             // Initialize Serilog
             Log.Logger = new LoggerConfiguration()
+                .MinimumLevel.Debug()
                 .ReadFrom.Configuration(configuration)
                 .CreateLogger();
 

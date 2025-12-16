@@ -40,6 +40,22 @@ public partial class App : Application
                 var databaseService = Services.GetRequiredService<DatabaseService>();
                 databaseService.InitAsync().GetAwaiter().GetResult();
 
+                // Diagnostic: Check for LibVLC files
+                var binDir = AppContext.BaseDirectory;
+                var libVlcDir = Path.Combine(binDir, "libvlc", "win-x64");
+                if (!Directory.Exists(libVlcDir)) libVlcDir = Path.Combine(binDir, "libvlc", "win-x86"); // Try x86
+                
+                if (Directory.Exists(libVlcDir))
+                {
+                     Serilog.Log.Information("LibVLC directory found at: {Path}", libVlcDir);
+                     var dllCount = Directory.GetFiles(libVlcDir, "*.dll").Length;
+                     Serilog.Log.Information("LibVLC directory contains {Count} DLLs", dllCount);
+                }
+                else
+                {
+                     Serilog.Log.Error("CRITICAL: LibVLC directory NOT found at {Path}. Playback will fail.", libVlcDir);
+                }
+
                 // Create main window and show it immediately
                 var mainVm = Services.GetRequiredService<MainViewModel>();
                 mainVm.StatusText = "Initializing application...";

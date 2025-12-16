@@ -268,18 +268,28 @@ public class MainViewModel : INotifyPropertyChanged
         // Subscribe to Soulseek state changes
         _soulseek.EventBus.Subscribe(evt =>
         {
-            if (evt.eventType == "state_changed")
+            try
             {
-                try
+                if (evt.eventType == "state_changed")
                 {
                     dynamic data = evt.data;
                     string state = data.state;
                     HandleStateChange(state);
                 }
-                catch (Exception ex)
+                else if (evt.eventType == "connection_status")
                 {
-                    _logger.LogWarning(ex, "Failed to handle state change event");
+                    dynamic data = evt.data;
+                    string status = data.status;
+                    // Map 'connected' to PascalCase 'Connected' to match state enum string
+                    if (status.Equals("connected", StringComparison.OrdinalIgnoreCase))
+                    {
+                        HandleStateChange("Connected");
+                    }
                 }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Failed to handle internal event: {EventType}", evt.eventType);
             }
         });
 
@@ -349,6 +359,7 @@ public class MainViewModel : INotifyPropertyChanged
                 case "Connected":
                     IsConnected = true;
                     StatusText = $"Connected as {Username}";
+                    IsLoginOverlayVisible = false; // Ensure overlay is hidden on connection
                     break;
                 case "Disconnected":
                     IsConnected = false;
@@ -411,9 +422,17 @@ public class MainViewModel : INotifyPropertyChanged
             await _soulseek.ConnectAsync(passwordToUse);
             // Internal event bus will trigger "Connected" state change which sets IsConnected = true
 
+            // FORCE update state if connected, in case event was missed or race condition occurred
+            if (_soulseek.IsConnected)
+            {
+                 HandleStateChange("Connected");
+            }
+
             if (_soulseek.IsConnected)
             {
                 IsLoginOverlayVisible = false;
+                
+                // Saving config
                 _configManager.Save(_config); // Save updated preferences
                 
                 // Save credentials securely if RememberPassword is checked
