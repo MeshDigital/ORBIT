@@ -93,10 +93,44 @@ public class MainViewModel : INotifyPropertyChanged
         ZoomOutCommand = new RelayCommand(ZoomOut);
         ResetZoomCommand = new RelayCommand(ResetZoom);
         
-        // ... (Rest of constructor) ...
-    }
+        // Subscribe to EventBus events
+        _eventBus.GetEvent<TrackUpdatedEvent>().Subscribe(evt => OnTrackUpdated(this, evt.Track));
+        _eventBus.GetEvent<SoulseekStateChangedEvent>().Subscribe(evt => HandleStateChange(evt.State));
+        
+        _downloadManager.AllGlobalTracks.CollectionChanged += (s, e) => 
+        {
+             OnPropertyChanged(nameof(SuccessfulCount));
+             OnPropertyChanged(nameof(FailedCount));
+             OnPropertyChanged(nameof(TodoCount));
+             OnPropertyChanged(nameof(DownloadProgressPercentage));
+        };
+        
+        // Set application version from assembly
+        try
+        {
+            var version = System.Reflection.Assembly.GetExecutingAssembly().GetName().Version;
+            ApplicationVersion = version != null ? $"{version.Major}.{version.Minor}.{version.Build}" : "1.0.0";
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Failed to get application version");
+            ApplicationVersion = "1.0.0";
+        }
 
-    // ... (Navigate methods) ...
+        // Set LibraryViewModel's MainViewModel reference
+        LibraryViewModel.SetMainViewModel(this);
+
+        _logger.LogInformation("MainViewModel initialized");
+
+        // Register pages for navigation service
+        _navigationService.RegisterPage("ImportPreview", typeof(Avalonia.ImportPreviewPage));
+        
+        // Subscribe to navigation events
+        _navigationService.Navigated += OnNavigated;
+
+        // Navigate to Search page by default
+        NavigateToSearch();
+    }
 
     private void NavigateToSettings()
     {
