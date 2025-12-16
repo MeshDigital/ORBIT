@@ -326,7 +326,7 @@
             <!-- Track DataGrid -->
             <DataGrid Grid.Row="2"
                       x:Name="TrackDataGrid"
-                      ItemsSource="{Binding FilteredTracks}"
+                      ItemsSource="{Binding Tracks.FilteredTracks}"
                       AutoGenerateColumns="False"
                       Background="Transparent"
                       BorderThickness="0"
