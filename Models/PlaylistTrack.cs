@@ -91,6 +91,14 @@ public class PlaylistTrack
     public int? Popularity { get; set; }
     public int? CanonicalDuration { get; set; }
     public DateTime? ReleaseDate { get; set; }
+
+    // Phase 0.1: Musical Intelligence & Antigravity
+    public string? MusicalKey { get; set; }
+    public double? BPM { get; set; }
+    public string? CuePointsJson { get; set; }
+    public string? AudioFingerprint { get; set; }
+    public int? BitrateScore { get; set; }
+    public double? AnalysisOffset { get; set; }
 }
 
 /// <summary>
