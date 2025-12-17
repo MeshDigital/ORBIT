@@ -300,58 +300,112 @@ public class SortingCriteria : IComparable<SortingCriteria>
 
     /// <summary>
     /// Calculated overall score for sorting.
-    /// Phase 1.2: Tiered quality floor with guard clauses.
+    /// Phase 2.2: Composing Methods pattern - reads like high-level summary.
     /// </summary>
     public double OverallScore
     {
         get
         {
-            // GUARD CLAUSE 1: Duration mismatch (wrong version - Radio vs Extended)
-            // This runs BEFORE scoring to prevent wasted computation
+            // GUARD CLAUSES: Short-circuit optimization
+            // Return early to avoid wasted computation on bad files
             if (IsDurationMismatch()) return double.NegativeInfinity;
-            
-            // GUARD CLAUSE 2: Suspicious files (fake/corrupted)
             if (IsSuspicious) return double.NegativeInfinity;
             
-            double score = 0.0;
-            
-            // TIER 0: Availability (Speed - most critical for user experience)
-            if (HasFreeUploadSlot) score += ScoringConstants.Availability.FreeSlotBonus;
-            score -= QueueLength * ScoringConstants.Availability.QueuePenaltyPerItem;
-            if (QueueLength == 0) score += ScoringConstants.Availability.EmptyQueueBonus;
-            
-            // Uploader Trust Modifier (from slsk-batchdl)
-            if (QueueLength > ScoringConstants.Availability.LongQueueThreshold) 
-                score -= ScoringConstants.Availability.LongQueuePenalty;
-
-            // TIER 1: Required conditions (must-have filters)
-            if (PassesRequired) score += ScoringConstants.Conditions.RequiredPassBonus;
-
-            // TIER 2: Preferred conditions (nice-to-have filters)
-            score += PreferredScore * ScoringConstants.Conditions.PreferredWeight;
-            
-            // TIER 3: QUALITY FLOOR (Primary discriminator)
-            // This is the key fix: quality comes BEFORE musical intelligence
-            score += CalculateQualityScore();
-
-            // TIER 4: Musical Intelligence (Tiebreaker for equal quality)
-            // BPM match can boost a file but NOT override quality tier
-            score += BpmProximity * ScoringConstants.Musical.BpmMatchBonus;
-
-            // TIER 5: Metadata quality
-            if (HasValidLength) score += ScoringConstants.Metadata.ValidLengthBonus;
-            score += LengthMatch * ScoringConstants.Metadata.LengthMatchWeight;
-
-            // TIER 6: String matching
-            score += TitleSimilarity * ScoringConstants.Metadata.TitleSimilarityWeight;
-            score += ArtistSimilarity * ScoringConstants.Metadata.ArtistSimilarityWeight;
-            score += AlbumSimilarity * ScoringConstants.Metadata.AlbumSimilarityWeight;
-
-            // TIER 7: Tiebreaker
-            score += RandomTiebreaker / ScoringConstants.Tiebreaker.RandomDivisor;
-
-            return score;
+            // Composing Methods: Each tier is independently testable
+            return CalculateAvailabilityScore()
+                 + CalculateConditionsScore()
+                 + CalculateQualityScore()
+                 + CalculateMusicalIntelligenceScore()
+                 + CalculateMetadataScore()
+                 + CalculateStringMatchingScore()
+                 + CalculateTiebreakerScore();
         }
+    }
+    
+    /// <summary>
+    /// Phase 2.2: Calculates availability score (upload speed, queue length).
+    /// Pure function for testability.
+    /// </summary>
+    internal double CalculateAvailabilityScore()
+    {
+        double score = 0.0;
+        
+        // Free slot bonus
+        if (HasFreeUploadSlot) 
+            score += ScoringConstants.Availability.FreeSlotBonus;
+        
+        // Queue penalties
+        score -= QueueLength * ScoringConstants.Availability.QueuePenaltyPerItem;
+        
+        if (QueueLength == 0) 
+            score += ScoringConstants.Availability.EmptyQueueBonus;
+        
+        // Heavy penalty for very long queues
+        if (QueueLength > ScoringConstants.Availability.LongQueueThreshold)
+            score -= ScoringConstants.Availability.LongQueuePenalty;
+        
+        return score;
+    }
+    
+    /// <summary>
+    /// Phase 2.2: Calculates required and preferred conditions score.
+    /// </summary>
+    internal double CalculateConditionsScore()
+    {
+        double score = 0.0;
+        
+        if (PassesRequired) 
+            score += ScoringConstants.Conditions.RequiredPassBonus;
+        
+        score += PreferredScore * ScoringConstants.Conditions.PreferredWeight;
+        
+        return score;
+    }
+    
+    /// <summary>
+    /// Phase 2.2: Calculates musical intelligence score (BPM, Key matching).
+    /// Pure function - only depends on input parameters.
+    /// </summary>
+    internal double CalculateMusicalIntelligenceScore()
+    {
+        // BPM proximity is already calculated (0-1 range)
+        return BpmProximity * ScoringConstants.Musical.BpmMatchBonus;
+        
+        // TODO: Add key matching when implemented
+        // if (KeyMatch) score += ScoringConstants.Musical.KeyMatchBonus;
+    }
+    
+    /// <summary>
+    /// Phase 2.2: Calculates metadata quality score (length match).
+    /// </summary>
+    internal double CalculateMetadataScore()
+    {
+        double score = 0.0;
+        
+        if (HasValidLength) 
+            score += ScoringConstants.Metadata.ValidLengthBonus;
+        
+        score += LengthMatch * ScoringConstants.Metadata.LengthMatchWeight;
+        
+        return score;
+    }
+    
+    /// <summary>
+    /// Phase 2.2: Calculates string matching score (title, artist, album similarity).
+    /// </summary>
+    internal double CalculateStringMatchingScore()
+    {
+        return (TitleSimilarity * ScoringConstants.Metadata.TitleSimilarityWeight)
+             + (ArtistSimilarity * ScoringConstants.Metadata.ArtistSimilarityWeight)
+             + (AlbumSimilarity * ScoringConstants.Metadata.AlbumSimilarityWeight);
+    }
+    
+    /// <summary>
+    /// Phase 2.2: Calculates random tiebreaker score.
+    /// </summary>
+    internal double CalculateTiebreakerScore()
+    {
+        return RandomTiebreaker / ScoringConstants.Tiebreaker.RandomDivisor;
     }
     
     /// <summary>
