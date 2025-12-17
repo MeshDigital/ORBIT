@@ -310,6 +310,112 @@ public class TrackIdentityProfile
 **Impact**: Runtime switching between ranking modes
 
 ---
+
+## Phase 4: Performance Optimization (Multi-core & Hardware Acceleration) (6-8 hours) ✨ NEW
+
+**Priority**: ⭐⭐ HIGH - Critical for Phase 5 (Self-Healing Library)
+
+### 4.1 Parallel Library Scanning (2 hours)
+**Reference**: [.NET 8 Parallel Programming](https://learn.microsoft.com/en-us/dotnet/standard/parallel-programming/)
+
+**Files to Modify**:
+- `Services/LibraryService.cs` - Refactor scan loops to use `Parallel.ForEachAsync`
+
+**Implementation**:
+```csharp
+await Parallel.ForEachAsync(tracks, new ParallelOptions
+{
+    MaxDegreeOfParallelism = Environment.ProcessorCount,
+    CancellationToken = cancellationToken
+}, async (track, ct) =>
+{
+    await AnalyzeTrackAsync(track, ct);
+});
+```
+
+**Impact**: 10,000 track scan: 2 hours → 10 minutes
+
+---
+
+### 4.2 Background Worker Architecture (3 hours)
+
+**Files to Create**:
+- `Services/TrackAnalysisOrchestrator.cs` - Channel-based worker pool
+- `Services/Workers/AnalysisWorker.cs` - Isolated analysis thread
+
+**Architecture**:
+```csharp
+public class TrackAnalysisOrchestrator
+{
+    private readonly Channel<TrackAnalysisRequest> _queue;
+    private readonly SemaphoreSlim _workerSemaphore;
+    
+    public async Task EnqueueAsync(Track track)
+    {
+        await _queue.Writer.WriteAsync(new TrackAnalysisRequest(track));
+    }
+    
+    private async Task WorkerLoop()
+    {
+        Thread.CurrentThread.Priority = ThreadPriority.BelowNormal; // UI priority
+        // Process queue...
+    }
+}
+```
+
+**Impact**: UI never freezes during heavy operations
+
+---
+
+### 4.3 Performance Mode Settings (1 hour)
+
+**Files to Modify**:
+- `Configuration/AppConfig.cs` - Add `PerformanceMode` enum
+- `Views/SettingsPage.axaml` - Add performance mode selector
+
+**Modes**:
+- **Eco**: `MaxDegreeOfParallelism = 2` (silent)
+- **Balanced**: `MaxDegreeOfParallelism = ProcessorCount / 2` (default)
+- **Turbo**: `MaxDegreeOfParallelism = ProcessorCount` (fastest)
+
+---
+
+### 4.4 Memory Mapped Files (2 hours)
+
+**Files to Modify**:
+- `Services/MetadataService.cs` - Use `MemoryMappedFile` for large file analysis
+
+**Implementation**:
+```csharp
+using var mmf = MemoryMappedFile.CreateFromFile(filePath, FileMode.Open);
+using var accessor = mmf.CreateViewAccessor();
+// Direct memory access without loading entire file
+```
+
+**Impact**: 50% reduction in RAM usage for batch operations
+
+---
+
+### 4.5 Hardware Acceleration (Optional, 2-4 hours)
+
+**Files to Create**:
+- `Services/HardwareAcceleration/GpuTranscoder.cs` - FFmpeg with NVENC/QuickSync
+
+**Platform Detection**:
+```csharp
+if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+{
+    // Use NVENC or QuickSync
+}
+else if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
+{
+    // Use VideoToolbox
+}
+```
+
+**Impact**: Real-time preview generation, faster fingerprinting
+
+---
 5. Add placeholder for missing artwork
 
 ---
