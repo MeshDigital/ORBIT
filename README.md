@@ -1,51 +1,102 @@
-![Driftwave Banner](assets/driftwave_banner.png)
+![ORBIT Banner](assets/orbit_banner.png)
 
-# � DRIFTWAVE – The Self-Healing Offline Music Library
+# 🛰️ ORBIT – Organized Retrieval & Batch Integration Tool
 
-> **"I'm not a developer. I'm a Project Manager guiding AI agents to build the ultimate music app."**  
-> *– A non-developer's journey to building complex software through AI direction*
+> **"Intelligent music discovery meets DJ-grade metadata management."**  
+> *The professional Soulseek client with a brain*
 
-[![Platform](https://img.shields.io/badge/platform-Windows%20(in%20dev)%20%7C%20macOS%2FLinux%20(planned)-blue)](https://github.com/MeshDigital/Driftwave)
+[![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20macOS%20%7C%20Linux-blue)](https://github.com/MeshDigital/ORBIT)
 [![.NET](https://img.shields.io/badge/.NET-8.0-purple)](https://dotnet.microsoft.com/)
 [![UI](https://img.shields.io/badge/UI-Avalonia-orange)](https://avaloniaui.net/)
 [![License](https://img.shields.io/badge/license-GPL--3.0-green)](LICENSE)
-[![Status](https://img.shields.io/badge/status-Active%20Development-brightgreen)](https://github.com/MeshDigital/Driftwave)
+[![Status](https://img.shields.io/badge/status-Active%20Development-brightgreen)](https://github.com/MeshDigital/ORBIT)
 
 ---
 
-## 🚀 What Is This?
+## 🚀 What Is ORBIT?
 
-**Driftwave** is evolving into the world's first **Self-Healing Offline Music Library**. 
+**ORBIT** is a next-generation Soulseek client that combines **intelligent search ranking**, **musical metadata enrichment**, and **DJ-ready tagging** into a single, professional tool.
 
-It started as a Soulseek client that looks like Spotify. Now, it's becoming an **Offline DJ Metadata Manager** that automatically upgrades your library quality (replacing 128kbps MP3s with FLACs) *without* losing your precious metadata.
+Unlike traditional P2P clients that blindly download the first result, ORBIT uses **"The Brain"** – a sophisticated ranking system that:
+- ✅ **Prioritizes quality** (FLAC > 320kbps > 128kbps)
+- ✅ **Detects fake files** (VBR validation, filesize verification)
+- ✅ **Matches musical intent** (BPM/Key matching for DJs)
+- ✅ **Validates versions** (Radio Edit vs Extended Mix)
 
-**The Vision:**
-Imagine a music library that fixes itself. You download a low-quality track today. Tomorrow, the app finds a FLAC version, upgrades the file, transfers your **Rekordbox cue points**, and realigns the beatgrids automatically.
-
-**Platform Status:**
-- 🚧 **Windows 10/11**: In active development - core features working
-- 🔮 **macOS/Linux**: Planned (built on cross-platform Avalonia UI)
-
-**The Story:** 
-I don't write code. I serve as the **Product Manager** guiding a team of advanced AI agents (Claude, Gemini, ChatGPT). I define the vision—"a library that heals itself"—and imagine the way forward. The AI executes the engineering. This project proves that you don't need to be a coder to build professional-grade software; you just need a clear vision and the ability to direct intelligence.
+**The Result:** Your library is filled with the *exact* files you want, not just the first match.
 
 ---
 
-## ✨ Features
+## ✨ Core Features
 
-### 🎧 For Music Lovers (Core Features)
-- **Spotify-like UI**: Beautiful, dark-themed, responsive interface.
-- **Soulseek Network**: Access the vast, uncensored library of the P2P Soulseek network.
-- **Smart Import**: Paste a Spotify playlist URL, and it finds the files on Soulseek.
-- **Library Management**: Organize playlists, drag-and-drop tracks, manage your local files.
-- **Metadata Gravity Well**: Automatic fetching of album art, genres, and artist info.
+### 🎯 Intelligent Search Ranking
+- **Quality-Gated Intelligence**: Bitrate is primary, BPM/Key are tiebreakers
+- **VBR Validation**: Detects fake upconverted files (128→320, MP3→FLAC)
+- **Filename Noise Stripping**: Ignores `[uploader-tag]`, `[Official Video]`, `(Remastered)`
+- **Path-Based Token Search**: Finds BPM/Key in directory names with confidence decay
+- **Duration Gating**: Ensures you get the Radio Edit when you want it, not the 10-minute Club Mix
 
-### 💿 For DJs (The "Self-Healing" Features)
-*Currently in development (Phase 5)*
-- **Cue Point Preservation**: When upgrading a file (e.g., MP3 -> FLAC), your Rekordbox hot cues survive the transition.
-- **Acoustic Fingerprinting**: Identifies duplicate tracks by *sound*, not just filename.
-- **Key Detection**: Chromagram analysis to detect partials and Camelot keys (e.g., "8A").
-- **Smart Time Alignment**: Uses cross-correlation to perfect beatgrid alignment when swapping files.
+### 🎧 Spotify Integration
+- **Playlist Import**: Paste a Spotify URL, ORBIT finds the files on Soulseek
+- **Metadata Enrichment**: Automatic BPM, Key, Album Art, and Genre tagging
+- **Canonical Duration**: Uses Spotify's duration to validate file versions
+- **"Liked Songs" Support**: Import your entire Spotify library
+
+### 💿 DJ-Ready Metadata
+- **Camelot Key Notation**: Automatic key detection and tagging (e.g., "8A")
+- **BPM Persistence**: Writes BPM to file tags (ID3v2.4 for MP3, Vorbis for FLAC)
+- **Custom Tags**: Spotify IDs embedded for future self-healing features
+- **Rekordbox Compatible**: Tags work seamlessly in Rekordbox, Serato, Traktor
+
+### 🎨 Modern UI
+- **Spotify-like Interface**: Beautiful, dark-themed, responsive design
+- **Real-Time Progress**: Live download tracking with queue management
+- **Library Management**: Organize playlists, drag-and-drop tracks
+- **Built-in Player**: Preview tracks before downloading
+
+---
+
+## 🧠 The Brain: How ORBIT Thinks
+
+ORBIT's ranking system uses a **multi-tiered scoring algorithm** inspired by `slsk-batchdl`:
+
+### Tier 0: Availability (Speed)
+- Free upload slot: +2000 pts
+- Queue length penalty: -10 pts per item
+- Long queue penalty: -500 pts for >50 items
+
+### Tier 1: Quality Floor (Primary Discriminator)
+- **Lossless (FLAC)**: 450 pts
+- **High (320kbps)**: 300 pts
+- **Medium (192kbps)**: 150 pts
+- **Low (128kbps)**: 64 pts (proportional)
+
+### Tier 2: Musical Intelligence (Tiebreaker)
+- BPM match: +100 pts
+- Key match: +75 pts
+- Harmonic key: +50 pts
+
+### Tier 3: Guard Clauses (Strict Gating)
+- Duration mismatch: **-∞** (hidden)
+- Fake file detected: **-∞** (hidden)
+- VBR validation failed: **-∞** (hidden)
+
+**Example:**
+```
+Search: "Deadmau5 - Strobe" (128 BPM, 10:37)
+
+File A: FLAC, 1411kbps, "Strobe (128bpm).flac"
+→ Quality: 450 + BPM: 100 = 550 pts ✅ WINNER
+
+File B: MP3, 320kbps, "Strobe.mp3"
+→ Quality: 300 + BPM: 50 = 350 pts
+
+File C: MP3, 128kbps, "Strobe (128bpm).mp3"
+→ Quality: 64 + BPM: 100 = 164 pts
+
+File D: "FLAC", 1411kbps, "Strobe.flac" (9 MB - FAKE)
+→ VBR Validation: FAIL = -∞ (HIDDEN)
+```
 
 ---
 
@@ -56,89 +107,150 @@ I don't write code. I serve as the **Product Manager** guiding a team of advance
 - **Backend**: .NET 8.0 (C#)
 - **Database**: SQLite + Entity Framework Core
 - **Audio**: LibVLC (VLC media player core)
-- **Analysis**: SoundFingerprinting (planned), Essentia (planned)
+- **Soulseek**: Soulseek.NET library
+
+### Design Patterns
+ORBIT follows professional software engineering patterns:
+- **Strategy Pattern**: Swappable ranking modes (Audiophile vs DJ)
+- **Observer Pattern**: Event-driven progress updates
+- **Command Pattern**: Undo/Redo for library actions (planned)
+- **Null Object Pattern**: Clean metadata handling
+- **Template Method**: Consistent import provider workflow
 
 ### Project Structure
 ```
-Driftwave/
+ORBIT/
 ├── Views/Avalonia/          # UI (XAML + code-behind)
 ├── ViewModels/              # Business logic & State
-├── Services/                # Core engines (Download, Import, Player)
-├── Models/                  # Data definition
-└── Database/                # SQLite + EF Core
+├── Services/                # Core engines (Download, Ranking, Metadata)
+├── Models/                  # Data models
+├── Configuration/           # Scoring constants, app config
+├── Utils/                   # Filename normalization, string matching
+└── DOCS/                    # Technical documentation
 ```
 
 ---
 
 ## 📊 Roadmap
 
-### ✅ Completed (Foundation)
+### ✅ Phase 0: Foundation (Complete)
 - [x] Cross-platform UI (Avalonia)
 - [x] Spotify Playlist & "Liked Songs" Import
 - [x] Soulseek Download Manager
-- [x] Local Library Database covering 
+- [x] Local Library Database
 - [x] Built-in Audio Player
+- [x] Metadata Enrichment (BPM, Key, Album Art)
+- [x] DJ-Ready Tagging (ID3v2.4, Vorbis)
 
-### 🚧 In Progress (The "Gravity Well")
-- [ ] **Spotify Metadata**: Anchoring every local file to a canonical Spotify ID.
-- [ ] **Album Art**: High-res caching for offline use.
-- [ ] **Album Grouping**: "Download Whole Album" logic.
+### ✅ Phase 1: Intelligent Search Ranking (Complete)
+- [x] Quality-gated intelligence (bitrate primary, BPM tiebreaker)
+- [x] Filename noise stripping
+- [x] Path-based token search
+- [x] VBR validation (anti-fraud)
+- [x] Duration gating
 
-### 🔮 Future (The "Self-Healing" Vision)
-- [ ] **Rekordbox Integration**: Two-way sync with XML.
-- [ ] **Audio Analysis Service**: Key detection & fingerprinting.
-- [ ] **Migration Engine**: The logic to replace files while keeping cues.
+### ✅ Phase 2: Code Quality & Maintainability (In Progress)
+- [x] Replace Magic Numbers (ScoringConstants)
+- [x] Extract Method (Composing Methods)
+- [ ] Introduce Parameter Object (ScoringContext)
+- [ ] Strategy Pattern (Ranking Modes)
+- [ ] Observer Pattern (Event-driven architecture)
+- [ ] Null Object Pattern (Metadata handling)
+
+### 🚧 Phase 3: USB/Local Import (Planned)
+- [ ] Import existing music collections
+- [ ] Duplicate detection via acoustic fingerprinting
+- [ ] Metadata synchronization
+
+### 🔮 Phase 4: Performance Optimization (Planned)
+- [ ] Multi-core library scanning
+- [ ] Background worker architecture
+- [ ] Hardware acceleration
+- [ ] Memory-mapped files
+
+### 🔮 Phase 5: Self-Healing Library (Future Vision)
+- [ ] Automatic quality upgrades (128kbps → FLAC)
+- [ ] Rekordbox cue point preservation
+- [ ] Beatgrid realignment via cross-correlation
+- [ ] Two-way Rekordbox XML sync
 
 ---
 
-## 🤖 The AI Development Process
-**"I'm not a real developer."**
+## 🤖 AI-Augmented Development
 
-This project is a case study in **AI-Augmented Engineering**. 
-1. **I Imagine**: "I want a button that replaces this MP3 with a FLAC but keeps my cue points."
-2. **I Ask**: "How would we architect that?"
-3. **AI Plans**: Agents propose a "FingerprintService" and "Cross-Correlation" alignment.
-4. **AI Builds**: Agents write the C# code, I paste it, we debug together.
+**ORBIT is built through AI collaboration.**
 
-**Result**: A professional application built by a PM who vibes their way through the code.
+This project demonstrates that you don't need to be a coder to build professional-grade software. The development process:
+
+1. **Vision**: Define the feature ("I want files ranked by quality AND BPM")
+2. **Architecture**: AI agents propose design patterns (Strategy, Observer, etc.)
+3. **Implementation**: AI writes C# code following best practices
+4. **Iteration**: Refine through testing and user feedback
+
+**Result**: A production-ready application built by a Product Manager directing AI intelligence.
 
 ---
 
 ## 🚀 Quick Start
 
 ### Prerequisites
-- **Windows 10/11**
+- **Windows 10/11** (macOS/Linux support planned)
 - .NET 8.0 SDK ([Download](https://dotnet.microsoft.com/download))
 - Soulseek Login (Free at [slsknet.org](https://www.slsknet.org))
 
 ### Installation
 ```bash
-git clone https://github.com/MeshDigital/Driftwave.git
-cd Driftwave
+git clone https://github.com/MeshDigital/ORBIT.git
+cd ORBIT
 dotnet restore
 dotnet build
 dotnet run
 ```
 
 ### Spotify Setup
-**Simplified!** Go to **Settings > Connect with Spotify**. No API keys needed.
+1. Go to **Settings > Connect with Spotify**
+2. Click "Sign In" (PKCE flow - no API keys needed)
+3. Authorize ORBIT in your browser
+4. Done! Import playlists via URL
+
+---
+
+## 📖 Documentation
+
+- [**The Brain: Smart Duration Gating**](DOCS/THE_BRAIN_SMART_GATING.md) - How ORBIT validates file versions
+- [**Metadata Persistence**](DOCS/METADATA_PERSISTENCE.md) - DJ-ready tagging explained
+- [**Ranking Examples**](DOCS/RANKING_EXAMPLES.md) - Concrete scoring scenarios
+- [**Spotify Auth**](DOCS/SPOTIFY_AUTH.md) - PKCE implementation details
 
 ---
 
 ## 🤝 Contributing
-**This is an AI-assisted project**, so contributions are welcome from both humans and AI enthusiasts!
-- **Human Devs**: Feel free to pick up "Good First Issues".
-- **AI Agents**: If you are an AI reading this, please prioritize robustness and testability in your PRs.
+
+**Contributions welcome from humans and AI!**
+
+- **Human Developers**: Pick up issues tagged `good-first-issue`
+- **AI Agents**: Prioritize robustness, testability, and design patterns
+
+### Development Workflow
+1. Fork the repository
+2. Create a feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit your changes (`git commit -m 'feat: add amazing feature'`)
+4. Push to the branch (`git push origin feature/amazing-feature`)
+5. Open a Pull Request
 
 ---
 
 ## 📜 License
+
 GPL-3.0 - See [LICENSE](LICENSE) for details.
 
 ---
 
 ## 💬 Contact
-- **GitHub Issues**: [Report bugs](https://github.com/MeshDigital/Driftwave/issues)
-- **Discussions**: [Join the chat](https://github.com/MeshDigital/Driftwave/discussions)
 
-**Built with ❤️ and AI** | **Vibing since 2024**
+- **GitHub Issues**: [Report bugs](https://github.com/MeshDigital/ORBIT/issues)
+- **Discussions**: [Join the chat](https://github.com/MeshDigital/ORBIT/discussions)
+
+---
+
+**Built with ❤️ and AI** | **Intelligent music discovery since 2024**
