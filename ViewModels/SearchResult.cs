@@ -9,9 +9,13 @@ public class SearchResult : INotifyPropertyChanged
 {
     public Track Model { get; }
 
-    public SearchResult(Track track)
+    /// <summary>
+    /// Phase 2.8: Constructor now uses Null Object Pattern.
+    /// Never allows null tracks - uses Track.Null as fallback.
+    /// </summary>
+    public SearchResult(Track? track)
     {
-        Model = track;
+        Model = track ?? Track.Null;
     }
 
     public string Artist => Model.Artist;

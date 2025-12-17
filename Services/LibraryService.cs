@@ -23,6 +23,7 @@ public class LibraryService : ILibraryService
     private readonly DatabaseService _databaseService;
     private readonly AppConfig _appConfig;
     private readonly IEventBus _eventBus;
+    private readonly LibraryCacheService _cache; // Session 1: Performance cache
 
     // Events now published via IEventBus (ProjectDeletedEvent, ProjectUpdatedEvent)
 
@@ -32,14 +33,20 @@ public class LibraryService : ILibraryService
     /// </summary>
     public ObservableCollection<PlaylistJob> Playlists { get; } = new();
 
-    public LibraryService(ILogger<LibraryService> logger, DatabaseService databaseService, AppConfig appConfig, IEventBus eventBus)
+    public LibraryService(
+        ILogger<LibraryService> logger, 
+        DatabaseService databaseService, 
+        AppConfig appConfig, 
+        IEventBus eventBus,
+        LibraryCacheService cache) // Session 1: Inject cache
     {
         _logger = logger;
         _databaseService = databaseService;
         _appConfig = appConfig;
         _eventBus = eventBus;
+        _cache = cache;
 
-        _logger.LogDebug("LibraryService initialized (Data Only)");
+        _logger.LogDebug("LibraryService initialized (Data Only) with caching enabled");
     }
 
     public async Task LogPlaylistActivityAsync(Guid playlistId, string action, string details)
@@ -127,8 +134,26 @@ public class LibraryService : ILibraryService
     {
         try
         {
+            // Session 1: Try cache first
+            var cached = _cache.GetProject(playlistId);
+            if (cached != null)
+            {
+                _logger.LogDebug("Cache HIT for project {Id}", playlistId);
+                return cached;
+            }
+            
+            // Cache miss - load from database
+            _logger.LogDebug("Cache MISS for project {Id}, loading from database", playlistId);
             var entity = await _databaseService.LoadPlaylistJobAsync(playlistId).ConfigureAwait(false);
-            return entity != null ? EntityToPlaylistJob(entity) : null;
+            
+            if (entity != null)
+            {
+                var job = EntityToPlaylistJob(entity);
+                _cache.CacheProject(job); // Cache for next time
+                return job;
+            }
+            
+            return null;
         }
         catch (Exception ex)
         {
@@ -171,7 +196,10 @@ public class LibraryService : ILibraryService
             };
 
             await _databaseService.SavePlaylistJobAsync(entity).ConfigureAwait(false);
-            _logger.LogInformation("Saved playlist job: {Title} ({Id})", job.SourceTitle, job.Id);
+            
+            // Session 1: Invalidate cache on save
+            _cache.InvalidateProject(job.Id);
+            _logger.LogInformation("Saved playlist job: {Title} ({Id}), cache invalidated", job.SourceTitle, job.Id);
 
             // Notify listeners (UI updates)
             // Legacy event removed: PlaylistAdded?.Invoke(this, job);
@@ -209,7 +237,10 @@ public class LibraryService : ILibraryService
         {
             // With soft delete, we just set the flag
             await _databaseService.SoftDeletePlaylistJobAsync(playlistId).ConfigureAwait(false);
-            _logger.LogInformation("Deleted playlist job: {Id}", playlistId);
+            
+            // Session 1: Invalidate cache on delete
+            _cache.InvalidateProject(playlistId);
+            _logger.LogInformation("Deleted playlist job: {Id}, cache invalidated", playlistId);
 
             // REACTIVE: Auto-remove from observable collection
             Dispatcher.UIThread.Post(() =>

@@ -185,6 +185,9 @@ public partial class App : Application
 
         // EventBus - Unified event communication
         services.AddSingleton<IEventBus, EventBusService>();
+        
+        // Session 1: Performance Optimization - Smart caching layer
+        services.AddSingleton<LibraryCacheService>();
 
         // Services
         services.AddSingleton<SoulseekAdapter>();

@@ -116,4 +116,61 @@ public class Track
     {
         return $"{Artist} - {Title} ({Filename})";
     }
+    
+    /// <summary>
+    /// Phase 2.8: Null Object Pattern - represents a missing/unknown track.
+    /// Eliminates need for null checks throughout the codebase.
+    /// Use this instead of returning null to provide safe default values.
+    /// </summary>
+    public static readonly Track Null = new Track
+    {
+        Filename = "",
+        Directory = "",
+        Artist = "Unknown Artist",
+        Title = "Unknown Track",
+        Album = "Unknown Album",
+        Size = 0,
+        Username = "Unknown",
+        Format = "",
+        Length = 0,
+        Bitrate = 0,
+        Metadata = new Dictionary<string, object>(),
+        
+        // Spotify Metadata - all null
+        SpotifyTrackId = null,
+        SpotifyAlbumId = null,
+        SpotifyArtistId = null,
+        AlbumArtUrl = null,
+        ArtistImageUrl = null,
+        Genres = null,
+        Popularity = null,
+        CanonicalDuration = null,
+        ReleaseDate = null,
+        
+        // Musical Intelligence - all null
+        BPM = null,
+        MusicalKey = null,
+        
+        // Intelligence Metrics - worst case values
+        HasFreeUploadSlot = false,
+        QueueLength = int.MaxValue,
+        UploadSpeed = 0,
+        
+        // Paths
+        LocalPath = null,
+        FilePath = null,
+        SourceTitle = null,
+        
+        // State
+        IsSelected = false,
+        SoulseekFile = null,
+        OriginalIndex = -1,
+        CurrentRank = double.NegativeInfinity,
+        IsInLibrary = false
+    };
+    
+    /// <summary>
+    /// Checks if this track is the Null object.
+    /// </summary>
+    public bool IsNull => ReferenceEquals(this, Null);
 }
