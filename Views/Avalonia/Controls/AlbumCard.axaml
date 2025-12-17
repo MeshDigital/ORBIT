@@ -1,0 +1,137 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             mc:Ignorable="d" d:DesignWidth="220" d:DesignHeight="320"
+             x:Class="SLSKDONET.Views.Avalonia.Controls.AlbumCard">
+    
+    <UserControl.Styles>
+        <!-- Glassmorphism Card Style -->
+        <Style Selector="Border.album-card">
+            <Setter Property="Background" Value="#CC1A1A1A"/>
+            <Setter Property="BorderBrush" Value="#3E3E3E"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="CornerRadius" Value="12"/>
+            <Setter Property="Padding" Value="12"/>
+            <Setter Property="BoxShadow" Value="0 8px 32px rgba(0,0,0,0.4)"/>
+            <Setter Property="Transitions">
+                <Transitions>
+                    <TransformOperationsTransition Property="RenderTransform" Duration="0:0:0.15"/>
+                    <BoxShadowsTransition Property="BoxShadow" Duration="0:0:0.15"/>
+                </Transitions>
+            </Setter>
+        </Style>
+        
+        <!-- Hover Effect -->
+        <Style Selector="Border.album-card:pointerover">
+            <Setter Property="RenderTransform" Value="scale(1.02)"/>
+            <Setter Property="BoxShadow" Value="0 0 20px rgba(0,163,255,0.3), 0 8px 32px rgba(0,0,0,0.4)"/>
+            <Setter Property="BorderBrush" Value="#00A3FF"/>
+        </Style>
+        
+        <!-- Press Effect -->
+        <Style Selector="Border.album-card:pressed">
+            <Setter Property="RenderTransform" Value="scale(0.98)"/>
+        </Style>
+    </UserControl.Styles>
+    
+    <Border Classes="album-card" Cursor="Hand">
+        <Grid RowDefinitions="200,Auto,Auto,Auto,Auto,Auto">
+            
+            <!-- Album Artwork -->
+            <Border Grid.Row="0" 
+                    Width="200" 
+                    Height="200" 
+                    CornerRadius="8" 
+                    ClipToBounds="True"
+                    Background="#2D2D2D">
+                <Grid>
+                    <Image Source="{Binding AlbumArtPath}" 
+                           Stretch="UniformToFill"
+                           IsVisible="{Binding AlbumArtPath, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
+                    
+                    <!-- Placeholder if no artwork -->
+                    <TextBlock Text="🎵" 
+                              FontSize="64" 
+                              HorizontalAlignment="Center" 
+                              VerticalAlignment="Center"
+                              Foreground="#666"
+                              IsVisible="{Binding !AlbumArtPath, Converter={x:Static StringConverters.IsNullOrEmpty}}"/>
+                </Grid>
+            </Border>
+            
+            <!-- Album Title -->
+            <TextBlock Grid.Row="1" 
+                       Text="{Binding SourceTitle}" 
+                       FontWeight="SemiBold" 
+                       FontSize="15"
+                       Foreground="White"
+                       TextTrimming="CharacterEllipsis"
+                       Margin="0,12,0,4"/>
+            
+            <!-- Source Type Badge -->
+            <Border Grid.Row="2"
+                    Background="#1A0078D4"
+                    BorderBrush="#0078D4"
+                    BorderThickness="1"
+                    CornerRadius="4"
+                    Padding="6,2"
+                    Margin="0,0,0,8"
+                    HorizontalAlignment="Left">
+                <TextBlock Text="{Binding SourceType}" 
+                           FontSize="10" 
+                           Foreground="#0078D4"
+                           FontWeight="Medium"/>
+            </Border>
+            
+            <!-- Track Count & Duration -->
+            <TextBlock Grid.Row="3" 
+                       FontSize="12" 
+                       Foreground="#A0A0A0"
+                       Margin="0,0,0,4">
+                <Run Text="{Binding TotalTracks}"/>
+                <Run Text=" tracks"/>
+            </TextBlock>
+            
+            <!-- Download Progress -->
+            <Grid Grid.Row="4" Margin="0,0,0,8">
+                <ProgressBar Value="{Binding DownloadProgress}" 
+                             Maximum="100" 
+                             Height="4" 
+                             Background="#333" 
+                             Foreground="#4CAF50"
+                             BorderThickness="0"
+                             CornerRadius="2"/>
+            </Grid>
+            
+            <!-- Action Buttons -->
+            <StackPanel Grid.Row="5" Orientation="Horizontal" Spacing="8">
+                <Button Command="{Binding PlayCommand}"
+                        Background="#1A4CAF50"
+                        BorderBrush="#4CAF50"
+                        BorderThickness="1"
+                        CornerRadius="6"
+                        Padding="12,6"
+                        HorizontalContentAlignment="Center">
+                    <StackPanel Orientation="Horizontal" Spacing="6">
+                        <TextBlock Text="▶️" FontSize="12"/>
+                        <TextBlock Text="Play" FontSize="11" Foreground="#4CAF50" FontWeight="Medium"/>
+                    </StackPanel>
+                </Button>
+                
+                <Button Command="{Binding DownloadCommand}"
+                        Background="#1A0078D4"
+                        BorderBrush="#0078D4"
+                        BorderThickness="1"
+                        CornerRadius="6"
+                        Padding="12,6"
+                        HorizontalContentAlignment="Center">
+                    <StackPanel Orientation="Horizontal" Spacing="6">
+                        <TextBlock Text="⬇️" FontSize="12"/>
+                        <TextBlock Text="Download" FontSize="11" Foreground="#0078D4" FontWeight="Medium"/>
+                    </StackPanel>
+                </Button>
+            </StackPanel>
+        </Grid>
+    </Border>
+</UserControl>
