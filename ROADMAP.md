@@ -93,7 +93,17 @@
 - Cover art display in Library
 - **Impact**: Visual polish
 
-#### 4. Download Resume
+#### 4. Advanced Ranking Configuration ✨ NEW
+- **Settings UI**: User-configurable weight sliders for ranking components
+  - BPM Proximity weight (default: 150 pts)
+  - Bitrate Quality weight (default: 200 pts, uncapped)
+  - Duration Match weight (default: 100 pts)
+  - String Similarity weight (default: 200 pts)
+- **Presets**: "Quality First" (bitrate heavy), "DJ Mode" (BPM heavy), "Balanced"
+- **Real-time Preview**: Show example rankings as weights change
+- **Impact**: User control over search behavior (quality vs musical alignment)
+
+#### 5. Download Resume
 - Partial file recovery after crashes
 - Resume interrupted downloads
 - Better error recovery

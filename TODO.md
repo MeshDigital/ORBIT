@@ -148,6 +148,47 @@
 2. Download images from `AlbumArtUrl`
 3. Save as `{spotifyAlbumId}.jpg`
 4. Return local file path for UI binding
+
+---
+
+## Phase 1.5: Advanced Ranking Configuration (4 hours) ✨ NEW
+
+**Priority**: ⭐⭐ MEDIUM - User Control
+
+**What to Build**:
+- [ ] Settings page with ranking weight sliders
+- [ ] Configuration storage in `AppConfig`
+- [ ] Dynamic weight injection into `ResultSorter`
+- [ ] Preset system ("Quality First", "DJ Mode", "Balanced")
+- [ ] Real-time ranking preview with example files
+
+**Files to Modify**:
+- `Configuration/AppConfig.cs` - Add ranking weight properties
+- `Services/ResultSorter.cs` - Accept configurable weights
+- `Views/SettingsPage.axaml` - Add ranking configuration UI
+- `ViewModels/SettingsViewModel.cs` - Bind sliders to config
+
+**Configuration Schema**:
+```csharp
+public class RankingWeights
+{
+    public int BpmProximityWeight { get; set; } = 150;
+    public int BitrateQualityWeight { get; set; } = 200;
+    public int DurationMatchWeight { get; set; } = 100;
+    public int TitleSimilarityWeight { get; set; } = 200;
+}
+```
+
+**UI Components**:
+- Slider: "BPM Match Importance" (0-500, default 150)
+- Slider: "Bitrate Quality Importance" (0-500, default 200)
+- Slider: "Duration Match Importance" (0-200, default 100)
+- Button: "Reset to Defaults"
+- ComboBox: Presets dropdown
+
+**Impact**: Allows users to tune ranking for their use case (audiophile vs DJ)
+
+---
 5. Add placeholder for missing artwork
 
 ---
