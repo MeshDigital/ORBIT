@@ -108,9 +108,9 @@ public class MainViewModel : INotifyPropertyChanged
         ZoomOutCommand = new RelayCommand(ZoomOut);
         ResetZoomCommand = new RelayCommand(ResetZoom);
 
-        // Spotify Hub Initialization
+        // Spotify Hub Initialization (TODO: Phase 7 - Implement when needed)
         LoadSpotifyPlaylistsCommand = new AsyncRelayCommand(LoadSpotifyPlaylistsAsync);
-        ImportSpotifyPlaylistCommand = new AsyncRelayCommand<SimplePlaylist>(ImportSpotifyPlaylistAsync);
+        // ImportSpotifyPlaylistCommand = new AsyncRelayCommand<SimplePlaylist>(ImportSpotifyPlaylistAsync);
         ImportLikedSongsCommand = new AsyncRelayCommand(ImportLikedSongsAsync);
         
         // Subscribe to EventBus events
@@ -285,12 +285,15 @@ public class MainViewModel : INotifyPropertyChanged
         set => SetProperty(ref _isSpotifyAuthenticated, value);
     }
 
+    // TODO: Phase 7 - Spotify Hub (Currently disabled due to SimplePlaylist type)
+    /*
     private System.Collections.ObjectModel.ObservableCollection<SimplePlaylist> _spotifyPlaylists = new();
     public System.Collections.ObjectModel.ObservableCollection<SimplePlaylist> SpotifyPlaylists
     {
         get => _spotifyPlaylists;
         set => SetProperty(ref _spotifyPlaylists, value);
     }
+    */
 
     private bool _isLoadingPlaylists;
     public bool IsLoadingPlaylists
@@ -320,7 +323,7 @@ public class MainViewModel : INotifyPropertyChanged
     
     // Spotify Hub Commands
     public ICommand LoadSpotifyPlaylistsCommand { get; }
-    public ICommand ImportSpotifyPlaylistCommand { get; }
+    // public ICommand ImportSpotifyPlaylistCommand { get; } // TODO: Phase 7
     public ICommand ImportLikedSongsCommand { get; }
 
     // Page instances (lazy-loaded)
@@ -533,6 +536,7 @@ public class MainViewModel : INotifyPropertyChanged
         }
     }
 
+    // TODO: Phase 7 - Spotify Hub
     private async Task LoadSpotifyPlaylistsAsync()
     {
         if (!IsSpotifyAuthenticated) return;
@@ -541,16 +545,18 @@ public class MainViewModel : INotifyPropertyChanged
         {
             IsLoadingPlaylists = true;
             var client = await _spotifyAuth.GetAuthenticatedClientAsync();
-            var playlists = await client.Playlists.CurrentUsers();
+            // var playlists = await client.Playlists.CurrentUsers();
             
-            await Dispatcher.UIThread.InvokeAsync(() => 
-            {
-                SpotifyPlaylists.Clear();
-                foreach (var p in playlists.Items ?? new List<SimplePlaylist>())
-                {
-                    SpotifyPlaylists.Add(p);
-                }
-            });
+            // await Dispatcher.UIThread.InvokeAsync(() => 
+            // {
+            //     SpotifyPlaylists.Clear();
+            //     foreach (var p in playlists.Items ?? new List<SimplePlaylist>())
+            //     {
+            //         SpotifyPlaylists.Add(p);
+            //     }
+            // });
+
+            _logger.LogInformation("Spotify playlists feature not yet implemented");
         }
         catch (Exception ex)
         {
@@ -562,6 +568,7 @@ public class MainViewModel : INotifyPropertyChanged
         }
     }
 
+    /*
     private async Task ImportSpotifyPlaylistAsync(SimplePlaylist? playlist)
     {
         if (playlist == null) return;
@@ -572,6 +579,7 @@ public class MainViewModel : INotifyPropertyChanged
         
         await orchestrator.StartImportWithPreviewAsync(provider, $"https://open.spotify.com/playlist/{playlist.Id}");
     }
+    */
 
     private async Task ImportLikedSongsAsync()
     {

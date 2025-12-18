@@ -21,6 +21,7 @@ public class LibraryViewModel : INotifyPropertyChanged
     private readonly ImportHistoryViewModel _importHistoryViewModel;
     private readonly ILibraryService _libraryService; // Session 1: Critical bug fixes
     private readonly IEventBus _eventBus;
+    private Views.MainViewModel? _mainViewModel; // Reference to parent
     private bool _isLoading;
 
     public bool IsLoading
@@ -434,5 +435,18 @@ public class LibraryViewModel : INotifyPropertyChanged
     protected void OnPropertyChanged([CallerMemberName] string? propertyName = null)
     {
         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
+    }
+
+    protected bool SetProperty<T>(ref T field, T value, [CallerMemberName] string? propertyName = null)
+    {
+        if (EqualityComparer<T>.Default.Equals(field, value)) return false;
+        field = value;
+        OnPropertyChanged(propertyName);
+        return true;
+    }
+
+    public void SetMainViewModel(Views.MainViewModel mainViewModel)
+    {
+        _mainViewModel = mainViewModel;
     }
 }

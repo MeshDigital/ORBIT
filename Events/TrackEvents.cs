@@ -4,6 +4,9 @@ using SLSKDONET.ViewModels;
 
 namespace SLSKDONET.Events;
 
+// NOTE: TrackMetadataUpdatedEvent moved to Models/Events.cs to avoid duplication
+// This namespace intentionally left minimal
+
 /// <summary>
 /// Published when a track's status, progress, or metadata changes.
 /// </summary>
@@ -77,12 +80,6 @@ public class TrackStateChangedEvent
         NewState = newState;
         ErrorMessage = errorMessage;
     }
-}
-
-public class TrackMetadataUpdatedEvent
-{
-    public string TrackGlobalId { get; }
-    public TrackMetadataUpdatedEvent(string globalId) => TrackGlobalId = globalId;
 }
 
 /// <summary>

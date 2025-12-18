@@ -31,10 +31,16 @@ public class LibraryUpgradeScout
     }
 
     /// <summary>
-    /// Scans the entire database for tracks that meet the user-defined upgrade criteria.
+    /// Scans the library for tracks that could benefit from a quality upgrade.
+    /// Returns a list of candidates based on bitrate and trustworthiness.
     /// </summary>
-    public async Task<List<Data.TrackEntity>> GetUpgradeCandidatesAsync(CancellationToken token = default)
+    public async Task<List<Data.TrackEntity>> GetUpgradeCandidatesAsync()
     {
+        // TODO: Phase 8 Package 3 - Implement when DatabaseService LoadAllTracksAsync is available
+        _logger.LogWarning("LibraryUpgradeScout.GetUpgradeCandidatesAsync() not yet fully implemented");
+        return new List<Data.TrackEntity>();
+        
+        /* Original implementation - requires LoadAllTracksAsync() method
         try
         {
             _logger.LogInformation("Scouting library for upgrade candidates (Bitrate < {Threshold}kbps)...", _config.UpgradeMinBitrateThreshold);
@@ -53,8 +59,10 @@ public class LibraryUpgradeScout
             _logger.LogError(ex, "Failed to scan library for upgrade candidates.");
             return new List<Data.TrackEntity>();
         }
+        */
     }
 
+    /*
     private bool IsUpgradeCandidate(Data.TrackEntity track)
     {
         // Don't propose tracks that are already in the middle of being upgraded/downloaded
@@ -71,4 +79,5 @@ public class LibraryUpgradeScout
 
         return lowBitrate || untrustworthy;
     }
+    */
 }

@@ -165,11 +165,11 @@ public class PlaylistTrackViewModel : INotifyPropertyChanged, Library.ILibraryNo
         {
             _eventBus.GetEvent<Events.TrackStateChangedEvent>().Subscribe(OnStateChanged);
             _eventBus.GetEvent<Events.TrackProgressChangedEvent>().Subscribe(OnProgressChanged);
-            _eventBus.GetEvent<Events.TrackMetadataUpdatedEvent>().Subscribe(OnMetadataUpdated);
+            _eventBus.GetEvent<Models.TrackMetadataUpdatedEvent>().Subscribe(OnMetadataUpdated);
         }
     }
     
-    private void OnMetadataUpdated(Events.TrackMetadataUpdatedEvent evt)
+    private void OnMetadataUpdated(Models.TrackMetadataUpdatedEvent evt)
     {
         if (evt.TrackGlobalId != GlobalId) return;
         
