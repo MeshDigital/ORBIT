@@ -141,6 +141,44 @@ namespace SLSKDONET.ViewModels
             set => SetProperty(ref _isQueueOpen, value);
         }
         
+        // Phase 9.2: Loading & Error States
+        private bool _isLoading;
+        public bool IsLoading
+        {
+            get => _isLoading;
+            set => SetProperty(ref _isLoading, value);
+        }
+
+        private bool _hasPlaybackError;
+        public bool HasPlaybackError
+        {
+            get => _hasPlaybackError;
+            set => SetProperty(ref _hasPlaybackError, value);
+        }
+
+        private string _playbackError = string.Empty;
+        public string PlaybackError
+        {
+            get => _playbackError;
+            set => SetProperty(ref _playbackError, value);
+        }
+
+        // Phase 9.2: Album Artwork
+        private string? _albumArtUrl;
+        public string? AlbumArtUrl
+        {
+            get => _albumArtUrl;
+            set => SetProperty(ref _albumArtUrl, value);
+        }
+
+        // Phase 9.3: Like Feature
+        private bool _isCurrentTrackLiked;
+        public bool IsCurrentTrackLiked
+        {
+            get => _isCurrentTrackLiked;
+            set => SetProperty(ref _isCurrentTrackLiked, value);
+        }
+        
         // Shuffle history to prevent immediate repeats
         private readonly List<int> _shuffleHistory = new();
 
@@ -155,6 +193,7 @@ namespace SLSKDONET.ViewModels
         public ICommand ToggleRepeatCommand { get; }
         public ICommand TogglePlayerDockCommand { get; }
         public ICommand ToggleQueueCommand { get; }
+        public ICommand ToggleLikeCommand { get; } // Phase 9.3
 
         public PlayerViewModel(IAudioPlayerService playerService, DatabaseService databaseService, IEventBus eventBus)
         {
@@ -200,6 +239,7 @@ namespace SLSKDONET.ViewModels
             ToggleRepeatCommand = new RelayCommand(ToggleRepeat);
             TogglePlayerDockCommand = new RelayCommand(TogglePlayerDock);
             ToggleQueueCommand = new RelayCommand(ToggleQueue);
+            ToggleLikeCommand = new AsyncRelayCommand(ToggleLikeAsync); // Phase 9.3
             
             // Phase 0: Queue persistence - auto-save on changes
             Queue.CollectionChanged += async (s, e) => await SaveQueueAsync();
@@ -212,7 +252,29 @@ namespace SLSKDONET.ViewModels
         {
             IsQueueOpen = !IsQueueOpen;
         }
-        
+
+        // Phase 9.3: Like Feature Implementation
+        private async System.Threading.Tasks.Task ToggleLikeAsync()
+        {
+            if (CurrentTrack == null) return;
+
+            // Toggle state
+            IsCurrentTrackLiked = !IsCurrentTrackLiked;
+
+            // Persist to database (atomic operation)
+            try
+            {
+                var track = CurrentTrack.Model;
+                track.IsLiked = IsCurrentTrackLiked;
+                await _databaseService.UpdatePlaylistTrackAsync(track);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[PlayerViewModel] Failed to save like status: {ex.Message}");
+                // Revert on failure
+                IsCurrentTrackLiked = !IsCurrentTrackLiked;
+            }
+        }        
         // Queue Management Methods
         private void OnEndReached(object? sender, EventArgs e)
         {
@@ -395,6 +457,13 @@ namespace SLSKDONET.ViewModels
             var track = Queue[index];
             var filePath = track.Model?.ResolvedFilePath;
             
+            // Phase 9.2 & 9.3: Set album artwork and like status
+            Dispatcher.UIThread.Post(() =>
+            {
+                AlbumArtUrl = track.Model?.AlbumArtUrl;
+                IsCurrentTrackLiked = track.Model?.IsLiked ?? false;
+            });
+
             if (!string.IsNullOrEmpty(filePath))
             {
                 PlayTrack(filePath, track.Title ?? "Unknown", track.Artist ?? "Unknown");
@@ -533,11 +602,55 @@ namespace SLSKDONET.ViewModels
         public void PlayTrack(string filePath, string title, string artist)
         {
             Console.WriteLine($"[PlayerViewModel] PlayTrack called with: {filePath}");
-            _currentFilePath = filePath;
-            TrackTitle = title;
-            TrackArtist = artist;
-            _playerService.Play(filePath);
-            IsPlaying = true;
+
+            // Phase 9.2: Show loading state
+            Dispatcher.UIThread.Post(() =>
+            {
+                IsLoading = true;
+                HasPlaybackError = false;
+                PlaybackError = string.Empty;
+            });
+
+            try
+            {
+                _currentFilePath = filePath;
+                TrackTitle = title;
+                TrackArtist = artist;
+                
+                _playerService.Play(filePath);
+                IsPlaying = true;
+
+                // Hide loading state
+                Dispatcher.UIThread.Post(() => IsLoading = false);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[PlayerViewModel] Playback error: {ex.Message}");
+
+                // Phase 9.2: Show error state with thread-safe updates
+                Dispatcher.UIThread.Post(() =>
+                {
+                    IsLoading = false;
+                    HasPlaybackError = true;
+                    PlaybackError = $"Playback failed: {ex.Message}";
+
+                    // Auto-dismiss error after 7 seconds
+                    var dismissTimer = new System.Timers.Timer(7000);
+                    dismissTimer.Elapsed += (s, args) =>
+                    {
+                        Dispatcher.UIThread.Post(() =>
+                        {
+                            HasPlaybackError = false;
+                            PlaybackError = string.Empty;
+                        });
+                        dismissTimer.Dispose();
+                    };
+                    dismissTimer.AutoReset = false;
+                    dismissTimer.Start();
+                });
+
+                IsPlaying = false;
+            }
         }
 
         // Phase 0: Queue Persistence Methods
