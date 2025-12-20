@@ -5,16 +5,32 @@
              mc:Ignorable="d" d:DesignWidth="280" d:DesignHeight="60"
              x:Class="SLSKDONET.Views.Avalonia.Controls.CompactPlaylistTemplate">
     
-    <Grid ColumnDefinitions="Auto, *" Margin="4">
+    <Grid ColumnDefinitions="Auto, *" RowDefinitions="Auto,Auto" Margin="4">
         <!-- Tiny Album Art -->
-        <Border Grid.Column="0" Width="40" Height="40" CornerRadius="4" ClipToBounds="True" Background="#333">
+        <Border Grid.Column="0" Grid.RowSpan="2" Width="48" Height="48" CornerRadius="4" ClipToBounds="True" Background="#333">
             <Image Source="{Binding AlbumArtPath, Converter={StaticResource BitmapValueConverter}}" Stretch="UniformToFill"/>
         </Border>
 
         <!-- Text Info -->
-        <StackPanel Grid.Column="1" VerticalAlignment="Center" Margin="10,0,0,0">
+        <StackPanel Grid.Column="1" Grid.Row="0" VerticalAlignment="Top" Margin="10,0,0,0">
             <TextBlock Text="{Binding SourceTitle}" FontWeight="SemiBold" FontSize="13" TextTrimming="CharacterEllipsis"/>
-            <TextBlock Text="{Binding TotalTracks, StringFormat='{}{0} tracks'}" FontSize="12" Foreground="#888"/>
+            
+            <!-- Stats: Total | Downloaded | Active | Failed -->
+            <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,2,0,0">
+                <TextBlock Text="{Binding TotalTracks, StringFormat='{}📁 {0}'}" FontSize="11" Foreground="#888" ToolTip.Tip="Total tracks"/>
+                <TextBlock Text="{Binding SuccessfulCount, StringFormat='{}✓ {0}'}" FontSize="11" Foreground="#1DB954" ToolTip.Tip="Downloaded" IsVisible="{Binding SuccessfulCount}"/>
+                <TextBlock Text="{Binding ActiveDownloadsCount, StringFormat='{}↓ {0}'}" FontSize="11" Foreground="#00A3FF" ToolTip.Tip="Downloading" IsVisible="{Binding ActiveDownloadsCount}"/>
+                <TextBlock Text="{Binding FailedCount, StringFormat='{}✗ {0}'}" FontSize="11" Foreground="#F44336" ToolTip.Tip="Failed" IsVisible="{Binding FailedCount}"/>
+            </StackPanel>
         </StackPanel>
+        
+        <!-- Current Downloading Track (if any) -->
+        <Border Grid.Column="1" Grid.Row="1" Margin="10,4,0,0" 
+                Background="#00A3FF22" CornerRadius="3" Padding="4,2"
+                IsVisible="{Binding CurrentDownloadingTrack, Converter={x:Static ObjectConverters.IsNotNull}}">
+            <TextBlock Text="{Binding CurrentDownloadingTrack, StringFormat='{}↓ {0}'}" 
+                       FontSize="10" Foreground="#00A3FF" TextTrimming="CharacterEllipsis"
+                       ToolTip.Tip="Currently downloading"/>
+        </Border>
     </Grid>
 </UserControl>

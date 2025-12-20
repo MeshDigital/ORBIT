@@ -132,6 +132,30 @@ public class ProjectListViewModel : INotifyPropertyChanged
         });
         eventBus.GetEvent<ProjectUpdatedEvent>().Subscribe(evt => OnProjectUpdated(this, evt.ProjectId));
         eventBus.GetEvent<ProjectDeletedEvent>().Subscribe(evt => OnProjectDeleted(this, evt.ProjectId));
+        
+        // Subscribe to track state changes to update active download counts in real-time
+        eventBus.GetEvent<Events.TrackStateChangedEvent>().Subscribe(OnTrackStateChanged);
+    }
+    
+    private void OnTrackStateChanged(Events.TrackStateChangedEvent evt)
+    {
+        // TODO: Implement full active downloads tracking
+        // This requires querying DownloadManager for runtime state per project
+        // For now, we refresh all project stats when any track changes state
+        
+        Dispatcher.UIThread.InvokeAsync(async () =>
+        {
+            // Refresh stats for all visible projects
+            foreach (var project in AllProjects)
+            {
+                project.RefreshStatusCounts();
+                
+                // Placeholder: Set active downloads to 0 for now
+                // Real implementation would query DownloadManager's active queue
+                project.ActiveDownloadsCount = 0;
+                project.CurrentDownloadingTrack = null;
+            }
+        });
     }
 
     private async Task ExecuteImportLikedSongsAsync()
