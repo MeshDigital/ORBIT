@@ -97,6 +97,7 @@ public class ProjectListViewModel : INotifyPropertyChanged
     // Services
     private readonly ImportOrchestrator _importOrchestrator;
     private readonly Services.ImportProviders.SpotifyLikedSongsImportProvider _spotifyLikedSongsProvider;
+    private readonly IDialogService _dialogService;
 
     public ProjectListViewModel(
         ILogger<ProjectListViewModel> logger,
@@ -104,13 +105,15 @@ public class ProjectListViewModel : INotifyPropertyChanged
         DownloadManager downloadManager,
         ImportOrchestrator importOrchestrator,
         Services.ImportProviders.SpotifyLikedSongsImportProvider spotifyLikedSongsProvider,
-        IEventBus eventBus)
+        IEventBus eventBus,
+        IDialogService dialogService)
     {
         _logger = logger;
         _libraryService = libraryService;
         _downloadManager = downloadManager;
         _importOrchestrator = importOrchestrator;
         _spotifyLikedSongsProvider = spotifyLikedSongsProvider;
+        _dialogService = dialogService;
 
         // Initialize commands
         OpenProjectCommand = new RelayCommand<PlaylistJob>(project => SelectedProject = project);
@@ -335,6 +338,12 @@ public class ProjectListViewModel : INotifyPropertyChanged
 
         try
         {
+            var confirmed = await _dialogService.ConfirmAsync(
+                "Delete Project", 
+                $"Are you sure you want to delete '{job.SourceTitle}'? This cannot be undone.");
+            
+            if (!confirmed) return;
+
             _logger.LogInformation("Deleting project: {Title}", job.SourceTitle);
             await _libraryService.DeletePlaylistJobAsync(job.Id);
             _logger.LogInformation("Project deleted successfully");

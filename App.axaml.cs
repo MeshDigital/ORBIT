@@ -310,6 +310,7 @@ public partial class App : Application
         services.AddSingleton<IFileInteractionService, FileInteractionService>();
         services.AddSingleton<INotificationService, NotificationServiceAdapter>();
         services.AddSingleton<IClipboardService, ClipboardService>();
+        services.AddSingleton<IDialogService, DialogService>();
 
         // ViewModels
         services.AddSingleton<MainViewModel>();

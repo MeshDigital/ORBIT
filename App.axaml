@@ -42,6 +42,43 @@
         <StyleInclude Source="avares://Avalonia.Controls.DataGrid/Themes/Fluent.xaml"/>
         <StyleInclude Source="avares://Avalonia.Controls.TreeDataGrid/Themes/Fluent.axaml"/>
         <StyleInclude Source="avares://SLSKDONET/Themes/AvaloniaTheme.axaml"/>
+
+        <!-- Sidebar Navigation Items -->
+        <Style Selector="Button.nav-item">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="Foreground" Value="#AAA"/>
+            <Setter Property="HorizontalContentAlignment" Value="Left"/>
+            <Setter Property="Padding" Value="12,8"/>
+            <Setter Property="CornerRadius" Value="4"/>
+            <Setter Property="Height" Value="Auto"/>
+        </Style>
+        <Style Selector="Button.nav-item:pointerover /template/ ContentPresenter">
+            <Setter Property="Background" Value="#333"/>
+            <Setter Property="Foreground" Value="White"/>
+        </Style>
+
+        <!-- Tool/Dropdown Buttons -->
+        <Style Selector="DropDownButton.tool">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Foreground" Value="#888"/>
+        </Style>
+        <Style Selector="DropDownButton.tool:pointerover /template/ ContentPresenter">
+            <Setter Property="Background" Value="#333"/>
+            <Setter Property="Foreground" Value="White"/>
+        </Style>
+
+        <!-- Danger Buttons -->
+        <Style Selector="Button.danger">
+            <Setter Property="Background" Value="#33FF0000"/>
+            <Setter Property="Foreground" Value="#FF6B6B"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="CornerRadius" Value="4"/>
+        </Style>
+        <Style Selector="Button.danger:pointerover /template/ ContentPresenter">
+            <Setter Property="Background" Value="#66FF0000"/>
+            <Setter Property="Foreground" Value="White"/>
+        </Style>
     </Application.Styles>
     
     <!-- System Tray Icon -->

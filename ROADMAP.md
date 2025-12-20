@@ -42,6 +42,18 @@
 - **Resilient Orchestration**: Exponential backoff retries and persistent post-download worker.
 - **Diff-based Updates**: Smart skipping of already-owned tracks during bulk imports.
 
+### Phase 9: Refactoring & Stability (Dec 20, 2025) - COMPLETE
+**Impact**: Improved app stability and user trust.
+- **Dialog Service**: Implemented native Avalonia confirmation dialogs for destructive actions (Delete Project).
+- **Command Safety**: Fixed "Fire-and-forget" command vulnerabilities and race conditions in Library UI.
+- **Build Fixes**: Resolved all build errors related to MessageBox dependencies.
+
+### Phase 10: UI Modernization (Dec 20, 2025) - PARTIAL
+**Impact**: Significant UX improvement for Library navigation.
+- **Compact Sidebar**: Replaced bulky "Album Cards" with efficient, compact list items.
+- **Tools Menu**: Consolidated secondary actions into a clean dropdown menu.
+- **Visual Polish**: Added hover states and consistent styling for navigation.
+
 ### Library UI Critical Fixes - COMPLETE
 - PlayTrackCommand, RefreshLibraryCommand, DeleteProjectCommand implemented
 - Startup crash fixed (ranking strategy config)

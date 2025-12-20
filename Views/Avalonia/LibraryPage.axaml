@@ -16,152 +16,111 @@
         <conv:RankColorConverter x:Key="RankColorConverter"/>
         <conv:BooleanToRedBrushConverter x:Key="BooleanToRedBrushConverter"/>
         <conv:UpgradeStatusToVisibleConverter x:Key="UpgradeStatusToVisibleConverter"/>
+        <conv:BitmapValueConverter x:Key="BitmapValueConverter"/>
     </UserControl.Resources>
 
     <Grid ColumnDefinitions="280,*,Auto">
         
         <!-- LEFT PANEL: Playlist List -->
-        <Border Grid.Column="0" Background="#252526" BorderBrush="#3E3E3E" BorderThickness="0,0,1,0">
-            <Grid RowDefinitions="Auto,Auto,*,Auto">
+        <Border Grid.Column="0" Background="#202020" BorderBrush="#3E3E3E" BorderThickness="0,0,1,0">
+            <Grid RowDefinitions="Auto,*,Auto">
                 
-                <!-- Header -->
-                <StackPanel Grid.Row="0" Margin="16,16,16,12">
-                    <TextBlock Text="Library" FontSize="18" FontWeight="Bold" Foreground="White"/>
-                    <TextBlock Text="Imported Playlists" FontSize="12" Foreground="#A0A0A0" Margin="0,4,0,0"/>
-                </StackPanel>
-                
-                <!-- Actions -->
-                <StackPanel Grid.Row="1" Margin="16,0,16,12" Spacing="8">
-                    <!-- Smart Playlists -->
-                    <TextBlock Text="Smart Playlists" FontSize="12" Foreground="#A0A0A0" Margin="0,4,0,4"/>
-                    
-                    <ListBox ItemsSource="{Binding SmartPlaylists.SmartPlaylists}"
-                             SelectedItem="{Binding SmartPlaylists.SelectedSmartPlaylist, Mode=TwoWay}"
-                             Background="Transparent"
-                             BorderThickness="0"
-                             Padding="0">
-                        <ListBox.ItemsPanel>
-                            <ItemsPanelTemplate>
-                                <StackPanel Spacing="4"/>
-                            </ItemsPanelTemplate>
-                        </ListBox.ItemsPanel>
-                        <ListBox.Styles>
-                            <Style Selector="ListBoxItem">
-                                <Setter Property="Padding" Value="8,6"/>
-                                <Setter Property="CornerRadius" Value="6"/>
-                            </Style>
-                        </ListBox.Styles>
-                        <ListBox.ItemTemplate>
-                            <DataTemplate>
-                                <StackPanel Orientation="Horizontal" Spacing="10">
-                                    <TextBlock Text="{Binding Icon}" FontSize="16"/>
-                                    <TextBlock Text="{Binding Name}" VerticalAlignment="Center" FontSize="13"/>
-                                </StackPanel>
-                            </DataTemplate>
-                        </ListBox.ItemTemplate>
-                    </ListBox>
-                    
-                    <Rectangle Height="1" Fill="#3E3E3E" Margin="0,8"/>
+                <!-- Header / Tools -->
+                <Grid Grid.Row="0" Margin="12,16,12,8" ColumnDefinitions="*,Auto">
+                     <TextBlock Text="LIBRARY" FontSize="12" FontWeight="Bold" Foreground="#888" VerticalAlignment="Center"/>
+                     
+                     <DropDownButton Content="Tools" Classes="tool" CornerRadius="4" Padding="8,4" FontSize="12">
+                         <DropDownButton.Flyout>
+                             <MenuFlyout>
+                                 <MenuItem Header="Import History" Command="{Binding ViewHistoryCommand}">
+                                     <MenuItem.Icon>📜</MenuItem.Icon>
+                                 </MenuItem>
+                                 <MenuItem Header="Upgrade Scout" Command="{Binding ToggleUpgradeScoutCommand}">
+                                     <MenuItem.Icon>💎</MenuItem.Icon>
+                                 </MenuItem>
+                                 <MenuItem Header="New Smart Playlist" Command="{Binding AddPlaylistCommand}">
+                                     <MenuItem.Icon>⚡</MenuItem.Icon>
+                                 </MenuItem>
+                             </MenuFlyout>
+                         </DropDownButton.Flyout>
+                     </DropDownButton>
+                </Grid>
 
-                    <Button Command="{Binding Projects.ImportLikedSongsCommand}"
-                            Classes="nav"
-                            HorizontalContentAlignment="Left"
-                            Padding="12,10"
-                            Foreground="#1DB954">
-                         <StackPanel Orientation="Horizontal" Spacing="10">
-                             <TextBlock Text="❤️" FontSize="16"/>
-                             <TextBlock Text="Import Liked Songs" FontSize="13" FontWeight="SemiBold"/>
-                         </StackPanel>
-                    </Button>
-                    
-                    <Button Command="{Binding AddPlaylistCommand}" 
-                            Classes="nav"
-                            HorizontalContentAlignment="Left"
-                            Padding="12,10">
-                        <StackPanel Orientation="Horizontal" Spacing="10">
-                            <TextBlock Text="➕" FontSize="16"/>
-                            <TextBlock Text="New Playlist" FontSize="13"/>
-                        </StackPanel>
-                    </Button>
-                    
-                    <Button Command="{Binding ViewHistoryCommand}" 
-                            Classes="nav"
-                            HorizontalContentAlignment="Left"
-                            Padding="12,10">
-                        <StackPanel Orientation="Horizontal" Spacing="10">
-                            <TextBlock Text="📜" FontSize="16"/>
-                            <TextBlock Text="Import History" FontSize="13"/>
-                        </StackPanel>
-                    </Button>
+                <!-- Navigation List -->
+                <ScrollViewer Grid.Row="1">
+                    <StackPanel Spacing="2">
+                        <!-- Pinned / Special -->
+                        <ListBox ItemsSource="{Binding SmartPlaylists.SmartPlaylists}"
+                                 SelectedItem="{Binding SmartPlaylists.SelectedSmartPlaylist, Mode=TwoWay}"
+                                 Background="Transparent" BorderThickness="0" Padding="0" Margin="0,0,0,8">
+                            <ListBox.Styles>
+                                <Style Selector="ListBoxItem">
+                                    <Setter Property="Padding" Value="12,8"/>
+                                    <Setter Property="CornerRadius" Value="4"/>
+                                    <Setter Property="Margin" Value="8,0"/>
+                                </Style>
+                            </ListBox.Styles>
+                            <ListBox.ItemTemplate>
+                                <DataTemplate>
+                                    <StackPanel Orientation="Horizontal" Spacing="12">
+                                        <Border Width="24" Height="24" CornerRadius="4" Background="#333" VerticalAlignment="Center">
+                                            <TextBlock Text="{Binding Icon}" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                        </Border>
+                                        <TextBlock Text="{Binding Name}" VerticalAlignment="Center" FontSize="13"/>
+                                    </StackPanel>
+                                </DataTemplate>
+                            </ListBox.ItemTemplate>
+                        </ListBox>
+                        
+                        <!-- Actions as List Items -->
+                        <Button Command="{Binding Projects.ImportLikedSongsCommand}" Classes="nav-item" Margin="8,0">
+                            <StackPanel Orientation="Horizontal" Spacing="12">
+                                <Border Width="24" Height="24" CornerRadius="4" Background="#281111" VerticalAlignment="Center">
+                                    <TextBlock Text="❤️" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                </Border>
+                                <TextBlock Text="Liked Songs" VerticalAlignment="Center"/>
+                            </StackPanel>
+                        </Button>
 
-                    <Button Command="{Binding ToggleUpgradeScoutCommand}" 
-                            Classes="nav"
-                            HorizontalContentAlignment="Left"
-                            Padding="12,10"
-                            Foreground="#B388FF">
-                        <StackPanel Orientation="Horizontal" Spacing="10">
-                            <TextBlock Text="💎" FontSize="16"/>
-                            <TextBlock Text="Upgrade Scout" FontSize="13" FontWeight="SemiBold"/>
+                        <Separator Height="1" Background="#333" Margin="12,8"/>
+
+                        <!-- User Playlists -->
+                        <TextBlock Text="PLAYLISTS" FontSize="11" FontWeight="Bold" Foreground="#666" Margin="16,8"/>
+                        
+                        <ListBox ItemsSource="{Binding Projects.AllProjects}" 
+                                 SelectedItem="{Binding Projects.SelectedProject, Mode=TwoWay}"
+                                 Background="Transparent" BorderThickness="0" Padding="0">
+                            <ListBox.Styles>
+                                <Style Selector="ListBoxItem">
+                                    <Setter Property="Padding" Value="0"/>
+                                    <Setter Property="Margin" Value="8,2"/>
+                                    <Setter Property="CornerRadius" Value="6"/>
+                                </Style>
+                            </ListBox.Styles>
+                            <ListBox.ItemTemplate>
+                                <DataTemplate>
+                                    <controls:CompactPlaylistTemplate DataContext="{Binding}"/>
+                                </DataTemplate>
+                            </ListBox.ItemTemplate>
+                        </ListBox>
+                    </StackPanel>
+                </ScrollViewer>
+
+                <!-- Bottom Actions -->
+                <StackPanel Grid.Row="2" Margin="12,12" Spacing="8">
+                    <Button Command="{Binding AddPlaylistCommand}" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center">
+                        <StackPanel Orientation="Horizontal" Spacing="6">
+                            <TextBlock Text="➕"/>
+                            <TextBlock Text="New Playlist"/>
                         </StackPanel>
                     </Button>
                     
-                    <!-- Delete Playlist Button -->
                     <Button Command="{Binding DeleteProjectCommand}" 
                             CommandParameter="{Binding SelectedProject}"
-                            Classes="nav"
-                            HorizontalContentAlignment="Left"
-                            Padding="12,10"
-                            IsEnabled="{Binding !!SelectedProject}"
-                            ToolTip.Tip="Delete selected playlist">
-                        <StackPanel Orientation="Horizontal" Spacing="10">
-                            <TextBlock Text="🗑️" FontSize="16"/>
-                            <TextBlock Text="Delete Playlist" FontSize="13" Foreground="#FF6B6B"/>
-                        </StackPanel>
-                    </Button>
-                    
-                    <!-- Retry Offline Tracks Button -->
-                    <Button Command="{Binding RetryOfflineTracksCommand}" 
-                            Classes="nav"
-                            HorizontalContentAlignment="Left"
-                            Padding="12,10"
-                            ToolTip.Tip="Retry all failed/offline tracks">
-                        <StackPanel Orientation="Horizontal" Spacing="10">
-                            <TextBlock Text="🔄" FontSize="16"/>
-                            <TextBlock Text="Retry Offline" FontSize="13" Foreground="#FFA500"/>
-                        </StackPanel>
-                    </Button>
-                    
-                </StackPanel>
-                <!-- Playlist Grid - Phase 6A: Bento Grid Layout -->
-                <ScrollViewer Grid.Row="2" 
-                              HorizontalScrollBarVisibility="Disabled"
-                              VerticalScrollBarVisibility="Auto">
-                    <ItemsControl ItemsSource="{Binding Projects.AllProjects}"
-                                  Margin="12">
-                        <ItemsControl.ItemsPanel>
-                            <ItemsPanelTemplate>
-                                <WrapPanel/>
-                            </ItemsPanelTemplate>
-                        </ItemsControl.ItemsPanel>
-                        <ItemsControl.ItemTemplate>
-                            <DataTemplate>
-                                <controls:AlbumCard DataContext="{Binding}" Margin="8"/>
-                            </DataTemplate>
-                        </ItemsControl.ItemTemplate>
-                    </ItemsControl>
-                </ScrollViewer>
-                
-                <!-- Bottom Actions -->
-                <StackPanel Grid.Row="3" Margin="16,12,16,16" Spacing="8">
-                    <Button Command="{Binding RefreshLibraryCommand}" 
-                            Background="#0078D4" 
-                            Foreground="White" 
-                            Padding="12,8"
-                            HorizontalContentAlignment="Center">
-                        <StackPanel Orientation="Horizontal" Spacing="8">
-                            <TextBlock Text="🔄"/>
-                            <TextBlock Text="Refresh Library"/>
-                        </StackPanel>
+                            Classes="danger"
+                            IsVisible="{Binding !!SelectedProject}"
+                            HorizontalAlignment="Stretch" HorizontalContentAlignment="Center">
+                         <TextBlock Text="Delete Project"/>
                     </Button>
                 </StackPanel>
             </Grid>

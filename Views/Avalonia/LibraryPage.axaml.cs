@@ -56,7 +56,12 @@ public partial class LibraryPage : UserControl
                     source.Selection is ITreeDataGridRowSelectionModel<PlaylistTrackViewModel> selection &&
                     selection.SelectedItem is PlaylistTrackViewModel track)
                 {
-                    vm.PlayTrackCommand.Execute(track);
+                {
+                    if (vm.PlayTrackCommand.CanExecute(track))
+                    {
+                        vm.PlayTrackCommand.Execute(track);
+                    }
+                }
                 }
             }
         }
@@ -179,9 +184,7 @@ public partial class LibraryPage : UserControl
         if (sourceTrack == null)
         {
             // Try to find in player queue
-            var playerViewModel = libraryViewModel.GetType()
-                .GetProperty("PlayerViewModel")
-                ?.GetValue(libraryViewModel) as PlayerViewModel;
+            var playerViewModel = libraryViewModel.PlayerViewModel;
             
             sourceTrack = playerViewModel?.Queue
                 .FirstOrDefault(t => t.GlobalId == trackGlobalId);

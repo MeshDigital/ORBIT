@@ -1,0 +1,20 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             mc:Ignorable="d" d:DesignWidth="280" d:DesignHeight="60"
+             x:Class="SLSKDONET.Views.Avalonia.Controls.CompactPlaylistTemplate">
+    
+    <Grid ColumnDefinitions="Auto, *" Margin="4">
+        <!-- Tiny Album Art -->
+        <Border Grid.Column="0" Width="40" Height="40" CornerRadius="4" ClipToBounds="True" Background="#333">
+            <Image Source="{Binding AlbumArtPath, Converter={StaticResource BitmapValueConverter}}" Stretch="UniformToFill"/>
+        </Border>
+
+        <!-- Text Info -->
+        <StackPanel Grid.Column="1" VerticalAlignment="Center" Margin="10,0,0,0">
+            <TextBlock Text="{Binding SourceTitle}" FontWeight="SemiBold" FontSize="13" TextTrimming="CharacterEllipsis"/>
+            <TextBlock Text="{Binding TotalTracks, StringFormat='{}{0} tracks'}" FontSize="12" Foreground="#888"/>
+        </StackPanel>
+    </Grid>
+</UserControl>
