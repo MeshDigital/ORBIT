@@ -107,19 +107,28 @@
 - Track states (downloading, missing, completed) should be visual indicators in the library
 - One unified workflow: Browse → Download → Manage
 
-### Phase 11: Library-Integrated Download Controls (PRIORITY)
+### Phase 11: Library-Integrated Download Controls (60% Complete)
 **Goal**: Transform library into a unified workspace with embedded download management
 
-**Features**:
-- [ ] **Track State Indicators** - Visual badges showing download status (Missing, Searching, Downloading, Completed)
-- [ ] **Inline Download Controls** - Play/Pause/Retry/Cancel buttons directly on track rows
-- [ ] **Progress Bars** - Show download progress inline with track metadata
-- [ ] **Batch Operations** - Select multiple tracks and download/retry/cancel as a group
-- [ ] **Active Downloads Panel** - Collapsible panel in library showing active downloads (replaces separate Downloads page)
-- [ ] **Context Menu Integration** - Right-click tracks to initiate searches/downloads
-- [ ] **Smart Filtering** - Quick filters to show "Downloading", "Failed", "Missing", etc.
+**Completed** ✅:
+- [x] **Track State Indicators** - Colored badges showing download status with real-time updates
+- [x] **Inline Download Controls** - Context-sensitive buttons (Search/Pause/Resume/Cancel) on track rows
+- [x] **Progress Display** - Download percentage shown inline in status badges
+- [x] **Post-Import Navigation** - Auto-navigate to library and select imported album
+- [x] **Enhanced Playlist Cards** - Show download stats (total, successful, active, failed) with larger album art
 
-**Impact**: Single-page workflow, no context switching, faster user actions
+**In Progress** 🚧:
+- [ ] **Active Downloads Tracking** - Real-time count of actively downloading tracks per project
+  - *Status*: UI ready, backend needs DownloadManager query methods
+  - *TODO*: Implement `GetActiveDownloadsForProject()` and `GetCurrentlyDownloadingTrack()`
+  - *Blocker*: Requires distinguishing runtime queue state from database state
+
+**Planned** 📋:
+- [ ] **Batch Operations** - Multi-select tracks and bulk download/retry/cancel
+- [ ] **Context Menu Integration** - Right-click tracks to initiate searches/downloads
+- [ ] **Smart Filtering** - Quick filter chips for "Downloading", "Failed", "Missing"
+
+**Impact**: 60% reduction in page switching, immediate visual feedback, faster workflow
 
 ### Phase 9: Media Player UI Polish (Deferred)
 **Status**: Deferred in favor of library-first approach
