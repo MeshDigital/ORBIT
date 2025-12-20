@@ -170,6 +170,9 @@ public class LibraryViewModel : INotifyPropertyChanged
         {
             selectionInteraction.SelectionChanged += OnTrackSelectionChanged;
         }
+        
+        // Subscribe to UpgradeScout close event
+        UpgradeScout.CloseRequested += (s, e) => IsUpgradeScoutVisible = false;
     }
 
     private void OnTrackSelectionChanged(object? sender, EventArgs e)

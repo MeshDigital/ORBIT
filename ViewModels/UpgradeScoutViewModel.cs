@@ -47,6 +47,7 @@ public class UpgradeScoutViewModel : INotifyPropertyChanged
                 Candidates.Remove(item);
             }
         });
+        CloseCommand = new RelayCommand(() => CloseRequested?.Invoke(this, EventArgs.Empty));
     }
 
     public ObservableCollection<UpgradeCandidateViewModel> Candidates { get; } = new();
@@ -67,6 +68,9 @@ public class UpgradeScoutViewModel : INotifyPropertyChanged
     public ICommand SearchAllCommand { get; }
     public ICommand UpgradeCommand { get; }
     public ICommand ClearCompletedCommand { get; }
+    public ICommand CloseCommand { get; }
+    
+    public event EventHandler? CloseRequested;
 
     private async Task ExecuteScoutAsync()
     {

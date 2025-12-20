@@ -19,7 +19,7 @@
                     </StackPanel>
                     
                     <Button Grid.Column="1" 
-                            Command="{Binding $parent[UserControl;1].((vm:LibraryViewModel)DataContext).ToggleUpgradeScoutCommand}"
+                            Command="{Binding CloseCommand}"
                             Background="Transparent" BorderThickness="0">
                         <TextBlock Text="✕" FontSize="18" Foreground="#666"/>
                     </Button>
