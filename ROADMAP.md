@@ -98,14 +98,32 @@
 
 ## 🔥 In Progress
 
-### Phase 9: Media Player UI Polish (0% Complete - NEXT)
-**Goal**: Fix and optimize media player controls for better UX
-- [ ] **Critical Fixes** - Verify converters, fix command bindings
-- [ ] **Visual States** - Add loading/error indicators, album artwork
-- [ ] **UX Features** - Like button, keyboard shortcuts, hover animations
+### NEW DIRECTION: Library-First Design Philosophy (December 21, 2025)
+**Core Principle**: The Library is the central hub - all actions happen from there.
 
-**Impact**: Improved user experience for core playback functionality  
-**Docs**: [Player UI Fix Plan](DOCS/PHASE9_PLAYER_UI.md)
+**Why This Matters**:
+- Users shouldn't navigate between Library and Downloads pages
+- Download controls belong IN the library, not in a separate view
+- Track states (downloading, missing, completed) should be visual indicators in the library
+- One unified workflow: Browse → Download → Manage
+
+### Phase 11: Library-Integrated Download Controls (PRIORITY)
+**Goal**: Transform library into a unified workspace with embedded download management
+
+**Features**:
+- [ ] **Track State Indicators** - Visual badges showing download status (Missing, Searching, Downloading, Completed)
+- [ ] **Inline Download Controls** - Play/Pause/Retry/Cancel buttons directly on track rows
+- [ ] **Progress Bars** - Show download progress inline with track metadata
+- [ ] **Batch Operations** - Select multiple tracks and download/retry/cancel as a group
+- [ ] **Active Downloads Panel** - Collapsible panel in library showing active downloads (replaces separate Downloads page)
+- [ ] **Context Menu Integration** - Right-click tracks to initiate searches/downloads
+- [ ] **Smart Filtering** - Quick filters to show "Downloading", "Failed", "Missing", etc.
+
+**Impact**: Single-page workflow, no context switching, faster user actions
+
+### Phase 9: Media Player UI Polish (Deferred)
+**Status**: Deferred in favor of library-first approach
+- Can be integrated into library view later (bottom player bar)
 
 ### Phase 8: Sonic Integrity & Automation (40% Complete)
 **Status**: Packages 5-6 complete, ready for export UI and background worker  
@@ -119,8 +137,6 @@
 - [ ] **Export UI** - Rekordbox/Denon USB export (Package 1)
 - [ ] **Background Worker** - Upgrade Scout automation (Package 3)
 - [ ] **Smart Replacement** - Atomic file upgrades (Package 4)
-
-> **Note**: Phase 9 (Media Player UI) planned next for improved UX
 
 ### Phase 6C: TreeDataGrid (Lower Priority)
 **Status**: Planning complete, ready to implement  
