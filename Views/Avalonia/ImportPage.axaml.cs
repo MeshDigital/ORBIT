@@ -11,4 +11,9 @@ public partial class ImportPage : UserControl
     {
         InitializeComponent();
     }
+
+    public ImportPage(ViewModels.SpotifyImportViewModel viewModel) : this()
+    {
+        DataContext = viewModel;
+    }
 }

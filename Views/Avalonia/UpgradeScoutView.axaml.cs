@@ -10,6 +10,11 @@ public partial class UpgradeScoutView : UserControl
         InitializeComponent();
     }
 
+    public UpgradeScoutView(ViewModels.UpgradeScoutViewModel viewModel) : this()
+    {
+        DataContext = viewModel;
+    }
+
     private void InitializeComponent()
     {
         AvaloniaXamlLoader.Load(this);

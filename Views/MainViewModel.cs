@@ -106,6 +106,8 @@ public class MainViewModel : INotifyPropertyChanged
         NavigateLibraryCommand = new RelayCommand(NavigateToLibrary);
         NavigateDownloadsCommand = new RelayCommand(NavigateToDownloads);
         NavigateSettingsCommand = new RelayCommand(NavigateToSettings);
+        NavigateUpgradeScoutCommand = new RelayCommand(NavigateUpgradeScout);
+        NavigateInspectorCommand = new RelayCommand(NavigateInspector);
         NavigateImportCommand = new RelayCommand(NavigateToImport); // Phase 6D
         ToggleNavigationCommand = new RelayCommand(() => IsNavigationCollapsed = !IsNavigationCollapsed);
         TogglePlayerCommand = new RelayCommand(() => IsPlayerSidebarVisible = !IsPlayerSidebarVisible);
@@ -115,11 +117,6 @@ public class MainViewModel : INotifyPropertyChanged
         ResetZoomCommand = new RelayCommand(ResetZoom);
 
         // Spotify Hub Initialization (TODO: Phase 7 - Implement when needed)
-        LoadSpotifyPlaylistsCommand = new AsyncRelayCommand(LoadSpotifyPlaylistsAsync);
-        // ImportSpotifyPlaylistCommand = new AsyncRelayCommand<SimplePlaylist>(ImportSpotifyPlaylistAsync);
-        ImportLikedSongsCommand = new AsyncRelayCommand(ImportLikedSongsAsync);
-        SelectCsvFileCommand = new AsyncRelayCommand(SelectCsvFileAsync);
-
         // Downloads Page Commands
         PauseAllDownloadsCommand = new RelayCommand(PauseAllDownloads);
         ResumeAllDownloadsCommand = new RelayCommand(ResumeAllDownloads);
@@ -173,11 +170,18 @@ public class MainViewModel : INotifyPropertyChanged
         IsSpotifyAuthenticated = _spotifyAuth.IsAuthenticated;
         _spotifyAuth.AuthenticationChanged += (s, e) => {
             IsSpotifyAuthenticated = e;
-            if (e) _ = LoadSpotifyPlaylistsAsync();
         };
 
         // Register pages for navigation service
+        _navigationService.RegisterPage("Home", typeof(Avalonia.HomePage));
+        _navigationService.RegisterPage("Search", typeof(Avalonia.SearchPage));
+        _navigationService.RegisterPage("Library", typeof(Avalonia.LibraryPage));
+        _navigationService.RegisterPage("Downloads", typeof(Avalonia.DownloadsPage));
+        _navigationService.RegisterPage("Settings", typeof(Avalonia.SettingsPage));
+        _navigationService.RegisterPage("Import", typeof(Avalonia.ImportPage));
         _navigationService.RegisterPage("ImportPreview", typeof(Avalonia.ImportPreviewPage));
+        _navigationService.RegisterPage("UpgradeScout", typeof(Avalonia.UpgradeScoutView));
+        _navigationService.RegisterPage("Inspector", typeof(Avalonia.InspectorPage));
         
         // Subscribe to navigation events
         _navigationService.Navigated += OnNavigated;
@@ -199,7 +203,6 @@ public class MainViewModel : INotifyPropertyChanged
             if (_config.SpotifyUseApi && await _spotifyAuth.IsAuthenticatedAsync())
             {
                 _logger.LogInformation("Spotify silent session refresh successful");
-                await LoadSpotifyPlaylistsAsync();
             }
         }
         catch (Exception ex)
@@ -210,13 +213,7 @@ public class MainViewModel : INotifyPropertyChanged
 
     private void NavigateToSettings()
     {
-        if (_settingsPage == null)
-        {
-            _settingsPage = new Avalonia.SettingsPage { DataContext = SettingsViewModel };
-        }
-        CurrentPage = _settingsPage;
-        CurrentPageType = PageType.Settings;
-        _eventBus.Publish(new NavigationEvent(PageType.Settings));
+        _navigationService.NavigateTo("Settings");
     }
 
 
@@ -308,22 +305,8 @@ public class MainViewModel : INotifyPropertyChanged
         set => SetProperty(ref _isSpotifyAuthenticated, value);
     }
 
-    // TODO: Phase 7 - Spotify Hub (Currently disabled due to SimplePlaylist type)
-    /*
-    private System.Collections.ObjectModel.ObservableCollection<SimplePlaylist> _spotifyPlaylists = new();
-    public System.Collections.ObjectModel.ObservableCollection<SimplePlaylist> SpotifyPlaylists
-    {
-        get => _spotifyPlaylists;
-        set => SetProperty(ref _spotifyPlaylists, value);
-    }
-    */
+    // TODO: Phase 7 - Spotify Hub
 
-    private bool _isLoadingPlaylists;
-    public bool IsLoadingPlaylists
-    {
-        get => _isLoadingPlaylists;
-        set => SetProperty(ref _isLoadingPlaylists, value);
-    }
 
     // Event-Driven Collection
     public System.Collections.ObjectModel.ObservableCollection<PlaylistTrackViewModel> AllGlobalTracks { get; } = new();
@@ -369,6 +352,8 @@ public class MainViewModel : INotifyPropertyChanged
     public ICommand NavigateLibraryCommand { get; }
     public ICommand NavigateDownloadsCommand { get; }
     public ICommand NavigateSettingsCommand { get; }
+    public ICommand NavigateUpgradeScoutCommand { get; }
+    public ICommand NavigateInspectorCommand { get; }
     public ICommand NavigateImportCommand { get; } // Phase 6D
     public ICommand ToggleNavigationCommand { get; }
     public ICommand TogglePlayerCommand { get; }
@@ -378,13 +363,6 @@ public class MainViewModel : INotifyPropertyChanged
     public ICommand ResetZoomCommand { get; }
     public ICommand ExecuteBrainTestCommand { get; }
     
-    // Spotify Hub Commands
-    public ICommand LoadSpotifyPlaylistsCommand { get; }
-    // public ICommand ImportSpotifyPlaylistCommand { get; } // TODO: Phase 7
-    // public ICommand ImportSpotifyPlaylistCommand { get; } // TODO: Phase 7
-    public ICommand ImportLikedSongsCommand { get; }
-    public ICommand SelectCsvFileCommand { get; }
-    
     // Downloads Page Commands
     public ICommand PauseAllDownloadsCommand { get; }
     public ICommand ResumeAllDownloadsCommand { get; }
@@ -393,18 +371,40 @@ public class MainViewModel : INotifyPropertyChanged
 
     // Page instances (lazy-loaded)
     // Lazy-loaded page instances
-    private object? _homePage; // Phase 6D
-    private object? _searchPage;
-    private object? _libraryPage;
-    private object? _downloadsPage;
-    private object? _settingsPage;
-    private object? _importPage; // Phase 6D
+    // Page instances no longer needed here as they are managed by NavigationService
 
     private void OnNavigated(object? sender, global::Avalonia.Controls.UserControl page)
     {
         if (page != null)
         {
             CurrentPage = page;
+            
+            // Sync CurrentPageType based on the view type to keep UI highlights correct
+            CurrentPageType = page.GetType().Name switch
+            {
+                "HomePage" => PageType.Home,
+                "SearchPage" => PageType.Search,
+                "LibraryPage" => PageType.Library,
+                "DownloadsPage" => PageType.Downloads,
+                "SettingsPage" => PageType.Settings,
+                "ImportPage" => PageType.Import,
+                "ImportPreviewPage" => PageType.Import, // Map preview to Import category
+                "UpgradeScoutView" => PageType.UpgradeScout,
+                "InspectorPage" => PageType.Inspector,
+                _ => CurrentPageType
+            };
+            
+            _logger.LogInformation("Navigation sync: CurrentPage updated to {PageType}", CurrentPageType);
+
+            // Structure Fix B.2: Reset Search State on Navigation
+            // If we have navigated away from Search (or just generally navigating), ensure search state is clean
+            // unless we are specifically in a search-related flow (like ImportPreview).
+            // But user requested "whenever a navigation event occurs".
+            // We'll reset if we are NOT on Search page anymore.
+            if (CurrentPageType != PageType.Search)
+            {
+               SearchViewModel.ResetState();
+            }
         }
     }
 
@@ -412,65 +412,37 @@ public class MainViewModel : INotifyPropertyChanged
 
     private void NavigateToHome()
     {
-        if (_homePage == null)
-        {
-            _homePage = new Avalonia.HomePage { DataContext = this };
-        }
-        CurrentPage = _homePage;
-        CurrentPageType = PageType.Home;
-        _eventBus.Publish(new NavigationEvent(PageType.Home));
+        _navigationService.NavigateTo("Home");
     }
 
     private void NavigateToSearch()
     {
-        if (_searchPage == null)
-        {
-            _searchPage = new Avalonia.SearchPage { DataContext = SearchViewModel };
-        }
-        CurrentPage = _searchPage;
-        CurrentPageType = PageType.Search;
-        _eventBus.Publish(new NavigationEvent(PageType.Search));
+        _navigationService.NavigateTo("Search");
     }
 
     private void NavigateToLibrary()
     {
-        try
-        {
-            if (_libraryPage == null)
-            {
-                _libraryPage = new Avalonia.LibraryPage { DataContext = LibraryViewModel };
-            }
-            CurrentPage = _libraryPage;
-            CurrentPageType = PageType.Library;
-            _eventBus.Publish(new NavigationEvent(PageType.Library));
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Failed to navigate to Library page");
-            StatusText = $"Error opening Library: {ex.Message}";
-        }
+        _navigationService.NavigateTo("Library");
     }
 
     private void NavigateToDownloads()
     {
-        if (_downloadsPage == null)
-        {
-            _downloadsPage = new Avalonia.DownloadsPage { DataContext = this };
-        }
-        CurrentPage = _downloadsPage;
-        CurrentPageType = PageType.Downloads;
-        _eventBus.Publish(new NavigationEvent(PageType.Downloads));
+        _navigationService.NavigateTo("Downloads");
+    }
+
+    private void NavigateUpgradeScout()
+    {
+        _navigationService.NavigateTo("UpgradeScout");
+    }
+
+    private void NavigateInspector()
+    {
+        _navigationService.NavigateTo("Inspector");
     }
 
     private void NavigateToImport()
     {
-        if (_importPage == null)
-        {
-            _importPage = new Avalonia.ImportPage { DataContext = this };
-        }
-        CurrentPage = _importPage;
-        CurrentPageType = PageType.Import;
-        _eventBus.Publish(new NavigationEvent(PageType.Import));
+        _navigationService.NavigateTo("Import");
     }
 
 
@@ -611,87 +583,6 @@ public class MainViewModel : INotifyPropertyChanged
         }
     }
 
-    // TODO: Phase 7 - Spotify Hub
-    private async Task LoadSpotifyPlaylistsAsync()
-    {
-        if (!IsSpotifyAuthenticated) return;
-        
-        try
-        {
-            IsLoadingPlaylists = true;
-            var client = await _spotifyAuth.GetAuthenticatedClientAsync();
-            // var playlists = await client.Playlists.CurrentUsers();
-            
-            // await Dispatcher.UIThread.InvokeAsync(() => 
-            // {
-            //     SpotifyPlaylists.Clear();
-            //     foreach (var p in playlists.Items ?? new List<SimplePlaylist>())
-            //     {
-            //         SpotifyPlaylists.Add(p);
-            //     }
-            // });
-
-            _logger.LogInformation("Spotify playlists feature not yet implemented");
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Failed to load Spotify playlists");
-        }
-        finally
-        {
-            IsLoadingPlaylists = false;
-        }
-    }
-
-    /*
-    private async Task ImportSpotifyPlaylistAsync(SimplePlaylist? playlist)
-    {
-        if (playlist == null) return;
-        
-        var orchestrator = Services.GetRequiredService<ImportOrchestrator>();
-        var provider = Services.GetRequiredService<SpotifyLikedSongsImportProvider>(); // Need common Spotify provider? 
-        // For now using existing provider but it might need to handle playlists too
-        
-        await orchestrator.StartImportWithPreviewAsync(provider, $"https://open.spotify.com/playlist/{playlist.Id}");
-    }
-    */
-
-    private async Task ImportLikedSongsAsync()
-    {
-        var services = (App.Current as App)?.Services ?? throw new InvalidOperationException("App.Services not initialized");
-        var orchestrator = services.GetRequiredService<ImportOrchestrator>();
-        var provider = services.GetRequiredService<SpotifyLikedSongsImportProvider>();
-        
-        await orchestrator.StartImportWithPreviewAsync(provider, "liked");
-    }
-
-    private async Task SelectCsvFileAsync()
-    {
-        var services = (App.Current as App)?.Services ?? throw new InvalidOperationException("App.Services not initialized");
-        var orchestrator = services.GetRequiredService<ImportOrchestrator>();
-        var provider = services.GetRequiredService<Services.ImportProviders.CsvImportProvider>();
-
-        try
-        {
-            var filters = new List<FileDialogFilter>
-            {
-                new FileDialogFilter("CSV Files", new List<string> { "csv" }),
-                new FileDialogFilter("All Files", new List<string> { "*" })
-            };
-
-            var filePath = await _fileInteractionService.OpenFileDialogAsync("Select CSV File", filters);
-
-            if (!string.IsNullOrWhiteSpace(filePath))
-            {
-                await orchestrator.StartImportWithPreviewAsync(provider, filePath);
-            }
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Failed to select CSV file");
-            StatusText = $"Error selecting file: {ex.Message}";
-        }
-    }
     private void UpdateDownloadsFilter()
     {
         var search = DownloadsSearchText.Trim();

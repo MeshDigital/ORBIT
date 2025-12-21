@@ -18,10 +18,13 @@ public class SpotifyImportViewModel : INotifyPropertyChanged
     private readonly ILogger<SpotifyImportViewModel> _logger;
     private readonly SpotifyAuthService _authService;
     
-    // Dependencies
-    private readonly SpotifyInputSource? _spotifyApiService;
-    private readonly SpotifyScraperInputSource _spotifyScraperService;
     private readonly DownloadManager _downloadManager;
+    private readonly ImportOrchestrator _importOrchestrator;
+    private readonly Services.ImportProviders.SpotifyImportProvider _spotifyProvider;
+    private readonly Services.ImportProviders.SpotifyLikedSongsImportProvider _likedSongsProvider;
+    private readonly Services.ImportProviders.CsvImportProvider _csvProvider;
+    private readonly INavigationService _navigationService;
+    private readonly IFileInteractionService _fileInteractionService;
     
     // Properties
     public ObservableCollection<SelectableTrack> Tracks { get; } = new();
@@ -84,19 +87,29 @@ public class SpotifyImportViewModel : INotifyPropertyChanged
     public ICommand SelectAllCommand { get; }
     public ICommand DeselectAllCommand { get; }
     public ICommand CancelCommand { get; }
+    public ICommand ImportLikedSongsCommand { get; }
+    public ICommand SelectCsvFileCommand { get; }
 
     public SpotifyImportViewModel(
         ILogger<SpotifyImportViewModel> logger,
-        SpotifyInputSource? spotifyApiService,
-        SpotifyScraperInputSource spotifyScraperService,
         DownloadManager downloadManager,
-        SpotifyAuthService authService)
+        SpotifyAuthService authService,
+        ImportOrchestrator importOrchestrator,
+        Services.ImportProviders.SpotifyImportProvider spotifyProvider,
+        Services.ImportProviders.SpotifyLikedSongsImportProvider likedSongsProvider,
+        Services.ImportProviders.CsvImportProvider csvProvider,
+        INavigationService navigationService,
+        IFileInteractionService fileInteractionService)
     {
         _logger = logger;
-        _spotifyApiService = spotifyApiService;
-        _spotifyScraperService = spotifyScraperService;
         _downloadManager = downloadManager;
         _authService = authService;
+        _importOrchestrator = importOrchestrator;
+        _spotifyProvider = spotifyProvider;
+        _likedSongsProvider = likedSongsProvider;
+        _csvProvider = csvProvider;
+        _navigationService = navigationService;
+        _fileInteractionService = fileInteractionService;
         
         // Subscribe to auth changes
         _authService.AuthenticationChanged += (s, e) => 
@@ -109,7 +122,6 @@ public class SpotifyImportViewModel : INotifyPropertyChanged
         Task.Run(async () => IsAuthenticated = await _authService.IsAuthenticatedAsync());
 
         LoadPlaylistCommand = new AsyncRelayCommand(LoadPlaylistAsync);
-        DownloadCommand = new AsyncRelayCommand(DownloadSelectedAsync, () => SelectedCount > 0);
         SelectAllCommand = new RelayCommand(SelectAll);
         DeselectAllCommand = new RelayCommand(DeselectAll);
         CancelCommand = new RelayCommand(Cancel);
@@ -117,6 +129,42 @@ public class SpotifyImportViewModel : INotifyPropertyChanged
         ConnectCommand = new AsyncRelayCommand(ConnectSpotifyAsync);
         RefreshPlaylistsCommand = new AsyncRelayCommand(RefreshPlaylistsAsync);
         ImportPlaylistCommand = new AsyncRelayCommand<SpotifyPlaylistViewModel>(ImportUserPlaylistAsync);
+        
+        ImportLikedSongsCommand = new AsyncRelayCommand(ExecuteImportLikedSongsAsync, () => IsAuthenticated);
+        SelectCsvFileCommand = new AsyncRelayCommand(ExecuteSelectCsvFileAsync);
+
+        // Disable unused commands
+        DownloadCommand = new RelayCommand(() => {}, () => false);
+    }
+
+    private async Task ExecuteImportLikedSongsAsync()
+    {
+        _logger.LogInformation("Starting 'Liked Songs' import from Spotify...");
+        await _importOrchestrator.StartImportWithPreviewAsync(_likedSongsProvider, "spotify:liked");
+    }
+
+    private async Task ExecuteSelectCsvFileAsync()
+    {
+        try
+        {
+            var filters = new System.Collections.Generic.List<Services.FileDialogFilter>
+            {
+                new Services.FileDialogFilter("CSV Files", new System.Collections.Generic.List<string> { "csv" }),
+                new Services.FileDialogFilter("All Files", new System.Collections.Generic.List<string> { "*" })
+            };
+
+            var filePath = await _fileInteractionService.OpenFileDialogAsync("Select CSV File", filters);
+
+            if (!string.IsNullOrWhiteSpace(filePath))
+            {
+                await _importOrchestrator.StartImportWithPreviewAsync(_csvProvider, filePath);
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to select CSV file");
+            StatusMessage = $"Error selecting file: {ex.Message}";
+        }
     }
 
     public async Task LoadPlaylistAsync()
@@ -127,142 +175,8 @@ public class SpotifyImportViewModel : INotifyPropertyChanged
             return;
         }
 
-        IsLoading = true;
-        StatusMessage = "Loading playlist...";
-        Tracks.Clear();
-
-        try
-        {
-            _logger.LogInformation("Loading Spotify playlist: {Url}", PlaylistUrl);
-
-            List<SearchQuery> queries;
-
-            // Try API first if configured
-            if (_spotifyApiService?.IsConfigured == true)
-            {
-                _logger.LogInformation("Using Spotify API");
-                StatusMessage = "Fetching from Spotify API...";
-                queries = await _spotifyApiService.ParseAsync(PlaylistUrl);
-            }
-            else
-            {
-                _logger.LogInformation("Using Spotify web scraper");
-                StatusMessage = "Scraping Spotify web page...";
-                queries = await _spotifyScraperService.ParseAsync(PlaylistUrl);
-            }
-
-            if (!queries.Any())
-            {
-                StatusMessage = "No tracks found. Check the URL or playlist privacy settings.";
-                return;
-            }
-
-            // Set playlist metadata
-            PlaylistTitle = queries.FirstOrDefault()?.SourceTitle ?? "Spotify Playlist";
-            StatusMessage = $"Loaded {queries.Count} tracks";
-
-            // Convert to SelectableTrack
-            int trackNum = 1;
-            foreach (var query in queries)
-            {
-                var track = new Track
-                {
-                    Title = query.Title,
-                    Artist = query.Artist,
-                    Album = query.Album,
-                    Length = 0, // Will be populated during search
-                    // Fix: Map metadata fields
-                    SpotifyTrackId = query.SpotifyTrackId,
-                    SpotifyAlbumId = query.SpotifyAlbumId,
-                    SpotifyArtistId = query.SpotifyArtistId,
-                    AlbumArtUrl = query.AlbumArtUrl,
-                    ArtistImageUrl = query.ArtistImageUrl,
-                    Genres = query.Genres,
-                    Popularity = query.Popularity,
-                    CanonicalDuration = query.CanonicalDuration,
-                    ReleaseDate = query.ReleaseDate
-                };
-
-                Tracks.Add(new SelectableTrack(track, trackNum++));
-            }
-
-            _logger.LogInformation("Successfully loaded {Count} tracks", Tracks.Count);
-            OnPropertyChanged(nameof(TrackCount));
-            OnPropertyChanged(nameof(SelectedCount));
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Failed to load Spotify playlist");
-            StatusMessage = $"Error: {ex.Message}";
-        }
-        finally
-        {
-            IsLoading = false;
-        }
-    }
-
-    private async Task DownloadSelectedAsync()
-    {
-        var selectedTracks = Tracks.Where(t => t.IsSelected).ToList();
-
-        if (!selectedTracks.Any())
-        {
-            StatusMessage = "No tracks selected";
-            return;
-        }
-
-        _logger.LogInformation("Downloading {Count} selected tracks from Spotify playlist", selectedTracks.Count);
-
-        // Create PlaylistJob
-        var job = new PlaylistJob
-        {
-            Id = Guid.NewGuid(),
-            SourceTitle = PlaylistTitle,
-            SourceType = "Spotify (UI)",
-            CreatedAt = DateTime.Now,
-            DestinationFolder = "" // Will use default from config
-        };
-
-        job.OriginalTracks = new ObservableCollection<Track>(selectedTracks.Select(t => t.Track));
-
-        // Convert SelectableTracks to PlaylistTracks and attach the PlaylistId
-        foreach (var selectable in selectedTracks)
-        {
-            var playlistTrack = new PlaylistTrack
-            {
-                Id = Guid.NewGuid(),
-                PlaylistId = job.Id,
-                Title = selectable.Title ?? "Unknown Title",
-                Artist = selectable.Artist ?? "Unknown Artist",
-                Album = selectable.Album ?? "Unknown Album",
-                TrackUniqueHash = $"{selectable.Artist}|{selectable.Title}".ToLowerInvariant(),
-                Status = TrackStatus.Missing,
-                AddedAt = DateTime.Now,
-                TrackNumber = selectable.TrackNumber,
-                // Fix: Map metadata from source track
-                SpotifyTrackId = selectable.Track.SpotifyTrackId,
-                SpotifyAlbumId = selectable.Track.SpotifyAlbumId,
-                SpotifyArtistId = selectable.Track.SpotifyArtistId,
-                AlbumArtUrl = selectable.Track.AlbumArtUrl,
-                ArtistImageUrl = selectable.Track.ArtistImageUrl,
-                Genres = selectable.Track.Genres,
-                Popularity = selectable.Track.Popularity,
-                CanonicalDuration = selectable.Track.CanonicalDuration,
-                ReleaseDate = selectable.Track.ReleaseDate
-            };
-
-            job.PlaylistTracks.Add(playlistTrack);
-        }
-
-        job.RefreshStatusCounts();
-
-        // Use the new DownloadManager overload which persists the PlaylistJob and queues the tracks
-        await _downloadManager.QueueProject(job);
-
-        StatusMessage = $"Queued {selectedTracks.Count} tracks for download";
-        
-        // TODO: Navigate back to Library and show new project
-        _logger.LogInformation("Spotify import complete: {Count} tracks queued", selectedTracks.Count);
+        _logger.LogInformation("Starting unified Spotify import: {Url}", PlaylistUrl);
+        await _importOrchestrator.StartImportWithPreviewAsync(_spotifyProvider, PlaylistUrl);
     }
 
     private void SelectAll()
@@ -285,7 +199,7 @@ public class SpotifyImportViewModel : INotifyPropertyChanged
 
     private void Cancel()
     {
-        // TODO: Navigate back or close window
+        _navigationService.GoBack();
         _logger.LogInformation("Spotify import cancelled");
     }
 
@@ -355,12 +269,12 @@ public class SpotifyImportViewModel : INotifyPropertyChanged
             {
                 UserPlaylists.Add(new SpotifyPlaylistViewModel
                 {
-                    Id = playlist.Id,
-                    Name = playlist.Name,
+                    Id = playlist.Id ?? "",
+                    Name = playlist.Name ?? "Unnamed Playlist",
                     ImageUrl = playlist.Images?.FirstOrDefault()?.Url ?? "",
                     TrackCount = playlist.Tracks?.Total ?? 0,
                     Owner = playlist.Owner?.DisplayName ?? "Unknown",
-                    Url = playlist.ExternalUrls.ContainsKey("spotify") ? playlist.ExternalUrls["spotify"] : ""
+                    Url = (playlist.ExternalUrls != null && playlist.ExternalUrls.ContainsKey("spotify")) ? playlist.ExternalUrls["spotify"] : ""
                 });
             }
 
@@ -400,18 +314,16 @@ public class SpotifyImportViewModel : INotifyPropertyChanged
     {
         if (playlist == null) return;
 
-        PlaylistUrl = playlist.Url;
+        _logger.LogInformation("Importing user playlist: {Name} ({Id})", playlist.Name, playlist.Id);
         
-        // Special handling for Liked Songs if we implement that provider
         if (playlist.Id == "me/tracks")
         {
-             // TODO: Ensure a provider can handle "spotify:user:me:collection" or similar ID
-             // For now, let's treat it as a URL that the LikedSongsProvider can handle
-             // or assume the user wants to import that specific collection.
-             // We can check if PlaylistUrl is empty or special.
+             await _importOrchestrator.StartImportWithPreviewAsync(_likedSongsProvider, "spotify:liked");
         }
-
-        await LoadPlaylistAsync();
+        else
+        {
+             await _importOrchestrator.StartImportWithPreviewAsync(_spotifyProvider, playlist.Url);
+        }
     }
 }
 

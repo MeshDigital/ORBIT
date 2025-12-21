@@ -98,6 +98,21 @@ public class ProjectListViewModel : INotifyPropertyChanged
     private readonly ImportOrchestrator _importOrchestrator;
     private readonly Services.ImportProviders.SpotifyLikedSongsImportProvider _spotifyLikedSongsProvider;
     private readonly IDialogService _dialogService;
+    private readonly SpotifyAuthService _spotifyAuthService;
+
+    private bool _isSpotifyAuthenticated;
+    public bool IsSpotifyAuthenticated
+    {
+        get => _isSpotifyAuthenticated;
+        set
+        {
+            if (_isSpotifyAuthenticated != value)
+            {
+                _isSpotifyAuthenticated = value;
+                OnPropertyChanged();
+            }
+        }
+    }
 
     public ProjectListViewModel(
         ILogger<ProjectListViewModel> logger,
@@ -105,6 +120,7 @@ public class ProjectListViewModel : INotifyPropertyChanged
         DownloadManager downloadManager,
         ImportOrchestrator importOrchestrator,
         Services.ImportProviders.SpotifyLikedSongsImportProvider spotifyLikedSongsProvider,
+        SpotifyAuthService spotifyAuthService,
         IEventBus eventBus,
         IDialogService dialogService)
     {
@@ -113,6 +129,7 @@ public class ProjectListViewModel : INotifyPropertyChanged
         _downloadManager = downloadManager;
         _importOrchestrator = importOrchestrator;
         _spotifyLikedSongsProvider = spotifyLikedSongsProvider;
+        _spotifyAuthService = spotifyAuthService;
         _dialogService = dialogService;
 
         // Initialize commands
@@ -121,7 +138,20 @@ public class ProjectListViewModel : INotifyPropertyChanged
         AddPlaylistCommand = new AsyncRelayCommand(ExecuteAddPlaylistAsync);
         RefreshLibraryCommand = new AsyncRelayCommand(ExecuteRefreshAsync);
         LoadAllTracksCommand = new RelayCommand(() => SelectedProject = _allTracksJob);
-        ImportLikedSongsCommand = new AsyncRelayCommand(ExecuteImportLikedSongsAsync);
+        ImportLikedSongsCommand = new AsyncRelayCommand(ExecuteImportLikedSongsAsync, () => IsSpotifyAuthenticated);
+
+        // Subscribe to auth changes
+        _spotifyAuthService.AuthenticationChanged += (s, authenticated) => 
+        {
+             IsSpotifyAuthenticated = authenticated;
+             ((AsyncRelayCommand)ImportLikedSongsCommand).RaiseCanExecuteChanged();
+        };
+
+        // Initial auth check
+        _ = Task.Run(async () => 
+        {
+            IsSpotifyAuthenticated = await _spotifyAuthService.IsAuthenticatedAsync();
+        });
 
         // Subscribe to events
         // Subscribe to events
@@ -132,140 +162,38 @@ public class ProjectListViewModel : INotifyPropertyChanged
         });
         eventBus.GetEvent<ProjectUpdatedEvent>().Subscribe(evt => OnProjectUpdated(this, evt.ProjectId));
         eventBus.GetEvent<ProjectDeletedEvent>().Subscribe(evt => OnProjectDeleted(this, evt.ProjectId));
+        
+        // Subscribe to track state changes to update active download counts in real-time
+        eventBus.GetEvent<Events.TrackStateChangedEvent>().Subscribe(OnTrackStateChanged);
+    }
+    
+    private void OnTrackStateChanged(Events.TrackStateChangedEvent evt)
+    {
+        // PERFORMANCE FIX: Target specific project instead of looping through all
+        Dispatcher.UIThread.InvokeAsync(() =>
+        {
+            // Find the specific project that changed
+            var project = AllProjects.FirstOrDefault(p => p.Id == evt.ProjectId);
+            if (project != null)
+            {
+                // Refresh ONLY the affected project's stats
+                project.RefreshStatusCounts();
+                
+                // TODO: Implement real active downloads tracking via DownloadManager
+                // For now, placeholder values
+                project.ActiveDownloadsCount = 0;
+                project.CurrentDownloadingTrack = null;
+            }
+        });
     }
 
     private async Task ExecuteImportLikedSongsAsync()
     {
         _logger.LogInformation("Starting 'Liked Songs' import from Spotify...");
         
-        // 1. Check if "Liked Songs" project already exists
-        var existingJob = await _libraryService.FindPlaylistJobBySourceTypeAsync("Spotify Liked");
-
-        if (existingJob != null)
-        {
-            _logger.LogInformation("Existing 'Liked Songs' project found ({Id}). Syncing...", existingJob.Id);
-            await SyncLikedSongsAsync(existingJob);
-        }
-        else
-        {
-             _logger.LogInformation("No existing 'Liked Songs' project. Creating new one...");
-            // Use "User Library" as input string (ignored by provider but useful for logs)
-            await _importOrchestrator.ImportAllDirectlyAsync(_spotifyLikedSongsProvider, "User Library");
-        }
-    }
-
-    private async Task SyncLikedSongsAsync(PlaylistJob existingJob)
-    {
-        try
-        {
-            // 1. Fetch current Liked Songs from Spotify
-            var result = await _spotifyLikedSongsProvider.ImportAsync("User Library");
-            
-            if (!result.Success || result.Tracks == null)
-            {
-                _logger.LogError("Failed to fetch liked songs: {Error}", result.ErrorMessage);
-                return; // TODO: Show notification
-            }
-
-            // 2. Identify New Tracks
-            // We use SpotifyId if available, otherwise fallback to Artist+Title hash?
-            // Existing tracks are in existingJob.PlaylistTracks? 
-            // NOTE: PlaylistTracks may not be fully loaded if we only fetched the job header.
-            // Better to fetch all tracks for this job from DB first.
-            var existingTracks = await _libraryService.LoadPlaylistTracksAsync(existingJob.Id);
-            var existingSpotifyIds = new HashSet<string>(existingTracks
-                .Where(t => !string.IsNullOrEmpty(t.TrackUniqueHash)) // TrackUniqueHash is usually Spotify ID for these?
-                // Wait, ImportProvider sets SpotifyId on SelectableTrack. Where does it go?
-                // DownloadManager.QueueProject maps SelectableTrack to PlaylistTrack.
-                // It maps: SpotifyTrackId = track.SpotifyTrackId.
-                .Select(t => t.TrackUniqueHash) // Just using Hash for now as proxy?
-                // Actually, let's assume we want to match by Title/Artist if Spotify ID logic is complex.
-                // BUT, since we have Spotify IDs, we should use them.
-                // Q: Does PlaylistTrack have SpotifyTrackId? 
-                // A: Yes, added in Phase 0.
-            );
-            
-            // Wait, existingTracks needs to load SpotifyTrackId.
-            // Checking PlaylistTrack entity... yes it has it.
-            // But checking equality:
-            var existingSpotifyIdSet = existingTracks
-                .Where(t => !string.IsNullOrEmpty(t.SpotifyTrackId))
-                .Select(t => t.SpotifyTrackId)
-                .ToHashSet();
-
-            var newTracks = new List<SearchQuery>();
-            foreach (var track in result.Tracks)
-            {
-                if (!string.IsNullOrEmpty(track.SpotifyTrackId) && !existingSpotifyIdSet.Contains(track.SpotifyTrackId))
-                {
-                    newTracks.Add(track);
-                }
-                else if (string.IsNullOrEmpty(track.SpotifyTrackId))
-                {
-                     // Fallback check?
-                }
-            }
-
-            if (newTracks.Count == 0)
-            {
-                _logger.LogInformation("No new liked songs to sync.");
-                 // Optionally notify user "All up to date"
-                return;
-            }
-
-            _logger.LogInformation("Found {Count} new liked songs. Adding to project...", newTracks.Count);
-
-            // 3. Convert SelectableTracks to PlaylistTracks
-            var playlistTracksToAdd = new List<PlaylistTrack>();
-            int maxTrackNum = existingTracks.Count > 0 ? existingTracks.Max(t => t.TrackNumber) : 0;
-
-            foreach (var nt in newTracks)
-            {
-                playlistTracksToAdd.Add(new PlaylistTrack
-                {
-                    Id = Guid.NewGuid(),
-                    PlaylistId = existingJob.Id,
-                    Artist = nt.Artist,
-                    Title = nt.Title,
-                    Album = nt.Album,
-                    TrackUniqueHash = nt.SpotifyTrackId ?? Guid.NewGuid().ToString(), // Use Spotify ID as hash preference
-                    Status = TrackStatus.Missing,
-                    TrackNumber = ++maxTrackNum,
-                    SpotifyTrackId = nt.SpotifyTrackId,
-                    // Use metadata if available (it was cached by provider)
-                    AddedAt = DateTime.UtcNow
-                });
-            }
-
-            // 4. Save new tracks to DB
-            await _libraryService.SavePlaylistTracksAsync(playlistTracksToAdd);
-
-            // 5. Update Job Totals
-            existingJob.TotalTracks += playlistTracksToAdd.Count;
-            // TODO: Update job in DB (SavePlaylistJobAsync updates header)
-            await _libraryService.SavePlaylistJobAsync(existingJob);
-
-            // 6. Queue for Download (Incremental)
-            _downloadManager.QueueTracks(playlistTracksToAdd);
-
-            _logger.LogInformation("Sync complete. queued {Count} new tracks.", playlistTracksToAdd.Count);
-
-            // 7. Refresh UI logic
-            // If the current view is showing this project, we might need to refresh local list?
-            if (SelectedProject?.Id == existingJob.Id)
-            {
-                // Trigger reload of tracks
-                 // This is tricky without coupled logic. 
-                 // But LibraryViewModel handles "ProjectUpdated" maybe?
-                 // Or we just re-select it?
-                 // Simple hack:
-                 // ProjectSelected?.Invoke(this, existingJob); // Might re-load?
-            }
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Failed to sync liked songs");
-        }
+        // Use the unified orchestrator path. 
+        // The orchestrator handles finding existing jobs and showing the preview.
+        await _importOrchestrator.StartImportWithPreviewAsync(_spotifyLikedSongsProvider, "spotify:liked");
     }
 
     /// <summary>

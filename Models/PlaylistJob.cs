@@ -113,6 +113,26 @@ public class PlaylistJob : INotifyPropertyChanged
         set { SetProperty(ref _missingCount, value); }
     }
 
+    private int _activeDownloadsCount;
+    /// <summary>
+    /// Number of tracks currently being downloaded (Downloading, Searching, or Queued state).
+    /// </summary>
+    public int ActiveDownloadsCount
+    {
+        get => _activeDownloadsCount;
+        set { SetProperty(ref _activeDownloadsCount, value); }
+    }
+
+    private string? _currentDownloadingTrack;
+    /// <summary>
+    /// Display name of the track currently being downloaded (e.g., "Artist - Title").
+    /// </summary>
+    public string? CurrentDownloadingTrack
+    {
+        get => _currentDownloadingTrack;
+        set { SetProperty(ref _currentDownloadingTrack, value); }
+    }
+
     /// <summary>
     /// Overall progress percentage for this job (0-100).
     /// Calculated as: (SuccessfulCount + FailedCount) / TotalTracks * 100

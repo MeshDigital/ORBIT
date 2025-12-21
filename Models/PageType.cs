@@ -7,5 +7,7 @@ public enum PageType
     Library,
     Downloads,
     Settings,
-    Import
+    Import,
+    UpgradeScout,
+    Inspector
 }

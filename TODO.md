@@ -4,7 +4,12 @@
 
 ---
 
-## Current Status: 70% Complete ✅
+## Current Status: 71% Complete ✅
+
+### Recent Updates (December 21, 2025)
+- ✅ **Performance Optimization**: Event-to-project mapping eliminates O(n) update loop (500+ ops/sec → O(1))
+- ✅ Library-first design: Track state visualization with inline controls
+- ✅ Search performance: Streaming results with incremental ranking
 
 ### What's Working
 - ✅ Search with ranking (Soulseek P2P)
@@ -150,6 +155,35 @@
 4. Return local file path for UI binding
 
 ---
+
+## Phase 12: Search Experience 2.0 (Technical Breakdown) 🟡 NEW
+
+### 12.1 Reactive Search (Streaming) (4 hours)
+- [ ] Refactor `SearchOrchestrationService` to return `IAsyncEnumerable<AlbumResultViewModel>`
+- [ ] Implement incremental results "pop-in" (500ms first paint)
+- [ ] Use `SourceList<T>` (DynamicData) for thread-safe UI updates
+- [ ] Search throttling (100ms buffer) to prevent UI stutter
+
+### 12.2 Advanced Filtering HUD (3 hours)
+- [ ] Create `SearchFilterViewModel`
+- [ ] Add **Bitrate Slider** (range selector)
+- [ ] Add **Format Chips** (MP3/FLAC/WAV toggles)
+- [ ] Add **User Trust Toggle** (filter locked/slow peers)
+- [ ] Bind filter logic to `DynamicData` filter pipeline
+
+### 12.3 Batch Actions & Selection (3 hours)
+- [ ] Enable `SelectionMode="Multiple"` in Search Grid
+- [ ] Implement "Floating Action Bar" (appears on selection > 1)
+- [ ] Add `DownloadSelectedCommand` (batch download)
+- [ ] Add `AddToPlaylistCommand` (batch add)
+
+### 12.4 Critical Fixes (2 hours)
+- [ ] **Overlay Bug**: Replace `GetType().Name` calculation with explicit `IsImportOverlayActive` flags
+- [ ] **Theming**: Replace `#1A1A1A` with `{DynamicResource RegionColor}`
+- [ ] **Reflection Removal**: Replace `GetType().GetProperty("PlayerViewModel")` with properly injected `IPlayerService`
+
+---
+
 
 ## Phase 1.5: Advanced Ranking Configuration (4 hours) ✨ NEW
 

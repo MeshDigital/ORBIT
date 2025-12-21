@@ -49,16 +49,22 @@ public class DownloadDiscoveryService
             var maxBitrate = 3000; // Cap at reasonable high
 
             // 2. Perform Search via Orchestrator
-            // We ask for "partial results" to be ignored here, we only care about the final ranked list
-            var searchResult = await _searchOrchestrator.SearchAsync(
+            // 2. Perform Search via Orchestrator
+            // Collect all results from the stream
+            var searchResult = new SearchResult();
+            var allTracks = new System.Collections.Generic.List<Track>();
+
+            await foreach (var searchTrack in _searchOrchestrator.SearchAsync(
                 query,
                 preferredFormats,
                 minBitrate,
                 maxBitrate,
                 isAlbumSearch: false,
-                onPartialResults: null,
-                cancellationToken: ct
-            );
+                cancellationToken: ct))
+            {
+                allTracks.Add(searchTrack);
+            }
+            searchResult.Tracks = allTracks;
 
             if (searchResult.TotalCount == 0 || !searchResult.Tracks.Any())
             {

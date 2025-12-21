@@ -381,8 +381,8 @@ public class DownloadManager : INotifyPropertyChanged, IDisposable
         ctx.State = newState;
         ctx.ErrorMessage = error; // Update context
         
-        // Publish
-        _eventBus.Publish(new Events.TrackStateChangedEvent(ctx.GlobalId, newState, error));
+        // Publish with ProjectId for targeted updates
+        _eventBus.Publish(new Events.TrackStateChangedEvent(ctx.GlobalId, ctx.Model.PlaylistId, newState, error));
         
         // DB Persistence for critical states
         await SaveTrackToDb(ctx);
@@ -488,7 +488,7 @@ public class DownloadManager : INotifyPropertyChanged, IDisposable
         ctx.CancellationTokenSource = new CancellationTokenSource(); // Reset CTS
         
         // Publish reset event (handled by StateChanged to Pending usually, but verify UI clears error)
-         _eventBus.Publish(new Events.TrackStateChangedEvent(ctx.GlobalId, PlaylistTrackState.Pending, null));
+        _eventBus.Publish(new Events.TrackStateChangedEvent(ctx.GlobalId, ctx.Model.PlaylistId, PlaylistTrackState.Pending, null));
     }
 
     public void CancelTrack(string globalId)

@@ -222,7 +222,10 @@ public class LibraryService : ILibraryService
             // 1. Save Header + Tracks to DB atomically
             await _databaseService.SavePlaylistJobWithTracksAsync(job).ConfigureAwait(false);
             
-            // 2. Notify listeners
+            // 2. Invalidate Cache
+            _cache.InvalidateProject(job.Id);
+
+            // 3. Notify listeners
             // Legacy event removed: PlaylistAdded?.Invoke(this, job);
             _eventBus.Publish(new ProjectAddedEvent(job.Id));
             _logger.LogInformation("Saved playlist job with tracks and notified listeners: {Title}", job.SourceTitle);

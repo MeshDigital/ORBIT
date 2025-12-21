@@ -19,7 +19,7 @@
         <conv:BitmapValueConverter x:Key="BitmapValueConverter"/>
     </UserControl.Resources>
 
-    <Grid ColumnDefinitions="280,*,Auto">
+    <Grid ColumnDefinitions="280,Auto,*,Auto,Auto">
         
         <!-- LEFT PANEL: Playlist List -->
         <Border Grid.Column="0" Background="#202020" BorderBrush="#3E3E3E" BorderThickness="0,0,1,0">
@@ -38,8 +38,11 @@
                                  <MenuItem Header="Upgrade Scout" Command="{Binding ToggleUpgradeScoutCommand}">
                                      <MenuItem.Icon>💎</MenuItem.Icon>
                                  </MenuItem>
-                                 <MenuItem Header="New Smart Playlist" Command="{Binding AddPlaylistCommand}">
+                                 <MenuItem Header="New Smart Playlist" Command="{Binding Projects.AddPlaylistCommand}">
                                      <MenuItem.Icon>⚡</MenuItem.Icon>
+                                 </MenuItem>
+                                 <MenuItem Header="Retry Offline Tracks" Command="{Binding Operations.RetryOfflineTracksCommand}">
+                                     <MenuItem.Icon>🔄</MenuItem.Icon>
                                  </MenuItem>
                              </MenuFlyout>
                          </DropDownButton.Flyout>
@@ -81,6 +84,7 @@
                                 <TextBlock Text="Liked Songs" VerticalAlignment="Center"/>
                             </StackPanel>
                         </Button>
+                        
 
                         <Separator Height="1" Background="#333" Margin="12,8"/>
 
@@ -108,7 +112,7 @@
 
                 <!-- Bottom Actions -->
                 <StackPanel Grid.Row="2" Margin="12,12" Spacing="8">
-                    <Button Command="{Binding AddPlaylistCommand}" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center">
+                    <Button Command="{Binding Projects.AddPlaylistCommand}" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center">
                         <StackPanel Orientation="Horizontal" Spacing="6">
                             <TextBlock Text="➕"/>
                             <TextBlock Text="New Playlist"/>
@@ -125,9 +129,12 @@
                 </StackPanel>
             </Grid>
         </Border>
+
+        <!-- Sidebar Splitter -->
+        <GridSplitter Grid.Column="1" Width="1" Background="#3E3E3E" HorizontalAlignment="Center"/>
         
         <!-- RIGHT PANEL: Track List -->
-        <Grid Grid.Column="1" RowDefinitions="Auto,Auto,*">
+        <Grid Grid.Column="2" RowDefinitions="Auto,Auto,*">
             
             <!-- Toolbar -->
             <Border Grid.Row="0" Background="#252526" BorderBrush="#3E3E3E" BorderThickness="0,0,0,1" Padding="20,16">
@@ -361,30 +368,6 @@
             </Grid>
         </Grid>
 
-        <!-- RIGHT PANEL: Track Inspector -->
-        <Border Grid.Column="2" 
-                Width="320"
-                Background="#1A1A1A" 
-                BorderBrush="#3E3E3E" 
-                BorderThickness="1,0,0,0"
-                IsVisible="{Binding IsInspectorVisible}">
-            <views:TrackInspectorView DataContext="{Binding TrackInspector}"/>
-        </Border>
 
-        <!-- Grid Splitter for Inspector -->
-        <GridSplitter Grid.Column="1" 
-                      Width="1" 
-                      Background="#3E3E3E"
-                      IsVisible="{Binding IsInspectorVisible}"/>
-
-        <!-- Phase 8: Upgrade Scout Overlay -->
-        <Border Grid.Column="0" Grid.ColumnSpan="3"
-                Background="#99000000"
-                IsVisible="{Binding IsUpgradeScoutVisible}"
-                ZIndex="500">
-            <Panel VerticalAlignment="Center" HorizontalAlignment="Center" Width="900" Height="700">
-                <views:UpgradeScoutView DataContext="{Binding UpgradeScout}"/>
-            </Panel>
-        </Border>
     </Grid>
 </UserControl>

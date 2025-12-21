@@ -12,10 +12,14 @@ using SLSKDONET.Models;
 using SLSKDONET.Services;
 using SLSKDONET.Services.ImportProviders;
 using SLSKDONET.Views;
+using DynamicData;
+using DynamicData.Binding;
+using ReactiveUI;
+using System.Reactive.Linq;
 
 namespace SLSKDONET.ViewModels;
 
-public class SearchViewModel : INotifyPropertyChanged
+public partial class SearchViewModel : ReactiveObject
 {
     private readonly ILogger<SearchViewModel> _logger;
     private readonly SoulseekAdapter _soulseek;
@@ -31,7 +35,6 @@ public class SearchViewModel : INotifyPropertyChanged
 
     // Child ViewModels
     public ImportPreviewViewModel ImportPreviewViewModel { get; }
-    public SpotifyImportViewModel SpotifyImportViewModel { get; }
 
     // Search input state
     private string _searchQuery = "";
@@ -42,11 +45,13 @@ public class SearchViewModel : INotifyPropertyChanged
         { 
             if (SetProperty(ref _searchQuery, value))
             {
-                OnPropertyChanged(nameof(CanSearch));
-                ((AsyncRelayCommand)UnifiedSearchCommand).RaiseCanExecuteChanged();
+                this.RaisePropertyChanged(nameof(CanSearch));
+                // UnifiedSearchCommand: ReactiveCommand handles CanExecute auto-magically
             }
         }
     }
+    
+    public bool CanSearch => !string.IsNullOrWhiteSpace(SearchQuery);
 
     private bool _isAlbumSearch;
     public bool IsAlbumSearch
@@ -56,18 +61,12 @@ public class SearchViewModel : INotifyPropertyChanged
         {
             if (SetProperty(ref _isAlbumSearch, value))
             {
-                SearchResults.Clear();
+                _searchResults.Clear();
                 AlbumResults.Clear();
             }
         }
     }
     
-    private bool _isSpotifyBrowseMode;
-    public bool IsSpotifyBrowseMode
-    {
-        get => _isSpotifyBrowseMode;
-        set => SetProperty(ref _isSpotifyBrowseMode, value);
-    }
 
     private bool _isSearching;
     public bool IsSearching
@@ -83,34 +82,75 @@ public class SearchViewModel : INotifyPropertyChanged
         set => SetProperty(ref _statusText, value);
     }
 
-    // Results
-    public ObservableCollection<SearchResult> SearchResults { get; } = new();
+    // Reactive State
+    private readonly SourceList<SearchResult> _searchResults = new();
+    private readonly ReadOnlyObservableCollection<SearchResult> _publicSearchResults;
+    public ReadOnlyObservableCollection<SearchResult> SearchResults => _publicSearchResults;
+    
+    // Album Results (Legacy/Separate collection for now)
     public ObservableCollection<AlbumResultViewModel> AlbumResults { get; } = new();
 
-    // Selection
-    public int SelectedTrackCount => SearchResults.Count(t => t.IsSelected);
+    // Filter properties (Post-Search)
+    private int _filterMinBitrate = 320;
+    private bool _filterMp3 = true;
+    private bool _filterFlac = true;
+    private bool _filterWav = true;
+    
+    // Search Parameters (Pre-Search)
+    private int _minBitrate = 320;
+    public int MinBitrate 
+    {
+        get => _minBitrate;
+        set => this.RaiseAndSetIfChanged(ref _minBitrate, value);
+    }
+    
+    private int _maxBitrate = 3000;
+    public int MaxBitrate 
+    {
+        get => _maxBitrate;
+        set => this.RaiseAndSetIfChanged(ref _maxBitrate, value);
+    }
 
-    // Filter/Ranking State
-    public RankingPreset RankingPreset { get; set; } = RankingPreset.Balanced;
-    public int MinBitrate { get; set; } = 320;
-    public int MaxBitrate { get; set; } = 3000;
+    // Import Overlay State (Fix for ZIndex bug)
+    private bool _isImportOverlayActive;
+    public bool IsImportOverlayActive 
+    {
+        get => _isImportOverlayActive;
+        set => SetProperty(ref _isImportOverlayActive, value);
+    }
+    
+    // Dynamic Filters
+    public int FilterMinBitrate 
+    {
+        get => _filterMinBitrate;
+        set { SetProperty(ref _filterMinBitrate, value); } 
+    }
 
-    // UI State
-    public bool IsImportPreviewVisible => _navigationService.CurrentPage?.GetType().Name.Contains("ImportPreview") == true;
+    public bool FilterMp3 
+    {
+        get => _filterMp3;
+        set { SetProperty(ref _filterMp3, value); }
+    }
 
-    public bool CanSearch => !string.IsNullOrWhiteSpace(SearchQuery);
+    public bool FilterFlac 
+    {
+        get => _filterFlac;
+        set { SetProperty(ref _filterFlac, value); }
+    }
+
+    public bool FilterWav 
+    {
+        get => _filterWav;
+        set { SetProperty(ref _filterWav, value); }
+    }
 
     // Commands
     public ICommand UnifiedSearchCommand { get; }
     public ICommand ClearSearchCommand { get; }
     public ICommand BrowseCsvCommand { get; }
     public ICommand PasteTracklistCommand { get; }
-    public ICommand BrowseSpotifyCommand { get; }
     public ICommand CancelSearchCommand { get; }
     public ICommand AddToDownloadsCommand { get; }
-    public ICommand DownloadAlbumCommand { get; } 
-
-    public event PropertyChangedEventHandler? PropertyChanged;
 
     public SearchViewModel(
         ILogger<SearchViewModel> logger,
@@ -118,7 +158,6 @@ public class SearchViewModel : INotifyPropertyChanged
         ImportOrchestrator importOrchestrator,
         IEnumerable<IImportProvider> importProviders,
         ImportPreviewViewModel importPreviewViewModel,
-        SpotifyImportViewModel spotifyImportViewModel,
         DownloadManager downloadManager,
         INavigationService navigationService,
         IFileInteractionService fileInteractionService,
@@ -130,21 +169,63 @@ public class SearchViewModel : INotifyPropertyChanged
         _importOrchestrator = importOrchestrator;
         _importProviders = importProviders;
         ImportPreviewViewModel = importPreviewViewModel;
-        SpotifyImportViewModel = spotifyImportViewModel;
         _downloadManager = downloadManager;
         _navigationService = navigationService;
         _fileInteractionService = fileInteractionService;
         _clipboardService = clipboardService;
         _searchOrchestration = searchOrchestration;
+        _isImportOverlayActive = false; // Initialize explicitly
 
-        UnifiedSearchCommand = new AsyncRelayCommand(ExecuteUnifiedSearchAsync, () => CanSearch);
-        ClearSearchCommand = new RelayCommand(() => SearchQuery = "");
-        BrowseCsvCommand = new AsyncRelayCommand(ExecuteBrowseCsvAsync);
-        PasteTracklistCommand = new AsyncRelayCommand(ExecutePasteTracklistAsync);
-        BrowseSpotifyCommand = new RelayCommand(() => IsSpotifyBrowseMode = !IsSpotifyBrowseMode);
-        CancelSearchCommand = new RelayCommand(ExecuteCancelSearch);
-        AddToDownloadsCommand = new AsyncRelayCommand(ExecuteAddToDownloadsAsync);
-        DownloadAlbumCommand = new RelayCommand<object>(param => { /* TODO: Implement single album download */ });
+        // --- Reactive Pipeline Setup ---
+        // Connect SourceList -> Filter -> Sort -> Bind -> Public Collection
+        
+        var filterPredicate = this.WhenAnyValue(
+            x => x.FilterMinBitrate,
+            x => x.FilterMp3,
+            x => x.FilterFlac,
+            x => x.FilterWav)
+            .Select(BuildFilter);
+
+        _searchResults.Connect()
+            .Filter(filterPredicate)
+            .ObserveOn(RxApp.MainThreadScheduler)
+            .Bind(out _publicSearchResults)
+            .Subscribe();
+
+        // Commands
+        var canSearch = this.WhenAnyValue(x => x.SearchQuery, query => !string.IsNullOrWhiteSpace(query));
+        
+        UnifiedSearchCommand = ReactiveCommand.CreateFromTask(ExecuteUnifiedSearchAsync, canSearch);
+        ClearSearchCommand = ReactiveCommand.Create(() => { SearchQuery = ""; _searchResults.Clear(); });
+        BrowseCsvCommand = ReactiveCommand.CreateFromTask(ExecuteBrowseCsvAsync);
+        PasteTracklistCommand = ReactiveCommand.CreateFromTask(ExecutePasteTracklistAsync);
+        CancelSearchCommand = ReactiveCommand.Create(ExecuteCancelSearch);
+        AddToDownloadsCommand = ReactiveCommand.CreateFromTask(ExecuteAddToDownloadsAsync);
+        
+        // Listen for Import Preview completion to close overlay
+        importPreviewViewModel.AddedToLibrary += (s, e) => IsImportOverlayActive = false;
+        importPreviewViewModel.Cancelled += (s, e) => IsImportOverlayActive = false;
+    }
+
+    private Func<SearchResult, bool> BuildFilter((int minKbps, bool mp3, bool flac, bool wav) tuple)
+    {
+        return result =>
+        {
+            if (result.Model == null) return true;
+            
+            // 1. Bitrate Check
+            if (result.Model.Bitrate < tuple.minKbps) return false;
+
+            // 2. Format Check
+            var ext = System.IO.Path.GetExtension(result.Model.Filename)?.ToLowerInvariant().TrimStart('.');
+            if (string.IsNullOrEmpty(ext)) return true; // Keep unknown?
+
+            if (ext == "mp3" && !tuple.mp3) return false;
+            if (ext == "flac" && !tuple.flac) return false;
+            if (ext == "wav" && !tuple.wav) return false;
+
+            return true;
+        };
     }
 
     private async Task ExecuteUnifiedSearchAsync()
@@ -153,49 +234,57 @@ public class SearchViewModel : INotifyPropertyChanged
 
         IsSearching = true;
         StatusText = "Processing...";
-        SearchResults.Clear();
+        _searchResults.Clear(); // Clear reactive list
         AlbumResults.Clear();
 
         try
         {
-            // 1. Check if any registered Import Provider can handle this input
+            // 1. Check Import Providers
             var provider = _importProviders.FirstOrDefault(p => p.CanHandle(SearchQuery));
             if (provider != null)
             {
                 StatusText = $"Importing via {provider.Name}...";
+                IsImportOverlayActive = true; // Show overlay
                 await _importOrchestrator.StartImportWithPreviewAsync(provider, SearchQuery);
                 IsSearching = false;
                 StatusText = "Import ready";
                 return;
             }
 
-            // 2. Default: Soulseek Search
-            StatusText = $"Searching Soulseek for '{SearchQuery}'...";
+            // 2. Soulseek Streaming Search
+            StatusText = $"Searching: {SearchQuery}...";
             
-            // Pass the callback to handle results as they stream in
-            // 2. Default: Soulseek Search via Orchestrator
-            StatusText = $"Searching Soulseek for '{SearchQuery}'...";
+            var cts = new CancellationTokenSource();
             
-            // Pass the callback to handle results as they stream in
-            var result = await _searchOrchestration.SearchAsync(
-                SearchQuery,
-                string.Join(",", PreferredFormats),
-                MinBitrate, 
-                MaxBitrate,
-                IsAlbumSearch,
-                OnTracksFound,
-                CancellationToken.None
-            );
-            
-            // Auto-hide spinner after 5 seconds if results found
-            _ = Task.Delay(5000).ContinueWith(_ => 
+            try 
             {
-                Dispatcher.UIThread.Post(() => 
+                // Consume the IAsyncEnumerable stream
+                await foreach (var track in _searchOrchestration.SearchAsync(
+                    SearchQuery,
+                    string.Join(",", PreferredFormats),
+                    MinBitrate, 
+                    MaxBitrate,
+                    IsAlbumSearch,
+                    cts.Token))
                 {
-                    if (IsSearching && SearchResults.Any()) 
-                        IsSearching = false;
-                });
-            });
+                    // Add directly to SourceList - it handles thread safety and notifications!
+                    _searchResults.Add(new SearchResult(track));
+                    
+                    // Optional: throttle status updates
+                    if (_searchResults.Count % 10 == 0)
+                        StatusText = $"Found {_searchResults.Count} tracks...";
+                }
+            }
+            catch (OperationCanceledException)
+            {
+                StatusText = "Cancelled";
+            }
+            finally
+            {
+                IsSearching = false;
+                if (_searchResults.Count > 0) StatusText = $"Found {_searchResults.Count} items";
+                else StatusText = "No results found";
+            }
         }
         catch (Exception ex)
         {
@@ -203,20 +292,6 @@ public class SearchViewModel : INotifyPropertyChanged
             StatusText = $"Error: {ex.Message}";
             IsSearching = false;
         }
-    }
-
-    private void OnTracksFound(IEnumerable<Track> tracks)
-    {
-        Dispatcher.UIThread.Post(() =>
-        {
-            foreach (var track in tracks)
-            {
-                // Wrap Track in SearchResult ViewModel
-                var result = new SearchResult(track);
-                SearchResults.Add(result);
-            }
-            StatusText = $"Found {SearchResults.Count} tracks";
-        });
     }
 
     private async Task ExecuteBrowseCsvAsync()
@@ -292,16 +367,20 @@ public class SearchViewModel : INotifyPropertyChanged
         await Task.CompletedTask;
     }
 
-    protected void OnPropertyChanged([CallerMemberName] string? propertyName = null)
+    public void ResetState()
     {
-        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
+        SearchQuery = "";
+        IsSearching = false;
+        IsImportOverlayActive = false;
+        _searchResults.Clear();
+        AlbumResults.Clear();
+        StatusText = "Ready";
     }
 
     protected bool SetProperty<T>(ref T field, T value, [CallerMemberName] string? propertyName = null)
     {
         if (EqualityComparer<T>.Default.Equals(field, value)) return false;
-        field = value;
-        OnPropertyChanged(propertyName);
+        this.RaiseAndSetIfChanged(ref field, value, propertyName);
         return true;
     }
 }

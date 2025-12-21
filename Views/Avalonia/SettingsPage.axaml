@@ -366,14 +366,21 @@
                     <Grid ColumnDefinitions="180,*">
                         <TextBlock Grid.Column="0" Text="Status:" VerticalAlignment="Center" Foreground="#DDD"/>
                         <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="12">
-                             <Border CornerRadius="12" 
+                             <Border CornerRadius="6" 
                                      Padding="12,6"
                                      Background="{Binding SpotifyStatusColor}">
                                  <StackPanel Orientation="Horizontal" Spacing="8">
-                                     <TextBlock Text="{Binding SpotifyStatusIcon}" FontSize="14"/>
-                                     <TextBlock Text="{Binding SpotifyDisplayName}" FontWeight="SemiBold" Foreground="White"/>
+                                     <PathIcon Data="{StaticResource icons_spotify}" Width="16" Height="16" IsVisible="{Binding IsSpotifyConnected}"/>
+                                     <TextBlock Text="{Binding SpotifyStatusIcon}" FontSize="14" IsVisible="{Binding IsSpotifyConnected, Converter={StaticResource BoolInverseConverter}}"/>
+                                     <TextBlock Text="{Binding SpotifyDisplayName}" FontWeight="SemiBold" Foreground="White" VerticalAlignment="Center"/>
                                  </StackPanel>
                              </Border>
+                             
+                             <TextBlock Text="Authentication Active..." 
+                                        IsVisible="{Binding IsAuthenticating}" 
+                                        VerticalAlignment="Center" 
+                                        FontSize="12" 
+                                        Foreground="#1DB954"/>
                         </StackPanel>
                     </Grid>
 
@@ -389,33 +396,51 @@
                     </Expander>
 
                     <!-- Connect/Disconnect Buttons -->
-                    <StackPanel Orientation="Horizontal" Spacing="16" Margin="180,0,0,0">
+                    <StackPanel Orientation="Horizontal" Spacing="12" Margin="180,0,0,0" IsVisible="{Binding IsAuthenticating, Converter={StaticResource BoolInverseConverter}}">
                         <Button Command="{Binding ConnectSpotifyCommand}"
-                                IsVisible="{Binding !IsSpotifyConnected}"
+                                IsVisible="{Binding IsSpotifyConnected, Converter={StaticResource BoolInverseConverter}}"
                                 Background="#1DB954"
-                                Padding="24,10"
-                                CornerRadius="20">
+                                Padding="20,10"
+                                CornerRadius="4">
                             <StackPanel Orientation="Horizontal" Spacing="8">
-                                <TextBlock Text="🔌" FontSize="16"/>
+                                <PathIcon Data="{StaticResource icons_spotify}" Width="16" Height="16"/>
                                 <TextBlock Text="Connect with Spotify" FontSize="14" FontWeight="Bold" Foreground="White"/>
                             </StackPanel>
                         </Button>
 
                         <Button Command="{Binding DisconnectSpotifyCommand}"
                                 IsVisible="{Binding IsSpotifyConnected}"
-                                Background="#D32F2F"
-                                Padding="24,10"
-                                CornerRadius="20">
+                                Background="#444"
+                                BorderBrush="#D32F2F"
+                                BorderThickness="1"
+                                Padding="20,10"
+                                CornerRadius="4">
                             <StackPanel Orientation="Horizontal" Spacing="8">
-                                <TextBlock Text="❌" FontSize="16"/>
-                                <TextBlock Text="Disconnect" FontSize="14" FontWeight="Bold" Foreground="White"/>
+                                <TextBlock Text="✕" FontSize="14" Foreground="#D32F2F"/>
+                                <TextBlock Text="Disconnect" FontSize="14" FontWeight="SemiBold" Foreground="#DDD"/>
                             </StackPanel>
                         </Button>
                         
-                        <ProgressBar IsIndeterminate="True" 
-                                     Width="24" Height="24"
-                                     IsVisible="{Binding IsAuthenticating}"/>
+                        <Button Command="{Binding TestSpotifyConnectionCommand}"
+                                IsVisible="{Binding IsSpotifyConnected}"
+                                Background="#333"
+                                Padding="16,10"
+                                CornerRadius="4"
+                                ToolTip.Tip="Verify connection">
+                             <StackPanel Orientation="Horizontal" Spacing="8">
+                                 <TextBlock Text="🔄" FontSize="14"/>
+                                 <TextBlock Text="Test Connection" FontSize="13" Foreground="#AAA"/>
+                             </StackPanel>
+                        </Button>
                     </StackPanel>
+
+                    <!-- Progress Bar during Auth -->
+                    <ProgressBar IsIndeterminate="True" 
+                                 Width="400" Height="4"
+                                 Margin="180,0,0,0"
+                                 HorizontalAlignment="Left"
+                                 IsVisible="{Binding IsAuthenticating}"
+                                 Foreground="#1DB954"/>
                 </StackPanel>
             </Border>
 

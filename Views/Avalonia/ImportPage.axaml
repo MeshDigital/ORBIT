@@ -26,16 +26,16 @@
                                 <TextBlock Text="Your personal library, synced." FontSize="14" Foreground="#A0A0A0"/>
                             </StackPanel>
                             <Button Grid.Column="1" 
-                                    Command="{Binding SettingsViewModel.ConnectSpotifyCommand}"
-                                    IsVisible="{Binding !IsSpotifyAuthenticated}"
+                                    Command="{Binding ConnectCommand}"
+                                    IsVisible="{Binding !IsAuthenticated}"
                                     Background="#1DB954" Foreground="White" CornerRadius="20" Padding="16,8">
                                 <TextBlock Text="Connect Account" FontWeight="Bold"/>
                             </Button>
-                            <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="12" IsVisible="{Binding IsSpotifyAuthenticated}">
+                            <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="12" IsVisible="{Binding IsAuthenticated}">
                                 <Border Background="#2A2A2A" CornerRadius="16" Padding="12,6">
                                     <TextBlock Text="Connected" Foreground="#1DB954" FontSize="12" FontWeight="SemiBold"/>
                                 </Border>
-                                <Button Command="{Binding LoadSpotifyPlaylistsCommand}" Background="Transparent" Padding="4">
+                                <Button Command="{Binding RefreshPlaylistsCommand}" Background="Transparent" Padding="4">
                                     <TextBlock Text="🔄" FontSize="16"/>
                                 </Button>
                             </StackPanel>
@@ -45,7 +45,7 @@
 
                         <!-- Liked Songs Quick Action -->
                         <Button Command="{Binding ImportLikedSongsCommand}"
-                                IsEnabled="{Binding IsSpotifyAuthenticated}"
+                                IsEnabled="{Binding IsAuthenticated}"
                                 Background="#2A2A2A" BorderBrush="#3E3E3E" BorderThickness="1"
                                 HorizontalAlignment="Stretch" Padding="16" CornerRadius="8">
                             <Grid ColumnDefinitions="Auto,*,Auto">
@@ -61,9 +61,9 @@
                         <!-- Playlists Section -->
                         <TextBlock Text="Your Playlists" FontSize="14" FontWeight="SemiBold" Foreground="#AAA" Margin="0,8,0,0"/>
                         
-                        <ProgressBar IsIndeterminate="True" IsVisible="{Binding IsLoadingPlaylists}" Height="2"/>
+                        <ProgressBar IsIndeterminate="True" IsVisible="{Binding IsLoading}" Height="2"/>
 
-                        <ItemsControl ItemsSource="{Binding SpotifyPlaylists}" MaxHeight="300">
+                        <ItemsControl ItemsSource="{Binding UserPlaylists}" MaxHeight="300">
                             <ItemsControl.ItemsPanel>
                                 <ItemsPanelTemplate>
                                     <WrapPanel />
@@ -71,7 +71,7 @@
                             </ItemsControl.ItemsPanel>
                             <ItemsControl.ItemTemplate>
                                 <DataTemplate>
-                                    <Button Command="{Binding $parent[UserControl].DataContext.ImportSpotifyPlaylistCommand}"
+                                    <Button Command="{Binding $parent[UserControl].DataContext.ImportPlaylistCommand}"
                                             CommandParameter="{Binding}"
                                             Background="#252526" Margin="0,0,12,12" Width="220" Padding="12" CornerRadius="8">
                                         <Grid ColumnDefinitions="Auto,*">

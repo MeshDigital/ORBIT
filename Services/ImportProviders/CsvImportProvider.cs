@@ -11,7 +11,7 @@ namespace SLSKDONET.Services.ImportProviders;
 /// <summary>
 /// Import provider for CSV files.
 /// </summary>
-public class CsvImportProvider : IImportProvider
+public class CsvImportProvider : IStreamingImportProvider
 {
     private readonly ILogger<CsvImportProvider> _logger;
     private readonly CsvInputSource _csvInputSource;
@@ -84,6 +84,20 @@ public class CsvImportProvider : IImportProvider
             {
                 Success = false,
                 ErrorMessage = $"CSV import failed: {ex.Message}"
+            };
+        }
+    }
+    public async IAsyncEnumerable<ImportBatchResult> ImportStreamAsync(string input)
+    {
+        var result = await ImportAsync(input);
+        
+        if (result.Success && result.Tracks.Any())
+        {
+            yield return new ImportBatchResult
+            {
+                Tracks = result.Tracks,
+                SourceTitle = result.SourceTitle,
+                TotalEstimated = result.Tracks.Count
             };
         }
     }

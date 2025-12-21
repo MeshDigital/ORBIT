@@ -89,25 +89,11 @@ public class LibraryViewModel : INotifyPropertyChanged
         }
     }
 
-    private bool _isUpgradeScoutVisible;
-    public bool IsUpgradeScoutVisible
-    {
-        get => _isUpgradeScoutVisible;
-        set
-        {
-            if (_isUpgradeScoutVisible != value)
-            {
-                _isUpgradeScoutVisible = value;
-                OnPropertyChanged();
-            }
-        }
-    }
 
     // Commands that delegate to child ViewModels or handle coordination
     public System.Windows.Input.ICommand ViewHistoryCommand { get; }
     public System.Windows.Input.ICommand ToggleEditModeCommand { get; }
     public System.Windows.Input.ICommand ToggleActiveDownloadsCommand { get; }
-    public System.Windows.Input.ICommand ToggleUpgradeScoutCommand { get; }
     
     // Session 1: Critical bug fixes (3 commands to unblock user)
     public System.Windows.Input.ICommand PlayTrackCommand { get; }
@@ -127,7 +113,8 @@ public class LibraryViewModel : INotifyPropertyChanged
         ILibraryService libraryService,
         IEventBus eventBus,
         PlayerViewModel playerViewModel,
-        UpgradeScoutViewModel upgradeScout) // Phase 8: Inject UpgradeScout
+        UpgradeScoutViewModel upgradeScout,
+        TrackInspectorViewModel trackInspector) // Refactor: Inject Singleton Inspector
     {
         _logger = logger;
         _navigationService = navigationService;
@@ -145,7 +132,7 @@ public class LibraryViewModel : INotifyPropertyChanged
         ViewHistoryCommand = new AsyncRelayCommand(ExecuteViewHistoryAsync);
         ToggleEditModeCommand = new RelayCommand<object>(_ => IsEditMode = !IsEditMode);
         ToggleActiveDownloadsCommand = new RelayCommand<object>(_ => IsActiveDownloadsVisible = !IsActiveDownloadsVisible);
-        ToggleUpgradeScoutCommand = new RelayCommand<object>(_ => IsUpgradeScoutVisible = !IsUpgradeScoutVisible);
+        ToggleActiveDownloadsCommand = new RelayCommand<object>(_ => IsActiveDownloadsVisible = !IsActiveDownloadsVisible);
         
         // Session 1: Critical bug fixes
         PlayTrackCommand = new AsyncRelayCommand<PlaylistTrackViewModel>(ExecutePlayTrackAsync);
@@ -163,12 +150,56 @@ public class LibraryViewModel : INotifyPropertyChanged
         
         _logger.LogInformation("LibraryViewModel initialized with child ViewModels");
 
-        TrackInspector = new TrackInspectorViewModel();
+        TrackInspector = trackInspector;
 
         // Subscribe to selection changes in Tracks.Hierarchical.Source.Selection
         if (Tracks.Hierarchical.Source.Selection is ITreeDataGridSelectionInteraction selectionInteraction)
         {
             selectionInteraction.SelectionChanged += OnTrackSelectionChanged;
+        }
+        
+        // Subscribe to UpgradeScout close event
+        
+        // Phase 3: Post-Import Navigation - Auto-navigate to Library and select imported album
+        _eventBus.GetEvent<ProjectAddedEvent>().Subscribe(OnProjectAdded);
+    }
+    
+    private async void OnProjectAdded(ProjectAddedEvent evt)
+    {
+        try
+        {
+            _logger.LogInformation("ProjectAddedEvent received for job {JobId}, navigating to library", evt.ProjectId);
+            
+            // Navigate to Library page
+            await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() =>
+            {
+                _navigationService.NavigateTo("Library");
+            });
+            
+            // Give the UI time to update
+            await Task.Delay(300);
+            
+            // Load projects to ensure the new one is in the list
+            await LoadProjectsAsync();
+            
+            // Select the newly added project
+            await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() =>
+            {
+                var addedProject = Projects.AllProjects.FirstOrDefault(p => p.Id == evt.ProjectId);
+                if (addedProject != null)
+                {
+                    Projects.SelectedProject = addedProject;
+                    _logger.LogInformation("Auto-selected imported project: {Title}", addedProject.SourceTitle);
+                }
+                else
+                {
+                    _logger.LogWarning("Could not find project {JobId} in AllProjects after import", evt.ProjectId);
+                }
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to handle post-import navigation for project {JobId}", evt.ProjectId);
         }
     }
 
@@ -179,20 +210,9 @@ public class LibraryViewModel : INotifyPropertyChanged
         if (selectedItem is PlaylistTrackViewModel trackVm)
         {
             TrackInspector.Track = trackVm.Model;
-            IsInspectorVisible = true;
-        }
-        else
-        {
-            IsInspectorVisible = false;
         }
     }
 
-    private bool _isInspectorVisible;
-    public bool IsInspectorVisible
-    {
-        get => _isInspectorVisible;
-        set => SetProperty(ref _isInspectorVisible, value);
-    }
 
     /// <summary>
     /// Loads all projects from the database.

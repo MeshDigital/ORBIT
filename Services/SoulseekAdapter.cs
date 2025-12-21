@@ -57,7 +57,7 @@ public class SoulseekAdapter : ISoulseekAdapter, IDisposable
             };
             
             _logger.LogInformation("Successfully connected to Soulseek as {Username}", _config.Username);
-            _eventBus.Publish(new SoulseekConnectionStatusEvent("connected", _config.Username));
+            _eventBus.Publish(new SoulseekConnectionStatusEvent("connected", _config.Username ?? "Unknown"));
         }
         catch (Exception ex)
         {

@@ -9,7 +9,7 @@ namespace SLSKDONET.Services.ImportProviders;
 /// <summary>
 /// Import provider for pasted tracklists from YouTube comments, SoundCloud, etc.
 /// </summary>
-public class TracklistImportProvider : IImportProvider
+public class TracklistImportProvider : IStreamingImportProvider
 {
     private readonly ILogger<TracklistImportProvider> _logger;
 
@@ -79,6 +79,20 @@ public class TracklistImportProvider : IImportProvider
                 Success = false,
                 ErrorMessage = $"Parse error: {ex.Message}"
             });
+        }
+    }
+    public async IAsyncEnumerable<ImportBatchResult> ImportStreamAsync(string input)
+    {
+        var result = await ImportAsync(input);
+        
+        if (result.Success && result.Tracks.Any())
+        {
+            yield return new ImportBatchResult
+            {
+                Tracks = result.Tracks,
+                SourceTitle = result.SourceTitle,
+                TotalEstimated = result.Tracks.Count
+            };
         }
     }
 }

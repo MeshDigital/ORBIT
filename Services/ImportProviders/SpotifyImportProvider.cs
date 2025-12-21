@@ -10,7 +10,7 @@ namespace SLSKDONET.Services.ImportProviders;
 /// <summary>
 /// Import provider for Spotify playlists.
 /// </summary>
-public class SpotifyImportProvider : IImportProvider
+public class SpotifyImportProvider : IStreamingImportProvider
 {
     private readonly ILogger<SpotifyImportProvider> _logger;
     private readonly SpotifyInputSource _spotifyInputSource;
@@ -81,6 +81,20 @@ public class SpotifyImportProvider : IImportProvider
             {
                 Success = false,
                 ErrorMessage = $"Spotify import failed: {ex.Message}"
+            };
+        }
+    }
+    public async IAsyncEnumerable<ImportBatchResult> ImportStreamAsync(string input)
+    {
+        var result = await ImportAsync(input);
+        
+        if (result.Success && result.Tracks.Any())
+        {
+            yield return new ImportBatchResult
+            {
+                Tracks = result.Tracks,
+                SourceTitle = result.SourceTitle,
+                TotalEstimated = result.Tracks.Count
             };
         }
     }

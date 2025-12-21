@@ -2,6 +2,7 @@ using Avalonia.Controls;
 using System;
 using System.Collections.Generic;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 
 namespace SLSKDONET.Services;
 
@@ -21,6 +22,7 @@ public interface INavigationService
 
 public class NavigationService : INavigationService
 {
+    private readonly ILogger<NavigationService> _logger;
     private readonly IServiceProvider _serviceProvider;
     private readonly Dictionary<string, Type> _pages = new();
     private readonly Stack<object?> _pageHistory = new();
@@ -28,9 +30,10 @@ public class NavigationService : INavigationService
 
     public object? CurrentPage => _currentPage;
 
-    public NavigationService(IServiceProvider serviceProvider)
+    public NavigationService(IServiceProvider serviceProvider, ILogger<NavigationService> logger)
     {
         _serviceProvider = serviceProvider;
+        _logger = logger;
     }
 
     public void RegisterPage(string key, Type pageType)
@@ -44,6 +47,7 @@ public class NavigationService : INavigationService
     {
         if (_pages.TryGetValue(pageKey, out var pageType))
         {
+            _logger.LogInformation("Navigating to page: {PageKey}", pageKey);
             // Save current page in history (if exists)
             if (_currentPage != null)
             {
@@ -58,6 +62,14 @@ public class NavigationService : INavigationService
                 OnPageChanged();
                 Navigated?.Invoke(this, page);
             }
+            else
+            {
+                _logger.LogError("Failed to resolve page control for key: {PageKey}, Type: {PageType}", pageKey, pageType);
+            }
+        }
+        else
+        {
+            _logger.LogWarning("Navigation failed: Page key '{PageKey}' not registered", pageKey);
         }
     }
 

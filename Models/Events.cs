@@ -42,7 +42,7 @@ public record DownloadAlbumRequestEvent(object Album); // object to handle Album
 public record TrackAddedEvent(PlaylistTrack TrackModel);
 public record TrackRemovedEvent(string TrackGlobalId);
 public record TrackMovedEvent(string TrackGlobalId, Guid OldProjectId, Guid NewProjectId);
-public record TrackStateChangedEvent(string TrackGlobalId, PlaylistTrackState State, string? Error);
+public record TrackStateChangedEvent(string TrackGlobalId, Guid ProjectId, PlaylistTrackState State, string? Error);
 public record TrackProgressChangedEvent(string TrackGlobalId, double Progress);
 public record TrackMetadataUpdatedEvent(string TrackGlobalId);
 

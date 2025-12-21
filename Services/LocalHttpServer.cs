@@ -37,84 +37,89 @@ public class LocalHttpServer : IDisposable
         {
             _listener = new HttpListener();
             
-            // 1. Ensure the prefix ends with a slash (required by HttpListener)
-            var listenerUri = redirectUri;
-            if (!listenerUri.EndsWith("/")) 
-                listenerUri += "/";
+            // 1. Listen on root to capture all traffic on this port
+            // This avoids issues where Spotify adds/removes trailing slashes
+            var port = new Uri(redirectUri).Port;
+            var prefix = $"http://localhost:{port}/";
+            var prefixIp = $"http://127.0.0.1:{port}/";
             
-            // 2. Add the primary prefix
-            _listener.Prefixes.Add(listenerUri);
-            
-            // 3. Add both localhost and 127.0.0.1 to handle redirect hostname variations
-            if (listenerUri.Contains("localhost"))
-            {
-                _listener.Prefixes.Add(listenerUri.Replace("localhost", "127.0.0.1"));
-            }
-            else if (listenerUri.Contains("127.0.0.1"))
-            {
-                _listener.Prefixes.Add(listenerUri.Replace("127.0.0.1", "localhost"));
-            }
+            _listener.Prefixes.Add(prefix);
+            _listener.Prefixes.Add(prefixIp);
 
             _listener.Start();
-            _logger.LogInformation("OAuth callback server listening on prefixes: {Prefixes}", 
-                string.Join(", ", _listener.Prefixes));
+            _logger.LogInformation("OAuth callback server listening on: {Prefixes}", string.Join(", ", _listener.Prefixes));
 
-            // Wait for the callback request
-            var contextTask = _listener.GetContextAsync();
-            var completedTask = await Task.WhenAny(contextTask, Task.Delay(Timeout.Infinite, cancellationToken));
-
-            if (cancellationToken.IsCancellationRequested)
+            while (!cancellationToken.IsCancellationRequested)
             {
-                _logger.LogWarning("OAuth callback cancelled by user or timeout");
-                return null;
+                // Wait for a request
+                var contextTask = _listener.GetContextAsync();
+                var completedTask = await Task.WhenAny(contextTask, Task.Delay(-1, cancellationToken));
+
+                if (cancellationToken.IsCancellationRequested)
+                {
+                    _logger.LogWarning("OAuth callback cancelled by user or timeout");
+                    return null;
+                }
+
+                var context = await contextTask;
+                var request = context.Request;
+                var response = context.Response;
+
+                _logger.LogInformation("Received request: {Url}", request.Url);
+
+                // 2. Filter for legitimate callback path
+                // Accept /callback, /callback/, or just check if it contains the code
+                if (request.Url == null || (!request.Url.AbsolutePath.Contains("/callback") && string.IsNullOrEmpty(request.QueryString["code"])))
+                {
+                    // Ignore favicon.ico or other stray requests
+                    response.StatusCode = 404;
+                    response.Close();
+                    continue;
+                }
+
+                // Extract authorization code or error
+                var code = request.QueryString["code"];
+                var error = request.QueryString["error"];
+                var errorDescription = request.QueryString["error_description"];
+
+                // Send response to browser
+                string htmlResponse;
+                if (!string.IsNullOrEmpty(error))
+                {
+                    _logger.LogError("OAuth error: {Error} - {Description}", error, errorDescription);
+                    htmlResponse = GetErrorHtml(error, errorDescription);
+                    response.StatusCode = 400;
+                }
+                else if (!string.IsNullOrEmpty(code))
+                {
+                    _logger.LogInformation("Successfully received authorization code");
+                    htmlResponse = GetSuccessHtml();
+                    response.StatusCode = 200;
+                }
+                else
+                {
+                    _logger.LogWarning("OAuth callback received without code or error");
+                    htmlResponse = GetErrorHtml("invalid_request", "No authorization code received");
+                    response.StatusCode = 400;
+                }
+
+                // Write response to browser
+                var buffer = Encoding.UTF8.GetBytes(htmlResponse);
+                response.ContentLength64 = buffer.Length;
+                response.ContentType = "text/html; charset=utf-8";
+                await response.OutputStream.WriteAsync(buffer, cancellationToken);
+                response.Close();
+                
+                // We are done, return the code
+                return !string.IsNullOrEmpty(error) ? null : code;
             }
 
-            var context = await contextTask;
-            var request = context.Request;
-            var response = context.Response;
-
-            _logger.LogInformation("Received request from {RemoteEndPoint} for {Url}", 
-                request.RemoteEndPoint, request.Url);
-
-            // Extract authorization code or error
-            var code = request.QueryString["code"];
-            var error = request.QueryString["error"];
-            var errorDescription = request.QueryString["error_description"];
-
-            // Send response to browser
-            string htmlResponse;
-            if (!string.IsNullOrEmpty(error))
-            {
-                _logger.LogError("OAuth error: {Error} - {Description}", error, errorDescription);
-                htmlResponse = GetErrorHtml(error, errorDescription);
-                response.StatusCode = 400;
-            }
-            else if (!string.IsNullOrEmpty(code))
-            {
-                _logger.LogInformation("Successfully received authorization code");
-                htmlResponse = GetSuccessHtml();
-                response.StatusCode = 200;
-            }
-            else
-            {
-                _logger.LogWarning("OAuth callback received without code or error");
-                htmlResponse = GetErrorHtml("invalid_request", "No authorization code received");
-                response.StatusCode = 400;
-            }
-
-            // Write response to browser
-            var buffer = Encoding.UTF8.GetBytes(htmlResponse);
-            response.ContentLength64 = buffer.Length;
-            response.ContentType = "text/html; charset=utf-8";
-            await response.OutputStream.WriteAsync(buffer, cancellationToken);
-            response.Close();
-
-            return !string.IsNullOrEmpty(error) ? null : code;
+            return null;
         }
         catch (HttpListenerException ex)
         {
-            _logger.LogError(ex, "Failed to start OAuth callback server. Port may be in use.");
-            throw new InvalidOperationException($"Failed to start OAuth callback server: {ex.Message}", ex);
+            _logger.LogError(ex, "Failed to start OAuth callback server. Port {Port} may be in use.", new Uri(redirectUri).Port);
+            throw new InvalidOperationException($"Failed to start callback server on port {new Uri(redirectUri).Port}. Is another instance running?", ex);
         }
         catch (Exception ex)
         {

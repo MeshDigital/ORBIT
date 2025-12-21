@@ -18,12 +18,12 @@ public class SearchResult : INotifyPropertyChanged
         Model = track ?? Track.Null;
     }
 
-    public string Artist => Model.Artist;
-    public string Title => Model.Title;
-    public string Album => Model.Album;
+    public string Artist => Model.Artist ?? "Unknown Artist";
+    public string Title => Model.Title ?? "Unknown Track";
+    public string Album => Model.Album ?? "Unknown Album";
     public int Bitrate => Model.Bitrate;
     public long Size => Model.Size ?? 0;
-    public string Username => Model.Username;
+    public string Username => Model.Username ?? "Unknown";
     public bool HasFreeUploadSlot => Model.HasFreeUploadSlot;
     
     // Rank is updated on the Model by ResultSorter, we just expose it

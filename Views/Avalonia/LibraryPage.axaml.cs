@@ -119,7 +119,7 @@ public partial class LibraryPage : UserControl
                 // Set temporary global storage for extra context (Source Project ID)
                 if (DataContext is LibraryViewModel vm)
                 {
-                    data.Set("SourceProjectId", vm.SelectedProject?.Id.ToString());
+                    data.Set("SourceProjectId", vm.SelectedProject?.Id.ToString() ?? "");
                 }
 
                 // Start drag operation
