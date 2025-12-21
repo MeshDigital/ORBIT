@@ -49,15 +49,19 @@ public class LocalHttpServer : IDisposable
             _listener.Start();
             _logger.LogInformation("OAuth callback server listening on: {Prefixes}", string.Join(", ", _listener.Prefixes));
 
-            while (!cancellationToken.IsCancellationRequested)
+            // Add a hard timeout to avoid lock-ups if browser callback never arrives
+            using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+            timeoutCts.CancelAfter(TimeSpan.FromMinutes(2));
+
+            while (!timeoutCts.IsCancellationRequested)
             {
                 // Wait for a request
                 var contextTask = _listener.GetContextAsync();
-                var completedTask = await Task.WhenAny(contextTask, Task.Delay(-1, cancellationToken));
+                var completedTask = await Task.WhenAny(contextTask, Task.Delay(-1, timeoutCts.Token));
 
-                if (cancellationToken.IsCancellationRequested)
+                if (timeoutCts.IsCancellationRequested)
                 {
-                    _logger.LogWarning("OAuth callback cancelled by user or timeout");
+                    _logger.LogWarning("OAuth callback cancelled by user or timed out");
                     return null;
                 }
 
@@ -69,7 +73,10 @@ public class LocalHttpServer : IDisposable
 
                 // 2. Filter for legitimate callback path
                 // Accept /callback, /callback/, or just check if it contains the code
-                if (request.Url == null || (!request.Url.AbsolutePath.Contains("/callback") && string.IsNullOrEmpty(request.QueryString["code"])))
+                var path = request.Url?.AbsolutePath?.TrimEnd('/') ?? string.Empty;
+                var isCallback = path.Equals("/callback", StringComparison.OrdinalIgnoreCase) || path.EndsWith("/callback", StringComparison.OrdinalIgnoreCase);
+
+                if (!isCallback && string.IsNullOrEmpty(request.QueryString["code"]))
                 {
                     // Ignore favicon.ico or other stray requests
                     response.StatusCode = 404;

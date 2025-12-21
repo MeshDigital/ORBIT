@@ -24,6 +24,13 @@ public class SpotifyBatchClient
     private readonly ILogger<SpotifyBatchClient> _log;
     private readonly SemaphoreSlim _lock = new(1, 1);
 
+    // Shared JSON options ensure enum values like ItemType deserialize from strings ("track").
+    private static readonly JsonSerializerOptions JsonOptions = new()
+    {
+        PropertyNameCaseInsensitive = true,
+        Converters = { new System.Text.Json.Serialization.JsonStringEnumConverter() }
+    };
+
     public SpotifyBatchClient(HttpClient http, ILogger<SpotifyBatchClient> log)
     {
         _http = http;
@@ -82,14 +89,7 @@ public class SpotifyBatchClient
                 }
 
                 var json = await response.Content.ReadAsStringAsync(ct);
-                // Use case-insensitive deserialization with enum string converter
-                // This is critical for Spotify API responses like ItemType enum
-                var options = new JsonSerializerOptions
-                {
-                    PropertyNameCaseInsensitive = true,
-                    Converters = { new System.Text.Json.Serialization.JsonStringEnumConverter() }
-                };
-                return JsonSerializer.Deserialize<T>(json, options)!;
+                return JsonSerializer.Deserialize<T>(json, JsonOptions)!;
             }
         }
         finally

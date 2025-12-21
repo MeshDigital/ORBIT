@@ -93,9 +93,19 @@ public class SoulseekAdapter : ISoulseekAdapter, IDisposable
         Action<IEnumerable<Track>> onTracksFound,
         CancellationToken ct = default)
     {
+        // Wait briefly for the client to be created if ConnectAsync is still initializing
+        int initWait = 0;
+        const int maxInitWait = 10; // ~2s total
+        while (_client == null && initWait < maxInitWait)
+        {
+            _logger.LogInformation("Waiting for Soulseek client initialization (retry {Attempt}/{Max})...", initWait + 1, maxInitWait);
+            await Task.Delay(200, ct);
+            initWait++;
+        }
+
         if (_client == null)
         {
-            throw new InvalidOperationException("Not connected to Soulseek");
+            throw new InvalidOperationException("Soulseek client not initialized yet. ConnectAsync may not have completed.");
         }
 
         // Wait for Soulseek to establish connection before searching

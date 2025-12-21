@@ -282,6 +282,10 @@ public class SettingsViewModel : INotifyPropertyChanged
             {
                 OnPropertyChanged(nameof(SpotifyStatusColor));
                 OnPropertyChanged(nameof(SpotifyStatusIcon));
+                (ConnectSpotifyCommand as AsyncRelayCommand)?.RaiseCanExecuteChanged();
+                (DisconnectSpotifyCommand as AsyncRelayCommand)?.RaiseCanExecuteChanged();
+                (RevokeAndReAuthCommand as AsyncRelayCommand)?.RaiseCanExecuteChanged();
+                (TestSpotifyConnectionCommand as AsyncRelayCommand)?.RaiseCanExecuteChanged();
             }
         }
     }
@@ -307,6 +311,8 @@ public class SettingsViewModel : INotifyPropertyChanged
                 // Notify all Spotify commands to re-evaluate their CanExecute state
                 (ConnectSpotifyCommand as AsyncRelayCommand)?.RaiseCanExecuteChanged();
                 (DisconnectSpotifyCommand as AsyncRelayCommand)?.RaiseCanExecuteChanged();
+                (RevokeAndReAuthCommand as AsyncRelayCommand)?.RaiseCanExecuteChanged();
+                (TestSpotifyConnectionCommand as AsyncRelayCommand)?.RaiseCanExecuteChanged();
             }
         }
     }
@@ -316,8 +322,9 @@ public class SettingsViewModel : INotifyPropertyChanged
     public ICommand BrowseSharedFolderCommand { get; }
     public ICommand ConnectSpotifyCommand { get; }
     public ICommand DisconnectSpotifyCommand { get; }
+    public ICommand TestSpotifyConnectionCommand { get; }
     public ICommand ClearSpotifyCacheCommand { get; }
-        public ICommand RevokeAndReAuthCommand { get; }
+    public ICommand RevokeAndReAuthCommand { get; }
     public ICommand CheckFfmpegCommand { get; } // Phase 8: Dependency validation
 
     // Phase 8: FFmpeg Dependency State
@@ -376,10 +383,11 @@ public class SettingsViewModel : INotifyPropertyChanged
         SaveSettingsCommand = new RelayCommand(SaveSettings);
         BrowseDownloadPathCommand = new AsyncRelayCommand(BrowseDownloadPathAsync);
         BrowseSharedFolderCommand = new AsyncRelayCommand(BrowseSharedFolderAsync);
-        ConnectSpotifyCommand = new AsyncRelayCommand(ConnectSpotifyAsync, () => !IsAuthenticating);
-        DisconnectSpotifyCommand = new AsyncRelayCommand(DisconnectSpotifyAsync, () => !IsAuthenticating);
+        ConnectSpotifyCommand = new AsyncRelayCommand(ConnectSpotifyAsync, () => !IsAuthenticating && !IsSpotifyConnected);
+        DisconnectSpotifyCommand = new AsyncRelayCommand(DisconnectSpotifyAsync, () => !IsAuthenticating && IsSpotifyConnected);
+        TestSpotifyConnectionCommand = new AsyncRelayCommand(TestSpotifyConnectionAsync, () => IsSpotifyConnected && !IsAuthenticating);
         ClearSpotifyCacheCommand = new AsyncRelayCommand(ClearSpotifyCacheAsync);
-            RevokeAndReAuthCommand = new AsyncRelayCommand(RevokeAndReAuthAsync, () => IsSpotifyConnected && !IsAuthenticating);
+        RevokeAndReAuthCommand = new AsyncRelayCommand(RevokeAndReAuthAsync, () => IsSpotifyConnected && !IsAuthenticating);
         CheckFfmpegCommand = new AsyncRelayCommand(CheckFfmpegAsync); // Phase 8
 
         // Explicitly initialize IsAuthenticating to false
@@ -577,6 +585,36 @@ public class SettingsViewModel : INotifyPropertyChanged
         IsSpotifyConnected = false;
         SpotifyDisplayName = "Not Connected";
         UseSpotifyApi = false; // Optional: Auto-disable? Maybe let user decide.
+    }
+
+    private async Task TestSpotifyConnectionAsync()
+    {
+        try
+        {
+            IsAuthenticating = true;
+            _logger.LogInformation("Testing Spotify connection...");
+
+            await _spotifyAuthService.VerifyConnectionAsync();
+            var stillAuthenticated = _spotifyAuthService.IsAuthenticated;
+
+            IsSpotifyConnected = stillAuthenticated;
+            SpotifyDisplayName = stillAuthenticated ? "Connected" : "Not Connected";
+
+            if (!stillAuthenticated)
+            {
+                _logger.LogWarning("Spotify test failed; clearing cached credentials for a clean retry");
+                await _spotifyAuthService.ClearCachedCredentialsAsync();
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Spotify connection test failed");
+        }
+        finally
+        {
+            IsAuthenticating = false;
+            (TestSpotifyConnectionCommand as AsyncRelayCommand)?.RaiseCanExecuteChanged();
+        }
     }
 
     private void SaveSettings()

@@ -404,60 +404,68 @@
                                   Foreground="#AAA"/>
                     </Grid>
 
-                    <!-- Connect/Disconnect Buttons -->
-                    <StackPanel Orientation="Horizontal" Spacing="12" Margin="180,0,0,0" IsVisible="{Binding IsAuthenticating, Converter={StaticResource BoolInverseConverter}}">
+                    <!-- Spotify Actions -->
+                    <StackPanel Orientation="Vertical" Spacing="8" Margin="180,0,0,0">
+                        <StackPanel Orientation="Horizontal" Spacing="12">
+                            <Button Command="{Binding ConnectSpotifyCommand}"
+                                    Background="#1DB954"
+                                    Padding="20,10"
+                                    CornerRadius="4">
+                                <StackPanel Orientation="Horizontal" Spacing="8">
+                                    <PathIcon Data="{StaticResource icons_spotify}" Width="16" Height="16"/>
+                                    <TextBlock Text="Connect with Spotify" FontSize="14" FontWeight="Bold" Foreground="White"/>
+                                </StackPanel>
+                            </Button>
+
+                            <Button Command="{Binding DisconnectSpotifyCommand}"
+                                    Background="#444"
+                                    BorderBrush="#D32F2F"
+                                    BorderThickness="1"
+                                    Padding="20,10"
+                                    CornerRadius="4">
+                                <StackPanel Orientation="Horizontal" Spacing="8">
+                                    <TextBlock Text="✕" FontSize="14" Foreground="#D32F2F"/>
+                                    <TextBlock Text="Disconnect" FontSize="14" FontWeight="SemiBold" Foreground="#DDD"/>
+                                </StackPanel>
+                            </Button>
+                        </StackPanel>
+
+                        <StackPanel Orientation="Horizontal" Spacing="12">
+                            <Button Command="{Binding TestSpotifyConnectionCommand}"
+                                    Background="#333"
+                                    Padding="16,10"
+                                    CornerRadius="4"
+                                    ToolTip.Tip="Verify connection">
+                                <StackPanel Orientation="Horizontal" Spacing="8">
+                                    <TextBlock Text="🔄" FontSize="14"/>
+                                    <TextBlock Text="Test Connection" FontSize="13" Foreground="#AAA"/>
+                                </StackPanel>
+                            </Button>
+
+                            <Button Command="{Binding RevokeAndReAuthCommand}"
+                                    Background="#8B1E1E"
+                                    BorderBrush="#D32F2F"
+                                    BorderThickness="1"
+                                    Padding="16,10"
+                                    CornerRadius="4"
+                                    ToolTip.Tip="Clear cached credentials and re-authenticate">
+                                <StackPanel Orientation="Horizontal" Spacing="8">
+                                    <TextBlock Text="🧹" FontSize="14"/>
+                                    <TextBlock Text="Revoke &amp; Re-auth" FontSize="13" Foreground="#F2F2F2"/>
+                                </StackPanel>
+                            </Button>
+                        </StackPanel>
+
                         <Button Command="{Binding ConnectSpotifyCommand}"
-                                IsVisible="{Binding IsSpotifyConnected, Converter={StaticResource BoolInverseConverter}}"
-                            IsEnabled="{Binding IsAuthenticating, Converter={StaticResource BoolInverseConverter}}"
-                                Background="#1DB954"
-                                Padding="20,10"
-                                CornerRadius="4">
-                            <StackPanel Orientation="Horizontal" Spacing="8">
-                                <PathIcon Data="{StaticResource icons_spotify}" Width="16" Height="16"/>
-                                <TextBlock Text="Connect with Spotify" FontSize="14" FontWeight="Bold" Foreground="White"/>
-                            </StackPanel>
-                        </Button>
-
-                        <Button Command="{Binding DisconnectSpotifyCommand}"
-                                IsVisible="{Binding IsSpotifyConnected}"
-                            IsEnabled="{Binding IsAuthenticating, Converter={StaticResource BoolInverseConverter}}"
+                                IsVisible="{Binding IsAuthenticating}"
                                 Background="#444"
-                                BorderBrush="#D32F2F"
-                                BorderThickness="1"
-                                Padding="20,10"
+                                Padding="12,8"
+                                HorizontalAlignment="Left"
                                 CornerRadius="4">
-                            <StackPanel Orientation="Horizontal" Spacing="8">
-                                <TextBlock Text="✕" FontSize="14" Foreground="#D32F2F"/>
-                                <TextBlock Text="Disconnect" FontSize="14" FontWeight="SemiBold" Foreground="#DDD"/>
+                            <StackPanel Orientation="Horizontal" Spacing="6">
+                                <TextBlock Text="↻" FontSize="13"/>
+                                <TextBlock Text="Restart auth" FontSize="12" Foreground="#DDD"/>
                             </StackPanel>
-                        </Button>
-                        
-                        <Button Command="{Binding TestSpotifyConnectionCommand}"
-                                IsVisible="{Binding IsSpotifyConnected}"
-                            IsEnabled="{Binding IsAuthenticating, Converter={StaticResource BoolInverseConverter}}"
-                                Background="#333"
-                                Padding="16,10"
-                                CornerRadius="4"
-                                ToolTip.Tip="Verify connection">
-                             <StackPanel Orientation="Horizontal" Spacing="8">
-                                 <TextBlock Text="🔄" FontSize="14"/>
-                                 <TextBlock Text="Test Connection" FontSize="13" Foreground="#AAA"/>
-                             </StackPanel>
-                        </Button>
-
-                        <Button Command="{Binding RevokeAndReAuthCommand}"
-                                IsVisible="{Binding IsSpotifyConnected}"
-                            IsEnabled="{Binding IsAuthenticating, Converter={StaticResource BoolInverseConverter}}"
-                                Background="#8B1E1E"
-                                BorderBrush="#D32F2F"
-                                BorderThickness="1"
-                                Padding="16,10"
-                                CornerRadius="4"
-                                ToolTip.Tip="Clear cached credentials and re-authenticate">
-                             <StackPanel Orientation="Horizontal" Spacing="8">
-                                 <TextBlock Text="🧹" FontSize="14"/>
-                                 <TextBlock Text="Revoke &amp; Re-auth" FontSize="13" Foreground="#F2F2F2"/>
-                             </StackPanel>
                         </Button>
                     </StackPanel>
 
