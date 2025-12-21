@@ -139,19 +139,18 @@ public class ProjectListViewModel : INotifyPropertyChanged
     
     private void OnTrackStateChanged(Events.TrackStateChangedEvent evt)
     {
-        // TODO: Implement full active downloads tracking
-        // This requires querying DownloadManager for runtime state per project
-        // For now, we refresh all project stats when any track changes state
-        
-        Dispatcher.UIThread.InvokeAsync(async () =>
+        // PERFORMANCE FIX: Target specific project instead of looping through all
+        Dispatcher.UIThread.InvokeAsync(() =>
         {
-            // Refresh stats for all visible projects
-            foreach (var project in AllProjects)
+            // Find the specific project that changed
+            var project = AllProjects.FirstOrDefault(p => p.Id == evt.ProjectId);
+            if (project != null)
             {
+                // Refresh ONLY the affected project's stats
                 project.RefreshStatusCounts();
                 
-                // Placeholder: Set active downloads to 0 for now
-                // Real implementation would query DownloadManager's active queue
+                // TODO: Implement real active downloads tracking via DownloadManager
+                // For now, placeholder values
                 project.ActiveDownloadsCount = 0;
                 project.CurrentDownloadingTrack = null;
             }

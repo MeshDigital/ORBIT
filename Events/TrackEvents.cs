@@ -71,12 +71,14 @@ public class TrackProgressChangedEvent
 public class TrackStateChangedEvent
 {
     public string TrackGlobalId { get; }
+    public Guid ProjectId { get; } // NEW: For efficient project lookup
     public PlaylistTrackState NewState { get; }
     public string? ErrorMessage { get; }
     
-    public TrackStateChangedEvent(string globalId, PlaylistTrackState newState, string? errorMessage = null)
+    public TrackStateChangedEvent(string globalId, Guid projectId, PlaylistTrackState newState, string? errorMessage = null)
     {
         TrackGlobalId = globalId;
+        ProjectId = projectId;
         NewState = newState;
         ErrorMessage = errorMessage;
     }
