@@ -311,6 +311,7 @@ public class SettingsViewModel : INotifyPropertyChanged
     public ICommand ConnectSpotifyCommand { get; }
     public ICommand DisconnectSpotifyCommand { get; }
     public ICommand ClearSpotifyCacheCommand { get; }
+        public ICommand RevokeAndReAuthCommand { get; }
     public ICommand CheckFfmpegCommand { get; } // Phase 8: Dependency validation
 
     // Phase 8: FFmpeg Dependency State
@@ -372,6 +373,7 @@ public class SettingsViewModel : INotifyPropertyChanged
         ConnectSpotifyCommand = new AsyncRelayCommand(ConnectSpotifyAsync, () => !IsAuthenticating);
         DisconnectSpotifyCommand = new AsyncRelayCommand(DisconnectSpotifyAsync, () => !IsAuthenticating);
         ClearSpotifyCacheCommand = new AsyncRelayCommand(ClearSpotifyCacheAsync);
+            RevokeAndReAuthCommand = new AsyncRelayCommand(RevokeAndReAuthAsync, () => IsSpotifyConnected && !IsAuthenticating);
         CheckFfmpegCommand = new AsyncRelayCommand(CheckFfmpegAsync); // Phase 8
 
         // Explicitly initialize IsAuthenticating to false
@@ -628,5 +630,52 @@ public class SettingsViewModel : INotifyPropertyChanged
         field = value;
         OnPropertyChanged(propertyName);
         return true;
+    }
+
+    /// <summary>
+    /// Diagnostic method: Clears cached credentials and re-authenticates.
+    /// Useful for testing if the app has a "poisoned" token cache.
+    /// </summary>
+    private async Task RevokeAndReAuthAsync()
+    {
+        try
+        {
+            IsAuthenticating = true;
+            _logger.LogInformation("Revoking cached credentials and re-authenticating...");
+            
+            // Step 1: Clear cached credentials
+            await _spotifyAuthService.ClearCachedCredentialsAsync();
+            IsSpotifyConnected = false;
+            SpotifyDisplayName = "Not Connected";
+            
+            _logger.LogInformation("Credentials cleared. Starting fresh authentication...");
+            
+            // Step 2: Start fresh authentication
+            var success = await _spotifyAuthService.StartAuthorizationAsync();
+            
+            if (success)
+            {
+                // Update display based on new auth state
+                IsSpotifyConnected = _spotifyAuthService.IsAuthenticated;
+                SpotifyDisplayName = IsSpotifyConnected ? "Connected" : "Not Connected";
+                UseSpotifyApi = true;
+                _configManager.Save(_config);
+                _logger.LogInformation("✓ Revoke & Re-auth completed successfully");
+            }
+            else
+            {
+                _logger.LogWarning("Revoke & Re-auth failed - user cancelled or error occurred");
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Revoke & Re-auth failed");
+            // TODO: Show error notification to user
+        }
+        finally
+        {
+            IsAuthenticating = false;
+            (RevokeAndReAuthCommand as AsyncRelayCommand)?.RaiseCanExecuteChanged();
+        }
     }
 }

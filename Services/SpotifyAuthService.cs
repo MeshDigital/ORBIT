@@ -517,4 +517,33 @@ public class SpotifyAuthService
             throw new InvalidOperationException($"Failed to open browser. Please manually navigate to: {url}", ex);
         }
     }
+
+    /// <summary>
+    /// Clears cached Spotify credentials (diagnostic method for testing auth issues).
+    /// This is useful to confirm if the app has a "poisoned" token cache.
+    /// </summary>
+    public async Task ClearCachedCredentialsAsync()
+    {
+        try
+        {
+            _logger.LogInformation("Clearing cached Spotify credentials...");
+
+            // Delete the stored refresh token
+            await _tokenStorage.DeleteRefreshTokenAsync();
+
+            // Clear in-memory auth state
+            _authenticatedClient = null;
+            _currentTokenResponse = null;
+            _currentCodeVerifier = null;
+            IsAuthenticated = false;
+            _lastTokenRefreshTime = DateTime.MinValue;
+
+            _logger.LogInformation("✓ Spotify credentials cleared. User must re-authenticate.");
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to clear Spotify credentials");
+            throw;
+        }
+    }
 }

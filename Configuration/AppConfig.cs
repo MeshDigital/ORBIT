@@ -41,6 +41,7 @@ public class AppConfig
     public string SpotifyRedirectUri { get; set; } = "http://127.0.0.1:5000/callback";
     public int SpotifyCallbackPort { get; set; } = 5000;
     public bool SpotifyRememberAuth { get; set; } = true; // Store refresh token by default
+        public bool ClearSpotifyOnExit { get; set; } = false; // Diagnostic: Clear cached tokens on app close
     
     // Search and download preferences
     public int SearchLengthToleranceSeconds { get; set; } = 3; // Allow +/- 3 seconds duration mismatch

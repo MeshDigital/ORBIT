@@ -35,6 +35,25 @@ public partial class App : Application
             // Configure services
             Services = ConfigureServices();
 
+            // Register exit hook to clear Spotify credentials if diagnostic flag is enabled
+            desktop.Exit += (_, __) =>
+            {
+                try
+                {
+                    var config = Services?.GetService<ConfigManager>()?.GetCurrent();
+                    if (config?.ClearSpotifyOnExit ?? false)
+                    {
+                        var spotifyAuthService = Services?.GetService<SpotifyAuthService>();
+                        spotifyAuthService?.ClearCachedCredentialsAsync().Wait();
+                        Serilog.Log.Information("Cleared Spotify credentials on exit (ClearSpotifyOnExit enabled)");
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Serilog.Log.Warning(ex, "Failed to clear Spotify credentials on exit");
+                }
+            };
+
             try
             {
                 // Initialize database before anything else (required for app to function)
@@ -463,4 +482,5 @@ public partial class App : Application
         
         Serilog.Log.Information("[Maintenance] Daily maintenance completed");
     }
+
 }
