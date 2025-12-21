@@ -89,7 +89,7 @@ public class LibraryViewModel : INotifyPropertyChanged
         }
     }
 
-    private bool _isUpgradeScoutVisible;
+    private bool _isUpgradeScoutVisible = false; // Explicit initialization
     public bool IsUpgradeScoutVisible
     {
         get => _isUpgradeScoutVisible;
@@ -97,6 +97,8 @@ public class LibraryViewModel : INotifyPropertyChanged
         {
             if (_isUpgradeScoutVisible != value)
             {
+                _logger.LogWarning("IsUpgradeScoutVisible changing from {Old} to {New}. Stack trace: {StackTrace}", 
+                    _isUpgradeScoutVisible, value, Environment.StackTrace);
                 _isUpgradeScoutVisible = value;
                 OnPropertyChanged();
             }
