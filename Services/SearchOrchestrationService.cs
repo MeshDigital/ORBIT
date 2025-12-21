@@ -38,6 +38,7 @@ public class SearchOrchestrationService
     
     /// <summary>
     /// Execute a search with the given parameters and return ranked results.
+    /// Results are ranked incrementally as batches arrive for better UX.
     /// </summary>
     public async Task<SearchResult> SearchAsync(
         string query,
@@ -58,10 +59,9 @@ public class SearchOrchestrationService
         _logger.LogInformation("Format filter: {Formats}", string.Join(", ", formatFilter));
         _logger.LogInformation("Bitrate filter: Min={Min}, Max={Max}", minBitrate, maxBitrate);
 
-        var resultsBuffer = new ConcurrentBag<Track>();
         var allResults = new List<Track>();
         
-        // Execute the Soulseek search
+        // Execute the Soulseek search with incremental ranking
         var actualCount = await _soulseek.SearchAsync(
             normalizedQuery, 
             formatFilter, 
@@ -69,19 +69,25 @@ public class SearchOrchestrationService
             DownloadMode.Normal, 
             tracks =>
             {
-                foreach (var track in tracks)
-                {
-                    resultsBuffer.Add(track);
-                    allResults.Add(track);
-                }
+                // QUICK WIN: Rank each batch BEFORE sending to UI
+                var rankedBatch = RankTrackResults(
+                    tracks.ToList(),
+                    normalizedQuery,
+                    formatFilter,
+                    minBitrate,
+                    maxBitrate);
                 
-                onPartialResults?.Invoke(tracks);
+                // Add to total collection
+                allResults.AddRange(rankedBatch);
+                
+                // Send ranked batch to UI
+                onPartialResults?.Invoke(rankedBatch);
             }, 
             cancellationToken);
         
         _logger.LogInformation("Search completed with {Count} raw results", actualCount);
         
-        // Rank and group results
+        // For album search, group at the end
         if (isAlbumSearch)
         {
             var albums = GroupResultsByAlbum(allResults);
@@ -94,11 +100,11 @@ public class SearchOrchestrationService
         }
         else
         {
-            var rankedTracks = RankTrackResults(allResults, normalizedQuery, formatFilter, minBitrate, maxBitrate);
+            // Results already ranked incrementally
             return new SearchResult
             {
                 TotalCount = actualCount,
-                Tracks = rankedTracks,
+                Tracks = allResults,
                 IsAlbumSearch = false
             };
         }

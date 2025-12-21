@@ -207,15 +207,33 @@ public class SearchViewModel : INotifyPropertyChanged
 
     private void OnTracksFound(IEnumerable<Track> tracks)
     {
+        // QUICK WIN: Batch UI updates to prevent freeze
+        const int BATCH_SIZE = 50;
+        var trackList = tracks.ToList();
+        
         Dispatcher.UIThread.Post(() =>
         {
-            foreach (var track in tracks)
+            // Add in batches with small delays
+            for (int i = 0; i < trackList.Count; i += BATCH_SIZE)
             {
-                // Wrap Track in SearchResult ViewModel
-                var result = new SearchResult(track);
-                SearchResults.Add(result);
+                var batch = trackList.Skip(i).Take(BATCH_SIZE);
+                
+                foreach (var track in batch)
+                {
+                    // Wrap Track in SearchResult ViewModel
+                    var result = new SearchResult(track);
+                    SearchResults.Add(result);
+                }
+                
+                // Update status after each batch
+                StatusText = $"Found {SearchResults.Count} tracks...";
+                
+                // Small yield to keep UI responsive
+                if (i + BATCH_SIZE < trackList.Count)
+                {
+                    Task.Delay(1).Wait(); // Minimal delay to yield to UI thread
+                }
             }
-            StatusText = $"Found {SearchResults.Count} tracks";
         });
     }
 
