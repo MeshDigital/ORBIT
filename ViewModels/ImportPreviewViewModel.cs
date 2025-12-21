@@ -556,8 +556,12 @@ public class ImportPreviewViewModel : INotifyPropertyChanged
                 job.OriginalTracks.Add(track);
             }
 
+            _logger.LogInformation("[IMPORT TRACE] Step 1: Calling HandlePlaylistJobAddedAsync for job {JobId}", job.Id);
+        
             // Queue the project to DownloadManager and navigate to Library
             await HandlePlaylistJobAddedAsync(job);
+            
+            _logger.LogInformation("[IMPORT TRACE] Step 2: HandlePlaylistJobAddedAsync completed, firing AddedToLibrary event");
             
             // Notify that tracks have been added
             _logger.LogInformation("Firing AddedToLibrary event for job {JobId}", job.Id);
@@ -633,9 +637,11 @@ public class ImportPreviewViewModel : INotifyPropertyChanged
     {
         try
         {
-            _logger.LogInformation("HandlePlaylistJobAddedAsync ENTRY: {Title} with {Count} tracks",
+            _logger.LogInformation("[IMPORT TRACE] HandlePlaylistJobAddedAsync ENTRY: {Title} with {Count} tracks",
                 job.SourceTitle, job.OriginalTracks.Count);
 
+            _logger.LogInformation("[IMPORT TRACE] Calling DownloadManager.QueueProject for job {JobId}", job.Id);
+        
             // Queue project through DownloadManager to persist and add to Library.
             await _downloadManager.QueueProject(job);
             

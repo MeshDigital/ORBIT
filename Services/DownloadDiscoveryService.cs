@@ -36,24 +36,34 @@ public class DownloadDiscoveryService
     /// <summary>
     /// Searches for a track and returns the single best match based on user preferences.
     /// </summary>
-    public async Task<Track?> FindBestMatchAsync(PlaylistTrackViewModel track, CancellationToken ct)
+    /// <summary>
+    /// Searches for a track and returns the single best match based on user preferences.
+    /// Phase T.1: Refactored to accept PlaylistTrack model (decoupled from UI).
+    /// Phase 12: Updated to use streaming search logic.
+    /// </summary>
+    public async Task<Track?> FindBestMatchAsync(PlaylistTrack track, CancellationToken ct)
     {
         var query = $"{track.Artist} {track.Title}";
-        _logger.LogInformation("Discovery started for: {Query} (GlobalId: {Id})", query, track.GlobalId);
+        _logger.LogInformation("Discovery started for: {Query} (GlobalId: {Id})", query, track.TrackUniqueHash);
 
         try
         {
             // 1. Configure preferences
             var preferredFormats = string.Join(",", _config.PreferredFormats ?? new System.Collections.Generic.List<string> { "mp3" });
             var minBitrate = _config.PreferredMinBitrate;
-            var maxBitrate = 3000; // Cap at reasonable high
+            // Cap at reasonable high unless strictly set, but for discovery we want quality
+            var maxBitrate = 0; 
 
             // 2. Perform Search via Orchestrator
-            // 2. Perform Search via Orchestrator
-            // Collect all results from the stream
-            var searchResult = new SearchResult();
+            // Use streaming, but since we need the 'best' match from the entire set,
+            // we probably need to wait a bit or collect a decent buffer.
+            // "The Seeker" fundamentally wants the BEST match, which implies seeing most options.
+            // However, since results are ranked on-the-fly, if we trust the ranking, we might find good chunks.
+            // But 'OverallScore' is relative? No, it's absolute calculation in ResultSorter now.
+            
             var allTracks = new System.Collections.Generic.List<Track>();
 
+            // Consume the stream
             await foreach (var searchTrack in _searchOrchestrator.SearchAsync(
                 query,
                 preferredFormats,
@@ -64,23 +74,22 @@ public class DownloadDiscoveryService
             {
                 allTracks.Add(searchTrack);
             }
-            searchResult.Tracks = allTracks;
 
-            if (searchResult.TotalCount == 0 || !searchResult.Tracks.Any())
+            if (!allTracks.Any())
             {
                 _logger.LogWarning("No results found for {Query}", query);
                 return null;
             }
 
             // 3. Select Best Match with "The Brain" (Smart Duration Matching)
-            var candidates = searchResult.Tracks.ToList();
+            var candidates = allTracks;
             
             // Phase 0.3/0.4: Smart Match - Duration Gating
             // We use a tolerance of 15 seconds to account for silence or slight version differences,
             // but strict enough to separate Radio Edits from Extended Mixes.
-            if (track.Model.CanonicalDuration.HasValue && track.Model.CanonicalDuration.Value > 0)
+            if (track.CanonicalDuration.HasValue && track.CanonicalDuration.Value > 0)
             {
-                var expectedDurationSec = track.Model.CanonicalDuration.Value / 1000.0;
+                var expectedDurationSec = track.CanonicalDuration.Value / 1000.0;
                 var toleranceSec = 15.0; 
                 
                 var smartMatches = candidates
@@ -129,7 +138,8 @@ public class DownloadDiscoveryService
     /// </summary>
     public async Task DiscoverAndQueueTrackAsync(PlaylistTrack track, CancellationToken ct = default)
     {
-        var bestMatch = await FindBestMatchAsync(new PlaylistTrackViewModel(track), ct);
+        // Step T.1: Pass model directly
+        var bestMatch = await FindBestMatchAsync(track, ct);
         if (bestMatch == null) return;
 
         // Determine if this is an upgrade search based on whether the track already has a file

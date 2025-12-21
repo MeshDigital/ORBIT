@@ -155,6 +155,121 @@
                 </StackPanel>
             </Border>
 
+            <!-- NEW REFACORTED SPOTIFY INTEGRATION -->
+            <Border Background="#252526" CornerRadius="8" Padding="20" BorderBrush="#3E3E3E" BorderThickness="1">
+                <StackPanel Spacing="16">
+                    <Grid ColumnDefinitions="*,Auto">
+                         <StackPanel Grid.Column="0" Spacing="4">
+                             <StackPanel Orientation="Horizontal" Spacing="8">
+                                <PathIcon Data="{StaticResource icons_spotify}" Width="20" Height="20" Foreground="#1DB954"/>
+                                <TextBlock Text="Spotify Integration" FontSize="16" FontWeight="SemiBold" Foreground="White"/>
+                             </StackPanel>
+                             <TextBlock Text="Connect to import playlists and improve matching" Foreground="#AAA" FontSize="12"/>
+                             <StackPanel Orientation="Horizontal" Spacing="10">
+                                 <TextBlock Text="{Binding SpotifyState, StringFormat='State: {0}'}" Foreground="Cyan"/>
+                                 <TextBlock Text="{Binding IsSpotifyDisconnected, StringFormat='Disc: {0}'}" Foreground="Yellow"/>
+                                 <TextBlock Text="{Binding IsSpotifyConnecting, StringFormat='Conn: {0}'}" Foreground="Orange"/>
+                                 <TextBlock Text="{Binding IsSpotifyConnected, StringFormat='Cned: {0}'}" Foreground="Lime"/>
+                             </StackPanel>
+                         </StackPanel>
+                         
+                         <!-- Status Badge -->
+                         <Border Grid.Column="1" CornerRadius="12" Padding="12,4" Background="{Binding SpotifyStatusColor}" VerticalAlignment="Top">
+                             <TextBlock Text="{Binding SpotifyDisplayName}" FontSize="12" FontWeight="SemiBold" Foreground="White"/>
+                         </Border>
+                    </Grid>
+
+                    <Separator Background="#333" Height="1"/>
+
+                    <!-- Panel 1: Disconnected State -->
+                    <StackPanel IsVisible="{Binding IsSpotifyDisconnected}" Spacing="12">
+                        <TextBlock Text="Unlock the full power of QMUSIC by connecting your Spotify account." 
+                                   TextWrapping="Wrap" Foreground="#CCC"/>
+                        
+                        <Button Command="{Binding ConnectSpotifyCommand}"
+                                Background="#1DB954"
+                                HorizontalAlignment="Left"
+                                Padding="24,10"
+                                CornerRadius="20">
+                            <StackPanel Orientation="Horizontal" Spacing="8">
+                                <TextBlock Text="Connect with Spotify" FontWeight="Bold" Foreground="White"/>
+                                <PathIcon Data="{StaticResource icons_spotify}" Width="16" Height="16" Foreground="White"/>
+                            </StackPanel>
+                        </Button>
+                    </StackPanel>
+
+                    <!-- Panel 2: Connecting State -->
+                    <StackPanel IsVisible="{Binding IsSpotifyConnecting}" Spacing="16" HorizontalAlignment="Center">
+                        <TextBlock Text="Connecting to Spotify..." FontSize="16" FontWeight="SemiBold"/>
+                        <ProgressBar IsIndeterminate="True" Width="200" Height="4" Foreground="#1DB954"/>
+                        <TextBlock Text="Please complete the login in your browser window." Foreground="#AAA"/>
+                        
+                        <Button Command="{Binding RestartSpotifyAuthCommand}"
+                                Content="Restart / Cancel"
+                                Background="Transparent"
+                                BorderBrush="#444"
+                                BorderThickness="1"
+                                CornerRadius="16"
+                                Foreground="#AAA"
+                                Margin="0,8,0,0"/>
+                    </StackPanel>
+
+                    <!-- Panel 3: Connected State -->
+                    <StackPanel IsVisible="{Binding IsSpotifyConnected}" Spacing="12">
+                        <Grid ColumnDefinitions="Auto,*,Auto">
+                            <!-- Avatar placeholder could go here -->
+                            <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                <TextBlock Text="You are connected." Foreground="#DDD"/>
+                                <TextBlock Text="Private playlists and liked songs are available for import." Foreground="#888" FontSize="11"/>
+                            </StackPanel>
+                            
+                            <Button Grid.Column="2" 
+                                    Command="{Binding DisconnectSpotifyCommand}"
+                                    Background="#2D2D2D"
+                                    BorderBrush="#FF5555"
+                                    BorderThickness="1"
+                                    CornerRadius="6"
+                                    Padding="12,6">
+                                <TextBlock Text="Disconnect" Foreground="#FF5555"/>
+                            </Button>
+                        </Grid>
+                    </StackPanel>
+
+                     <!-- Advanced / Troubleshooting (Always available at bottom) -->
+                     <Expander Header="Troubleshooting &amp; Advanced" 
+                               HorizontalAlignment="Stretch" 
+                               Background="Transparent"
+                               BorderBrush="#333"
+                               BorderThickness="1"
+                               CornerRadius="4"
+                               Margin="0,8,0,0">
+                        <StackPanel Spacing="12" Margin="0,12,0,0">
+                            <Grid ColumnDefinitions="*,Auto" RowDefinitions="Auto,Auto,Auto">
+                                <!-- Test Connection -->
+                                <TextBlock Grid.Row="0" Grid.Column="0" Text="Test Connection Status" VerticalAlignment="Center" Foreground="#DDD"/>
+                                <Button Grid.Row="0" Grid.Column="1" Command="{Binding TestSpotifyConnectionCommand}" Content="Run Test" Background="#333"/>
+                                
+                                <!-- Clear Cache -->
+                                <TextBlock Grid.Row="1" Grid.Column="0" Text="Clear Metadata Cache" VerticalAlignment="Center" Foreground="#DDD" Margin="0,12,0,0"/>
+                                <Button Grid.Row="1" Grid.Column="1" Command="{Binding ClearSpotifyCacheCommand}" Content="Clear Cache" Background="#333" Margin="0,12,0,0"/>
+                                
+                                <!-- Revoke -->
+                                <TextBlock Grid.Row="2" Grid.Column="0" Text="Revoke &amp; Re-authenticate (Full Reset)" VerticalAlignment="Center" Foreground="#FF8888" Margin="0,12,0,0"/>
+                                <Button Grid.Row="2" Grid.Column="1" Command="{Binding RevokeAndReAuthCommand}" Content="Revoke All" Background="#552222" Foreground="#FF8888" Margin="0,12,0,0"/>
+                            </Grid>
+                            
+                            <Separator Background="#333" Height="1" Margin="0,8"/>
+                            
+                            <!-- Client ID Override -->
+                            <Grid ColumnDefinitions="120,*">
+                                <TextBlock Grid.Column="0" Text="Client ID:" VerticalAlignment="Center" Foreground="#666"/>
+                                <TextBox Grid.Column="1" Text="{Binding SpotifyClientId}" Watermark="Default (QMUSICSLSK)" Background="#111" BorderThickness="0"/>
+                            </Grid>
+                        </StackPanel>
+                     </Expander>
+                </StackPanel>
+            </Border>
+
             <!-- Phase 8: Self-Healing Library (Upgrade Scout) -->
             <Border Background="#252526" CornerRadius="8" Padding="20" BorderBrush="#3E3E3E" BorderThickness="1">
                 <StackPanel Spacing="16">
@@ -350,132 +465,6 @@
                             </ListBox.ItemTemplate>
                         </ListBox>
                     </Border>
-                </StackPanel>
-            </Border>
-
-            <!-- Spotify Integration -->
-            <Border Background="#252526" CornerRadius="8" Padding="20" BorderBrush="#3E3E3E" BorderThickness="1">
-                <StackPanel Spacing="16">
-                    <TextBlock Text="Spotify Integration" FontSize="16" FontWeight="SemiBold" Foreground="White"/>
-                    
-                    <TextBlock TextWrapping="Wrap" Foreground="#AAA" FontSize="12">
-                        Connect your Spotify account to import private playlists, liked songs, and get better metadata matching.
-                    </TextBlock>
-                    
-                    <!-- Connection Status -->
-                    <Grid ColumnDefinitions="180,*">
-                        <TextBlock Grid.Column="0" Text="Status:" VerticalAlignment="Center" Foreground="#DDD"/>
-                        <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="12">
-                             <Border CornerRadius="6" 
-                                     Padding="12,6"
-                                     Background="{Binding SpotifyStatusColor}">
-                                 <StackPanel Orientation="Horizontal" Spacing="8">
-                                     <PathIcon Data="{StaticResource icons_spotify}" Width="16" Height="16" IsVisible="{Binding IsSpotifyConnected}"/>
-                                     <TextBlock Text="{Binding SpotifyStatusIcon}" FontSize="14" IsVisible="{Binding IsSpotifyConnected, Converter={StaticResource BoolInverseConverter}}"/>
-                                     <TextBlock Text="{Binding SpotifyDisplayName}" FontWeight="SemiBold" Foreground="White" VerticalAlignment="Center"/>
-                                 </StackPanel>
-                             </Border>
-                             
-                             <TextBlock Text="Authentication Active..." 
-                                        IsVisible="{Binding IsAuthenticating}" 
-                                        VerticalAlignment="Center" 
-                                        FontSize="12" 
-                                        Foreground="#1DB954"/>
-                        </StackPanel>
-                    </Grid>
-
-                    <!-- Client ID (Optional Override) -->
-                    <Expander Header="Advanced Options" IsExpanded="False">
-                        <Grid ColumnDefinitions="180,*">
-                            <TextBlock Grid.Column="0" Text="Spotify Client ID:" VerticalAlignment="Center" Foreground="#DDD"/>
-                            <TextBox Grid.Column="1" 
-                                     Text="{Binding SpotifyClientId, Mode=TwoWay}"
-                                     Background="#1E1E1E"
-                                     Watermark="Default (QMUSICSLSK)"/>
-                        </Grid>
-                    </Expander>
-
-                    <!-- Diagnostic: Clear credentials on exit -->
-                    <Grid ColumnDefinitions="180,*">
-                        <TextBlock Grid.Column="0" Text="Clear on Exit (diag):" VerticalAlignment="Center" Foreground="#DDD"/>
-                        <CheckBox Grid.Column="1"
-                                  IsChecked="{Binding ClearSpotifyOnExit, Mode=TwoWay}"
-                                  Content="Clear cached Spotify credentials when the app closes"
-                                  Foreground="#AAA"/>
-                    </Grid>
-
-                    <!-- Spotify Actions -->
-                    <StackPanel Orientation="Vertical" Spacing="8" Margin="180,0,0,0">
-                        <StackPanel Orientation="Horizontal" Spacing="12">
-                            <Button Command="{Binding ConnectSpotifyCommand}"
-                                    Background="#1DB954"
-                                    Padding="20,10"
-                                    CornerRadius="4">
-                                <StackPanel Orientation="Horizontal" Spacing="8">
-                                    <PathIcon Data="{StaticResource icons_spotify}" Width="16" Height="16"/>
-                                    <TextBlock Text="Connect with Spotify" FontSize="14" FontWeight="Bold" Foreground="White"/>
-                                </StackPanel>
-                            </Button>
-
-                            <Button Command="{Binding DisconnectSpotifyCommand}"
-                                    Background="#444"
-                                    BorderBrush="#D32F2F"
-                                    BorderThickness="1"
-                                    Padding="20,10"
-                                    CornerRadius="4">
-                                <StackPanel Orientation="Horizontal" Spacing="8">
-                                    <TextBlock Text="✕" FontSize="14" Foreground="#D32F2F"/>
-                                    <TextBlock Text="Disconnect" FontSize="14" FontWeight="SemiBold" Foreground="#DDD"/>
-                                </StackPanel>
-                            </Button>
-                        </StackPanel>
-
-                        <StackPanel Orientation="Horizontal" Spacing="12">
-                            <Button Command="{Binding TestSpotifyConnectionCommand}"
-                                    Background="#333"
-                                    Padding="16,10"
-                                    CornerRadius="4"
-                                    ToolTip.Tip="Verify connection">
-                                <StackPanel Orientation="Horizontal" Spacing="8">
-                                    <TextBlock Text="🔄" FontSize="14"/>
-                                    <TextBlock Text="Test Connection" FontSize="13" Foreground="#AAA"/>
-                                </StackPanel>
-                            </Button>
-
-                            <Button Command="{Binding RevokeAndReAuthCommand}"
-                                    Background="#8B1E1E"
-                                    BorderBrush="#D32F2F"
-                                    BorderThickness="1"
-                                    Padding="16,10"
-                                    CornerRadius="4"
-                                    ToolTip.Tip="Clear cached credentials and re-authenticate">
-                                <StackPanel Orientation="Horizontal" Spacing="8">
-                                    <TextBlock Text="🧹" FontSize="14"/>
-                                    <TextBlock Text="Revoke &amp; Re-auth" FontSize="13" Foreground="#F2F2F2"/>
-                                </StackPanel>
-                            </Button>
-                        </StackPanel>
-
-                        <Button Command="{Binding RestartSpotifyAuthCommand}"
-                                IsVisible="{Binding IsAuthenticating}"
-                                Background="#444"
-                                Padding="12,8"
-                                HorizontalAlignment="Left"
-                                CornerRadius="4">
-                            <StackPanel Orientation="Horizontal" Spacing="6">
-                                <TextBlock Text="↻" FontSize="13"/>
-                                <TextBlock Text="Restart auth" FontSize="12" Foreground="#DDD"/>
-                            </StackPanel>
-                        </Button>
-                    </StackPanel>
-
-                    <!-- Progress Bar during Auth -->
-                    <ProgressBar IsIndeterminate="True" 
-                                 Width="400" Height="4"
-                                 Margin="180,0,0,0"
-                                 HorizontalAlignment="Left"
-                                 IsVisible="{Binding IsAuthenticating}"
-                                 Foreground="#1DB954"/>
                 </StackPanel>
             </Border>
 

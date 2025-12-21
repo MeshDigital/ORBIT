@@ -6,6 +6,8 @@ using SLSKDONET.Models;
 using Soulseek;
 using System.Linq;
 using System.Collections.Concurrent;
+using System.Runtime.CompilerServices;
+using System.Collections.Generic;
 
 namespace SLSKDONET.Services;
 
@@ -238,6 +240,54 @@ public class SoulseekAdapter : ISoulseekAdapter, IDisposable
             _logger.LogError(ex, "Search failed for query {SearchQuery} with mode {SearchMode}", query, mode);
             throw;
         }
+    }
+
+    public async IAsyncEnumerable<Track> StreamResultsAsync(
+        string query,
+        IEnumerable<string>? formatFilter,
+        (int? Min, int? Max) bitrateFilter,
+        DownloadMode mode,
+        [EnumeratorCancellation] CancellationToken ct = default)
+    {
+        var channel = System.Threading.Channels.Channel.CreateUnbounded<Track>();
+        var searchCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+
+        // Run the existing search logic in a background task
+        // We use the existing SearchAsync but redirect its "onTracksFound" callback to write to the channel
+        var searchTask = Task.Run(async () =>
+        {
+            try
+            {
+                await SearchAsync(query, formatFilter, bitrateFilter, mode, (tracks) =>
+                {
+                    foreach (var track in tracks)
+                    {
+                        channel.Writer.TryWrite(track);
+                    }
+                }, searchCts.Token);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Error in background streaming search for {Query}", query);
+            }
+            finally
+            {
+                channel.Writer.TryComplete();
+            }
+        }, CancellationToken.None); // Don't cancel the Task itself, let logic handle cancellation inside
+
+        // Yield results from the channel
+        while (await channel.Reader.WaitToReadAsync(ct))
+        {
+            while (channel.Reader.TryRead(out var track))
+            {
+                yield return track;
+            }
+        }
+
+        // Await the task to ensure we catch any exceptions or ensure clean exit
+        // (Though we swallowed exceptions above to ensure channel closes, checking here is good hygiene)
+        // await searchTask; 
     }
 
     /// <summary>

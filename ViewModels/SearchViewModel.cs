@@ -226,7 +226,7 @@ public partial class SearchViewModel : ReactiveObject
         if (string.IsNullOrWhiteSpace(SearchQuery)) return;
 
         IsSearching = true;
-        StatusText = "Processing...";
+        StatusText = "Searching...";
         _searchResults.Clear(); // Clear reactive list
         AlbumResults.Clear();
 
@@ -237,20 +237,22 @@ public partial class SearchViewModel : ReactiveObject
             if (provider != null)
             {
                 StatusText = $"Importing via {provider.Name}...";
-                // BUGFIX: Reset IsSearching BEFORE navigation to prevent stuck state
-                // when user returns to SearchPage after import preview
                 IsSearching = false;
-                // Note: ImportOrchestrator handles navigation to ImportPreview page
                 await _importOrchestrator.StartImportWithPreviewAsync(provider, SearchQuery);
                 StatusText = "Ready";
                 return;
             }
 
             // 2. Soulseek Streaming Search
-            StatusText = $"Searching: {SearchQuery}...";
+            StatusText = $"Searching Soulseek for: {SearchQuery}...";
             
             var cts = new CancellationTokenSource();
             
+            // "Active HUD" - Search Progress Visualization
+            var buffer = new List<SearchResult>();
+            var lastUpdate = DateTime.UtcNow;
+            int totalFound = 0;
+
             try 
             {
                 // Consume the IAsyncEnumerable stream
@@ -262,12 +264,24 @@ public partial class SearchViewModel : ReactiveObject
                     IsAlbumSearch,
                     cts.Token))
                 {
-                    // Add directly to SourceList - it handles thread safety and notifications!
-                    _searchResults.Add(new SearchResult(track));
-                    
-                    // Optional: throttle status updates
-                    if (_searchResults.Count % 10 == 0)
-                        StatusText = $"Found {_searchResults.Count} tracks...";
+                    buffer.Add(new SearchResult(track));
+                    totalFound++;
+
+                    // Throttled Buffering (User Trick)
+                    // Batch UI updates every 250ms or 50 items to prevent stutter
+                    if ((DateTime.UtcNow - lastUpdate).TotalMilliseconds > 250 || buffer.Count >= 50)
+                    {
+                        _searchResults.AddRange(buffer);
+                        buffer.Clear();
+                        lastUpdate = DateTime.UtcNow;
+                        StatusText = $"Found {totalFound} tracks...";
+                    }
+                }
+
+                // Flush remaining
+                if (buffer.Any())
+                {
+                    _searchResults.AddRange(buffer);
                 }
             }
             catch (OperationCanceledException)
@@ -277,7 +291,7 @@ public partial class SearchViewModel : ReactiveObject
             finally
             {
                 IsSearching = false;
-                if (_searchResults.Count > 0) StatusText = $"Found {_searchResults.Count} items";
+                if (totalFound > 0) StatusText = $"Found {totalFound} items";
                 else StatusText = "No results found";
             }
         }

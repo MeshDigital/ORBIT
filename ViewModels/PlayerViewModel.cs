@@ -208,6 +208,36 @@ namespace SLSKDONET.ViewModels
                     PlayTrack(evt.Track.Model.ResolvedFilePath, evt.Track.Title ?? "Unknown", evt.Track.Artist ?? "Unknown");
                 }
             });
+
+            // Phase 6B: Play Album Request (Queue Management)
+            eventBus.GetEvent<PlayAlbumRequestEvent>().Subscribe(evt =>
+            {
+                if (evt.Tracks == null || !evt.Tracks.Any()) return;
+                
+                Dispatcher.UIThread.Post(() =>
+                {
+                    // 1. Clear existing queue
+                    ClearQueue();
+                    
+                    // 2. Add all tracks to queue
+                    foreach (var track in evt.Tracks)
+                    {
+                        // Only add tracks with valid file paths
+                        if (!string.IsNullOrEmpty(track.ResolvedFilePath))
+                        {
+                            var vm = new PlaylistTrackViewModel(track);
+                            Queue.Add(vm);
+                        }
+                    }
+                    
+                    // 3. Play first track if any were added
+                    if (Queue.Any())
+                    {
+                        CurrentQueueIndex = 0;
+                        PlayTrackAtIndex(0);
+                    }
+                });
+            });
             
             // Ensure IsPlaying is synced
             IsPlaying = _playerService.IsPlaying;

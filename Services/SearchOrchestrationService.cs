@@ -56,69 +56,33 @@ public class SearchOrchestrationService
         
         var formatFilter = preferredFormats.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
         
-        // Channel to bridge callback-based Adapter to IAsyncEnumerable
-        var channel = System.Threading.Channels.Channel.CreateUnbounded<IList<Track>>();
-
-        // Start the search in a background task
-        var searchTask = Task.Run(async () =>
+        // Prepare ranking context once
+        var searchTrack = new Track { Title = normalizedQuery };
+        var evaluator = new FileConditionEvaluator();
+        if (formatFilter.Length > 0)
         {
-            try
-            {
-                await _soulseek.SearchAsync(
-                    normalizedQuery,
-                    formatFilter,
-                    (minBitrate, maxBitrate),
-                    DownloadMode.Normal,
-                    batch =>
-                    {
-                        // Rank the batch immediately
-                        var rankedBatch = RankTrackResults(
-                            batch.ToList(),
-                            normalizedQuery,
-                            formatFilter,
-                            minBitrate,
-                            maxBitrate);
-
-                        if (rankedBatch.Any())
-                        {
-                            channel.Writer.TryWrite(rankedBatch);
-                        }
-                    },
-                    cancellationToken);
-                
-                // Signal completion
-                channel.Writer.Complete();
-            }
-            catch (Exception ex)
-            {
-                // Propagate error to channel
-                channel.Writer.Complete(ex);
-            }
-        }, cancellationToken);
-
-        // Yield results as they arrive
-        while (await channel.Reader.WaitToReadAsync(cancellationToken))
-        {
-            while (channel.Reader.TryRead(out var batch))
-            {
-                foreach (var track in batch)
-                {
-                    yield return track;
-                }
-            }
+            evaluator.AddRequired(new FormatCondition { AllowedFormats = formatFilter.ToList() });
         }
-        
-        // Await the task to ensure any final exceptions are propagated (though Channel handles most)
-        // gracefully ignore cancellation exceptions during shutdown
-        try 
-        { 
-            await searchTask; 
-        }
-        catch (OperationCanceledException) { }
-        catch (Exception ex) 
+        if (minBitrate > 0 || maxBitrate > 0)
         {
-             _logger.LogError(ex, "Background search task failed");
-             throw;
+            evaluator.AddPreferred(new BitrateCondition 
+            { 
+                MinBitrate = minBitrate > 0 ? minBitrate : null, 
+                MaxBitrate = maxBitrate > 0 ? maxBitrate : null 
+            });
+        }
+
+        // Stream results from adapter
+        await foreach (var track in _soulseek.StreamResultsAsync(
+            normalizedQuery,
+            formatFilter,
+            (minBitrate, maxBitrate),
+            DownloadMode.Normal,
+            cancellationToken))
+        {
+            // Rank on-the-fly
+            ResultSorter.CalculateRank(track, searchTrack, evaluator);
+            yield return track;
         }
     }
     

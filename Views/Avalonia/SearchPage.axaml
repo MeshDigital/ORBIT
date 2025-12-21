@@ -17,7 +17,7 @@
             <!-- Header -->
             <Border Grid.Row="0" Background="#252526" Padding="24,20" BorderBrush="#3E3E3E" BorderThickness="0,0,0,1">
                 <StackPanel Spacing="8">
-                    <TextBlock Text="Search" FontSize="28" FontWeight="Bold" Foreground="White"/>
+                    <TextBlock Text="Search (DEBUG v2)" FontSize="28" FontWeight="Bold" Foreground="White"/>
                     <TextBlock Text="Find music from Soulseek, import from Spotify, or upload CSV" 
                                FontSize="13" Foreground="#A0A0A0"/>
                 </StackPanel>

@@ -85,28 +85,31 @@ public class SpotifyAuthService
             _logger.LogInformation("Stored refresh token found, attempting to validate...");
 
             // Try to refresh the token to verify it's still valid with Spotify
-            using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+            using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(10)); // Increased timeout for robustness
             var verifyTask = Task.Run(async () =>
             {
                 try
                 {
+                    _logger.LogInformation("Attempting to refresh access token for verification...");
                     await RefreshAccessTokenAsync();
+                    
                     // If refresh succeeded, we're authenticated
                     IsAuthenticated = _authenticatedClient != null;
                     
                     if (IsAuthenticated)
                     {
-                        _logger.LogInformation("✓ Token verification succeeded - user is authenticated");
+                        var user = await _authenticatedClient!.UserProfile.Current();
+                        _logger.LogInformation("✓ Token verification succeeded - Authenticated as: {User}", user.DisplayName);
                     }
                     else
                     {
-                        _logger.LogWarning("✗ Token verification failed - RefreshAccessTokenAsync did not create client");
+                        _logger.LogWarning("✗ Token verification failed - RefreshAccessTokenAsync completed but client is null");
                     }
                 }
                 catch (Exception ex)
                 {
-                    _logger.LogWarning(ex, "✗ Token verification failed during refresh - clearing invalid token");
-                    IsAuthenticated = false;
+                    _logger.LogWarning(ex, "✗ Token verification failed during refresh - clearing invalid token. Message: {Msg}", ex.Message);
+                    IsAuthenticated = false; 
                     // Don't re-throw; we want to degrade gracefully
                 }
             }, cts.Token);
@@ -413,8 +416,17 @@ public class SpotifyAuthService
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to refresh access token");
+            _logger.LogError(ex, "Failed to refresh access token. Error: {Message}", ex.Message);
             IsAuthenticated = false;
+            
+            // Explicitly clear the dead token so we don't loop forever trying to refresh it
+            // ONLY if it's an OAuth error (e.g. invalid_grant)
+            if (ex.Message.Contains("invalid_grant") || ex.Message.Contains("unauthorized"))
+            {
+                 _logger.LogWarning("Refresh token is invalid (revoked or expired). Clearing stored credentials.");
+                 await _tokenStorage.DeleteRefreshTokenAsync();
+            }
+
             throw new InvalidOperationException("Failed to refresh access token. Please sign in again.", ex);
         }
     }
@@ -527,8 +539,23 @@ public class SpotifyAuthService
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to open browser");
-            throw new InvalidOperationException($"Failed to open browser. Please manually navigate to: {url}", ex);
+            _logger.LogError(ex, "Failed to open browser with default method. Attempting fallback...");
+            
+            try
+            {
+                // Fallback for Windows: explorer "url"
+                if (OperatingSystem.IsWindows())
+                {
+                     // Escape the URL for cmd/explorer
+                     url = url.Replace("&", "^&"); 
+                     Process.Start(new ProcessStartInfo("cmd", $"/c start {url}") { CreateNoWindow = true });
+                }
+            }
+            catch (Exception fallbackEx)
+            {
+                 _logger.LogError(fallbackEx, "Fallback browser launch also failed");
+                 throw new InvalidOperationException($"Failed to open browser. Please manually navigate to: {url}", ex);
+            }
         }
     }
 

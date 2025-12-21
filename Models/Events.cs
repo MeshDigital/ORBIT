@@ -36,6 +36,7 @@ public record PlaybackProgressEvent(TimeSpan Position, TimeSpan Duration);
 // Navigation & Global UI Events
 public record NavigationEvent(PageType PageType);
 public record PlayTrackRequestEvent(PlaylistTrackViewModel Track);
+public record PlayAlbumRequestEvent(System.Collections.Generic.IEnumerable<PlaylistTrack> Tracks);
 public record DownloadAlbumRequestEvent(object Album); // object to handle AlbumNode or PlaylistJob
 
 // Explicit Track Events (missing in record list but used in code)

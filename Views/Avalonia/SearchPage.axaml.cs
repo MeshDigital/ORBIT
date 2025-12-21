@@ -2,6 +2,7 @@ using Avalonia.Controls;
 using Avalonia.Input;
 using System.Linq;
 using SLSKDONET.Views;
+using SLSKDONET.ViewModels;
 
 namespace SLSKDONET.Views.Avalonia
 {
@@ -15,6 +16,11 @@ namespace SLSKDONET.Views.Avalonia
             DragDrop.SetAllowDrop(this, true);
             AddHandler(DragDrop.DragOverEvent, OnDragOver);
             AddHandler(DragDrop.DropEvent, OnDrop);
+        }
+
+        public SearchPage(SearchViewModel viewModel) : this()
+        {
+            DataContext = viewModel;
         }
 
         private void OnDragOver(object? sender, DragEventArgs e)

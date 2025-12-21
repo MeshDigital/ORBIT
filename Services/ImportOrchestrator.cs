@@ -58,23 +58,34 @@ public class ImportOrchestrator
 
             if (provider is IStreamingImportProvider streamProvider)
             {
-                 // Phase 7: Deterministic ID / Deduplication
-                 var newJobId = Utils.GuidGenerator.CreateFromUrl(input);
-                 
-                 // Retrieve existing job if any (Deduplication)
-                 var existingJob = await _libraryService.FindPlaylistJobAsync(newJobId);
-                 
-                 // Initialize UI
-                 _previewViewModel.InitializeStreamingPreview(provider.Name, provider.Name, newJobId, input, existingJob);
-                 
-                 // Clean/Setup Callbacks
-                 SetupPreviewCallbacks();
-
-                 // Navigate
-                 _navigationService.NavigateTo("ImportPreview");
-                 
-                 // Start Streaming
-                 _ = Task.Run(async () => await StreamPreviewAsync(streamProvider, input));
+                try
+                {
+                     // Phase 7: Deterministic ID / Deduplication
+                     var newJobId = Utils.GuidGenerator.CreateFromUrl(input);
+                     _logger.LogInformation("Generated Job ID: {Id}", newJobId);
+                     
+                     // Retrieve existing job if any (Deduplication)
+                     var existingJob = await _libraryService.FindPlaylistJobAsync(newJobId);
+                     
+                     // Initialize UI
+                     _previewViewModel.InitializeStreamingPreview(provider.Name, provider.Name, newJobId, input, existingJob);
+                     
+                     // Clean/Setup Callbacks
+                     SetupPreviewCallbacks();
+    
+                     // Navigate
+                     _navigationService.NavigateTo("ImportPreview");
+                     _logger.LogInformation("Navigated to ImportPreview");
+                     
+                     // Start Streaming
+                     _ = Task.Run(async () => await StreamPreviewAsync(streamProvider, input));
+                }
+                catch (Exception navEx)
+                {
+                    _logger.LogError(navEx, "Critical error during Import Setup/Navigation");
+                    _notificationService.Show("Import Error", $"Navigation failed: {navEx.Message}", Views.NotificationType.Error);
+                    throw; // Rethrow to let caller know
+                }
             }
             else
             {

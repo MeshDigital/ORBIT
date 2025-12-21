@@ -10,7 +10,12 @@ namespace SLSKDONET.Views.Avalonia
         public SettingsPage()
         {
             InitializeComponent();
-            
+        }
+
+        public SettingsPage(SettingsViewModel viewModel) : this()
+        {
+            DataContext = viewModel;
+
             // Phase 8: Wire up FFmpeg download button
             var downloadButton = this.FindControl<Button>("DownloadFfmpegButton");
             if (downloadButton != null)

@@ -15,7 +15,7 @@ using SLSKDONET.Models;
 using SLSKDONET.Services.InputParsers;
 using SLSKDONET.Utils;
 using SLSKDONET.Services.Models;
-using SLSKDONET.ViewModels; // Added for Wrapper
+
 
 namespace SLSKDONET.Services;
 
@@ -344,7 +344,8 @@ public class DownloadManager : INotifyPropertyChanged, IDisposable
             QueueTracks(job.PlaylistTracks);
             
             // 4. Fire event for Library UI to refresh
-            _eventBus.Publish(new ProjectAddedEvent(job.Id));
+            // Duplicate event removed: LibraryService already publishes ProjectAddedEvent
+            // _eventBus.Publish(new ProjectAddedEvent(job.Id));
         }
     }
 
@@ -661,11 +662,8 @@ public class DownloadManager : INotifyPropertyChanged, IDisposable
                 }
 
                 // Phase 3.1: Use Detection Service (Searching State)
-                // Discovery Service expects PlaylistTrackViewModel? We must update it to expect PlaylistTrack/Context or create a temporary VM wrapper
-                // For now, let's look at DownloadDiscoveryService signature... it takes PlaylistTrackViewModel.
-                // Refactor Note: Ideally DiscoveryService should take PlaylistTrack.
-                // WORKAROUND: Create temp VM for DiscoveryService (since it reads Artist/Title properties)
-                var bestMatch = await _discoveryService.FindBestMatchAsync(new PlaylistTrackViewModel(ctx.Model), trackCt);
+                // Refactor Note: DiscoveryService now takes PlaylistTrack (Decoupled).
+                var bestMatch = await _discoveryService.FindBestMatchAsync(ctx.Model, trackCt);
 
                 if (bestMatch == null)
                 {

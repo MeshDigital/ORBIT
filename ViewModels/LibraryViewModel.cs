@@ -168,21 +168,29 @@ public class LibraryViewModel : INotifyPropertyChanged
     {
         try
         {
-            _logger.LogInformation("ProjectAddedEvent received for job {JobId}, navigating to library", evt.ProjectId);
+            _logger.LogInformation("[IMPORT TRACE] LibraryViewModel.OnProjectAdded: Received event for job {JobId}", evt.ProjectId);
+            _logger.LogInformation("[IMPORT TRACE] Current AllProjects count: {Count}", Projects.AllProjects.Count);
             
             // Navigate to Library page
+            _logger.LogInformation("[IMPORT TRACE] Navigating to Library page");
             await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() =>
             {
                 _navigationService.NavigateTo("Library");
             });
+            _logger.LogInformation("[IMPORT TRACE] Navigation to Library completed");
             
             // Give the UI time to update
             await Task.Delay(300);
             
             // Load projects to ensure the new one is in the list
+            // NOTE: This may seem redundant with ProjectListViewModel.OnPlaylistAdded, but it ensures
+            // the list is fully loaded when coming from import (LibraryPage.OnLoaded may not have fired yet)
+            _logger.LogInformation("[IMPORT TRACE] Calling LoadProjectsAsync to refresh project list");
             await LoadProjectsAsync();
+            _logger.LogInformation("[IMPORT TRACE] LoadProjectsAsync completed. AllProjects count: {Count}", Projects.AllProjects.Count);
             
             // Select the newly added project
+            _logger.LogInformation("[IMPORT TRACE] Attempting to select project {JobId}", evt.ProjectId);
             await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() =>
             {
                 var addedProject = Projects.AllProjects.FirstOrDefault(p => p.Id == evt.ProjectId);
@@ -402,10 +410,13 @@ public class LibraryViewModel : INotifyPropertyChanged
         
         if (firstValid != null)
         {
-            // For now, just play the first track. 
-            // TODO: Add all to queue properly via EventBus
-            var vm = new PlaylistTrackViewModel(firstValid, _eventBus);
-            _eventBus.Publish(new PlayTrackRequestEvent(vm));
+            // Queue all tracks that have a resolved file path
+            var validTracks = tracks.Where(t => !string.IsNullOrEmpty(t.ResolvedFilePath)).ToList();
+            if (validTracks.Any())
+            {
+                _eventBus.Publish(new PlayAlbumRequestEvent(validTracks));
+                _logger.LogInformation("Queued {Count} tracks for album {Title}", validTracks.Count, job.SourceTitle);
+            }
         }
     }
 

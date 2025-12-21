@@ -10,13 +10,18 @@ using Avalonia.VisualTree;
 using SLSKDONET.Models;
 using SLSKDONET.Services;
 using SLSKDONET.ViewModels;
+using Microsoft.Extensions.Logging;
 
 namespace SLSKDONET.Views.Avalonia;
 
 public partial class LibraryPage : UserControl
 {
-    public LibraryPage()
+    private readonly ILogger<LibraryPage>? _logger;
+
+    public LibraryPage(LibraryViewModel viewModel, ILogger<LibraryPage>? logger = null)
     {
+        _logger = logger;
+        DataContext = viewModel; // CRITICAL: Set DataContext from DI
         InitializeComponent();
         
         // Enable drag-drop on playlist ListBox
@@ -32,7 +37,32 @@ public partial class LibraryPage : UserControl
         // Previously only loaded during startup or after imports, not on manual navigation
         if (DataContext is LibraryViewModel vm)
         {
-            await vm.LoadProjectsAsync();
+            try
+            {
+                _logger?.LogInformation("[DIAGNOSTIC] LibraryPage.OnLoaded: Starting LoadProjectsAsync");
+                _logger?.LogInformation("[DIAGNOSTIC] Current AllProjects count BEFORE load: {Count}", vm.Projects.AllProjects.Count);
+                
+                await vm.LoadProjectsAsync();
+                
+                _logger?.LogInformation("[DIAGNOSTIC] LoadProjectsAsync completed. AllProjects count AFTER load: {Count}", vm.Projects.AllProjects.Count);
+                
+                if (vm.Projects.AllProjects.Count == 0)
+                {
+                    _logger?.LogWarning("[DIAGNOSTIC] WARNING: AllProjects is still empty after LoadProjectsAsync!");
+                }
+                else
+                {
+                    _logger?.LogInformation("[DIAGNOSTIC] Projects loaded successfully. First project: {Title}", vm.Projects.AllProjects[0].SourceTitle);
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger?.LogError(ex, "[DIAGNOSTIC] EXCEPTION in LibraryPage.OnLoaded during LoadProjectsAsync");
+            }
+        }
+        else
+        {
+            _logger?.LogWarning("[DIAGNOSTIC] LibraryPage.OnLoaded: DataContext is NOT LibraryViewModel!");
         }
         
         // Find the playlist ListBox and enable drop

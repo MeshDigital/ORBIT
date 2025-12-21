@@ -18,4 +18,28 @@ public interface ISoulseekAdapter
         DownloadMode mode,
         Action<IEnumerable<Track>> onTracksFound,
         CancellationToken ct = default);
+
+    IAsyncEnumerable<Track> StreamResultsAsync(
+        string query,
+        IEnumerable<string>? formatFilter,
+        (int? Min, int? Max) bitrateFilter,
+        DownloadMode mode,
+        CancellationToken ct = default);
+
+    Task<bool> DownloadAsync(
+        string username,
+        string filename,
+        string outputPath,
+        long? size = null,
+        IProgress<double>? progress = null,
+        CancellationToken ct = default);
+
+    Task<int> ProgressiveSearchAsync(
+        string artist,
+        string title,
+        string? album,
+        IEnumerable<string>? formatFilter,
+        (int? Min, int? Max) bitrateFilter,
+        Action<IEnumerable<Track>> onTracksFound,
+        CancellationToken ct = default);    
 }

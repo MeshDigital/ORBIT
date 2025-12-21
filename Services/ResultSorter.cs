@@ -54,6 +54,36 @@ public static class ResultSorter
     /// 5. Levenshtein distance (string similarity)
     /// 6. Random tiebreaker for consistent ordering
     /// </summary>
+    /// <summary>
+    /// Calculates the rank/score for a single track against the search criteria.
+    /// Useful for streaming scenarios where we want to score on-the-fly.
+    /// </summary>
+    public static void CalculateRank(Track result, Track searchTrack, FileConditionEvaluator evaluator)
+    {
+        // Phase 2.3: Create ScoringContext from search track (re-created per track here, could be optimized if passed in)
+        var context = ScoringContext.FromSearchQuery(
+            searchTrack.Artist ?? "",
+            searchTrack.Title ?? "",
+            searchTrack.BPM.HasValue ? (int)Math.Round(searchTrack.BPM.Value) : null,
+            searchTrack.Length,
+            searchTrack.MusicalKey
+        );
+        
+        var random = new Random(); // Note: creating random per call might loose determinism if seeded, but for streaming it's acceptable tie-breaking
+        var criteria = GetSortingCriteria(result, searchTrack, context, evaluator, random);
+        result.CurrentRank = criteria.OverallScore;
+    }
+
+    /// <summary>
+    /// Orders search results by multiple criteria for optimal download selection.
+    /// Prioritizes:
+    /// 1. Required conditions met
+    /// 2. Preferred conditions met
+    /// 3. Upload speed (fast > medium > slow)
+    /// 4. File metadata quality (length, bitrate, format)
+    /// 5. Levenshtein distance (string similarity)
+    /// 6. Random tiebreaker for consistent ordering
+    /// </summary>
     public static List<Track> OrderResults(
         IEnumerable<Track> results,
         Track searchTrack,
@@ -68,7 +98,9 @@ public static class ResultSorter
                 .ToList();
         }
         
-        // Phase 2.3: Create ScoringContext from search track
+        var random = new Random();
+        
+        // Phase 2.3: Create ScoringContext once
         var context = ScoringContext.FromSearchQuery(
             searchTrack.Artist ?? "",
             searchTrack.Title ?? "",
@@ -76,8 +108,6 @@ public static class ResultSorter
             searchTrack.Length,
             searchTrack.MusicalKey
         );
-
-        var random = new Random();
 
         // First, assign original indices before sorting
         var withOriginalIndices = results
