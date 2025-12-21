@@ -526,7 +526,20 @@ public class SettingsViewModel : INotifyPropertyChanged
         try
         {
             IsAuthenticating = true;
-            if (await _spotifyAuthService.IsAuthenticatedAsync())
+            
+            // Safety timeout of 5 seconds for the check
+            var checkTask = _spotifyAuthService.IsAuthenticatedAsync();
+            var timeoutTask = Task.Delay(5000);
+            
+            if (await Task.WhenAny(checkTask, timeoutTask) == timeoutTask)
+            {
+                _logger.LogWarning("Spotify connection check timed out");
+                IsSpotifyConnected = false;
+                SpotifyDisplayName = "Check Timed Out";
+                return;
+            }
+
+            if (await checkTask)
             {
                 var user = await _spotifyAuthService.GetCurrentUserAsync();
                 SpotifyDisplayName = user.DisplayName ?? user.Id;
