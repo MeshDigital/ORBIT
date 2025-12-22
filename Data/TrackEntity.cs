@@ -118,7 +118,7 @@ public class PlaylistTrackEntity
     public string ResolvedFilePath { get; set; } = string.Empty;
     public int TrackNumber { get; set; }
     public int Bitrate { get; set; } = 0;
-    public string Format { get; set; } = string.Empty;
+    public string? Format { get; set; } // Nullable to handle existing NULL values
 
     // User engagement
     public int Rating { get; set; } = 0; // 1-5 stars, 0 = not rated
