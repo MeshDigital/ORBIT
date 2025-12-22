@@ -20,6 +20,7 @@ public class SoulseekAdapter : ISoulseekAdapter, IDisposable
     private readonly AppConfig _config;
     private readonly IEventBus _eventBus;
     private SoulseekClient? _client;
+    public bool IsConnected => _client?.State.HasFlag(SoulseekClientStates.Connected) ?? false;
 
     public SoulseekAdapter(ILogger<SoulseekAdapter> logger, AppConfig config, IEventBus eventBus)
     {
@@ -614,6 +615,4 @@ public class SoulseekAdapter : ISoulseekAdapter, IDisposable
             _logger.LogWarning(ex, "Error disposing SoulseekClient");
         }
     }
-
-    public bool IsConnected => _client?.State.HasFlag(SoulseekClientStates.Connected) == true;
 }

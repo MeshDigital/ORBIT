@@ -1,6 +1,7 @@
-using System.Collections.Generic;
-using System.Collections.ObjectModel;
 using System.Linq;
+using System.Collections.ObjectModel;
+using System.Threading;
+using System.Threading.Tasks;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.Models.TreeDataGrid;
@@ -10,7 +11,10 @@ using Avalonia.Data;
 using Avalonia.Data.Converters;
 using Avalonia.Layout;
 using Avalonia.Media;
+using SLSKDONET.Configuration;
 using SLSKDONET.Models;
+using SLSKDONET.Services;
+using SLSKDONET.Views; // For RelayCommand and AsyncRelayCommand
 
 namespace SLSKDONET.ViewModels.Library;
 
@@ -19,6 +23,7 @@ public class HierarchicalLibraryViewModel
     private readonly ObservableCollection<AlbumNode> _albums = new();
     private readonly AppConfig _config;
     private readonly Dictionary<IColumn<ILibraryNode>, string> _columnToIdMap = new();
+    private CancellationTokenSource? _saveDebounceCts;
     public HierarchicalTreeDataGridSource<ILibraryNode> Source { get; }
     public ITreeDataGridRowSelectionModel<ILibraryNode>? Selection => Source.RowSelection;
 
@@ -30,8 +35,23 @@ public class HierarchicalLibraryViewModel
 
         InitializeColumns();
 
-        // Persist reordering when it happens
-        Source.Columns.CollectionChanged += (s, e) => SaveColumnLayout();
+        // Persist reordering when it happens (with debounce)
+        Source.Columns.CollectionChanged += (s, e) => ScheduleSave();
+    }
+
+    private void ScheduleSave()
+    {
+        _saveDebounceCts?.Cancel();
+        _saveDebounceCts = new CancellationTokenSource();
+        var token = _saveDebounceCts.Token;
+
+        Task.Delay(500, token).ContinueWith(t =>
+        {
+            if (!t.IsCanceled)
+            {
+                SaveColumnLayout();
+            }
+        }, TaskScheduler.Default);
     }
 
     private void InitializeColumns()
@@ -84,7 +104,8 @@ public class HierarchicalLibraryViewModel
 
     public void SaveColumnLayout()
     {
-        var ids = Source.Columns.Select(c => _columnToIdMap.TryGetValue(c, out var id) ? id : null)
+        var ids = Source.Columns.Cast<IColumn<ILibraryNode>>()
+                               .Select(c => _columnToIdMap.TryGetValue(c, out var id) ? id : null)
                                .Where(id => id != null);
         
         _config.LibraryColumnOrder = string.Join(",", ids);
@@ -211,7 +232,6 @@ public class HierarchicalLibraryViewModel
 
         return panel;
     }, false);
-    }
 
     public void UpdateTracks(IEnumerable<PlaylistTrackViewModel> tracks)
     {

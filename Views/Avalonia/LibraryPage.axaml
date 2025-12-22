@@ -330,8 +330,6 @@
                               Background="Transparent"
                               BorderThickness="0"
                               Foreground="#DDD"
-                              CanUserResizeColumns="True"
-                              CanUserReorderColumns="True"
                               DoubleTapped="OnTreeDataGridDoubleTapped">
                     <TreeDataGrid.ContextMenu>
                         <ContextMenu>

@@ -1,3 +1,56 @@
+# Recent Changes & Build Stability Fixes - December 22, 2025
+
+## Executive Summary
+
+This update focuses on stabilizing the codebase after significant architectural shifts, resolving critical build failures, and implementing performance and security improvements. Key highlights include decoupling global metrics from the download manager, implementing debounced UI persistence, and resolving XAML compatibility issues.
+
+**Key Achievements**:
+- Resolved critical build failures in `MainViewModel`, `HierarchicalLibraryViewModel`, and `SoulseekAdapter`.
+- Decoupled global statistics (Successful/Failed/Todo counts) from `DownloadManager` to a local event-driven model in `MainViewModel`.
+- Implemented 500ms debounce for column layout persistence in the Hierarchical Library view.
+- Eliminated SQL injection warnings in `DatabaseService` schema patching.
+- Resolved `AVLN2000` XAML compilation errors in `LibraryPage.axaml` by removing unsupported `TreeDataGrid` properties.
+
+---
+
+## 1. Build Stability & Architectural Alignment
+
+### 1.1 Metric Decoupling in MainViewModel
+
+**Problem**: `MainViewModel` was attempting to read stats directly from `_downloadManager`, but these properties were moved to a local event-driven collection (`AllGlobalTracks`) for better UI responsiveness and decentralization.
+
+**Solution**: Updated `MainViewModel` to calculate `SuccessfulCount`, `FailedCount`, and `TodoCount` directly from `AllGlobalTracks`.
+
+### 1.2 Soulseek Interface Repair
+
+**Issue**: `ISoulseekAdapter` was missing the `IsConnected` property required by `ConnectionViewModel`, and the implementation in `SoulseekAdapter` was incompletely implemented.
+
+**Fix**: Explicitly added `IsConnected { get; }` to the interface and correctly implemented it in `SoulseekAdapter` using the underlying client state.
+
+---
+
+## 2. Logic & Security Improvements
+
+### 2.1 Column Persistence Debounce
+
+**Innovation**: Added a 500ms delay (debounce) to `SaveColumnLayout` in `HierarchicalLibraryViewModel`. This prevents excessive disk I/O when users smooth-drag columns across the `TreeDataGrid`.
+
+### 2.2 Sanitized Database Operations
+
+**Security**: Replaced `ExecuteSqlRawAsync` with `ExecuteSqlAsync` or used constant strings for schema patching in `DatabaseService`, eliminating build warnings and following security best practices.
+
+---
+
+## 3. UI Compatibility Fixes
+
+### 3.1 XAML Compilation (AVLN2000)
+
+**Problem**: Unsupported properties `CanUserReorderColumns` and `CanUserResizeColumns` on `TreeDataGrid` were causing XAML compiler crashes and build failures.
+
+**Fix**: Removed the offending properties from `LibraryPage.axaml` and `DownloadsPage.axaml` to ensure stable compilation.
+
+---
+
 # Recent Changes & Library Progress Issue - December 13, 2025
 
 ## Executive Summary

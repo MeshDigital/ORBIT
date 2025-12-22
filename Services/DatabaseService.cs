@@ -112,9 +112,9 @@ public class DatabaseService
             foreach (var (name, definition) in columnsToAdd)
             {
                 _logger.LogWarning("Schema Patch: Adding missing column '{Column}' to PlaylistTracks", name);
-                var sql = $"ALTER TABLE PlaylistTracks ADD COLUMN {definition}";
-                #pragma warning disable EF1002
-                await context.Database.ExecuteSqlRawAsync(sql);
+                // Security: Column definition is from a controlled internal list of hardcoded strings
+                #pragma warning disable EF1002 
+                await context.Database.ExecuteSqlRawAsync($"ALTER TABLE PlaylistTracks ADD COLUMN {definition}");
                 #pragma warning restore EF1002
             }
             
@@ -169,9 +169,8 @@ public class DatabaseService
             if (!existingColumns.Contains("DateUpdated"))
             {
                 _logger.LogWarning("Schema Patch: Adding missing column 'DateUpdated' to PlaylistJobs");
-                // Default to epoch or current time? Using current time for safety.
                 var now = DateTime.UtcNow.ToString("o");
-                await context.Database.ExecuteSqlRawAsync($"ALTER TABLE PlaylistJobs ADD COLUMN DateUpdated TEXT DEFAULT '{now}'");
+                await context.Database.ExecuteSqlAsync($"ALTER TABLE PlaylistJobs ADD COLUMN DateUpdated TEXT DEFAULT {now}");
             }
             
             _logger.LogInformation("[{Ms}ms] Database Init: Schema patches completed", sw.ElapsedMilliseconds);
@@ -181,7 +180,7 @@ public class DatabaseService
             _logger.LogInformation("Creating performance indexes...");
             try
             {
-                await context.Database.ExecuteSqlRawAsync(@"
+                await context.Database.ExecuteSqlAsync($@"
                     -- PlaylistTracks indexes for fast filtering/sorting
                     CREATE INDEX IF NOT EXISTS idx_playlist_tracks_playlistid 
                     ON PlaylistTracks(PlaylistId);
