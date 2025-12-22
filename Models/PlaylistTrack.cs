@@ -116,6 +116,10 @@ public class PlaylistTrack
     public string? QualityDetails { get; set; }
     
     public bool IsEnriched { get; set; } = false;
+
+    // Phase 13: Per-Track Filter Overrides
+    public string? PreferredFormats { get; set; }
+    public int? MinBitrateOverride { get; set; }
 }
 
 /// <summary>

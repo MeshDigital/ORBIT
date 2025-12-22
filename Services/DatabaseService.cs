@@ -109,6 +109,12 @@ public class DatabaseService
             if (!existingColumns.Contains("IsEnriched"))
                 columnsToAdd.Add(("IsEnriched", "IsEnriched INTEGER DEFAULT 0"));
             
+            // Phase 13: Search Filter Overrides
+            if (!existingColumns.Contains("PreferredFormats"))
+                columnsToAdd.Add(("PreferredFormats", "PreferredFormats TEXT NULL"));
+            if (!existingColumns.Contains("MinBitrateOverride"))
+                columnsToAdd.Add(("MinBitrateOverride", "MinBitrateOverride INTEGER NULL"));
+            
             foreach (var (name, definition) in columnsToAdd)
             {
                 _logger.LogWarning("Schema Patch: Adding missing column '{Column}' to PlaylistTracks", name);
@@ -1098,7 +1104,11 @@ public class DatabaseService
                     QualityConfidence = track.QualityConfidence,
                     FrequencyCutoff = track.FrequencyCutoff,
                     IsTrustworthy = track.IsTrustworthy,
-                    QualityDetails = track.QualityDetails
+                    QualityDetails = track.QualityDetails,
+
+                    // Phase 13: Search Filter Overrides
+                    PreferredFormats = track.PreferredFormats,
+                    MinBitrateOverride = track.MinBitrateOverride
                 });
                 context.PlaylistTracks.AddRange(trackEntities);
             }
@@ -1150,7 +1160,11 @@ public class DatabaseService
                         QualityConfidence = track.QualityConfidence,
                         FrequencyCutoff = track.FrequencyCutoff,
                         IsTrustworthy = track.IsTrustworthy,
-                        QualityDetails = track.QualityDetails
+                        QualityDetails = track.QualityDetails,
+
+                        // Phase 13: Search Filter Overrides
+                        PreferredFormats = track.PreferredFormats,
+                        MinBitrateOverride = track.MinBitrateOverride
                     };
 
                     if (existingTrackIdSet.Contains(track.Id))
@@ -1344,7 +1358,11 @@ public class DatabaseService
                     CuePointsJson = trackEntity.CuePointsJson,
                     AudioFingerprint = trackEntity.AudioFingerprint,
                     BitrateScore = trackEntity.BitrateScore,
-                    AnalysisOffset = trackEntity.AnalysisOffset
+                    AnalysisOffset = trackEntity.AnalysisOffset,
+
+                    // Phase 13: Search Filter Overrides
+                    PreferredFormats = trackEntity.PreferredFormats,
+                    MinBitrateOverride = trackEntity.MinBitrateOverride
                 };
                 
                 result.Add((track, queueItem.IsCurrentTrack));

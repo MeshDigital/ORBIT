@@ -190,11 +190,15 @@
                                                 </Grid>
                                             </StackPanel>
 
-                                            <!-- Action Buttons -->
-                                            <StackPanel Grid.Column="2" 
-                                                        Orientation="Horizontal" 
-                                                        Spacing="6"
-                                                        VerticalAlignment="Center">
+                                                <!-- Filters Toggle -->
+                                                <ToggleButton IsChecked="{Binding IsFilterExpanded}"
+                                                              Background="Transparent"
+                                                              BorderThickness="0"
+                                                              Padding="10,8"
+                                                              ToolTip.Tip="Track Filters">
+                                                    <TextBlock Text="⚙️" FontSize="16" Foreground="#AAA"/>
+                                                </ToggleButton>
+
                                                 <!-- Pause -->
                                                 <Button Command="{Binding PauseCommand}"
                                                         IsVisible="{Binding CanPause}"
@@ -226,6 +230,63 @@
                                                 </Button>
                                             </StackPanel>
                                         </Grid>
+
+                                        <!-- Filter Panel -->
+                                        <Border IsVisible="{Binding IsFilterExpanded}"
+                                                Background="#2D2D30"
+                                                BorderBrush="#3E3E3E"
+                                                BorderThickness="1"
+                                                CornerRadius="4"
+                                                Padding="12"
+                                                Margin="0,12,0,0">
+                                            <StackPanel Spacing="12">
+                                                <TextBlock Text="Track Filter Overrides" FontSize="12" FontWeight="Bold" Foreground="#4CAF50"/>
+                                                
+                                                <Grid ColumnDefinitions="*,Auto,*">
+                                                    <!-- Formats -->
+                                                    <StackPanel Grid.Column="0" Spacing="4">
+                                                        <TextBlock Text="Allowed Formats" FontSize="11" Foreground="#AAA"/>
+                                                        <TextBox Text="{Binding AllowedFormatsString}" 
+                                                                 Watermark="e.g. mp3, flac"
+                                                                 FontSize="12"
+                                                                 Background="#1E1E1E"
+                                                                 BorderBrush="#3E3E3E"
+                                                                 Padding="8,4"/>
+                                                    </StackPanel>
+
+                                                    <Separator Grid.Column="1" Width="1" Margin="12,0" Background="#3E3E3E"/>
+
+                                                    <!-- Bitrate -->
+                                                    <StackPanel Grid.Column="2" Spacing="4">
+                                                        <TextBlock Text="Min Bitrate (kbps)" FontSize="11" Foreground="#AAA"/>
+                                                        <NumericUpDown Value="{Binding MinBitrate}" 
+                                                                      Minimum="0" Maximum="320" Increment="32"
+                                                                      FontSize="12"
+                                                                      Background="#1E1E1E"
+                                                                      BorderBrush="#3E3E3E"
+                                                                      Padding="8,4"/>
+                                                    </StackPanel>
+                                                </Grid>
+
+                                                <StackPanel Orientation="Horizontal" Spacing="8">
+                                                    <TextBlock Text="Presets:" VerticalAlignment="Center" FontSize="11" Foreground="#AAA"/>
+                                                    <Button Command="{Binding ApplyPresetCommand}" CommandParameter="Strict" Content="Strict" FontSize="11" Padding="8,2" Background="#333"/>
+                                                    <Button Command="{Binding ApplyPresetCommand}" CommandParameter="Balanced" Content="Balanced" FontSize="11" Padding="8,2" Background="#333"/>
+                                                    <Button Command="{Binding ApplyPresetCommand}" CommandParameter="Relaxed" Content="Relaxed" FontSize="11" Padding="8,2" Background="#333"/>
+                                                    
+                                                    <Separator Width="1" Margin="8,4" Background="#3E3E3E"/>
+                                                    
+                                                    <Button Command="{Binding RetryWithFiltersCommand}" 
+                                                            Content="Apply &amp; Retry" 
+                                                            IsVisible="{Binding CanRetry}"
+                                                            Background="#4CAF50" 
+                                                            Foreground="White" 
+                                                            FontSize="11" 
+                                                            Padding="12,2" 
+                                                            FontWeight="Bold"/>
+                                                </StackPanel>
+                                            </StackPanel>
+                                        </Border>
                                     </Border>
                                 </DataTemplate>
                             </ItemsControl.ItemTemplate>
@@ -360,19 +421,81 @@
                                                 </TextBlock>
                                                 <TextBlock Text="{Binding AlbumName}" FontSize="11" Foreground="#808080"/>
                                             </StackPanel>
-                                            <Button Grid.Column="2"
-                                                    Command="{Binding RetryCommand}"
-                                                    Background="#FF9800"
-                                                    Foreground="White"
-                                                    Padding="12,6"
-                                                    CornerRadius="6"
-                                                    VerticalAlignment="Center">
-                                                <StackPanel Orientation="Horizontal" Spacing="4">
-                                                    <TextBlock Text="♻" FontSize="12"/>
-                                                    <TextBlock Text="Retry" FontSize="12" FontWeight="SemiBold"/>
-                                                </StackPanel>
-                                            </Button>
+                                            <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                                                <ToggleButton IsChecked="{Binding IsFilterExpanded}"
+                                                              Background="Transparent"
+                                                              BorderThickness="0"
+                                                              Padding="10,8"
+                                                              ToolTip.Tip="Track Filters">
+                                                    <TextBlock Text="⚙️" FontSize="16" Foreground="#AAA"/>
+                                                </ToggleButton>
+
+                                                <Button Command="{Binding RetryCommand}"
+                                                        Background="#FF9800"
+                                                        Foreground="White"
+                                                        Padding="12,6"
+                                                        CornerRadius="6">
+                                                    <StackPanel Orientation="Horizontal" Spacing="4">
+                                                        <TextBlock Text="♻" FontSize="12"/>
+                                                        <TextBlock Text="Retry" FontSize="12" FontWeight="Bold"/>
+                                                    </StackPanel>
+                                                </Button>
+                                            </StackPanel>
                                         </Grid>
+
+                                        <!-- Filter Panel -->
+                                        <Border IsVisible="{Binding IsFilterExpanded}"
+                                                Background="#2D2D30"
+                                                BorderBrush="#3E3E3E"
+                                                BorderThickness="1"
+                                                CornerRadius="4"
+                                                Padding="12"
+                                                Margin="0,12,0,0">
+                                            <StackPanel Spacing="12">
+                                                <TextBlock Text="Track Filter Overrides" FontSize="12" FontWeight="Bold" Foreground="#FF9800"/>
+                                                
+                                                <Grid ColumnDefinitions="*,Auto,*">
+                                                    <StackPanel Grid.Column="0" Spacing="4">
+                                                        <TextBlock Text="Allowed Formats" FontSize="11" Foreground="#AAA"/>
+                                                        <TextBox Text="{Binding AllowedFormatsString}" 
+                                                                 Watermark="e.g. mp3, flac"
+                                                                 FontSize="12"
+                                                                 Background="#1E1E1E"
+                                                                 BorderBrush="#3E3E3E"
+                                                                 Padding="8,4"/>
+                                                    </StackPanel>
+
+                                                    <Separator Grid.Column="1" Width="1" Margin="12,0" Background="#3E3E3E"/>
+
+                                                    <StackPanel Grid.Column="2" Spacing="4">
+                                                        <TextBlock Text="Min Bitrate (kbps)" FontSize="11" Foreground="#AAA"/>
+                                                        <NumericUpDown Value="{Binding MinBitrate}" 
+                                                                      Minimum="0" Maximum="320" Increment="32"
+                                                                      FontSize="12"
+                                                                      Background="#1E1E1E"
+                                                                      BorderBrush="#3E3E3E"
+                                                                      Padding="8,4"/>
+                                                    </StackPanel>
+                                                </Grid>
+
+                                                <StackPanel Orientation="Horizontal" Spacing="8">
+                                                    <TextBlock Text="Presets:" VerticalAlignment="Center" FontSize="11" Foreground="#AAA"/>
+                                                    <Button Command="{Binding ApplyPresetCommand}" CommandParameter="Strict" Content="Strict" FontSize="11" Padding="8,2" Background="#333"/>
+                                                    <Button Command="{Binding ApplyPresetCommand}" CommandParameter="Balanced" Content="Balanced" FontSize="11" Padding="8,2" Background="#333"/>
+                                                    <Button Command="{Binding ApplyPresetCommand}" CommandParameter="Relaxed" Content="Relaxed" FontSize="11" Padding="8,2" Background="#333"/>
+                                                    
+                                                    <Separator Width="1" Margin="8,4" Background="#3E3E3E"/>
+                                                    
+                                                    <Button Command="{Binding RetryWithFiltersCommand}" 
+                                                            Content="Apply &amp; Retry" 
+                                                            Background="#FF9800" 
+                                                            Foreground="White" 
+                                                            FontSize="11" 
+                                                            Padding="12,2" 
+                                                            FontWeight="Bold"/>
+                                                </StackPanel>
+                                            </StackPanel>
+                                        </Border>
                                     </Border>
                                 </DataTemplate>
                             </ItemsControl.ItemTemplate>

@@ -198,6 +198,10 @@ public class PlaylistTrackEntity
     
     // New Flag
     public bool IsEnriched { get; set; } = false;
+
+    // Phase 13: Per-Track Filter Overrides
+    public string? PreferredFormats { get; set; }
+    public int? MinBitrateOverride { get; set; }
     
     public PlaylistJobEntity? Job { get; set; }
 }

@@ -518,7 +518,10 @@ public class DownloadManager : INotifyPropertyChanged, IDisposable
                 AddedAt = DateTime.Now, // ctx doesn't track AddedAt yet, assume Now or Model property
                 ErrorMessage = ctx.ErrorMessage,
                 AlbumArtUrl = ctx.Model.AlbumArtUrl,
-                SpotifyTrackId = ctx.Model.SpotifyTrackId
+                SpotifyTrackId = ctx.Model.SpotifyTrackId,
+                // These are actually only in PlaylistTrackEntity currently, 
+                // but TrackEntity (global history) doesn't have them yet.
+                // For now, focusing on the PlaylistTrack flow which is the primary failure point.
             });
         }  
         catch (Exception ex)
@@ -632,6 +635,38 @@ public class DownloadManager : INotifyPropertyChanged, IDisposable
         
         _ = UpdateStateAsync(ctx, PlaylistTrackState.Cancelled);
         DeleteLocalFiles(ctx.Model.ResolvedFilePath);
+    }
+    
+    public async Task UpdateTrackFiltersAsync(string globalId, string formats, int minBitrate)
+    {
+        DownloadContext? ctx;
+        lock (_collectionLock) ctx = _downloads.FirstOrDefault(d => d.GlobalId == globalId);
+        
+        if (ctx != null)
+        {
+            ctx.Model.PreferredFormats = formats;
+            ctx.Model.MinBitrateOverride = minBitrate;
+            
+            // Persist to DB immediately
+            await SaveTrackToDb(ctx);
+            
+            // If it's a playlist track, update that entity too
+            try 
+            {
+                using var context = new Data.AppDbContext();
+                var pt = await context.PlaylistTracks.FirstOrDefaultAsync(t => t.Id == ctx.Model.Id);
+                if (pt != null)
+                {
+                    pt.PreferredFormats = formats;
+                    pt.MinBitrateOverride = minBitrate;
+                    await context.SaveChangesAsync();
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Failed to update PlaylistTrack filters in DB for {Id}", globalId);
+            }
+        }
     }
     
     public void EnqueueTrack(Track track)

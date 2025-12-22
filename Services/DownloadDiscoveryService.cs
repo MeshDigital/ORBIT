@@ -51,9 +51,14 @@ public class DownloadDiscoveryService
 
         try
         {
-            // 1. Configure preferences
-            var preferredFormats = string.Join(",", _config.PreferredFormats ?? new System.Collections.Generic.List<string> { "mp3" });
-            var minBitrate = _config.PreferredMinBitrate;
+            // 1. Configure preferences (Respect per-track overrides)
+            var formatsList = !string.IsNullOrEmpty(track.PreferredFormats)
+                ? track.PreferredFormats.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).ToList()
+                : _config.PreferredFormats ?? new System.Collections.Generic.List<string> { "mp3" };
+            
+            var preferredFormats = string.Join(",", formatsList);
+            var minBitrate = track.MinBitrateOverride ?? _config.PreferredMinBitrate;
+            
             // Cap at reasonable high unless strictly set, but for discovery we want quality
             var maxBitrate = 0; 
 

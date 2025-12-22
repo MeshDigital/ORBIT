@@ -485,7 +485,9 @@ public class LibraryService : ILibraryService
             PlayCount = entity.PlayCount,
             LastPlayedAt = entity.LastPlayedAt,
             AddedAt = entity.AddedAt,
-            SortOrder = entity.SortOrder
+            SortOrder = entity.SortOrder,
+            PreferredFormats = entity.PreferredFormats,
+            MinBitrateOverride = entity.MinBitrateOverride
         };
     }
 
@@ -507,7 +509,9 @@ public class LibraryService : ILibraryService
             PlayCount = track.PlayCount,
             LastPlayedAt = track.LastPlayedAt,
             AddedAt = track.AddedAt,
-            SortOrder = track.SortOrder
+            SortOrder = track.SortOrder,
+            PreferredFormats = track.PreferredFormats,
+            MinBitrateOverride = track.MinBitrateOverride
         };
     }
 

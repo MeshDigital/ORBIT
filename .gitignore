@@ -29,7 +29,7 @@ bld/
 # Local environment
 config.ini
 *.db
-downloads/
+/downloads/
 
 # NuGet
 *.nupkg
