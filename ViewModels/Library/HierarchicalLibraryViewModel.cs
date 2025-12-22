@@ -27,6 +27,7 @@ public class HierarchicalLibraryViewModel
 
         Source.Columns.AddRange(new IColumn<ILibraryNode>[]
         {
+                // Column #1: Album Art
                 new TemplateColumn<ILibraryNode>(
                     "🎨",
                     new FuncDataTemplate<object>((item, _) => 
@@ -54,40 +55,8 @@ public class HierarchicalLibraryViewModel
                         };
                     }, false), // Disable recycling
                     width: new GridLength(40)),
-                new HierarchicalExpanderColumn<ILibraryNode>(
-                    new TextColumn<ILibraryNode, string>("Title", x => x.Title ?? "Unknown"),
-                    x => x is AlbumNode album ? album.Tracks : null),
-                new TextColumn<ILibraryNode, int>("#", x => x.SortOrder),
-                new TextColumn<ILibraryNode, string>("Artist", x => x.Artist ?? string.Empty),
-                new TextColumn<ILibraryNode, string>("Album", x => x.Album ?? string.Empty),
-                new TextColumn<ILibraryNode, string>("Duration", x => x.Duration ?? string.Empty),
-                new TextColumn<ILibraryNode, int>("🔥", x => x.Popularity),
-                new TextColumn<ILibraryNode, string>("Bitrate", x => x.Bitrate ?? string.Empty),
-                new TextColumn<ILibraryNode, string>("Genres", x => x.Genres ?? string.Empty),
                 
-                // Metadata Status
-                new TemplateColumn<ILibraryNode>(
-                    " ✨",
-                    new FuncDataTemplate<object>((item, _) => 
-                    {
-                         if (item is not PlaylistTrackViewModel track) return new Panel();
-
-                        // Use Bindings for Dynamic Updates
-                        var textBlock = new TextBlock { 
-                            VerticalAlignment = VerticalAlignment.Center,
-                            HorizontalAlignment = HorizontalAlignment.Center,
-                            FontSize = 14
-                        };
-
-                        textBlock.Bind(TextBlock.TextProperty, new Binding(nameof(PlaylistTrackViewModel.MetadataStatusSymbol)));
-                        textBlock.Bind(TextBlock.ForegroundProperty, new Binding(nameof(PlaylistTrackViewModel.MetadataStatusColor)) { Converter = new FuncValueConverter<string, IBrush>(c => Brush.Parse(c)) });
-                        textBlock.Bind(ToolTip.TipProperty, new Binding(nameof(PlaylistTrackViewModel.MetadataStatus)));
-
-                        return textBlock;
-                    }, false),
-                    width: new GridLength(40)),
-
-                // Phase 1: Enhanced Status Column with Colored Badges (LIVE UPDATING)
+                // Column #2: Status (PRIORITY - moved from position 10)
                 new TemplateColumn<ILibraryNode>(
                     "Status",
                     new FuncDataTemplate<object>((item, _) => 
@@ -115,7 +84,44 @@ public class HierarchicalLibraryViewModel
 
                     }, false),
                     width: new GridLength(100)),
+                
+                // Column #3: Metadata Status (PRIORITY - moved from position 9)
+                new TemplateColumn<ILibraryNode>(
+                    " ✨",
+                    new FuncDataTemplate<object>((item, _) => 
+                    {
+                         if (item is not PlaylistTrackViewModel track) return new Panel();
+
+                        // Use Bindings for Dynamic Updates
+                        var textBlock = new TextBlock { 
+                            VerticalAlignment = VerticalAlignment.Center,
+                            HorizontalAlignment = HorizontalAlignment.Center,
+                            FontSize = 14
+                        };
+
+                        textBlock.Bind(TextBlock.TextProperty, new Binding(nameof(PlaylistTrackViewModel.MetadataStatusSymbol)));
+                        textBlock.Bind(TextBlock.ForegroundProperty, new Binding(nameof(PlaylistTrackViewModel.MetadataStatusColor)) { Converter = new FuncValueConverter<string, IBrush>(c => Brush.Parse(c)) });
+                        textBlock.Bind(ToolTip.TipProperty, new Binding(nameof(PlaylistTrackViewModel.MetadataStatus)));
+
+                        return textBlock;
+                    }, false),
+                    width: new GridLength(40)),
                     
+                // Column #4: Title (Hierarchical Expander)
+                new HierarchicalExpanderColumn<ILibraryNode>(
+                    new TextColumn<ILibraryNode, string>("Title", x => x.Title ?? "Unknown"),
+                    x => x is AlbumNode album ? album.Tracks : null),
+                    
+                // Column #5-11: Supporting Info
+                new TextColumn<ILibraryNode, int>("#", x => x.SortOrder),
+                new TextColumn<ILibraryNode, string>("Artist", x => x.Artist ?? string.Empty),
+                new TextColumn<ILibraryNode, string>("Album", x => x.Album ?? string.Empty),
+                new TextColumn<ILibraryNode, string>("Duration", x => x.Duration ?? string.Empty),
+                new TextColumn<ILibraryNode, int>("🔥", x => x.Popularity),
+                new TextColumn<ILibraryNode, string>("Bitrate", x => x.Bitrate ?? string.Empty),
+                new TextColumn<ILibraryNode, string>("Genres", x => x.Genres ?? string.Empty),
+                
+                // Column #12: Actions
                 new TemplateColumn<ILibraryNode>(
                     "Actions",
                     new FuncDataTemplate<object>((item, _) => 

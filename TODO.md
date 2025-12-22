@@ -85,6 +85,44 @@
   - Bind "Warning Icon" in header to show "Spotify Sync Unavailable" status
   - User feedback instead of silent failures
 
+### 🏗️ Architectural Improvements & Advanced Features
+
+#### Download Stability (HIGH Priority)
+- [ ] **Stalled Download Fix**: Improve `SoulseekAdapter.cs` timeout logic.
+  - Distinguish between `TransferStates.Queued` and `InProgress`
+  - Disable 60-second timeout while `Queued` (can last hours on Soulseek)
+  - Only start stall timer once state shifts to `InProgress`
+  - Prevents premature download cancellation
+
+#### Intelligence & Scoring (MEDIUM Priority)
+- [ ] **Uploader Trust Scoring**: Add `QueueLength` and `HasFreeUploadSlot` to `ScoringWeights.cs`.
+  - Rank 256kbps with open slot higher than 320kbps with 50-person queue
+  - Optimize for "Time-to-Listen" vs absolute fidelity
+  - Captures data already available in `ParseTrackFromFile()`
+- [ ] **VBR Fraud Detection**: Extend `SonicIntegrityService` to detect upscaled files.
+  - Check frequency cutoff (< 16kHz indicates upscaled 128kbps→FLAC)
+  - Add `FidelityStatus` field: `Genuine | Upscaled | Suspicious`
+  - Visual indicator in UI for low-quality masquerading files
+
+#### Library UI & UX (HIGH Priority)
+- [ ] **Draggable Column Reordering**: Implement drag-to-reorder for TreeDataGrid columns.
+  - Allow users to prioritize Status, BPM, or other columns first
+  - Persist column order to user preferences
+  - Improve visual hierarchy and customization
+- [ ] **Scoped Album Card ViewModels**: Refactor Bento Grid for performance.
+  - Each `AlbumCard` gets its own scoped ViewModel
+  - Handles own `DownloadCommand` instead of binding to central command
+  - Prevents UI lag with 100+ albums updating simultaneously
+- [ ] **Skeleton Screens**: Add loading placeholders during API/search latency.
+  - Semi-transparent "ghost rows" during Spotify/Soulseek searches
+  - Makes app feel 2x faster with perceived performance boost
+
+#### Advanced Features (MEDIUM Priority)
+- [ ] **Self-Healing Upgrade Scout**: Background worker to find better quality versions.
+  - Scans library for tracks < 192kbps
+  - Automatically initiates Soulseek search for 320kbps/FLAC upgrade
+  - User approval required before replacing files
+
 ### What's Working
 - ✅ Search with ranking (Soulseek P2P)
 - ✅ Playlists (6 loaded from database)
