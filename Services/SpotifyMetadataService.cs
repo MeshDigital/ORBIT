@@ -200,6 +200,14 @@ public class SpotifyMetadataService : ISpotifyMetadataService
                 }
             }
         }
+        catch (APIException apiEx)
+        {
+            // Log detailed API error information
+            _logger.LogError(apiEx, 
+                "Spotify API error in GetAudioFeaturesBatchAsync. Status: {Status}, Response: {Response}", 
+                apiEx.Response?.StatusCode, 
+                apiEx.Response?.Body);
+        }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Failed to batch fetch audio features");
@@ -283,6 +291,16 @@ public class SpotifyMetadataService : ISpotifyMetadataService
         {
             // Circuit breaker is open - this is expected behavior, log at debug level only
             _logger.LogDebug("Spotify search skipped for {Artist} - {Title}: Circuit breaker is open", artist, title);
+            return null;
+        }
+        catch (APIException apiEx)
+        {
+            // Log detailed API error information
+            _logger.LogError(apiEx, 
+                "Spotify API error searching for {Artist} - {Title}. Status: {Status}, Response: {Response}", 
+                artist, title,
+                apiEx.Response?.StatusCode, 
+                apiEx.Response?.Body);
             return null;
         }
         catch (Exception ex)

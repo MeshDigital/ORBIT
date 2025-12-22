@@ -408,9 +408,13 @@ public class SpotifyAuthService
                 await _tokenStorage.SaveRefreshTokenAsync(tokenResponse.RefreshToken);
             }
 
-            // Create new authenticated client with retry handler
+            // Create authenticator for automatic token refresh
+            var authenticator = new PKCEAuthenticator(_config.SpotifyClientId, tokenResponse);
+            
+            // Create client config with authenticator and retry handler
             var config = SpotifyClientConfig
-                .CreateDefault(tokenResponse.AccessToken)
+                .CreateDefault()
+                .WithAuthenticator(authenticator)
                 .WithRetryHandler(new SimpleRetryHandler()); // Automatic 429 handling
             
             _authenticatedClient = new SpotifyClient(config);
