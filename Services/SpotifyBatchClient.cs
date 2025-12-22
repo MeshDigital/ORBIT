@@ -23,7 +23,6 @@ public class SpotifyBatchClient
     private readonly HttpClient _http;
     private readonly ILogger<SpotifyBatchClient> _log;
     private readonly SemaphoreSlim _lock = new(1, 1);
-    private Func<Task>? _tokenRefreshCallback;
 
     // Shared JSON options ensure enum values like ItemType deserialize from strings ("track").
     private static readonly JsonSerializerOptions JsonOptions = new()
