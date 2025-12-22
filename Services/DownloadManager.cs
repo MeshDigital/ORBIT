@@ -15,6 +15,7 @@ using SLSKDONET.Models;
 using SLSKDONET.Services.InputParsers;
 using SLSKDONET.Utils;
 using SLSKDONET.Services.Models;
+using Microsoft.EntityFrameworkCore;
 
 
 namespace SLSKDONET.Services;

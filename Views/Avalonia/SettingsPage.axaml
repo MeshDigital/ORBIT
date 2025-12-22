@@ -155,6 +155,72 @@
                 </StackPanel>
             </Border>
 
+            <!-- Brain 2.0 & Quality Guard -->
+            <Border Background="#252526" CornerRadius="8" Padding="20" BorderBrush="#3E3E3E" BorderThickness="1">
+                <StackPanel Spacing="16">
+                    <StackPanel Spacing="4">
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                            <TextBlock Text="🧠" FontSize="20" VerticalAlignment="Center"/>
+                            <TextBlock Text="Quality Guard &amp; The Brain" FontSize="16" FontWeight="SemiBold" Foreground="White"/>
+                        </StackPanel>
+                        <TextBlock Text="Sonic intelligence for adaptive search and upscale protection" 
+                                   Foreground="#AAA" FontSize="12"/>
+                    </StackPanel>
+
+                    <Separator Background="#333" Height="1"/>
+
+                    <!-- Fuzzy Normalization -->
+                    <Grid ColumnDefinitions="*,Auto">
+                        <StackPanel Grid.Column="0" Spacing="2">
+                            <TextBlock Text="Fuzzy Normalization" FontWeight="SemiBold" Foreground="#DDD"/>
+                            <TextBlock Text="Auto-corrects titles, strips special characters, and handles 'feat.' variants." 
+                                       Foreground="#666" FontSize="11" TextWrapping="Wrap"/>
+                        </StackPanel>
+                        <ToggleSwitch Grid.Column="1" IsChecked="{Binding EnableFuzzyNormalization}" OnContent="On" OffContent="Off"/>
+                    </Grid>
+
+                    <!-- VBR Fraud Detection -->
+                    <Grid ColumnDefinitions="*,Auto">
+                        <StackPanel Grid.Column="0" Spacing="2">
+                            <TextBlock Text="VBR Fraud Detection (Upscale Guard)" FontWeight="SemiBold" Foreground="#DDD"/>
+                            <TextBlock Text="Detects and flags fake 320kbps/FLAC files that were upscaled from low-quality sources." 
+                                       Foreground="#666" FontSize="11" TextWrapping="Wrap"/>
+                        </StackPanel>
+                        <ToggleSwitch Grid.Column="1" IsChecked="{Binding EnableVbrFraudDetection}" OnContent="On" OffContent="Off"/>
+                    </Grid>
+
+                    <Separator Background="#333" Height="1"/>
+
+                    <!-- Relaxation Strategy -->
+                    <Grid ColumnDefinitions="*,Auto">
+                        <StackPanel Grid.Column="0" Spacing="2">
+                            <TextBlock Text="Adaptive Relaxation Strategy" FontWeight="SemiBold" Foreground="#DDD"/>
+                            <TextBlock Text="If no perfect quality match is found after a timeout, progressively widens search filters." 
+                                       Foreground="#666" FontSize="11" TextWrapping="Wrap"/>
+                        </StackPanel>
+                        <ToggleSwitch Grid.Column="1" IsChecked="{Binding EnableRelaxationStrategy}" OnContent="On" OffContent="Off"/>
+                    </Grid>
+
+                    <!-- Relaxation Timeout -->
+                    <Grid ColumnDefinitions="180,100,*" IsEnabled="{Binding EnableRelaxationStrategy}">
+                        <TextBlock Grid.Column="0" Text="Relaxation Timeout:" VerticalAlignment="Center" Foreground="#DDD"/>
+                        <NumericUpDown Grid.Column="1" 
+                                       Value="{Binding RelaxationTimeoutSeconds}"
+                                       Minimum="5"
+                                       Maximum="120"
+                                       Increment="5"
+                                       Background="#1E1E1E"
+                                       Foreground="White"/>
+                        <TextBlock Grid.Column="2" 
+                                   Text="seconds before widening search" 
+                                   VerticalAlignment="Center" 
+                                   Foreground="#666"
+                                   FontSize="11"
+                                   Margin="12,0,0,0"/>
+                    </Grid>
+                </StackPanel>
+            </Border>
+
             <!-- NEW REFACORTED SPOTIFY INTEGRATION -->
             <Border Background="#252526" CornerRadius="8" Padding="20" BorderBrush="#3E3E3E" BorderThickness="1">
                 <StackPanel Spacing="16">

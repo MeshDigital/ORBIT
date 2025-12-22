@@ -2,100 +2,154 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
-             mc:Ignorable="d" d:DesignWidth="1200" d:DesignHeight="800"
+             xmlns:vm="clr-namespace:SLSKDONET.ViewModels"
+             mc:Ignorable="d" d:DesignWidth="1200" d:DesignHeight="1000"
              x:Class="SLSKDONET.Views.Avalonia.HomePage"
-             Background="#0D0D0D">
+             x:DataType="vm:HomeViewModel"
+             Background="#0A0A0B">
     
-    <Grid RowDefinitions="Auto,*" Margin="40">
+    <Grid RowDefinitions="Auto,*" Margin="32">
         <!-- Header -->
-        <StackPanel Grid.Row="0" Margin="0,0,0,32">
-            <TextBlock Text="🏠 Home" FontSize="32" FontWeight="Bold" Foreground="White"/>
-            <TextBlock Text="Welcome to ORBIT" FontSize="16" Foreground="#A0A0A0" Margin="0,8,0,0"/>
-        </StackPanel>
+        <Grid Grid.Row="0" ColumnDefinitions="*,Auto" Margin="0,0,0,32">
+            <StackPanel Grid.Column="0">
+                <TextBlock Text="The Command Center" FontSize="32" FontWeight="Black" Foreground="White" LetterSpacing="-0.5"/>
+                <TextBlock Text="Intelligence hub for your music asset management" FontSize="14" Foreground="#808080" Margin="0,4,0,0"/>
+            </StackPanel>
+            
+            <Button Grid.Column="1" Command="{Binding RefreshDashboardCommand}" 
+                    Background="Transparent" BorderThickness="0" Padding="8" VerticalAlignment="Top">
+                <TextBlock Text="🔄 Refresh" Foreground="#00A3FF" FontSize="13" FontWeight="SemiBold"/>
+            </Button>
+        </Grid>
         
-        <!-- Dashboard Grid -->
         <ScrollViewer Grid.Row="1">
-            <Grid RowDefinitions="Auto,Auto,Auto" ColumnDefinitions="*,*,*">
-                
-                <!-- Stats Cards Row 1 -->
-                <Border Grid.Row="0" Grid.Column="0" Background="#1A1A1A" BorderBrush="#3E3E3E" BorderThickness="1" CornerRadius="12" Padding="24" Margin="0,0,12,12">
-                    <StackPanel Spacing="12">
-                        <TextBlock Text="📚" FontSize="32"/>
-                        <TextBlock Text="Library Tracks" FontSize="14" Foreground="#A0A0A0"/>
-                        <TextBlock Text="{Binding AllGlobalTracks.Count}" FontSize="36" FontWeight="Bold" Foreground="#00A3FF"/>
-                    </StackPanel>
-                </Border>
-                
-                <Border Grid.Row="0" Grid.Column="1" Background="#1A1A1A" BorderBrush="#3E3E3E" BorderThickness="1" CornerRadius="12" Padding="24">
-                    <StackPanel Spacing="12">
-                        <TextBlock Text="✓" FontSize="32" Foreground="#4CAF50"/>
-                        <TextBlock Text="Downloaded" FontSize="14" Foreground="#A0A0A0"/>
-                        <TextBlock Text="{Binding SuccessfulCount}" FontSize="36" FontWeight="Bold" Foreground="#4CAF50"/>
-                    </StackPanel>
-                </Border>
-                
-                <Border Grid.Row="0" Grid.Column="2" Background="#1A1A1A" BorderBrush="#3E3E3E" BorderThickness="1" CornerRadius="12" Padding="24">
-                    <StackPanel Spacing="12">
-                        <TextBlock Text="⬇️" FontSize="32" Foreground="#FFA500"/>
-                        <TextBlock Text="In Progress" FontSize="14" Foreground="#A0A0A0"/>
-                        <TextBlock Text="{Binding TodoCount}" FontSize="36" FontWeight="Bold" Foreground="#FFA500"/>
-                    </StackPanel>
-                </Border>
-                
-                <!-- Quick Actions Row 2 -->
-                <Border Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="3" Background="#1A1A1A" BorderBrush="#3E3E3E" BorderThickness="1" CornerRadius="12" Padding="24">
-                    <StackPanel Spacing="16">
-                        <TextBlock Text="Quick Actions" FontSize="18" FontWeight="SemiBold" Foreground="White"/>
-                        <StackPanel Orientation="Horizontal" Spacing="12">
-                            <Button Command="{Binding NavigateSearchCommand}" 
-                                    Background="#0078D4" 
-                                    Foreground="White" 
-                                    Padding="20,12"
-                                    CornerRadius="8">
-                                <StackPanel Orientation="Horizontal" Spacing="8">
-                                    <TextBlock Text="🔍" FontSize="16"/>
-                                    <TextBlock Text="Search Music" FontSize="14" FontWeight="Medium"/>
-                                </StackPanel>
-                            </Button>
+            <StackPanel Spacing="24">
+                <!-- Top Bento Row: Core Metrics -->
+                <Grid ColumnDefinitions="2*,*,*" RowDefinitions="180">
+                    <!-- Library Health Tile -->
+                    <Border Grid.Column="0" Background="#121214" CornerRadius="16" Padding="24" BorderBrush="#1F1F23" BorderThickness="1">
+                        <Grid RowDefinitions="Auto,*,Auto">
+                            <TextBlock Grid.Row="0" Text="LIBRARY HEALTH" FontSize="11" FontWeight="Bold" Foreground="#606060" LetterSpacing="1"/>
                             
-                            <Button Command="{Binding NavigateLibraryCommand}" 
-                                    Background="#1DB954" 
-                                    Foreground="White" 
-                                    Padding="20,12"
-                                    CornerRadius="8">
-                                <StackPanel Orientation="Horizontal" Spacing="8">
-                                    <TextBlock Text="📚" FontSize="16"/>
-                                    <TextBlock Text="View Library" FontSize="14" FontWeight="Medium"/>
-                                </StackPanel>
-                            </Button>
+                            <StackPanel Grid.Row="1" VerticalAlignment="Center" Spacing="4">
+                                <TextBlock Text="{Binding LibraryHealth.TotalTracks, FallbackValue='0'}" FontSize="48" FontWeight="Black" Foreground="White"/>
+                                <TextBlock Text="indexed tracks in library" FontSize="13" Foreground="#A0A0A0"/>
+                            </StackPanel>
                             
-                            <Button Command="{Binding NavigateImportCommand}" 
-                                    Background="#FF6B6B" 
-                                    Foreground="White" 
-                                    Padding="20,12"
-                                    CornerRadius="8">
-                                <StackPanel Orientation="Horizontal" Spacing="8">
-                                    <TextBlock Text="📥" FontSize="16"/>
-                                    <TextBlock Text="Import Playlist" FontSize="14" FontWeight="Medium"/>
-                                </StackPanel>
-                            </Button>
-                        </StackPanel>
-                    </StackPanel>
-                </Border>
+                            <StackPanel Grid.Row="2" Orientation="Horizontal" Spacing="12">
+                                <Border Background="#1A1DB954" CornerRadius="6" Padding="8,4">
+                                    <TextBlock Text="{Binding LibraryHealth.HqTracks, StringFormat='{}{0} HQ', FallbackValue='0'}" 
+                                               FontSize="12" Foreground="#1DB954" FontWeight="Bold"/>
+                                </Border>
+                                <Border Background="#1AFF6B6B" CornerRadius="6" Padding="8,4">
+                                    <TextBlock Text="{Binding LibraryHealth.UpgradableCount, StringFormat='{}{0} to upgrade', FallbackValue='0'}" 
+                                               FontSize="12" Foreground="#FF6B6B" FontWeight="Bold"/>
+                                </Border>
+                            </StackPanel>
+                        </Grid>
+                    </Border>
+                    
+                    <!-- Session Status Tile -->
+                    <Border Grid.Column="1" Background="#121214" CornerRadius="16" Padding="20" BorderBrush="#1F1F23" BorderThickness="1">
+                        <Grid RowDefinitions="Auto,*,Auto">
+                            <TextBlock Grid.Row="0" Text="SESSION" FontSize="11" FontWeight="Bold" Foreground="#606060" LetterSpacing="1"/>
+                            
+                            <StackPanel Grid.Row="1" VerticalAlignment="Center" Spacing="8">
+                                <Ellipse Width="10" Height="10" HorizontalAlignment="Left" 
+                                         Fill="{Binding IsSoulseekConnected, Converter={StaticResource BooleanToStatusColorConverter}}"/>
+                                <TextBlock Text="{Binding SessionStatus}" FontSize="18" FontWeight="SemiBold" Foreground="White" TextWrapping="Wrap"/>
+                            </StackPanel>
+                            
+                            <TextBlock Grid.Row="2" Text="{Binding DownloadSpeed, StringFormat='{}⬇ {0}'}" FontSize="13" Foreground="#00A3FF" FontWeight="Medium"/>
+                        </Grid>
+                    </Border>
+                    
+                    <!-- Storage Insight Tile -->
+                    <Border Grid.Column="2" Background="#121214" CornerRadius="16" Padding="20" BorderBrush="#1F1F23" BorderThickness="1">
+                        <Grid RowDefinitions="Auto,*,Auto">
+                            <TextBlock Grid.Row="0" Text="STORAGE" FontSize="11" FontWeight="Bold" Foreground="#606060" LetterSpacing="1"/>
+                            
+                            <StackPanel Grid.Row="1" VerticalAlignment="Center" Spacing="12">
+                                <ProgressBar Value="65" Height="6" CornerRadius="3" Background="#262629" Foreground="#00A3FF"/>
+                                <TextBlock Text="65% Used" FontSize="14" Foreground="White" FontWeight="Medium"/>
+                            </StackPanel>
+                            
+                            <TextBlock Grid.Row="2" Text="420 GB Free" FontSize="12" Foreground="#808080"/>
+                        </Grid>
+                    </Border>
+                </Grid>
                 
-                <!-- Connection Status Row 3 -->
-                <Border Grid.Row="2" Grid.Column="0" Grid.ColumnSpan="3" Background="#1A1A1A" BorderBrush="#3E3E3E" BorderThickness="1" CornerRadius="12" Padding="24">
-                    <StackPanel Spacing="12">
-                        <TextBlock Text="Connection Status" FontSize="18" FontWeight="SemiBold" Foreground="White"/>
-                        <StackPanel Orientation="Horizontal" Spacing="16">
-                            <Border Background="#1A4CAF50" BorderBrush="#4CAF50" BorderThickness="1" CornerRadius="6" Padding="12,6">
-                                <TextBlock Text="{Binding ConnectionStatus}" FontSize="13" Foreground="#4CAF50" FontWeight="Medium"/>
-                            </Border>
-                            <TextBlock Text="{Binding StatusText}" FontSize="13" Foreground="#A0A0A0" VerticalAlignment="Center"/>
-                        </StackPanel>
-                    </StackPanel>
-                </Border>
-            </Grid>
+                <!-- Second Row: Recently Added (Horizontal Scroller) -->
+                <StackPanel Spacing="16">
+                    <Grid ColumnDefinitions="*,Auto">
+                        <TextBlock Text="Recently Added" FontSize="20" FontWeight="Bold" Foreground="White"/>
+                        <Button Grid.Column="1" Background="Transparent" Command="{Binding NavigateLibraryCommand}">
+                            <TextBlock Text="View All →" Foreground="#808080" FontSize="13"/>
+                        </Button>
+                    </Grid>
+                    
+                    <ItemsControl ItemsSource="{Binding RecentPlaylists}">
+                        <ItemsControl.ItemsPanel>
+                            <ItemsPanelTemplate>
+                                <StackPanel Orientation="Horizontal" Spacing="16"/>
+                            </ItemsPanelTemplate>
+                        </ItemsControl.ItemsPanel>
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <!-- Using a compact card for dashboard -->
+                                <Border Width="180" Background="#121214" CornerRadius="12" Padding="12" BorderBrush="#1F1F23" BorderThickness="1">
+                                    <StackPanel Spacing="8">
+                                        <Border CornerRadius="8" ClipToBounds="True" Background="#262629">
+                                            <Image Source="/Assets/album_placeholder.png" Height="156" Stretch="UniformToFill"/>
+                                        </Border>
+                                        <TextBlock Text="{Binding Name}" FontWeight="SemiBold" FontSize="13" TextTrimming="CharacterEllipsis"/>
+                                        <TextBlock Text="{Binding SuccessfulCount, StringFormat='{}{0} tracks'}" FontSize="11" Foreground="#808080"/>
+                                    </StackPanel>
+                                </Border>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </StackPanel>
+                
+                <!-- Third Row: Spotify Recommendations -->
+                <StackPanel Spacing="16">
+                    <TextBlock Text="Recommended for You" FontSize="20" FontWeight="Bold" Foreground="White"/>
+                    
+                    <ItemsControl ItemsSource="{Binding SpotifyRecommendations}">
+                        <ItemsControl.ItemsPanel>
+                            <ItemsPanelTemplate>
+                                <UniformGrid Columns="4" Rows="2" />
+                            </ItemsPanelTemplate>
+                        </ItemsControl.ItemsPanel>
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <Border Grid.ColumnSpan="1" Margin="0,0,16,16" Background="#121214" CornerRadius="12" Padding="12" BorderBrush="#1F1F23" BorderThickness="1">
+                                    <Grid ColumnDefinitions="48,*,Auto">
+                                        <Border Grid.Column="0" CornerRadius="6" ClipToBounds="True" Width="48" Height="48">
+                                            <!-- We would ideally use an AsyncImage control here, for now placeholder -->
+                                            <Rectangle Fill="#262629"/>
+                                        </Border>
+                                        
+                                        <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                            <TextBlock Text="{Binding Title}" FontWeight="SemiBold" FontSize="13" TextTrimming="CharacterEllipsis"/>
+                                            <TextBlock Text="{Binding Artist}" FontSize="11" Foreground="#808080" TextTrimming="CharacterEllipsis"/>
+                                        </StackPanel>
+                                        
+                                        <StackPanel Grid.Column="2" VerticalAlignment="Center" Spacing="4">
+                                            <Button Command="{Binding ((vm:HomeViewModel)DataContext).QuickSearchCommand, RelativeSource={RelativeSource AncestorType=UserControl}}" 
+                                                    CommandParameter="{Binding}"
+                                                    Padding="6" Background="#1DB954" CornerRadius="4">
+                                                <TextBlock Text="🔍" FontSize="12"/>
+                                            </Button>
+                                            <TextBlock IsVisible="{Binding InLibrary}" Text="✨ In Library" FontSize="9" Foreground="#1DB954" FontWeight="Bold" HorizontalAlignment="Right"/>
+                                        </StackPanel>
+                                    </Grid>
+                                </Border>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </StackPanel>
+            </StackPanel>
         </ScrollViewer>
     </Grid>
 </UserControl>

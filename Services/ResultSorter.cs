@@ -18,7 +18,21 @@ public static class ResultSorter
     // Phase 2.4: Strategy Pattern for user-configurable ranking
     private static ISortingStrategy _currentStrategy = new BalancedStrategy();
     private static ScoringWeights _currentWeights = ScoringWeights.Balanced;
+    private static AppConfig? _config;
     
+    /// <summary>
+    /// Sets the current configuration for ranking logic.
+    /// </summary>
+    public static void SetConfig(AppConfig config)
+    {
+        _config = config;
+    }
+
+    /// <summary>
+    /// Gets the current configuration.
+    /// </summary>
+    public static AppConfig? GetCurrentConfig() => _config;
+
     /// <summary>
     /// Sets the current sorting strategy.
     /// </summary>
@@ -382,7 +396,7 @@ public class SortingCriteria : IComparable<SortingCriteria>
             // GUARD CLAUSES: Short-circuit optimization
             // Return early to avoid wasted computation on bad files
             if (IsDurationMismatch()) return double.NegativeInfinity;
-            if (IsSuspicious) return double.NegativeInfinity;
+            if (ResultSorter.GetCurrentConfig()?.EnableVbrFraudDetection == true && IsSuspicious) return double.NegativeInfinity;
             
             // Phase 2.4: Use strategy pattern for configurable ranking
             return ResultSorter.GetCurrentStrategy().CalculateScore(

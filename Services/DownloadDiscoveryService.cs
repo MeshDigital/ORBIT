@@ -99,14 +99,34 @@ public class DownloadDiscoveryService
                 return bestMatch;
             }
 
-            // Fallback: If matcher found nothing good (garbage results?), return the highest quality file found
-            _logger.LogWarning("🧠 BRAIN: No suitable metadata match found. Falling back to highest quality result.");
-            bestMatch = allTracks.First(); // SearchOrchestrator sorts by Quality DESC
+            // 4. Relaxation Strategy (Phase 2.0)
+            if (_config.EnableRelaxationStrategy)
+            {
+                _logger.LogInformation("🧠 BRAIN: Strict match failed. Starting relaxation strategy...");
+                
+                // Relaxation Tier 1: Lower bitrate floor (e.g. 320 -> 256)
+                if (minBitrate > 256)
+                {
+                    _logger.LogInformation("🧠 BRAIN: Relaxation Tier 1: Lowering bitrate floor to 256kbps");
+                    var relaxedTracks = allTracks.Where(t => t.Bitrate >= 256).ToList();
+                    bestMatch = _matcher.FindBestMatch(track, relaxedTracks);
+                    if (bestMatch != null) return bestMatch;
+                }
 
-            _logger.LogInformation("Best match found: {Filename} ({Bitrate}kbps, {Length}s)", 
-                bestMatch.Filename, bestMatch.Bitrate, bestMatch.Length);
+                // Relaxation Tier 2: Accept lower formats or even more permissive bitrate
+                _logger.LogInformation("🧠 BRAIN: Relaxation Tier 2: Highly permissive quality fallback");
+                bestMatch = allTracks.OrderByDescending(t => t.Bitrate).FirstOrDefault();
+            }
 
-            return bestMatch;
+            if (bestMatch != null)
+            {
+                _logger.LogInformation("Best match found (relaxed): {Filename} ({Bitrate}kbps, {Length}s)", 
+                    bestMatch.Filename, bestMatch.Bitrate, bestMatch.Length);
+                return bestMatch;
+            }
+
+            _logger.LogWarning("🧠 BRAIN: No suitable match found even after relaxation.");
+            return null;
         }
         catch (OperationCanceledException)
         {

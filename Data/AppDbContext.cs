@@ -13,6 +13,7 @@ public class AppDbContext : DbContext
     public DbSet<PlaylistActivityLogEntity> ActivityLogs { get; set; }
     public DbSet<QueueItemEntity> QueueItems { get; set; }
     public DbSet<Entities.SpotifyMetadataCacheEntity> SpotifyMetadataCache { get; set; }
+    public DbSet<LibraryHealthEntity> LibraryHealth { get; set; }
 
     protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
     {

@@ -136,4 +136,70 @@ public class SpotifyEnrichmentService
 
         return identification;
     }
+
+    /// <summary>
+    /// Fetches personalized recommendations based on the user's top tracks.
+    /// </summary>
+    public async Task<System.Collections.Generic.List<SpotifyTrackViewModel>> GetRecommendationsAsync(int limit = 10)
+    {
+        var result = new System.Collections.Generic.List<SpotifyTrackViewModel>();
+        try
+        {
+            var client = await _authService.GetAuthenticatedClientAsync();
+            
+            // Get user's top tracks to use as seeds
+            var topTracks = await client.Personalization.GetTopTracks(new PersonalizationTopRequest { Limit = 5 });
+            var seedTrackIds = topTracks.Items?.Select(t => t.Id).Take(5).ToList() ?? new System.Collections.Generic.List<string>();
+            
+            if (!seedTrackIds.Any())
+            {
+                // Fallback: If no top tracks, use some generic seeds or return empty
+                return result;
+            }
+
+            // SpotifyAPI.Web v7.2.1: Use Browse.GetRecommendations with proper request object
+            var recommendationsReq = new RecommendationsRequest();
+            recommendationsReq.Limit = limit;
+            // SeedTracks is a List<string>, add items individually
+            foreach (var trackId in seedTrackIds)
+            {
+                recommendationsReq.SeedTracks.Add(trackId);
+            }
+
+            var recommendations = await client.Browse.GetRecommendations(recommendationsReq);
+            
+            if (recommendations.Tracks != null)
+            {
+                foreach (var track in recommendations.Tracks)
+                {
+                    result.Add(new SpotifyTrackViewModel
+                    {
+                        Id = track.Id,
+                        Title = track.Name,
+                        Artist = track.Artists.FirstOrDefault()?.Name,
+                        AlbumName = track.Album.Name,
+                        ImageUrl = track.Album.Images.OrderByDescending(i => i.Width).LastOrDefault()?.Url ?? "",
+                        ISRC = track.ExternalIds != null && track.ExternalIds.ContainsKey("isrc") ? track.ExternalIds["isrc"] : null
+                    });
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to fetch Spotify recommendations");
+        }
+        
+        return result;
+    }
+}
+
+public class SpotifyTrackViewModel
+{
+    public string? Id { get; set; }
+    public string? Title { get; set; }
+    public string? Artist { get; set; }
+    public string? AlbumName { get; set; }
+    public string? ImageUrl { get; set; }
+    public string? ISRC { get; set; }
+    public bool InLibrary { get; set; }
 }

@@ -30,6 +30,11 @@
 - [ ] **N+1 Query Pattern Risk**: Refactor project loading to use eager loading (.Include) for track counts to prevent performance degradation.
 - [ ] **Soft Deletes & Audit Trail**: Implement `IsDeleted` and `DeletedAt` for imports to allow recovery and history tracking.
 - [ ] **Status Management Standardization**: Create a centralized `StatusConverter` to map DB strings to internal enums consistently.
+- [ ] **Intelligent Download Hub (Bento Refactor)**:
+  - [ ] Implement `DownloadAnalyticsService` for Global ETA/Speed windowing.
+  - [ ] Refactor `DownloadsPage.axaml` with Bento Grid header (Speed, ETA, Storage, Health).
+  - [ ] Integrate micro-thumbnails (64px) into `DownloadItemViewModel`.
+  - [ ] Add Disk-I/O bottleneck detection warnings.
 - [ ] **Real-time Deduplication Sync**: Ensure `PlaylistTrack` and `LibraryEntry` states stay in sync immediately upon download failure/success.
 - [ ] **Library Resilience**: Implement automated daily backups of `%appdata%/SLSKDONET/library.db`.
 - [ ] **Batch Duplicate Fix**: Update `DownloadManager.QueueProject` to check against `addedInBatch` set during hash check loop.
@@ -103,6 +108,12 @@
   - Check frequency cutoff (< 16kHz indicates upscaled 128kbps→FLAC)
   - Add `FidelityStatus` field: `Genuine | Upscaled | Suspicious`
   - Visual indicator in UI for low-quality masquerading files
+- [ ] **The Brain 2.0: Adaptive Intelligence**:
+  - [ ] **Fuzzy Normalization**: Refactor `CalculateSimilarity` to handle Unicode dashes, curly quotes, and "feat." vs "ft." normalization.
+  - [ ] **Relaxation Strategy**: Implement a "Match Relaxation" timer in `DownloadManager`. If no match found after 30s, retry with ±15s tolerance and lower bitrate threshold.
+  - [ ] **User Trust & Availability**: Factor in `QueueLength` vs `Bitrate` trade-offs (Aggressive "interference" fix).
+  - [ ] **BPM Intelligence**: Add `DjMode` toggle that forces search for "BPM" keywords in filename.
+  - [ ] **Quality Hard-Gating**: Default ranking to "High Fidelty" (FLAC Preferred, 320kbps MP3 Floor).
 
 #### Library UI & UX (HIGH Priority)
 - [ ] **Draggable Column Reordering**: Implement drag-to-reorder for TreeDataGrid columns.

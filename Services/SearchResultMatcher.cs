@@ -237,6 +237,12 @@ public class SearchResultMatcher
         var exp = expected.ToLowerInvariant().Trim();
         var act = actual.ToLowerInvariant().Trim();
 
+        if (_config.EnableFuzzyNormalization)
+        {
+            exp = NormalizeFuzzy(exp);
+            act = NormalizeFuzzy(act);
+        }
+
         // Exact match
         if (exp == act)
             return 1.0;
@@ -287,5 +293,34 @@ public class SearchResultMatcher
         }
 
         return dp[s1.Length, s2.Length];
+    }
+
+    /// <summary>
+    /// Normalizes a string for fuzzy matching by removing special characters,
+    /// smart quotes, en-dashes, and normalizing "feat." variants.
+    /// </summary>
+    private string NormalizeFuzzy(string input)
+    {
+        if (string.IsNullOrEmpty(input)) return input;
+
+        // 1. Normalize "feat." variants
+        var featNormal = System.Text.RegularExpressions.Regex.Replace(input, @"\b(feat\.?|ft\.?|featuring)\b", "feat", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+
+        // 2. Normalize dashes (smart quotes, long dashes)
+        var dashNormal = featNormal
+            .Replace('—', '-') // Em-dash
+            .Replace('–', '-') // En-dash
+            .Replace('′', '\'') // Smart single quote
+            .Replace('‘', '\'') // Smart single quote
+            .Replace('’', '\'') // Smart single quote
+            .Replace('″', '\"') // Smart double quote
+            .Replace('“', '\"') // Smart double quote
+            .Replace('”', '\"'); // Smart double quote
+
+        // 3. Remove other non-alphanumeric frictional characters (except space, dash, quote)
+        var frictionalNormal = System.Text.RegularExpressions.Regex.Replace(dashNormal, @"[^a-z0-9\s\-\']", "");
+
+        // 4. Collapse whitespace
+        return System.Text.RegularExpressions.Regex.Replace(frictionalNormal, @"\s+", " ").Trim();
     }
 }

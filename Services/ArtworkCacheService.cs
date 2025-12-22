@@ -35,11 +35,9 @@ public class ArtworkCacheService
 
     /// <summary>
     /// Gets the local file path for album artwork, downloading it if necessary.
+    /// Supports an optional requestedSize for micro-thumbnails (e.g., 64).
     /// </summary>
-    /// <param name="albumArtUrl">Spotify album art URL</param>
-    /// <param name="spotifyAlbumId">Spotify album ID (used as cache key)</param>
-    /// <returns>Local file path to the artwork, or placeholder if unavailable</returns>
-    public async Task<string> GetArtworkPathAsync(string? albumArtUrl, string? spotifyAlbumId)
+    public async Task<string> GetArtworkPathAsync(string? albumArtUrl, string? spotifyAlbumId, int? requestedSize = null)
     {
         // If no URL or ID provided, return placeholder
         if (string.IsNullOrWhiteSpace(albumArtUrl) || string.IsNullOrWhiteSpace(spotifyAlbumId))
@@ -50,29 +48,46 @@ public class ArtworkCacheService
         try
         {
             // Generate cache file path
-            var cacheFileName = $"{spotifyAlbumId}.jpg";
+            var suffix = requestedSize.HasValue ? $"_{requestedSize.Value}" : "";
+            var cacheFileName = $"{spotifyAlbumId}{suffix}.jpg";
             var cachePath = Path.Combine(_cacheDirectory, cacheFileName);
 
             // If already cached, return immediately
             if (File.Exists(cachePath))
             {
-                _logger.LogDebug("Artwork cache hit for album {AlbumId}", spotifyAlbumId);
                 return cachePath;
             }
 
-            // Download artwork
-            _logger.LogInformation("Downloading artwork for album {AlbumId} from {Url}", spotifyAlbumId, albumArtUrl);
-            var imageBytes = await _httpClient.GetByteArrayAsync(albumArtUrl);
-            
-            // Save to cache
-            await File.WriteAllBytesAsync(cachePath, imageBytes);
-            _logger.LogInformation("Cached artwork for album {AlbumId} ({Size} bytes)", spotifyAlbumId, imageBytes.Length);
+            // For resized versions, check if the original exists first
+            var originalFileName = $"{spotifyAlbumId}.jpg";
+            var originalPath = Path.Combine(_cacheDirectory, originalFileName);
+
+            if (!File.Exists(originalPath))
+            {
+                // Download original artwork
+                _logger.LogInformation("Downloading original artwork for album {AlbumId} from {Url}", spotifyAlbumId, albumArtUrl);
+                var imageBytes = await _httpClient.GetByteArrayAsync(albumArtUrl);
+                await File.WriteAllBytesAsync(originalPath, imageBytes);
+            }
+
+            if (requestedSize.HasValue)
+            {
+                // Create resized version from original
+                _logger.LogInformation("Creating resized artwork ({Size}px) for album {AlbumId}", requestedSize, spotifyAlbumId);
+                var originalBytes = await File.ReadAllBytesAsync(originalPath);
+                using var stream = new MemoryStream(originalBytes);
+                
+                // Use Avalonia's Bitmap to decode and scale
+                // Note: DecodeToHeight/DecodeToWidth is efficient as it doesn't load the full image into memory if possible
+                using var bitmap = Avalonia.Media.Imaging.Bitmap.DecodeToWidth(stream, requestedSize.Value);
+                bitmap.Save(cachePath);
+            }
             
             return cachePath;
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to download artwork for album {AlbumId} from {Url}", spotifyAlbumId, albumArtUrl);
+            _logger.LogError(ex, "Failed to get artwork for album {AlbumId} (Size: {Size})", spotifyAlbumId, requestedSize);
             return await GetPlaceholderPathAsync();
         }
     }

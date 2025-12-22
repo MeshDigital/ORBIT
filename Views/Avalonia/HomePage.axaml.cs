@@ -11,4 +11,10 @@ public partial class HomePage : UserControl
     {
         InitializeComponent();
     }
+
+    public HomePage(SLSKDONET.ViewModels.HomeViewModel viewModel)
+    {
+        InitializeComponent();
+        DataContext = viewModel;
+    }
 }

@@ -42,7 +42,11 @@
 
 ### Phase 6D: Navigation Shell - COMPLETE
 **Impact**: Professional 6-page application structure
-- 🏠 **Home** - Dashboard with real-time stats (IEventBus integration)
+- 🏠 **Home (The Command Center)**:
+  - **Bento Grid Dashboard**: 3-column layout with Library Health, Session Status, and Storage Insights.
+  - **Write-Behind Analytics**: `DashboardService` with SQLite caching for instant stat loading.
+  - **Spotify Recommendations**: Personalized discovery grid with automatic "In Library" checks.
+  - **Real-time Sync**: Full integration with `DownloadManager` and `ConnectionViewModel` via `IEventBus`.
 - 🔍 **Search** - P2P search
 - 📚 **Library** - Bento Grid with album cards
 - ⬇️ **Downloads** - Active downloads
@@ -210,8 +214,12 @@
 - **Only 4 downloads active** at any time (remaining tracks stay in "Pending" state)
 - **Resumable downloads** via `.part` files (survive app crashes/restarts)
 - **Global Download Dashboard** - Live view of active downloads with Pause/Resume controls
+- **Intelligent Download Hub (Planned)**:
+  - **Bento Analytics**: Header tiles for Global ETA, Average Speed, and Disk Storage impact.
+  - **Micro-Thumbnails**: 64px album art previews to reduce RAM.
+  - **Bottleneck Detection**: Visual warnings if disk I/O is slowing down the queue.
+  - **Session Peak Tracking**: Historic peak speed monitoring for the current session.
 - **Album-level progress** - Visual indicators on album cards ("12/15 Downloaded")
-- **Persistent state** - Paused downloads auto-resume on app restart
 
 **Architectural Components**:
 
@@ -629,7 +637,11 @@ public async Task ProcessQueueLoop(CancellationToken ct)
 
 ## 📝 Next Immediate Actions
 
-1. **Phase 8 Implementation Plan** - Architect the Spectral Analysis worker.
+1. **The Brain 2.0 Implementation Plan** - Architect the Adaptive Intelligence layer.
+   - **Fuzzy Normalization**: Strip special dashes (`—`), mobile share link redirects, and redundant "feat." tags.
+   - **Relaxation Mechanism**: Automatically widen duration tolerance (±3s → ±10s) and lower bitrate floor if no results found after 30s.
+   - **DJ Mode Bias**: Prioritize results analyzed by other ORBIT users to leverage the metadata gravity well.
+2. **Phase 8 Implementation Plan** - Architect the Spectral Analysis worker.
 2. **Complete album downloading** - Improve recursive directory parsing.
 3. **User documentation** - Tutorials and guides.
 

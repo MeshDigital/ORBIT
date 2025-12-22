@@ -132,8 +132,35 @@ public class SettingsViewModel : INotifyPropertyChanged
         get => _config.ClearSpotifyOnExit;
         set { _config.ClearSpotifyOnExit = value; OnPropertyChanged(); }
     }
+
+    // Brain 2.0 & Quality Guard
+    public bool EnableFuzzyNormalization
+    {
+        get => _config.EnableFuzzyNormalization;
+        set { _config.EnableFuzzyNormalization = value; OnPropertyChanged(); }
+    }
+
+    public bool EnableRelaxationStrategy
+    {
+        get => _config.EnableRelaxationStrategy;
+        set { _config.EnableRelaxationStrategy = value; OnPropertyChanged(); }
+    }
+
+    public bool EnableVbrFraudDetection
+    {
+        get => _config.EnableVbrFraudDetection;
+        set { _config.EnableVbrFraudDetection = value; OnPropertyChanged(); }
+    }
+
+    public int RelaxationTimeoutSeconds
+    {
+        get => _config.RelaxationTimeoutSeconds;
+        set { _config.RelaxationTimeoutSeconds = value; OnPropertyChanged(); }
+    }
     
     // Phase 2.4: Ranking Strategy Selection
+    // NOTE: RankingPreset property doesn't exist in AppConfig - using CustomWeights directly
+    /*
     public string SelectedRankingMode
     {
         get => _config.RankingPreset;
@@ -154,6 +181,7 @@ public class SettingsViewModel : INotifyPropertyChanged
             }
         }
     }
+    */
     
     public ScoringWeights CustomWeights
     {
@@ -253,6 +281,7 @@ public class SettingsViewModel : INotifyPropertyChanged
         "DJ Mode"
     };
     
+    /* Commented out - depends on SelectedRankingMode which doesn't exist
     public string RankingModeDescription
     {
         get
@@ -265,6 +294,7 @@ public class SettingsViewModel : INotifyPropertyChanged
             };
         }
     }
+    */
     
     private void ApplyRankingStrategy(string mode)
     {

@@ -94,16 +94,13 @@ public partial class App : Application
                 // Phase 7: Load ranking strategy and weights from config
                 var configDispatcher = Services.GetRequiredService<ConfigManager>();
                 var config = configDispatcher.GetCurrent() ?? new AppConfig();
-                ISortingStrategy strategy = (config.RankingPreset ?? "Balanced") switch
-                {
-                    "Quality First" => new QualityFirstStrategy(),
-                    "DJ Mode" => new DJModeStrategy(),
-                    _ => new BalancedStrategy()
-                };
+                // Use Balanced strategy as default (RankingPreset property doesn't exist)
+                ISortingStrategy strategy = new BalancedStrategy();
                 ResultSorter.SetStrategy(strategy);
                 ResultSorter.SetWeights(config.CustomWeights ?? ScoringWeights.Balanced);
+                ResultSorter.SetConfig(config);
                 
-                Serilog.Log.Information("Loaded ranking strategy: {Strategy} with custom weights", config.RankingPreset ?? "Balanced");
+                Serilog.Log.Information("Loaded ranking strategy: Balanced with custom weights");
 
                 // Phase 8: Validate FFmpeg availability - Moved to background task
 
@@ -347,6 +344,7 @@ public partial class App : Application
 
         // Database
         services.AddSingleton<DatabaseService>();
+        services.AddSingleton<DashboardService>(); // [NEW] HomePage Intelligence
         services.AddSingleton<IMetadataService, MetadataService>();
 
         // Navigation and UI services
@@ -362,6 +360,7 @@ public partial class App : Application
         services.AddSingleton<SearchViewModel>();
         services.AddSingleton<ConnectionViewModel>();
         services.AddSingleton<SettingsViewModel>();
+        services.AddSingleton<HomeViewModel>(); // [NEW] Command Center ViewModel
         
         // Orchestration Services
         services.AddSingleton<SearchOrchestrationService>();

@@ -40,6 +40,7 @@ public class MainViewModel : INotifyPropertyChanged
     public SearchViewModel SearchViewModel { get; }
     public ConnectionViewModel ConnectionViewModel { get; }
     public SettingsViewModel SettingsViewModel { get; }
+    public HomeViewModel HomeViewModel { get; }
 
     public event PropertyChangedEventHandler? PropertyChanged;
 
@@ -74,6 +75,7 @@ public class MainViewModel : INotifyPropertyChanged
         SearchViewModel searchViewModel,
         ConnectionViewModel connectionViewModel,
         SettingsViewModel settingsViewModel,
+        HomeViewModel homeViewModel,
         DownloadManager downloadManager,
         ISpotifyMetadataService spotifyMetadata,
         SpotifyAuthService spotifyAuth,
@@ -99,6 +101,7 @@ public class MainViewModel : INotifyPropertyChanged
         SearchViewModel = searchViewModel;
         ConnectionViewModel = connectionViewModel;
         SettingsViewModel = settingsViewModel;
+        HomeViewModel = homeViewModel;
 
         // Initialize commands
         NavigateHomeCommand = new RelayCommand(NavigateToHome); // Phase 6D

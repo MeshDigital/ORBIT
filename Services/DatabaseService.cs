@@ -114,6 +114,10 @@ public class DatabaseService
                 columnsToAdd.Add(("PreferredFormats", "PreferredFormats TEXT NULL"));
             if (!existingColumns.Contains("MinBitrateOverride"))
                 columnsToAdd.Add(("MinBitrateOverride", "MinBitrateOverride INTEGER NULL"));
+            if (!existingColumns.Contains("Bitrate"))
+                columnsToAdd.Add(("Bitrate", "Bitrate INTEGER DEFAULT 0"));
+            if (!existingColumns.Contains("Format"))
+                columnsToAdd.Add(("Format", "Format TEXT NULL"));
             
             foreach (var (name, definition) in columnsToAdd)
             {
@@ -279,7 +283,7 @@ public class DatabaseService
                  await context.Database.ExecuteSqlRawAsync(createCacheTableSql);
             }
 
-            // Check for PendingOrchestrations table (Phase 8: Robustness)
+            // Check for PendingOrchestrations table
             try
             {
                 await context.Database.ExecuteSqlRawAsync("SELECT GlobalId FROM PendingOrchestrations LIMIT 1");
@@ -294,6 +298,30 @@ public class DatabaseService
                     );
                 ";
                 await context.Database.ExecuteSqlRawAsync(createPendingTableSql);
+            }
+
+            // Check for LibraryHealth table
+            try
+            {
+                await context.Database.ExecuteSqlRawAsync("SELECT Id FROM LibraryHealth LIMIT 1");
+            }
+            catch
+            {
+                _logger.LogWarning("Schema Patch: Creating missing table 'LibraryHealth'");
+                var createHealthTableSql = @"
+                    CREATE TABLE IF NOT EXISTS LibraryHealth (
+                        Id INTEGER PRIMARY KEY,
+                        TotalTracks INTEGER NOT NULL,
+                        HqTracks INTEGER NOT NULL,
+                        UpgradableCount INTEGER NOT NULL,
+                        PendingUpdates INTEGER NOT NULL,
+                        TotalStorageBytes INTEGER NOT NULL,
+                        FreeStorageBytes INTEGER NOT NULL,
+                        LastScanDate TEXT NOT NULL,
+                        TopGenresJson TEXT NULL
+                    );
+                ";
+                await context.Database.ExecuteSqlRawAsync(createHealthTableSql);
             }
 
             // Patch LibraryEntries columns
@@ -717,7 +745,10 @@ public class DatabaseService
             job.FailedCount = currentJobTracks.Count(t => t.Status == TrackStatus.Failed || t.Status == TrackStatus.Skipped);
         }
 
-        // 5. Save all changes (track status and job counts) in a single transaction
+        // 5. Update Library Health stats (Write-Behind Cache)
+        await UpdateLibraryHealthAsync(context);
+
+        // 6. Save all changes (track status and job counts) in a single transaction
         await context.SaveChangesAsync();
         _logger.LogInformation("Updated status for track {Hash}, affecting {TrackCount} playlist entries and recalculating {JobCount} jobs.", trackUniqueHash, playlistTracks.Count, jobsToUpdate.Count);
 
@@ -1455,6 +1486,32 @@ public class DatabaseService
         var appData = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
         var dbPath = Path.Combine(appData, "SLSKDONET", "library.db");
         return new SqliteConnection($"Data Source={dbPath}");
+    }
+
+    private async Task UpdateLibraryHealthAsync(AppDbContext context)
+    {
+        try
+        {
+            var totalTracks = await context.PlaylistTracks.CountAsync();
+            var hqTracks = await context.PlaylistTracks.CountAsync(t => t.Bitrate >= 256 || t.Format.ToLower() == "flac");
+            var lowBitrateTracks = await context.PlaylistTracks.CountAsync(t => t.Status == TrackStatus.Downloaded && t.Bitrate > 0 && t.Bitrate < 256);
+            
+            var health = await context.LibraryHealth.FindAsync(1) ?? new LibraryHealthEntity { Id = 1 };
+            
+            health.TotalTracks = totalTracks;
+            health.HqTracks = hqTracks;
+            health.UpgradableCount = lowBitrateTracks;
+            health.LastScanDate = DateTime.Now;
+            
+            if (context.Entry(health).State == EntityState.Detached)
+            {
+                context.LibraryHealth.Add(health);
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Failed to update library health cache during track update");
+        }
     }
 }
 

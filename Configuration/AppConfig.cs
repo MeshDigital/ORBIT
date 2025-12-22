@@ -49,8 +49,13 @@ public class AppConfig
     public int MaxSearchAttempts { get; set; } = 3; // Max progressive search attempts per track
     public bool AutoRetryFailedDownloads { get; set; } = true;
     public int MaxDownloadRetries { get; set; } = 2;
-    public string RankingPreset { get; set; } = "Balanced";
     public ScoringWeights CustomWeights { get; set; } = ScoringWeights.Balanced;
+    
+    // Brain 2.0 & Quality Guard
+    public bool EnableFuzzyNormalization { get; set; } = true; // Strip special chars, normalize feat.
+    public bool EnableRelaxationStrategy { get; set; } = true; // Progressive threshold widening
+    public bool EnableVbrFraudDetection { get; set; } = true; // Upscale protection
+    public int RelaxationTimeoutSeconds { get; set; } = 30; // Seconds before widening search
     
     // Window state persistence
     public double WindowWidth { get; set; } = 1400;
