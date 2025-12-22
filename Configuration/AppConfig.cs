@@ -34,7 +34,7 @@ public class AppConfig
     // Spotify integration
     public string? SpotifyClientId { get; set; }
     public string? SpotifyClientSecret { get; set; }
-    public bool SpotifyUseApi { get; set; } = true; // Enable Spotify metadata enrichment by default
+    public bool SpotifyUseApi { get; set; } = false; // Disabled by default to avoid 403 errors
     public bool SpotifyUsePublicOnly { get; set; } = true; // Default to public scraping only
     
     // Spotify OAuth settings
