@@ -117,6 +117,28 @@
   - Logs warning if missing (non-critical)
   - Enables graceful feature degradation
 
+### Metadata Gravity Well 2.0 - Refinements (Dec 22, 2025) - IN PROGRESS
+**Impact**: Transition from hybrid manual approach to fully library-native architecture  
+**Source**: Deep dive analysis comparing ORBIT with SpotiSharp reference implementation
+
+#### Authentication & Connection Fixes - COMPLETE ✅
+- ✅ **PKCE Authentication Fix** (CRITICAL): Fixed `SpotifyClient` creation to use `PKCEAuthenticator` pattern
+  - Replaced incorrect `.CreateDefault(accessToken)` with proper authenticator-based config
+  - Automatic token refresh now handled by library (no more 403 errors)
+  - Added `SimpleRetryHandler` for 429 rate limit handling
+- ✅ **Enhanced Error Logging**: Added detailed `APIException` logging with HTTP status codes
+  - Captures `Response.StatusCode` and `Response.Body` for diagnostics
+  - Applied to both `SearchSpotifyWithSmartLogicAsync()` and `GetAudioFeaturesBatchAsync()`
+- ✅ **Soulseek Connection Stability**: Fixed race condition by checking `LoggedIn` vs `Connected` state
+
+#### Next Steps - Pending
+- **SpotifyUriResolver**: Create utility to parse various Spotify URL/URI formats (mobile links, URI strings)
+- **Smart Duration Gating**: Implement fuzzy duration matching (±3s tolerance) to prevent Extended Mix false positives
+- **ISRC Batch Fetching**: Use `client.Tracks.GetSeveral()` to enrich tracks with ISRC for cross-platform matching
+- **Filename Normalization**: Strip illegal characters and deduplicate "feat." tags
+- **Downloads Page Hydration**: Query DB on init to populate list (fixes empty page on navigation)
+- **Circuit Breaker UI**: Add visual "Spotify Unavailable" indicator in header
+
 ---
 
 ## 🔥 In Progress

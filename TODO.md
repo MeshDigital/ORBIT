@@ -38,6 +38,53 @@
 - [ ] **Selection Robustness**: Replace `Task.Delay` in `LibraryViewModel` with a reactive "Wait until Project exists in collection" logic.
 - [ ] **Source of Truth Sync**: Update `TrackListViewModel` to cross-reference `DownloadManager` for active tracks not yet in global index.
 
+### 🎯 Metadata Gravity Well 2.0 - Refinements (SpotiSharp Integration)
+**Source**: Deep dive analysis comparing ORBIT implementation with SpotiSharp reference architecture
+
+#### Phase 1: Authentication & Connection (HIGH Priority)
+- [x] ~~Implement `GetAuthenticatedClientAsync()` with proper PKCE authentication~~ (COMPLETE - Dec 22, 2025)
+- [x] ~~Use `PKCEAuthenticator` for automatic token refresh~~ (COMPLETE - Dec 22, 2025)
+- [x] ~~Fix Soulseek race condition: `LoggedIn` vs `Connected` check~~ (COMPLETE - Dec 22, 2025)
+- [ ] **Ready Event Pattern**: Implement "Ready" event in `SoulseekAdapter` that `DownloadManager` listens for before popping tracks from queue.
+
+#### Phase 2: Intelligence & Enrichment (HIGH Priority)
+- [ ] **SpotifyUriResolver**: Create `Utils/SpotifyUriResolver.cs` with Regex to identify Track/Album/Playlist IDs from various formats.
+  - Handle `open.spotify.com/track/...` mobile share links
+  - Handle `spotify:track:...` URI strings  
+  - Generic "Intake" flexibility for user input
+- [ ] **Native Batch Enrichment**: Refactor `SpotifyMetadataService.cs` to use native library for ISRC.
+  - Use `client.Tracks.GetSeveral(new TracksRequest(ids))` to capture ISRC field
+  - Already using `client.Tracks.GetSeveralAudioFeatures()` for BPM/Key ✅
+- [ ] **Smart Duration Gating**: Implement `SearchResultMatcher.cs` fuzzy duration logic.
+  - If Spotify says 210s, create "Success Range" of 207-213s
+  - Score 1.0 for in-range, 0.0 for outliers (e.g., 8min Extended Mix)
+  - Prevents false matches on remixes/radio edits
+
+#### Phase 3: File Integrity & Normalization (MEDIUM Priority)
+- [ ] **Filename Normalization Service**: Create `Utils/FilenameNormalizer.cs`.
+  - Strip illegal OS characters: `\ / : * ? " < > |`
+  - Remove redundant "feat." tags from Title if already in Artist field
+  - Implement `Cleanup()` method for artist names (SpotiSharp pattern)
+- [ ] **FFmpeg Progress Feedback**: Enhance `SonicIntegrityService.cs` with real-time progress.
+  - Capture `StandardError` stream during FFmpeg analysis
+  - Parse `time=` output to calculate percentage
+  - Fire `TrackProgressChangedEvent` for Downloads Page progress bar
+
+#### UX Polish & Reliability (MEDIUM Priority)
+- [ ] **Downloads Page Hydration**: Fix "Empty Downloads Page" bug.
+  - On `DownloadCenterViewModel.Initialize()`, query database for current state:
+    ```csharp
+    ActiveDownloads = _db.Tracks.Where(t => t.State == Downloading).ToList();
+    ```
+  - Ensures UI reflects DB state, not just live events
+- [ ] **Deterministic Track ID**: Implement hash-based deduplication.
+  - Generate `TrackEntity.Id` using hash of ISRC (if available) or `artist-title` lowercase string
+  - Prevents duplicate downloads across multiple playlist jobs
+- [ ] **Circuit Breaker UI Indicator**: Add `_isSpotifyServiceDegraded` flag.
+  - Set flag on 403 errors instead of just breaking loop
+  - Bind "Warning Icon" in header to show "Spotify Sync Unavailable" status
+  - User feedback instead of silent failures
+
 ### What's Working
 - ✅ Search with ranking (Soulseek P2P)
 - ✅ Playlists (6 loaded from database)
