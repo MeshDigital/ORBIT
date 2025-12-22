@@ -44,7 +44,8 @@ public record TrackAddedEvent(PlaylistTrack TrackModel);
 public record TrackRemovedEvent(string TrackGlobalId);
 public record TrackMovedEvent(string TrackGlobalId, Guid OldProjectId, Guid NewProjectId);
 public record TrackStateChangedEvent(string TrackGlobalId, Guid ProjectId, PlaylistTrackState State, string? Error);
-public record TrackProgressChangedEvent(string TrackGlobalId, double Progress);
+// Phase 2.5: Enhanced with byte-level progress tracking
+public record TrackProgressChangedEvent(string TrackGlobalId, double Progress, long BytesReceived, long TotalBytes);
 public record TrackMetadataUpdatedEvent(string TrackGlobalId);
 
 // Phase 8: Automation & Upgrade Events

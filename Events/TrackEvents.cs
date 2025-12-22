@@ -61,10 +61,15 @@ public class TrackProgressChangedEvent
 {
     public string TrackGlobalId { get; }
     public double Progress { get; }
-    public TrackProgressChangedEvent(string globalId, double progress)
+    public long BytesReceived { get; }  // Phase 2.5: Byte-level tracking
+    public long TotalBytes { get; }     // Phase 2.5: Byte-level tracking
+    
+    public TrackProgressChangedEvent(string globalId, double progress, long bytesReceived, long totalBytes)
     {
         TrackGlobalId = globalId;
         Progress = progress;
+        BytesReceived = bytesReceived;
+        TotalBytes = totalBytes;
     }
 }
 

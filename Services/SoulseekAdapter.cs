@@ -477,7 +477,8 @@ public class SoulseekAdapter : ISoulseekAdapter, IDisposable
         string outputPath,
         long? size = null,
         IProgress<double>? progress = null,
-        CancellationToken ct = default)
+        CancellationToken ct = default,
+        long startOffset = 0)  // Phase 2.5: Add resume support
     {
         if (this._client == null)
         {
@@ -486,7 +487,8 @@ public class SoulseekAdapter : ISoulseekAdapter, IDisposable
 
         try
         {
-            this._logger.LogInformation("Downloading {Filename} from {Username} to {OutputPath}", filename, username, outputPath);
+            this._logger.LogInformation("Downloading {Filename} from {Username} to {OutputPath} (offset: {Offset})", 
+                filename, username, outputPath, startOffset);
             
             // Check if already cancelled
             ct.ThrowIfCancellationRequested();
@@ -497,7 +499,7 @@ public class SoulseekAdapter : ISoulseekAdapter, IDisposable
 
             // Track state for timeout logic
             DateTime lastActivity = DateTime.UtcNow;
-            long lastBytes = 0;
+            long lastBytes = startOffset;  // Start from existing bytes
             bool isQueued = false;
 
             var downloadOptions = new TransferOptions(
@@ -527,7 +529,9 @@ public class SoulseekAdapter : ISoulseekAdapter, IDisposable
                     }
                 });
 
-            using var fileStream = new FileStream(outputPath, FileMode.Create, FileAccess.Write, FileShare.None, 8192, useAsync: true);
+            // Phase 2.5: Use Append mode if resuming, Create if starting fresh
+            var fileMode = startOffset > 0 ? FileMode.Append : FileMode.Create;
+            using var fileStream = new FileStream(outputPath, fileMode, FileAccess.Write, FileShare.None, 8192, useAsync: true);
             
             // We wrap the Soulseek DownloadAsync in our own task to enforce our custom timeout logic
             // The underlying client has some timeout logic, but we want granular control over "Stalled vs Queued"
@@ -536,7 +540,7 @@ public class SoulseekAdapter : ISoulseekAdapter, IDisposable
                 filename,
                 () => Task.FromResult((Stream)fileStream),
                 size,
-                startOffset: 0,
+                startOffset: startOffset,  // Pass the offset to Soulseek client
                 options: downloadOptions,
                 cancellationToken: ct);
 

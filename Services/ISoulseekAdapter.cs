@@ -32,7 +32,8 @@ public interface ISoulseekAdapter
         string outputPath,
         long? size = null,
         IProgress<double>? progress = null,
-        CancellationToken ct = default);
+        CancellationToken ct = default,
+        long startOffset = 0);
 
     Task<int> ProgressiveSearchAsync(
         string artist,

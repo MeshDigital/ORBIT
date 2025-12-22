@@ -713,44 +713,144 @@ public class DownloadManager : INotifyPropertyChanged, IDisposable
     {
         await UpdateStateAsync(ctx, PlaylistTrackState.Downloading);
 
-        var finalPath = ctx.Model.ResolvedFilePath;
-        if (string.IsNullOrEmpty(finalPath))
+        // Phase 2.5: Use PathProviderService for consistent folder structure
+        var finalPath = _pathProvider.GetTrackPath(
+            ctx.Model.Artist,
+            ctx.Model.Album ?? "Unknown Album",
+            ctx.Model.Title,
+            bestMatch.GetExtension()
+        );
+
+        var partPath = finalPath + ".part";
+        long startPosition = 0;
+
+        // STEP 1: Check if final file already exists and is complete
+        if (File.Exists(finalPath))
         {
-            finalPath = Path.Combine(_config.DownloadDirectory ?? "Downloads",
-                _fileNameFormatter.Format(_config.NameFormat ?? "{artist} - {title}", bestMatch) + $".{bestMatch.GetExtension()}");
+            var existingFileInfo = new FileInfo(finalPath);
+            if (existingFileInfo.Length == bestMatch.Size)
+            {
+                _logger.LogInformation("File already exists and is complete: {Path}", finalPath);
+                ctx.Model.ResolvedFilePath = finalPath;
+                ctx.Progress = 100;
+                await UpdateStateAsync(ctx, PlaylistTrackState.Completed);
+                return;
+            }
+            else
+            {
+                // File exists but is incomplete (corrupted?) - delete and restart
+                _logger.LogWarning("Final file exists but size mismatch (expected {Expected}, got {Actual}). Deleting and restarting.", 
+                    bestMatch.Size, existingFileInfo.Length);
+                File.Delete(finalPath);
+            }
         }
 
-        var dir = Path.GetDirectoryName(finalPath);
-        if (dir != null) Directory.CreateDirectory(dir);
+        // STEP 2: Check for existing .part file to resume
+        if (File.Exists(partPath))
+        {
+            var partFileInfo = new FileInfo(partPath);
+            startPosition = partFileInfo.Length;
+            ctx.IsResuming = true;
+            ctx.BytesReceived = startPosition;
+            
+            _logger.LogInformation("Resuming download from byte {Position} for {Track}", 
+                startPosition, ctx.Model.Title);
+        }
+        else
+        {
+            ctx.IsResuming = false;
+            ctx.BytesReceived = 0;
+        }
 
-        var progress = new Progress<double>(p => 
+        // STEP 3: Set total bytes for progress tracking
+        ctx.TotalBytes = bestMatch.Size ?? 0;  // Handle nullable size
+
+        // STEP 4: Progress tracking with 100ms throttling
+        var lastNotificationTime = DateTime.MinValue;
+        var totalFileSize = bestMatch.Size ?? 1;  // Avoid division by zero
+        var progress = new Progress<double>(p =>
         {
             ctx.Progress = p * 100;
-            // Publish Throttled Event? or Raw? User asked for raw publishing, UI handles throttling.
-            _eventBus.Publish(new Events.TrackProgressChangedEvent(ctx.GlobalId, ctx.Progress));
+            ctx.BytesReceived = (long)(bestMatch.Size * p);
+
+            // Throttle to 10 updates/sec to prevent UI stuttering
+            if ((DateTime.Now - lastNotificationTime).TotalMilliseconds > 100)
+            {
+                _eventBus.Publish(new Events.TrackProgressChangedEvent(
+                    ctx.GlobalId, 
+                    ctx.Progress,
+                    ctx.BytesReceived,
+                    ctx.TotalBytes
+                ));
+                
+                lastNotificationTime = DateTime.Now;
+            }
         });
 
+        // STEP 5: Download to .part file with resume support
         var success = await _soulseek.DownloadAsync(
             bestMatch.Username!,
             bestMatch.Filename!,
-            finalPath,
+            partPath,          // Download to .part file
             bestMatch.Size,
             progress,
-            ct
+            ct,
+            startPosition      // Resume from existing bytes
         );
 
         if (success)
         {
-            ctx.Model.ResolvedFilePath = finalPath;
-            ctx.Progress = 100;
-            await UpdateStateAsync(ctx, PlaylistTrackState.Completed); // Triggers DB and UI
+            // STEP 6: Atomic Rename - Only if download completed successfully
+            try
+            {
+                // Brief pause to ensure all file handles are released
+                await Task.Delay(100, ct);
 
-            // Phase 3.1: Finalize with Metadata Service (Tagging)
-             await _enrichmentOrchestrator.FinalizeDownloadedTrackAsync(ctx.Model);
+                // Verify .part file exists and has correct size
+                if (!File.Exists(partPath))
+                {
+                    throw new FileNotFoundException($"Part file disappeared: {partPath}");
+                }
+
+                var finalPartSize = new FileInfo(partPath).Length;
+                if (finalPartSize != bestMatch.Size)
+                {
+                    throw new InvalidDataException(
+                        $"Downloaded file size mismatch. Expected {bestMatch.Size}, got {finalPartSize}");
+                }
+
+                // Clean up old final file if it exists (race condition edge case)
+                if (File.Exists(finalPath))
+                {
+                    _logger.LogWarning("Final path {Path} already exists during atomic rename. Deleting.", finalPath);
+                    File.Delete(finalPath);
+                }
+
+                // ATOMIC OPERATION: Only now does .mp3 appear
+                File.Move(partPath, finalPath);
+                
+                _logger.LogInformation("Atomic rename complete: {Part} → {Final}", 
+                    Path.GetFileName(partPath), Path.GetFileName(finalPath));
+
+                ctx.Model.ResolvedFilePath = finalPath;
+                ctx.Progress = 100;
+                ctx.BytesReceived = bestMatch.Size ?? 0;  // Handle nullable size
+                await UpdateStateAsync(ctx, PlaylistTrackState.Completed);
+
+                // Phase 3.1: Finalize with Metadata Service (Tagging)
+                await _enrichmentOrchestrator.FinalizeDownloadedTrackAsync(ctx.Model);
+            }
+            catch (Exception renameEx)
+            {
+                _logger.LogError(renameEx, "Failed to perform atomic rename for {Track}", ctx.Model.Title);
+                await UpdateStateAsync(ctx, PlaylistTrackState.Failed, 
+                    $"Atomic rename failed: {renameEx.Message}");
+            }
         }
         else
         {
-            await UpdateStateAsync(ctx, PlaylistTrackState.Failed, "Download transfer failed or was cancelled.");
+            await UpdateStateAsync(ctx, PlaylistTrackState.Failed, 
+                "Download transfer failed or was cancelled. .part file retained for resume.");
         }
     }
 

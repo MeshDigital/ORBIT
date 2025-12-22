@@ -19,6 +19,11 @@ public class DownloadContext
     public string GlobalId => Model.TrackUniqueHash;
     public string? ErrorMessage { get; set; }
 
+    // Phase 2.5: Resumable Download Tracking
+    public long TotalBytes { get; set; }        // Remote file size
+    public long BytesReceived { get; set; }     // Local progress (includes .part file size)
+    public bool IsResuming { get; set; }        // UI/Log feedback for "Resuming" vs "Downloading"
+
     // Reliability (Phase 7: DJ's Studio)
     public int RetryCount { get; set; }
     public DateTime? NextRetryTime { get; set; }
