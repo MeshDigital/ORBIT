@@ -18,14 +18,14 @@ public class TrackStateToColorConverter : IValueConverter
 
         return state switch
         {
-            PlaylistTrackState.Completed => new SolidColorBrush(Color.Parse("#1DB954")), // Spotify green
-            PlaylistTrackState.Downloading => new SolidColorBrush(Color.Parse("#00A3FF")), // Orbit blue
-            PlaylistTrackState.Searching => new SolidColorBrush(Color.Parse("#B388FF")), // Purple
-            PlaylistTrackState.Queued => new SolidColorBrush(Color.Parse("#FFA726")), // Orange
-            PlaylistTrackState.Failed => new SolidColorBrush(Color.Parse("#F44336")), // Red
-            PlaylistTrackState.Pending => new SolidColorBrush(Color.Parse("#757575")), // Gray
-            PlaylistTrackState.Cancelled => new SolidColorBrush(Color.Parse("#9E9E9E")), // Light gray
-            _ => new SolidColorBrush(Color.Parse("#666666"))
+            PlaylistTrackState.Completed => new SolidColorBrush(Color.Parse("#238636")), // Muted Green
+            PlaylistTrackState.Downloading => new SolidColorBrush(Color.Parse("#388BFD")), // Muted Blue
+            PlaylistTrackState.Searching => new SolidColorBrush(Color.Parse("#A371F7")), // Muted Purple
+            PlaylistTrackState.Queued => new SolidColorBrush(Color.Parse("#9E6A03")), // Muted Bronze/Orange
+            PlaylistTrackState.Failed => new SolidColorBrush(Color.Parse("#DA3633")), // Muted Red
+            PlaylistTrackState.Pending => new SolidColorBrush(Color.Parse("#8B949E")), // Muted Gray
+            PlaylistTrackState.Cancelled => new SolidColorBrush(Color.Parse("#484F58")), // Dark Gray
+            _ => new SolidColorBrush(Color.Parse("#484F58"))
         };
     }
 
