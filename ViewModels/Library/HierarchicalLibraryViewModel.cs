@@ -20,16 +20,18 @@ namespace SLSKDONET.ViewModels.Library;
 
 public class HierarchicalLibraryViewModel
 {
-    private readonly ObservableCollection<AlbumNode> _albums = new();
+    private readonly ObservableCollection<ILibraryNode> _albums = new();
     private readonly AppConfig _config;
+    private readonly DownloadManager _downloadManager;
     private readonly Dictionary<IColumn<ILibraryNode>, string> _columnToIdMap = new();
     private CancellationTokenSource? _saveDebounceCts;
     public HierarchicalTreeDataGridSource<ILibraryNode> Source { get; }
     public ITreeDataGridRowSelectionModel<ILibraryNode>? Selection => Source.RowSelection;
 
-    public HierarchicalLibraryViewModel(AppConfig config)
+    public HierarchicalLibraryViewModel(AppConfig config, DownloadManager downloadManager)
     {
         _config = config;
+        _downloadManager = downloadManager;
         Source = new HierarchicalTreeDataGridSource<ILibraryNode>(_albums);
         Source.RowSelection!.SingleSelect = false;
 
@@ -240,16 +242,24 @@ public class HierarchicalLibraryViewModel
         
         foreach (var group in grouped)
         {
-            var firstTrack = group.First();
-            var albumNode = new AlbumNode(group.Key, firstTrack.Artist)
+            if (group.Count() == 1)
             {
-                AlbumArtPath = firstTrack.AlbumArtPath
-            };
-            foreach (var track in group)
-            {
-                albumNode.Tracks.Add(track);
+                // Single track? Don't group it. Show as flat item.
+                _albums.Add(group.First());
             }
-            _albums.Add(albumNode);
+            else
+            {
+                var firstTrack = group.First();
+                var albumNode = new AlbumNode(group.Key, firstTrack.Artist)
+                {
+                    AlbumArtPath = firstTrack.AlbumArtPath
+                };
+                foreach (var track in group)
+                {
+                    albumNode.Tracks.Add(track);
+                }
+                _albums.Add(albumNode);
+            }
         }
 
         // Auto-expand all albums by default

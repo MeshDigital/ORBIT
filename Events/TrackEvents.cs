@@ -44,23 +44,7 @@ public class TrackSearchStartedEvent
 }
 
 
-
-public class TrackAddedEvent
-{
-    public PlaylistTrack TrackModel { get; }
-    public PlaylistTrackState? InitialState { get; }
-    public TrackAddedEvent(PlaylistTrack track, PlaylistTrackState? initialState = null) 
-    {
-        TrackModel = track;
-        InitialState = initialState;
-    }
-}
-
-public class TrackRemovedEvent
-{
-    public string TrackGlobalId { get; }
-    public TrackRemovedEvent(string globalId) => TrackGlobalId = globalId;
-}
+// NOTE: TrackAddedEvent and TrackRemovedEvent moved to Models/Events.cs to avoid duplication
 
 public class TrackProgressChangedEvent
 {

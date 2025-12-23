@@ -2,12 +2,17 @@ using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Linq;
 using System.Runtime.CompilerServices;
+using System.Windows.Input;
 using SLSKDONET.Models;
+using SLSKDONET.Services;
+using SLSKDONET.Views; // For RelayCommand
 
 namespace SLSKDONET.ViewModels.Library;
 
 public class AlbumNode : ILibraryNode, INotifyPropertyChanged
 {
+    private readonly DownloadManager? _downloadManager;
+    
     public string? AlbumTitle { get; set; }
     public string? Artist { get; set; }
     public string? Title => AlbumTitle;
@@ -46,11 +51,17 @@ public class AlbumNode : ILibraryNode, INotifyPropertyChanged
     }
 
     public ObservableCollection<PlaylistTrackViewModel> Tracks { get; } = new();
+    
+    public ICommand DownloadAlbumCommand { get; }
 
-    public AlbumNode(string? albumTitle, string? artist)
+    public AlbumNode(string? albumTitle, string? artist, DownloadManager? downloadManager = null)
     {
         AlbumTitle = albumTitle;
         Artist = artist;
+        _downloadManager = downloadManager;
+        
+        DownloadAlbumCommand = new RelayCommand<object>(_ => DownloadAlbum());
+        
         Tracks.CollectionChanged += (s, e) => {
             if (e.NewItems != null)
             {
@@ -65,6 +76,14 @@ public class AlbumNode : ILibraryNode, INotifyPropertyChanged
             OnPropertyChanged(nameof(Progress));
             UpdateAlbumArt();
         };
+    }
+
+    private void DownloadAlbum()
+    {
+        if (_downloadManager == null || !Tracks.Any()) return;
+        
+        var tracksToDownload = Tracks.Select(t => t.Model).ToList();
+        _downloadManager.QueueTracks(tracksToDownload);
     }
 
     private void UpdateAlbumArt()

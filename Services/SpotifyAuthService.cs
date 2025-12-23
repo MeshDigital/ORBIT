@@ -229,6 +229,7 @@ public class SpotifyAuthService
                     Scopes.PlaylistReadPrivate,
                     Scopes.PlaylistReadCollaborative,
                     Scopes.UserLibraryRead,
+                    Scopes.UserTopRead,
                     Scopes.UserFollowRead
                 }
             };

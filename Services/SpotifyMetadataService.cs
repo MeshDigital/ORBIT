@@ -28,6 +28,9 @@ public class SpotifyMetadataService : ISpotifyMetadataService
     private readonly SpotifyBatchClient _batchClient;
     private readonly Configuration.AppConfig _config;
 
+    // Circuit Breaker: If we get persistent 403s on specific endpoints, stop hitting them.
+    private bool _audioFeaturesDisabled;
+
     // Negative cache duration for "Not Found" results
     private static readonly TimeSpan NegativeCacheDuration = TimeSpan.FromDays(7);
     
@@ -192,6 +195,13 @@ public class SpotifyMetadataService : ISpotifyMetadataService
             return results;
         }
 
+        // Circuit Breaker Check
+        if (_audioFeaturesDisabled)
+        {
+            // Fail silently to avoid log spam (we already logged the error that tripped the breaker)
+            return results;
+        }
+
         int retryCount = 0;
         const int maxRetries = 1;
 
@@ -247,7 +257,8 @@ public class SpotifyMetadataService : ISpotifyMetadataService
                 }
                 else
                 {
-                    _logger.LogError(apiEx, "Spotify API 403 Forbidden persists after refresh.");
+                    _logger.LogError(apiEx, "Spotify API 403 Forbidden persists after refresh. Disabling Audio Features for this session.");
+                    _audioFeaturesDisabled = true; // Circuit Breaker: Stop hitting the endpoint
                     break; // Give up
                 }
             }

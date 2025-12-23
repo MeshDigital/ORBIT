@@ -40,7 +40,7 @@ public record PlayAlbumRequestEvent(System.Collections.Generic.IEnumerable<Playl
 public record DownloadAlbumRequestEvent(object Album); // object to handle AlbumNode or PlaylistJob
 
 // Explicit Track Events (missing in record list but used in code)
-public record TrackAddedEvent(PlaylistTrack TrackModel);
+public record TrackAddedEvent(PlaylistTrack TrackModel, PlaylistTrackState? InitialState = null);
 public record TrackRemovedEvent(string TrackGlobalId);
 public record TrackMovedEvent(string TrackGlobalId, Guid OldProjectId, Guid NewProjectId);
 public record TrackStateChangedEvent(string TrackGlobalId, Guid ProjectId, PlaylistTrackState State, string? Error);

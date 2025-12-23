@@ -7,6 +7,7 @@ using System.Runtime.CompilerServices;
 using System.Windows.Input;
 using Avalonia.Threading;
 using ReactiveUI;
+using SLSKDONET.Models;
 using SLSKDONET.Services;
 
 namespace SLSKDONET.ViewModels.Downloads;
@@ -70,7 +71,7 @@ public class DownloadCenterViewModel : INotifyPropertyChanged, IDisposable
         ClearFailedCommand = ReactiveCommand.Create(() => FailedDownloads.Clear());
         
         // Subscribe to events (Reactive pattern: GetEvent<T>().Subscribe())
-        _trackAddedSubscription = _eventBus.GetEvent<Events.TrackAddedEvent>()
+        _trackAddedSubscription = _eventBus.GetEvent<TrackAddedEvent>()
             .Subscribe(OnTrackAdded);
         
         _trackStateChangedSubscription = _eventBus.GetEvent<Events.TrackStateChangedEvent>()
@@ -86,7 +87,7 @@ public class DownloadCenterViewModel : INotifyPropertyChanged, IDisposable
     /// <summary>
     /// Phase 2.5: Track added to download queue
     /// </summary>
-    private void OnTrackAdded(Events.TrackAddedEvent e)
+    private void OnTrackAdded(TrackAddedEvent e)
     {
         // CRITICAL: Marshal to UI thread for ObservableCollection modifications
         Dispatcher.UIThread.Post(() =>

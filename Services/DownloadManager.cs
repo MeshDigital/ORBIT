@@ -226,7 +226,7 @@ public class DownloadManager : INotifyPropertyChanged, IDisposable
                     _downloads.Add(ctx);
                     
                     // Publish event with initial state
-                    _eventBus.Publish(new Events.TrackAddedEvent(model, ctx.State));
+                    _eventBus.Publish(new TrackAddedEvent(model, ctx.State));
                 }
             }
             _logger.LogInformation("Hydrated {Count} tracks from database.", tracks.Count);
@@ -400,7 +400,7 @@ public class DownloadManager : INotifyPropertyChanged, IDisposable
                 queued++;
                 
                 // Publish Event
-                _eventBus.Publish(new Events.TrackAddedEvent(track));
+                _eventBus.Publish(new TrackAddedEvent(track));
                 
                 // Persist new track
                 _ = SaveTrackToDb(ctx);
@@ -447,7 +447,7 @@ public class DownloadManager : INotifyPropertyChanged, IDisposable
 
             // 5. Remove from Memory
             lock (_collectionLock) _downloads.Remove(ctx);
-            _eventBus.Publish(new Events.TrackRemovedEvent(globalId));
+            _eventBus.Publish(new TrackRemovedEvent(globalId));
         }
     }
     

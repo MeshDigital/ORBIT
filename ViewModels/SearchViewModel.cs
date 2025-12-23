@@ -173,7 +173,7 @@ public partial class SearchViewModel : ReactiveObject
 
         // Reactive Status Updates
         eventBus.GetEvent<Events.TrackStateChangedEvent>().Subscribe(OnTrackStateChanged);
-        eventBus.GetEvent<Events.TrackAddedEvent>().Subscribe(OnTrackAdded);
+        eventBus.GetEvent<TrackAddedEvent>().Subscribe(OnTrackAdded);
 
         // --- Reactive Pipeline Setup ---
         // Connect SourceList -> Filter -> Sort -> Bind -> Public Collection
@@ -428,7 +428,7 @@ public partial class SearchViewModel : ReactiveObject
         });
     }
 
-    private void OnTrackAdded(Events.TrackAddedEvent evt)
+    private void OnTrackAdded(TrackAddedEvent evt)
     {
          Dispatcher.UIThread.InvokeAsync(() =>
         {
