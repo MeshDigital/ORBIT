@@ -478,7 +478,7 @@ public class TrackListViewModel : ReactiveObject
                     }
 
                     System.IO.File.Copy(sourceFile, targetFile, false);
-                    _logger.LogDebug("Copied: {File}", fileName);
+                    _logger.LogInformation("📂 Copied {Current}/{Total}: {File}", successCount + failCount, selectedTracks.Count, fileName);
                     successCount++;
                 }
                 catch (Exception ex)
