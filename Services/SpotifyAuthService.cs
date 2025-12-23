@@ -6,6 +6,7 @@ using Microsoft.Extensions.Logging;
 using SLSKDONET.Configuration;
 using SLSKDONET.Utils;
 using SpotifyAPI.Web;
+using SpotifyAPI.Web.Auth;
 
 namespace SLSKDONET.Services;
 
@@ -17,7 +18,7 @@ public class SpotifyAuthService
 {
     private readonly ILogger<SpotifyAuthService> _logger;
     private readonly AppConfig _config;
-    private readonly LocalHttpServer _httpServer;
+    // private readonly LocalHttpServer _httpServer; // Retired
     private readonly ISecureTokenStorage _tokenStorage;
 
     private string? _currentCodeVerifier;
@@ -47,12 +48,10 @@ public class SpotifyAuthService
     public SpotifyAuthService(
         ILogger<SpotifyAuthService> logger,
         AppConfig config,
-        LocalHttpServer httpServer,
         ISecureTokenStorage tokenStorage)
     {
         _logger = logger;
         _config = config;
-        _httpServer = httpServer;
         _tokenStorage = tokenStorage;
         
         // Initial check is now handled by consumers (e.g. SettingsViewModel) explicitly
@@ -175,102 +174,106 @@ public class SpotifyAuthService
     /// <summary>
     /// Starts the OAuth authorization flow.
     /// Opens the browser for user consent and waits for the callback.
+    /// Uses EmbedIOAuthServer for robust local handling.
     /// </summary>
-    /// <param name="cancellationToken">Cancellation token</param>
-    /// <returns>True if authorization succeeded, false otherwise</returns>
     public async Task<bool> StartAuthorizationAsync(CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrWhiteSpace(_config.SpotifyClientId))
-        {
-            _logger.LogError("Spotify Client ID is not configured");
             throw new InvalidOperationException("Spotify Client ID must be configured in Settings");
-        }
 
+        // Parse configured port/URI
+        var uri = new Uri(_config.SpotifyRedirectUri);
+        var port = uri.Port;
+        
+        // Setup robust EmbedIO server
+        var server = new EmbedIOAuthServer(uri, port);
+        
         try
         {
-            // Check if the callback port is available before starting
-            var port = new Uri(_config.SpotifyRedirectUri).Port;
-            if (!_httpServer.IsPortAvailable(port))
+            await server.Start();
+            _logger.LogInformation("EmbedIO Auth Server started on port {Port}", port);
+
+            // Generate PKCE
+            var (verifier, challenge) = PKCEUtil.GenerateCodes();
+            _currentCodeVerifier = verifier;
+
+            // Bridge Event-Driven Server to Linear Task
+            var tcs = new TaskCompletionSource<string>();
+            
+            // Handle successful code reception
+            server.AuthorizationCodeReceived += async (sender, response) =>
             {
-                _logger.LogWarning("Port {Port} is already in use - possible stale Spotify auth session", port);
-                throw new InvalidOperationException(
-                    $"Port {port} is already in use.\n\n" +
-                    "This usually means a previous Spotify login attempt is still open in a browser tab.\n\n" +
-                    "Please close any browser tabs showing the Spotify login page and try again.");
-            }
-
-            // Generate PKCE parameters
-            _currentCodeVerifier = PKCEHelper.GenerateCodeVerifier();
-            var codeChallenge = PKCEHelper.GenerateCodeChallenge(_currentCodeVerifier);
-
-            _logger.LogInformation("Generated PKCE code verifier and challenge");
-
-            // Build authorization URL
-            var scopes = new[]
-            {
-                Scopes.UserReadPrivate,
-                Scopes.UserReadEmail,
-                Scopes.PlaylistReadPrivate,
-                Scopes.PlaylistReadCollaborative,
-                Scopes.UserLibraryRead,
-                Scopes.UserFollowRead
+                await server.Stop();
+                tcs.TrySetResult(response.Code);
             };
 
+            // Handle errors
+            server.ErrorReceived += async (sender, error, description) =>
+            {
+                await server.Stop();
+                tcs.TrySetException(new Exception($"OAuth Error: {error} - {description}"));
+            };
+
+            // Build Auth Request
             var loginRequest = new LoginRequest(
-                new Uri(_config.SpotifyRedirectUri),
-                _config.SpotifyClientId,
+                server.BaseUri, 
+                _config.SpotifyClientId, 
                 LoginRequest.ResponseType.Code)
             {
                 CodeChallengeMethod = "S256",
-                CodeChallenge = codeChallenge,
-                Scope = scopes
+                CodeChallenge = challenge,
+                Scope = new[]
+                {
+                    Scopes.UserReadPrivate,
+                    Scopes.UserReadEmail,
+                    Scopes.PlaylistReadPrivate,
+                    Scopes.PlaylistReadCollaborative,
+                    Scopes.UserLibraryRead,
+                    Scopes.UserFollowRead
+                }
             };
 
             var authUrl = loginRequest.ToUri();
-            _logger.LogInformation("Opening browser for Spotify authorization: {Url}", authUrl);
-
-            // Open browser
+            _logger.LogInformation("Opening browser: {Url}", authUrl);
             OpenBrowser(authUrl.ToString());
 
-            // Ensure any previous listener is stopped
-            _httpServer.Stop();
-
-            // Wait for callback with a 2-minute timeout
-            string? authCode = null;
+            // Wait for callback with timeout
             using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
             timeoutCts.CancelAfter(TimeSpan.FromMinutes(2));
 
-            try 
+            // Race: Task vs Cancellation
+            using var reg = timeoutCts.Token.Register(async () => 
             {
-                authCode = await _httpServer.WaitForCallbackAsync(_config.SpotifyRedirectUri, timeoutCts.Token);
-            }
-            catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
-            {
-                _logger.LogWarning("Spotify authorization timed out after 2 minutes");
-                throw new TimeoutException("Spotify authorization timed out. Please try again.");
-            }
-            catch (InvalidOperationException)
-            {
-                // Port conflict or listener failure
-                throw; 
-            }
+                await server.Stop();
+                tcs.TrySetCanceled();
+            });
 
-            if (string.IsNullOrEmpty(authCode))
+            var code = await tcs.Task;
+            
+            // Exchange
+            if (!string.IsNullOrEmpty(code))
             {
-                _logger.LogWarning("Authorization failed or was cancelled");
-                return false;
+                 await ExchangeCodeForTokensAsync(code);
+                 return true;
             }
-
-            // Exchange code for tokens
-            await ExchangeCodeForTokensAsync(authCode);
-
-            _logger.LogInformation("Successfully completed Spotify OAuth flow");
-            return true;
+            
+            return false;
+        }
+        catch (OperationCanceledException)
+        {
+            _logger.LogWarning("Spotify authorization timed out or cancelled");
+            throw new TimeoutException("Spotify authorization timed out. Please try again.");
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error during Spotify authorization");
-            throw;
+             _logger.LogError(ex, "Spotify authorization failed");
+             throw; 
+        }
+        finally
+        {
+             // Double check cleanup
+             await server.Stop();
+             server.Dispose();
         }
     }
 

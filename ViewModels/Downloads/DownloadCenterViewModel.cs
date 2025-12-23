@@ -104,7 +104,10 @@ public class DownloadCenterViewModel : INotifyPropertyChanged, IDisposable
                 track.MinBitrateOverride
             );
             
-            viewModel.State = Models.PlaylistTrackState.Pending;
+
+            
+            // Respect proper initial state (e.g. hydrate as Completed)
+            viewModel.State = e.InitialState ?? Models.PlaylistTrackState.Pending;
             
             // Smart Insert: Active downloads on top, pending at bottom
             // This keeps the most relevant items (currently downloading/searching) visible

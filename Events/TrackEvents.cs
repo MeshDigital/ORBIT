@@ -48,7 +48,12 @@ public class TrackSearchStartedEvent
 public class TrackAddedEvent
 {
     public PlaylistTrack TrackModel { get; }
-    public TrackAddedEvent(PlaylistTrack track) => TrackModel = track;
+    public PlaylistTrackState? InitialState { get; }
+    public TrackAddedEvent(PlaylistTrack track, PlaylistTrackState? initialState = null) 
+    {
+        TrackModel = track;
+        InitialState = initialState;
+    }
 }
 
 public class TrackRemovedEvent

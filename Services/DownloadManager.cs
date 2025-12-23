@@ -225,8 +225,8 @@ public class DownloadManager : INotifyPropertyChanged, IDisposable
 
                     _downloads.Add(ctx);
                     
-                    // Publish event
-                    _eventBus.Publish(new Events.TrackAddedEvent(model));
+                    // Publish event with initial state
+                    _eventBus.Publish(new Events.TrackAddedEvent(model, ctx.State));
                 }
             }
             _logger.LogInformation("Hydrated {Count} tracks from database.", tracks.Count);

@@ -275,15 +275,19 @@ public class ProjectListViewModel : INotifyPropertyChanged
 
     private void RefreshFilteredProjects()
     {
-        var filtered = string.IsNullOrWhiteSpace(SearchText) 
-            ? AllProjects.ToList()
-            : AllProjects.Where(p => 
-                (p.SourceTitle?.Contains(SearchText, StringComparison.OrdinalIgnoreCase) ?? false) ||
-                (p.SourceType?.Contains(SearchText, StringComparison.OrdinalIgnoreCase) ?? false)).ToList();
+        // Safety: Ensure filtering runs on UI thread to update ObservableCollection
+        Dispatcher.UIThread.Post(() =>
+        {
+            var filtered = string.IsNullOrWhiteSpace(SearchText) 
+                ? AllProjects.ToList()
+                : AllProjects.Where(p => 
+                    (p.SourceTitle?.Contains(SearchText, StringComparison.OrdinalIgnoreCase) ?? false) ||
+                    (p.SourceType?.Contains(SearchText, StringComparison.OrdinalIgnoreCase) ?? false)).ToList();
 
-        FilteredProjects.Clear();
-        foreach (var p in filtered)
-            FilteredProjects.Add(p);
+            FilteredProjects.Clear();
+            foreach (var p in filtered)
+                FilteredProjects.Add(p);
+        });
     }
     // ... existing methods ...
 
