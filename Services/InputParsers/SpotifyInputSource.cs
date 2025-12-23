@@ -32,7 +32,7 @@ public class SpotifyInputSource : IInputSource
 		_spotifyAuth = spotifyAuth;
 	}
 
-	public async Task<List<SearchQuery>> ParseAsync(string url)
+    public async Task<List<SearchQuery>> ParseAsync(string url)
 	{
 		if (!IsConfigured)
 			throw new InvalidOperationException("Spotify API is not configured or authenticated.");
@@ -46,6 +46,13 @@ public class SpotifyInputSource : IInputSource
 		{
 			queries = await FetchLikedSongsAsync(client);
 		}
+        else if (IsAlbumUrl(url))
+        {
+            var albumId = ExtractAlbumId(url);
+            if (string.IsNullOrEmpty(albumId))
+                throw new InvalidOperationException("Invalid Spotify album URL.");
+            queries = await FetchAlbumTracksAsync(client, albumId);
+        }
 		else
 		{
 			var playlistId = ExtractPlaylistId(url);
@@ -56,23 +63,6 @@ public class SpotifyInputSource : IInputSource
 		}
 
 		_logger.LogInformation("Spotify API: extracted {Count} tracks", queries.Count);
-		return queries;
-	}
-
-	private async Task<List<SearchQuery>> FetchLikedSongsAsync(SpotifyClient client)
-	{
-		var queries = new List<SearchQuery>();
-		var response = await client.Library.GetTracks();
-		var total = response.Total ?? 0;
-
-		await foreach (var item in client.Paginate(response))
-		{
-			if (item.Track != null)
-			{
-				queries.Add(MapToSearchQuery(item.Track, "Liked Songs", total));
-			}
-		}
-
 		return queries;
 	}
 
@@ -87,7 +77,9 @@ public class SpotifyInputSource : IInputSource
 
         if (url.Equals("liked", StringComparison.OrdinalIgnoreCase) || url.Contains("liked-songs"))
         {
-            var response = await client.Library.GetTracks();
+            // ... Liked Songs Logic (Unchanged) ...
+            var request = new LibraryTracksRequest { Limit = 50 };
+            var response = await client.Library.GetTracks(request);
             var total = response.Total ?? 0;
             var batch = new List<SearchQuery>();
 
@@ -96,13 +88,39 @@ public class SpotifyInputSource : IInputSource
                 if (item.Track != null)
                 {
                     batch.Add(MapToSearchQuery(item.Track, "Liked Songs", total));
-                    
-                    // Yield every 50 tracks
                     if (batch.Count >= 50)
                     {
                          yield return new List<SearchQuery>(batch);
                          batch.Clear();
                     }
+                }
+            }
+            if (batch.Any()) yield return batch;
+        }
+        else if (IsAlbumUrl(url))
+        {
+            var albumId = ExtractAlbumId(url);
+            if (string.IsNullOrEmpty(albumId))
+                throw new InvalidOperationException("Invalid Spotify album URL.");
+
+            var fullAlbum = await client.Albums.Get(albumId);
+            var albumName = fullAlbum.Name ?? "Spotify Album";
+            var total = fullAlbum.Tracks.Total ?? 0;
+            
+            // Note: Albums.GetTracks returns SimpleTrack (no album object inside)
+            // So we pass 'fullAlbum' to mapping helper
+            var request = new AlbumTracksRequest { Limit = 50 };
+            var items = await client.Albums.GetTracks(albumId, request);
+            var batch = new List<SearchQuery>();
+
+            await foreach (var simpleTrack in client.Paginate(items))
+            {
+                batch.Add(MapSimpleTrackToSearchQuery(simpleTrack, fullAlbum, total));
+
+                if (batch.Count >= 50)
+                {
+                    yield return new List<SearchQuery>(batch);
+                    batch.Clear();
                 }
             }
             if (batch.Any()) yield return batch;
@@ -113,20 +131,20 @@ public class SpotifyInputSource : IInputSource
             if (string.IsNullOrEmpty(playlistId))
                 throw new InvalidOperationException("Invalid Spotify playlist URL.");
 
+            // ... Playlist Logic (Unchanged) ...
             var playlist = await client.Playlists.Get(playlistId);
-            var total = playlist.Tracks?.Total ?? 0;
             var playlistName = playlist.Name ?? "Spotify Playlist";
+            
+            var request = new PlaylistGetItemsRequest { Limit = 100 };
+            var items = await client.Playlists.GetItems(playlistId, request);
+            var total = items.Total ?? 0;
             var batch = new List<SearchQuery>();
             
-            if (playlist.Tracks != null)
-            {
-                await foreach (var item in client.Paginate(playlist.Tracks))
+            await foreach (var item in client.Paginate(items))
                 {
                     if (item.Track is FullTrack track)
                     {
                         batch.Add(MapToSearchQuery(track, playlistName, total));
-                        
-                        // Yield every 50 tracks to keep UI responsive
                         if (batch.Count >= 50)
                         {
                              yield return new List<SearchQuery>(batch);
@@ -135,26 +153,59 @@ public class SpotifyInputSource : IInputSource
                     }
                 }
                 if (batch.Any()) yield return batch;
-            }
         }
+    }
+
+	private async Task<List<SearchQuery>> FetchLikedSongsAsync(SpotifyClient client)
+	{
+		var queries = new List<SearchQuery>();
+		var request = new LibraryTracksRequest { Limit = 50 };
+		var response = await client.Library.GetTracks(request);
+		var total = response.Total ?? 0;
+
+		await foreach (var item in client.Paginate(response))
+		{
+			if (item.Track != null)
+			{
+				queries.Add(MapToSearchQuery(item.Track, "Liked Songs", total));
+			}
+		}
+
+		return queries;
+	}
+
+    private async Task<List<SearchQuery>> FetchAlbumTracksAsync(SpotifyClient client, string albumId)
+    {
+        var queries = new List<SearchQuery>();
+        var fullAlbum = await client.Albums.Get(albumId);
+        var request = new AlbumTracksRequest { Limit = 50 };
+        var items = await client.Albums.GetTracks(albumId, request);
+        var total = items.Total ?? 0;
+
+        await foreach (var simpleTrack in client.Paginate(items))
+        {
+            queries.Add(MapSimpleTrackToSearchQuery(simpleTrack, fullAlbum, total));
+        }
+        return queries;
     }
 
 	private async Task<List<SearchQuery>> FetchPlaylistTracksAsync(SpotifyClient client, string playlistId)
 	{
 		var queries = new List<SearchQuery>();
 		var playlist = await client.Playlists.Get(playlistId);
-		var total = playlist.Tracks?.Total ?? 0;
+		
+		var request = new PlaylistGetItemsRequest { Limit = 100 };
+		var items = await client.Playlists.GetItems(playlistId, request);
+		var total = items.Total ?? 0;
 
-		if (playlist.Tracks != null)
-		{
-			await foreach (var item in client.Paginate(playlist.Tracks))
+		await foreach (var item in client.Paginate(items))
 			{
 				if (item.Track is FullTrack track)
 				{
 					queries.Add(MapToSearchQuery(track, playlist.Name ?? "Spotify Playlist", total));
 				}
 			}
-		}
+
 
 		return queries;
 	}
@@ -180,9 +231,34 @@ public class SpotifyInputSource : IInputSource
 			CanonicalDuration = track.DurationMs,
 			ReleaseDate = DateTime.TryParse(track.Album?.ReleaseDate, out var rd) ? rd : null,
             ISRC = track.ExternalIds != null && track.ExternalIds.ContainsKey("isrc") ? track.ExternalIds["isrc"] : null,
-            IsEnriched = false // Enriched means "Has Audio Features", which we fetch later
+            IsEnriched = false 
 		};
 	}
+
+    private SearchQuery MapSimpleTrackToSearchQuery(SimpleTrack track, FullAlbum album, int total)
+    {
+        var artist = track.Artists?.FirstOrDefault()?.Name ?? "Unknown Artist";
+        var title = track.Name ?? "Unknown Track";
+
+        return new SearchQuery
+        {
+            Artist = artist,
+            Title = title,
+            Album = album.Name, // Use FullAlbum name
+            SourceTitle = album.Name,
+            TotalTracks = total,
+            DownloadMode = DownloadMode.Normal,
+            SpotifyTrackId = track.Id,
+            SpotifyAlbumId = album.Id,
+            SpotifyArtistId = track.Artists?.FirstOrDefault()?.Id,
+            AlbumArtUrl = album.Images?.FirstOrDefault()?.Url, // Use FullAlbum images
+            Popularity = album.Popularity, // SimpleTrack lacks popularity, use Album's? Or fetch details? SimpleTrack usually lacks it.
+            CanonicalDuration = track.DurationMs,
+            ReleaseDate = DateTime.TryParse(album.ReleaseDate, out var rd) ? rd : null,
+            // SimpleTrack doesn't provide ExternalIds usually, so ISRC might be missing here without fetch
+            IsEnriched = false
+        };
+    }
 
 	private async Task<SpotifyClient> GetClientAsync()
 	{
@@ -192,11 +268,41 @@ public class SpotifyInputSource : IInputSource
 		}
 		
 		_logger.LogWarning("Spotify is not authenticated with User OAuth, falling back to Client Credentials...");
-		var config = SpotifyClientConfig.CreateDefault();
+		var config = SpotifyClientConfig.CreateDefault()
+            .WithRetryHandler(new SimpleRetryHandler() 
+            { 
+                RetryAfter = TimeSpan.FromSeconds(1), 
+                RetryTimes = 3 
+            });
 		var request = new ClientCredentialsRequest(_config.SpotifyClientId!, _config.SpotifyClientSecret!);
 		var response = await new OAuthClient(config).RequestToken(request);
 		return new SpotifyClient(config.WithToken(response.AccessToken));
 	}
+
+    private bool IsAlbumUrl(string url)
+    {
+        return url.Contains("/album/") || url.StartsWith("spotify:album:");
+    }
+
+    private string? ExtractAlbumId(string url)
+    {
+        if (string.IsNullOrWhiteSpace(url)) return null;
+
+        if (url.StartsWith("spotify:album:", StringComparison.OrdinalIgnoreCase))
+            return url.Replace("spotify:album:", "");
+
+        if (url.Contains("spotify.com") && url.Contains("/album/"))
+        {
+            var parts = url.Split('/');
+            var idx = Array.IndexOf(parts, "album");
+            if (idx >= 0 && idx + 1 < parts.Length)
+            {
+                var id = parts[idx + 1].Split('?')[0];
+                return (id.Length >= 20) ? id : null;
+            }
+        }
+        return null;
+    }
 
 	public static string? ExtractPlaylistId(string url)
 	{

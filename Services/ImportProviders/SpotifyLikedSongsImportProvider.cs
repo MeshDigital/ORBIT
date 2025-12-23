@@ -13,7 +13,7 @@ namespace SLSKDONET.Services.ImportProviders;
 /// Import provider for fetching the user's "Liked Songs" from Spotify.
 /// Uses the authenticated SpotifyAuthService.
 /// </summary>
-public class SpotifyLikedSongsImportProvider : IImportProvider
+public class SpotifyLikedSongsImportProvider : IImportProvider, IStreamingImportProvider
 {
     private readonly ILogger<SpotifyLikedSongsImportProvider> _logger;
     private readonly SpotifyAuthService _authService;

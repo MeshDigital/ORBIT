@@ -41,6 +41,9 @@ public class MetadataService : IMetadataService
         if (string.IsNullOrWhiteSpace(artist) || string.IsNullOrWhiteSpace(album))
             return null;
 
+        if (!_config.SpotifyUseApi)
+            return null;
+
         var key = $"{artist.ToLowerInvariant()}|{album.ToLowerInvariant()}";
         
         if (_cache.TryGetValue(key, out var cachedUrl))

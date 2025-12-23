@@ -1,111 +1,42 @@
 # Commit Message
 
 ## Title
-feat: Implement Quality Guard & The Brain 2.0 + Fix 21 Build Errors
+fix: Library UI Update Synchronization & Synchronization Logic
 
 ## Description
 
-### Quality Guard Features Added
-- **Fuzzy Normalization**: Intelligent string matching with feat./ft. normalization, special character handling, and whitespace collapsing
-- **Adaptive Relaxation Strategy**: Progressive quality threshold widening (Tier 1: 256kbps, Tier 2: highest available)
-- **VBR Fraud Detection**: Excludes upscaled/fake high-quality files from search results
+### Library Persistence & UI Sync
+- **Synchronized UI Lists**: Fixed critical bug where `ProjectListViewModel` updated the master project list (`AllProjects`) but failed to notify the filtered view (`FilteredProjects`), causing new imports to appear missing until restart.
+- **Smart Filtering**: Implemented logic in `OnPlaylistAdded` to respect active search filters—new imports matching the filter appear immediately; non-matches are added to the database silently.
+- **Immediate Deletion**: Updated `OnProjectDeleted` to ensure projects are removed from both master and filtered lists instantly.
+- **Thread Safety**: Wrapped all observable collection modifications in `Dispatcher.UIThread.InvokeAsync` to prevent cross-thread exceptions from background event handlers.
 
-### Configuration & UI
-- Added 4 new settings to AppConfig: EnableFuzzyNormalization, EnableRelaxationStrategy, EnableVbrFraudDetection, RelaxationTimeoutSeconds
-- Created "Quality Guard & The Brain" section in Settings UI with toggles and timeout slider
-- Exposed properties in SettingsViewModel for UI binding
+### Spotify Robustness (The Three Laws)
+- **Law 1 (Chunking)**: Implemented `SpotifyBulkFetcher` with strict chunking (50 for tracks, 100 for features) to prevent 400 Bad Request errors.
+- **Law 2 (Two-Pass Fetch)**: Architecture now separates initial track import from metadata enrichment, merging results efficiently.
+- **Law 3 (Retry Mandate)**: Configured global `SimpleRetryHandler` with `Retry-After` respect (1s default, 3 retries) in `SpotifyAuthService` and `SpotifyInputSource`.
 
-### Core Logic Integration
-- SearchResultMatcher: Integrated fuzzy normalization in CalculateSimilarity method
-- DownloadDiscoveryService: Implemented 2-tier relaxation strategy in FindBestMatchAsync
-- ResultSorter: Wired VBR fraud detection flag, excludes suspicious files (score = -∞)
-- App.axaml.cs: Initialize ResultSorter with config on startup
-
-### Build Fixes (21 errors resolved)
-**C# Errors (19):**
-- DashboardService: Fixed PlaylistJobEntity mapping (Source/Name/Status → SourceTitle/SourceType)
-- DownloadManager & DashboardService: Added Microsoft.EntityFrameworkCore using directives
-- SettingsViewModel: Commented out obsolete SelectedRankingMode (RankingPreset property doesn't exist)
-- App.axaml.cs: Removed RankingPreset references, using CustomWeights directly
-- SpotifyEnrichmentService: Fixed Spotify API v7.2.1 compatibility (Browse.GetRecommendations, SeedTracks initialization)
-- HomeViewModel: Commented out DownloadSpeed property (CurrentSpeedText doesn't exist)
-- DatabaseService: Restored missing PendingOrchestrations table schema check
-- PlaylistTrackEntity: Added missing Bitrate and Format properties
-- DatabaseService: Added schema patches for new Bitrate/Format columns
-
-**XAML Errors (2):**
-- HomePage.axaml: Removed invalid Spacing property from Grid elements (lines 28, 127)
-- DownloadsPage.axaml: Fixed XML structure and tag nesting
+### Unified Import Pipeline Fixes
+- **Unified Streaming**: Refactored `ImportOrchestrator` to use streaming for all providers (Spotify, CSV).
+- **Liked Songs Fix**: Implemented `IStreamingImportProvider` for `SpotifyLikedSongsImportProvider`, resolving crashes/silent failures in the new orchestrator.
+- **Album Support Added**: Extended `SpotifyInputSource` (API) to handle `spotify:album:` and `/album/` URLs natively.
+- **Input Source Optimization**: Added implicit limits (50/100) to `SpotifyInputSource` pagination.
 
 ### Files Modified
-**Configuration:**
-- Configuration/AppConfig.cs
-
-**ViewModels:**
-- ViewModels/SettingsViewModel.cs
-- ViewModels/HomeViewModel.cs
-
-**Services:**
-- Services/SearchResultMatcher.cs
-- Services/DownloadDiscoveryService.cs
-- Services/ResultSorter.cs
-- Services/DatabaseService.cs
-- Services/DashboardService.cs
-- Services/DownloadManager.cs
-- Services/SpotifyEnrichmentService.cs
-- App.axaml.cs
-
-**Data Models:**
-- Data/TrackEntity.cs
-
-**UI:**
-- Views/Avalonia/SettingsPage.axaml
-- Views/Avalonia/DownloadsPage.axaml
-- Views/Avalonia/HomePage.axaml
-
-### Build Status
-✅ **0 Errors | 15 Warnings (non-critical)**
-
-### Testing Required
-- Settings persistence across app restarts
-- Relaxation strategy with obscure tracks
-- VBR fraud detection with known fake files
+- `ViewModels/Library/ProjectListViewModel.cs`
+- `Services/SpotifyBulkFetcher.cs`
+- `Services/InputParsers/SpotifyInputSource.cs`
+- `Services/ImportProviders/SpotifyLikedSongsImportProvider.cs`
+- `Services/SpotifyAuthService.cs`
+- `Services/MetadataEnrichmentOrchestrator.cs`
+- `App.axaml.cs`
 
 ---
 
 ## Git Commands to Run
 
 ```bash
-# Stage all changes
-git add -A
-
-# Commit with this message
-git commit -m "feat: Implement Quality Guard & The Brain 2.0 + Fix 21 Build Errors
-
-- Add Fuzzy Normalization for intelligent track matching
-- Implement Adaptive Relaxation Strategy (2-tier quality fallback)
-- Integrate VBR Fraud Detection to exclude fake files
-- Add Quality Guard settings UI section with 4 new controls
-- Fix 19 C# build errors (entity mappings, missing usings, obsolete properties, Spotify API compatibility)
-- Fix 2 XAML errors (invalid Grid.Spacing properties)
-- Add Bitrate/Format properties to PlaylistTrackEntity
-- Restore missing database schema checks
-
-Build: ✅ 0 errors, 15 warnings"
-
-# Push to remote
-git push origin main
-```
-
----
-
-## Alternative Short Commit Message
-
-```bash
-git commit -m "feat: Quality Guard & Brain 2.0 + build fixes
-
-- Fuzzy normalization, adaptive relaxation, VBR fraud detection
-- New settings UI section with 4 controls
-- Fixed 21 build errors (19 C#, 2 XAML)
-- Build: ✅ 0 errors"
+git add .
+git commit -F COMMIT_MESSAGE.md
+git push
 ```

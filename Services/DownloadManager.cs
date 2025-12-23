@@ -869,6 +869,16 @@ public class DownloadManager : INotifyPropertyChanged, IDisposable
 
                 if (bestMatch == null)
                 {
+                    // Check if we should auto-retry
+                    if (_config.AutoRetryFailedDownloads && ctx.RetryCount < _config.MaxDownloadRetries)
+                    {
+                         _logger.LogWarning("No match found for {Title}. Auto-retrying (Attempt {Count}/{Max})", 
+                             ctx.Model.Title, ctx.RetryCount + 1, _config.MaxDownloadRetries);
+                         
+                         // Throw to trigger the exponential backoff logic in catch block
+                         throw new Exception("No suitable match found");
+                    }
+
                     await UpdateStateAsync(ctx, PlaylistTrackState.Failed, "No suitable match found");
                     return;
                 }
@@ -889,7 +899,7 @@ public class DownloadManager : INotifyPropertyChanged, IDisposable
                 
                 // Exponential Backoff Logic (Phase 7)
                 ctx.RetryCount++;
-                if (ctx.RetryCount < 5)
+                if (ctx.RetryCount < _config.MaxDownloadRetries)
                 {
                     var delayMinutes = Math.Pow(2, ctx.RetryCount); // 2, 4, 8, 16...
                     ctx.NextRetryTime = DateTime.Now.AddMinutes(delayMinutes);

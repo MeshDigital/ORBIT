@@ -20,6 +20,13 @@
 - ✅ **Data Schema**: Added `ISRC` field to all relevant entities for cross-platform matching.
 - ✅ **Ingestion Safety**: Implemented strict length validation (>= 20 chars) for Spotify IDs to prevent malformed imports (e.g. "64").
 
+### Recent Updates (December 23, 2025)
+- ✅ **Spotify Robustness (The Three Laws)**: Implemented chunking (50/100), two-pass fetching, and global `Retry-After` handling to prevent API bans.
+- ✅ **Unified Import**: Fixed `SpotifyLikedSongsImportProvider` crash by implementing streaming interface.
+- ✅ **Album Support**: Added native API support for `spotify:album:` imports (previously scraper-only/broken for auth users).
+- ✅ **Efficiency**: Optimized metadata enrichment to skip tracks with existing data (BPM/Key).
+- ✅ **Library UI Sync**: Fixed critical bug where new imports didn't appear in the list (ProjectListViewModel synchronization).
+
 ### Recent Updates (December 21, 2025)
 - ✅ **Library & Import 2.0 Refinement**: Multi-select support, Floating Action Bar (FAB), side-filtering.
 - ✅ **Performance**: Background DB checks, faster search rendering.

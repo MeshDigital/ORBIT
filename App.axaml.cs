@@ -289,6 +289,7 @@ public partial class App : Application
         services.AddSingleton<ISpotifyMetadataService, SpotifyMetadataService>();
         services.AddSingleton<SpotifyMetadataService>(); // Keep concrete registration just in case
         services.AddSingleton<ArtworkCacheService>(); // Phase 0: Artwork caching
+        services.AddSingleton<SpotifyBulkFetcher>(); // Phase 8: Robust Bulk Fetcher
         
         // Phase 1: Library Enrichment
         services.AddSingleton<SpotifyEnrichmentService>();

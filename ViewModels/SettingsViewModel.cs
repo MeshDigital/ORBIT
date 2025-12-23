@@ -152,6 +152,18 @@ public class SettingsViewModel : INotifyPropertyChanged
         set { _config.EnableVbrFraudDetection = value; OnPropertyChanged(); }
     }
 
+    public bool AutoRetryFailedDownloads
+    {
+        get => _config.AutoRetryFailedDownloads;
+        set { _config.AutoRetryFailedDownloads = value; OnPropertyChanged(); }
+    }
+
+    public int MaxDownloadRetries
+    {
+        get => _config.MaxDownloadRetries;
+        set { _config.MaxDownloadRetries = value; OnPropertyChanged(); }
+    }
+
     public int RelaxationTimeoutSeconds
     {
         get => _config.RelaxationTimeoutSeconds;

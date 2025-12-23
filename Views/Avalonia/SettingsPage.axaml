@@ -221,6 +221,41 @@
 
                     <Separator Background="#333" Height="1"/>
 
+                    <!-- Automation & Retries -->
+                    <StackPanel Spacing="12">
+                        <TextBlock Text="Automation &amp; Retries" FontWeight="SemiBold" Foreground="#DDD"/>
+                        
+                        <!-- Auto Retry Toggle -->
+                        <Grid ColumnDefinitions="*,Auto">
+                            <StackPanel Grid.Column="0" Spacing="2">
+                                <TextBlock Text="Auto-Retry Failed Downloads" FontWeight="SemiBold" Foreground="#DDD"/>
+                                <TextBlock Text="Automatically requeue failed tracks or searches with exponential backoff." 
+                                           Foreground="#666" FontSize="11" TextWrapping="Wrap"/>
+                            </StackPanel>
+                            <ToggleSwitch Grid.Column="1" IsChecked="{Binding AutoRetryFailedDownloads}" OnContent="On" OffContent="Off"/>
+                        </Grid>
+
+                        <!-- Max Retries Numeric -->
+                        <Grid ColumnDefinitions="180,150,*" IsEnabled="{Binding AutoRetryFailedDownloads}">
+                            <TextBlock Grid.Column="0" Text="Max Retry Attempts:" VerticalAlignment="Center" Foreground="#DDD"/>
+                            <NumericUpDown Grid.Column="1" 
+                                           Value="{Binding MaxDownloadRetries}"
+                                           Minimum="1"
+                                           Maximum="20"
+                                           Increment="1"
+                                           Background="#1E1E1E"
+                                           Foreground="White"/>
+                            <TextBlock Grid.Column="2" 
+                                       Text="attempts" 
+                                       VerticalAlignment="Center" 
+                                       Foreground="#666"
+                                       FontSize="11"
+                                       Margin="12,0,0,0"/>
+                        </Grid>
+                    </StackPanel>
+
+                    <Separator Background="#333" Height="1"/>
+
                     <!-- Spotify Enrichment Toggle -->
                     <Grid ColumnDefinitions="*,Auto">
                         <StackPanel Grid.Column="0" Spacing="2">

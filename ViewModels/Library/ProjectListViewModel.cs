@@ -347,7 +347,20 @@ public class ProjectListViewModel : INotifyPropertyChanged
                 return;
             }
 
-            AllProjects.Add(job);
+            // 1. Add to Master List (Insert at top for Newest First)
+            AllProjects.Insert(0, job);
+            
+            // 2. Conditionally add to Filtered List
+            // Only show if no filter active OR if it matches the current filter
+            bool matchesFilter = string.IsNullOrWhiteSpace(SearchText) || 
+                                 (job.SourceTitle?.Contains(SearchText, StringComparison.OrdinalIgnoreCase) ?? false) ||
+                                 (job.SourceType?.Contains(SearchText, StringComparison.OrdinalIgnoreCase) ?? false);
+
+            if (matchesFilter)
+            {
+                FilteredProjects.Insert(0, job);
+            }
+
             SelectedProject = job; // Auto-select new project
 
             _logger.LogInformation("Project '{Title}' added to list", job.SourceTitle);
@@ -383,12 +396,19 @@ public class ProjectListViewModel : INotifyPropertyChanged
             var jobToRemove = AllProjects.FirstOrDefault(p => p.Id == projectId);
             if (jobToRemove != null)
             {
+                // 1. Remove from Master List
                 AllProjects.Remove(jobToRemove);
+
+                // 2. Remove from Filtered List (if present)
+                if (FilteredProjects.Contains(jobToRemove))
+                {
+                    FilteredProjects.Remove(jobToRemove);
+                }
 
                 // Auto-select next project if deleted one was selected
                 if (SelectedProject == jobToRemove)
                 {
-                    SelectedProject = AllProjects.FirstOrDefault();
+                    SelectedProject = FilteredProjects.FirstOrDefault();
                 }
             }
         });

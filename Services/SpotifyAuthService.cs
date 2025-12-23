@@ -315,7 +315,11 @@ public class SpotifyAuthService
         var configWithAuth = SpotifyClientConfig
             .CreateDefault()
             .WithAuthenticator(authenticator)
-            .WithRetryHandler(new SimpleRetryHandler());
+            .WithRetryHandler(new SimpleRetryHandler() 
+            { 
+                RetryAfter = TimeSpan.FromSeconds(1), 
+                RetryTimes = 3
+            });
             
         _authenticatedClient = new SpotifyClient(configWithAuth);
         IsAuthenticated = true;
@@ -422,7 +426,11 @@ public class SpotifyAuthService
             var config = SpotifyClientConfig
                 .CreateDefault()
                 .WithAuthenticator(authenticator)
-                .WithRetryHandler(new SimpleRetryHandler()); // Automatic 429 handling
+                .WithRetryHandler(new SimpleRetryHandler() 
+                { 
+                    RetryAfter = TimeSpan.FromSeconds(1), 
+                    RetryTimes = 3
+                }); // Automatic 429 handling
             
             _authenticatedClient = new SpotifyClient(config);
             IsAuthenticated = true;

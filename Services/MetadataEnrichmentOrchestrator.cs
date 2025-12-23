@@ -222,7 +222,11 @@ public class MetadataEnrichmentOrchestrator : IDisposable
                 {
                     try
                     {
-                        var ids = knownTracks.Select(t => t.SpotifyTrackId!).ToList();
+                        // Only fetch features for tracks that don't have them yet (Caching Law)
+                        var ids = knownTracks
+                            .Where(t => !t.BPM.HasValue || t.BPM <= 0)
+                            .Select(t => t.SpotifyTrackId!)
+                            .ToList();
                         var features = await _metadataService.GetAudioFeaturesBatchAsync(ids);
 
                         foreach (var track in knownTracks)
