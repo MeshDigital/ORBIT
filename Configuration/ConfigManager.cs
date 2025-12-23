@@ -71,7 +71,7 @@ public class ConfigManager
                 SpotifyUsePublicOnly = !bool.TryParse(config["Spotify:SpotifyUsePublicOnly"], out var supo) || supo,
                 SpotifyClientId = config["Spotify:SpotifyClientId"],
                 SpotifyClientSecret = config["Spotify:SpotifyClientSecret"],
-                SpotifyUseApi = bool.TryParse(config["Spotify:SpotifyUseApi"], out var sua) && sua,
+                SpotifyUseApi = bool.TryParse(config["Spotify:MetadataEnrichmentEnabled"], out var sua) && sua,
                 SpotifyRememberAuth = !bool.TryParse(config["Spotify:SpotifyRememberAuth"], out var sra) || sra,
                 SpotifyCallbackPort = int.TryParse(config["Spotify:SpotifyCallbackPort"], out var scp) ? scp : 5000,
                 SpotifyRedirectUri = config["Spotify:SpotifyRedirectUri"] ?? "http://127.0.0.1:5000/callback",
@@ -126,7 +126,7 @@ public class ConfigManager
         iniContent.AppendLine($"SpotifyCallbackPort = {config.SpotifyCallbackPort}");
         iniContent.AppendLine($"SpotifyRedirectUri = {config.SpotifyRedirectUri}");
         iniContent.AppendLine($"SpotifyRememberAuth = {config.SpotifyRememberAuth}");
-        iniContent.AppendLine($"SpotifyUseApi = {config.SpotifyUseApi}");
+        iniContent.AppendLine($"MetadataEnrichmentEnabled = {config.SpotifyUseApi}");
         iniContent.AppendLine($"ClearSpotifyOnExit = {config.ClearSpotifyOnExit}");
 
         iniContent.AppendLine();
