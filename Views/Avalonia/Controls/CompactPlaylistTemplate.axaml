@@ -6,7 +6,7 @@
              mc:Ignorable="d" d:DesignWidth="280" d:DesignHeight="60"
              x:Class="SLSKDONET.Views.Avalonia.Controls.CompactPlaylistTemplate">
     
-    <Grid ColumnDefinitions="Auto, *" RowDefinitions="Auto,Auto" Margin="4">
+    <Grid ColumnDefinitions="Auto, *, Auto" RowDefinitions="Auto,Auto" Margin="4">
         <!-- Tiny Album Art -->
         <Border Grid.Column="0" Grid.RowSpan="2" Width="48" Height="48" CornerRadius="4" ClipToBounds="True" Background="#333">
             <Image Source="{Binding AlbumArtPath, Converter={StaticResource BitmapValueConverter}}" Stretch="UniformToFill"/>
