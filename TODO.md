@@ -33,6 +33,158 @@
 - ✅ **Search UI**: Implemented Bento Grid for albums and reactive status icons for tracks.
 - ✅ **Library UI**: Fixed real-time status updates and bindings for track view.
 
+---
+
+## 🎯 ORBIT v1.0: 8-Week Stabilization Focus (STRATEGIC PRIORITY)
+
+**Source**: ORBIT v1.0 Complete Development Strategy  
+**Decision**: **PAUSE NEW FEATURES for 8 weeks** to focus on reliability and speed.
+
+> [!IMPORTANT]
+> **Month 1 (Weeks 1-4)**: Operational Resilience - Fix download reliability, prevent data loss  
+> **Month 2 (Weeks 5-8)**: Speed & UX - Optimize database, UI virtualization, perceived performance
+
+**Rationale**: Early adopters (DJ and audiophile communities) must not encounter a buggy experience that could damage project reputation. Build trust through reliability before adding features.
+
+---
+
+## Phase 0: Critical Operational Resilience (Weeks 1-4) 🔴⭐ HIGHEST PRIORITY
+
+### 0.1 Crash Recovery Journal (8 hours) - NEW ⭐⭐⭐ CRITICAL
+**Problem**: Power loss or crashes during downloads cause orphaned files, lost state, and duplicate downloads.  
+**Solution**: Lightweight transaction log that enables automatic recovery on startup.
+
+**Implementation**:
+- [ ] Create `Services/CrashRecoveryService.cs`
+- [ ] Add `CrashRecoveryJournal` SQLite table or JSON file
+- [ ] Log active downloads with checkpoint data (bytes written, .part file paths, pending operations)
+- [ ] Implement startup recovery logic:
+  - Detect orphaned `.part` files
+  - Resume interrupted downloads from last checkpoint
+  - Rollback incomplete metadata writes
+  - Clean up corrupted state
+- [ ] Integrate with `DownloadManager` to write checkpoints every 5 seconds during active downloads
+- [ ] Add `App.axaml.cs` startup hook to call `CrashRecoveryService.RecoverAsync()`
+
+**Journal Schema**:
+```json
+{
+  "session_id": "abc123",
+  "active_downloads": [
+    {
+      "track_id": "xyz",
+      "state": "downloading",
+      "bytes_written": 2457600,
+      "part_file": "C:\\temp\\track.mp3.part",
+      "last_checkpoint": "2025-12-24T00:10:00Z"
+    }
+  ],
+  "pending_metadata_writes": [...]
+}
+```
+
+**Impact**: Prevents 100% of data loss from crashes. Professional-grade resilience.
+
+---
+
+### 0.2 SafeWrite Wrapper (4 hours) - NEW ⭐⭐⭐ CRITICAL
+**Problem**: Direct file writes can corrupt files during power loss or app crashes.  
+**Solution**: Reusable utility that ALL file-writing services use for atomic operations.
+
+**Implementation**:
+- [ ] Create `Utils/SafeWrite.cs` with atomic write pattern:
+  ```csharp
+  public static class SafeWrite
+  {
+      public static async Task<bool> WriteAtomicAsync(
+          string finalPath, 
+          Func<string, Task> writeAction,
+          Func<string, Task<bool>>? verifyAction = null)
+      {
+          var tempPath = $"{finalPath}.part";
+          // 1. Write to temp file
+          // 2. Verify (optional)
+          // 3. Atomic rename
+      }
+  }
+  ```
+- [ ] Refactor `DownloadManager` to use `SafeWrite.WriteAtomicAsync()`
+- [ ] Refactor `MetadataTaggerService` to use SafeWrite for tag writes
+- [ ] Refactor `DatabaseService.BackupAsync()` to use SafeWrite
+- [ ] Refactor `ArtworkCacheService` to use SafeWrite for image downloads
+
+**Impact**: Prevents file corruption even during power loss. Used by 4+ critical services.
+
+---
+
+### 0.3 Download Health Monitor (6 hours) - ENHANCE EXISTING ⭐⭐⭐ CRITICAL
+**Current**: Basic stall detection exists (line 103-107)  
+**Enhancement**: Add automatic retry orchestration and peer blacklisting
+
+**Implementation**:
+- [ ] Create `Services/DownloadHealthMonitor.cs`
+- [ ] Track health metrics per download:
+  - Stall count
+  - Failure count
+  - Average speed
+  - Peer response time
+- [ ] Implement automatic actions:
+  - **On Stall** (2+ stalls): Switch to next best candidate automatically
+  - **On Repeated Failure** (3+ failures from same peer): Blacklist peer for 1 hour
+  - **On Slow Download** (<10KB/s for 30s): Switch to faster peer
+- [ ] Add UI notifications: "Switched to faster source (250ms response)"
+- [ ] Integrate with existing stall detection in `SoulseekAdapter.cs`
+
+**Impact**: Makes ORBIT feel *smart* and *self-correcting*. Zero manual intervention required.
+
+---
+
+### 0.4 SQLite WAL Mode + Index Audit (2 hours) - ENHANCE EXISTING ⭐⭐ HIGH
+**Current**: 6 performance indexes exist (ROADMAP line 29)  
+**Enhancement**: Enable Write-Ahead Logging for better concurrency
+
+**Implementation**:
+- [ ] Update `AppDbContext.cs` or `DatabaseService.cs`:
+  ```csharp
+  protected override void OnConfiguring(DbContextOptionsBuilder options)
+  {
+      var connection = new SqliteConnection(connectionString);
+      connection.Open();
+      
+      // Enable WAL mode
+      var cmd = connection.CreateCommand();
+      cmd.CommandText = "PRAGMA journal_mode=WAL; PRAGMA synchronous=NORMAL;";
+      cmd.ExecuteNonQuery();
+      
+      options.UseSqlite(connection);
+  }
+  ```
+- [ ] Add `DatabaseService.AuditIndexesAsync()` method to detect missing indexes
+- [ ] Run audit on app startup (dev builds only)
+
+**Benefits**: Writers don't block readers, faster commits, better UI responsiveness.
+
+---
+
+### 0.5 Atomic File Operations Pipeline (4 hours) - NEW ⭐⭐⭐ CRITICAL
+**Problem**: Current "fire-and-forget" download model has no transaction safety.  
+**Solution**: Implement `.part` file workflow with verification before final rename.
+
+**Implementation**:
+- [ ] Update `DownloadManager.ProcessTrackWithFolderLogicAsync()`:
+  - Download to `{filename}.part` instead of final name
+  - Verify file integrity (size check, format validation)
+  - Atomic rename from `.part` to final filename
+  - Delete `.part` file on failure
+- [ ] Add resume capability:
+  - Check for existing `.part` files before starting download
+  - Resume from last byte position (if Soulseek protocol supports)
+- [ ] Integrate with Crash Recovery Journal for checkpoint tracking
+
+**Impact**: Enables resumable downloads, prevents corruption on crashes/WiFi drops.
+
+---
+
 ### 🚨 Technical Debt & Stability (Pending FIX)
 - [ ] **N+1 Query Pattern Risk**: Refactor project loading to use eager loading (.Include) for track counts to prevent performance degradation.
 - [ ] **Soft Deletes & Audit Trail**: Implement `IsDeleted` and `DeletedAt` for imports to allow recovery and history tracking.
@@ -266,6 +418,8 @@
 
 ---
 
+---
+
 ### 0.4 Artwork Pipeline (2 hours)
 **Priority**: ⭐⭐ MEDIUM
 
@@ -316,6 +470,311 @@
 
 ---
 
+
+## Phase 0A: Speed & UX Optimization (Weeks 5-8) 🟡 MONTH 2 FOCUS
+
+### 0A.1 UI Virtualization for Large Libraries (6 hours) - NEW ⭐⭐⭐ CRITICAL
+**Problem**: 20,000+ track libraries cause UI stuttering and slow scrolling.  
+**Solution**: Implement UI virtualization for all large lists.
+
+**Implementation**:
+- [ ] Replace standard `ItemsControl` with `VirtualizingStackPanel` in:
+  - `LibraryPage.axaml` track list
+  - `SearchPage.axaml` results grid
+  - `DownloadsPage.axaml` active downloads
+- [ ] Configure `VirtualizingPanel.IsVirtualizing="True"`
+- [ ] Set `VirtualizingPanel.VirtualizationMode="Recycling"` for memory efficiency
+- [ ] Test with library of 25,000+ tracks
+
+**Impact**: Smooth 60 FPS scrolling even with massive libraries. Essential for scalability.
+
+---
+
+### 0A.2 Lazy Image Loading with Proxy Pattern (4 hours) - NEW ⭐⭐ HIGH
+**Problem**: Loading 1000+ album arts simultaneously crashes UI.  
+**Solution**: Lazy-load images only when visible in viewport.
+
+**Implementation**:
+- [ ] Create `Services/ArtworkProxy.cs`:
+  ```csharp
+  public class ArtworkProxy
+  {
+      private BitmapImage? _realImage;
+      private readonly string _artworkUrl;
+      private static readonly BitmapImage PlaceholderImage = LoadPlaceholder();
+      
+      public BitmapImage GetImage(bool isVisible)
+      {
+          if (!isVisible) return PlaceholderImage;
+          if (_realImage == null)
+              _realImage = LoadFromCache(_artworkUrl) ?? DownloadImage(_artworkUrl);
+          return _realImage;
+      }
+  }
+  ```
+- [ ] Integrate with `AlbumCard.axaml` visibility events
+- [ ] Use placeholder until card enters viewport
+
+**Impact**: 80% reduction in memory usage, smooth library browsing.
+
+---
+
+### 0A.3 Progressive Interaction Design (5 hours) - NEW ⭐⭐ MEDIUM
+**Problem**: Users perceive app as "slow" during API/search operations.  
+**Solution**: Implement perceived performance improvements.
+
+**Implementation**:
+- [x] **Skeleton Screens**: Semi-transparent ghost rows during loading (Already planned line 286-288)
+- [ ] **Progress Bars in Buttons**: "Download" button shows inline progress (0-100%)
+  - Replace separate progress bar with button content transformation
+  - Visual feedback: Button changes color/text as download progresses
+- [ ] **Optimistic UI Updates**: Immediately reflect user actions before DB confirmation
+  - Delete track → fade out immediately, rollback if DB fails
+  - Rename file → show new name instantly, revert if operation fails
+- [ ] **Smart Empty States**: Contextual messages instead of blank pages
+  - Library: "Your library is empty — try importing a playlist" with action button
+  - Downloads: "No active downloads" with "Search for tracks" button
+  - Search: "No results found — check if Soulseek is connected"
+
+**Impact**: App feels 2x faster through psychological perception improvements.
+
+---
+
+### 0A.4 System Health Panel (Dashboard Enhancement) (4 hours) - NEW ⭐ MEDIUM
+**Problem**: Users don't know if Soulseek/Spotify are connected or having issues.  
+**Solution**: Real-time system diagnostics widget in Dashboard.
+
+**Implementation**:
+- [ ] Create `Services/SystemHealthService.cs`
+- [ ] Add health widget to `HomePage.axaml`:
+  ```
+  🟢 Soulseek: Connected (120ms latency)
+  🟢 Spotify API: 87/100 calls remaining
+  🟡 Disk I/O: Moderate (45% utilization)
+  🟢 Analysis Queue: 12 tracks pending
+  ```
+- [ ] Implement health checks:
+  - Soulseek connection status + ping latency
+  - Spotify API rate limit tracking
+  - Disk I/O utilization monitoring
+  - Background worker queue depth
+- [ ] Color-coded status: 🟢 Green (good), 🟡 Yellow (warning), 🔴 Red (error)
+
+**Impact**: Makes ORBIT feel like a *professional tool* with operational transparency.
+
+---
+
+### 0A.5 Quality Badge Enhancements (3 hours) - ENHANCE EXISTING ⭐⭐ MEDIUM
+**Current**: Basic quality badges exist (ROADMAP line 511-512)  
+**Enhancement**: Add Fake FLAC detection and Upgrade Available badges
+
+**Implementation**:
+- [ ] Extend `QualityBadgeType` enum:
+  ```csharp
+  public enum QualityBadgeType
+  {
+      Flac,           // Purple
+      High,           // Green (320kbps)
+      Medium,         // Yellow (192-256kbps)
+      Low,            // Orange (<192kbps)
+      FakeFlac,       // Red with warning icon
+      UpgradeAvailable // Blue with arrow icon
+  }
+  ```
+- [ ] Integrate with `SonicIntegrityService.FidelityStatus`
+- [ ] Add badge UI to `TrackListItem` template with tooltips
+
+**Impact**: Instant visual clarity. Users can identify fake files at a glance.
+
+---
+
+## Phase 0B: Architectural Modernization (Weeks 9-12) 🔵 FOUNDATION LAYER
+
+### 0B.1 Unified Pipeline Orchestrator (16 hours) - NEW ⭐⭐⭐ HIGH
+**Problem**: Multiple orchestrators (MetadataEnrichment, SearchOrchestration, Import) manage pipelines independently → race conditions.  
+**Solution**: Single orchestrator coordinating all 8 stages of download pipeline.
+
+**Implementation**:
+- [ ] Create `Services/DownloadPipelineOrchestrator.cs`:
+  ```csharp
+  public class DownloadPipelineOrchestrator
+  {
+      public async Task<PipelineResult> ProcessTrackAsync(Track track)
+      {
+          var context = new PipelineContext(track);
+          await _discoveryStage.ExecuteAsync(context);      // 1. Soulseek search
+          await _rankingStage.ExecuteAsync(context);        // 2. Score candidates
+          await _downloadStage.ExecuteAsync(context);       // 3. Download file
+          await _verificationStage.ExecuteAsync(context);   // 4. Verify integrity
+          await _normalizationStage.ExecuteAsync(context);  // 5. Normalize filename
+          await _importStage.ExecuteAsync(context);         // 6. Import to library
+          await _indexingStage.ExecuteAsync(context);       // 7. Update search index
+          await _notificationStage.ExecuteAsync(context);   // 8. Notify UI
+          return PipelineResult.Success(context);
+      }
+  }
+  
+  public interface IPipelineStage
+  {
+      Task ExecuteAsync(PipelineContext context);
+      Task RollbackAsync(PipelineContext context); // For crash recovery
+  }
+  ```
+- [ ] Create individual stage classes for each step
+- [ ] Integrate with Crash Recovery Journal (Phase 0.1) for resumability
+- [ ] Update `DownloadManager` to use orchestrator
+
+**Impact**: Eliminates race conditions, makes resumability trivial, cleaner architecture.
+
+---
+
+### 0B.2 Track Fingerprint Abstraction (8 hours) - NEW ⭐⭐⭐ HIGH
+**Problem**: No canonical track identity → duplicates slip through, upgrade detection impossible.  
+**Solution**: Composite fingerprint combining ISRC, Spotify ID, normalized metadata, duration bucket.
+
+**Implementation**:
+- [ ] Create `Models/TrackFingerprint.cs`:
+  ```csharp
+  public class TrackFingerprint
+  {
+      public string? SpotifyId { get; set; }
+      public string? Isrc { get; set; }
+      public string NormalizedArtist { get; set; }
+      public string NormalizedTitle { get; set; }
+      public int DurationBucket { get; set; } // 210s → bucket 21
+      
+      public string GetCompositeHash()
+      {
+          // Prioritize Spotify ID > ISRC > metadata hash
+      }
+  }
+  ```
+- [ ] Use for duplicate detection in `DownloadManager`
+- [ ] Use for upgrade detection in Self-Healing Library
+- [ ] Integrate with deterministic Track ID (line 92-94)
+
+**Impact**: Powers duplicate detection, upgrade scout, and self-healing library.
+
+---
+
+### 0B.3 Strongly Typed Event Bus with Replay (6 hours) - ENHANCE EXISTING ⭐⭐ HIGH
+**Current**: EventBus exists but events aren't strongly typed  
+**Enhancement**: Add event replay capability and typed events
+
+**Implementation**:
+- [ ] Define strongly-typed events:
+  ```csharp
+  public class TrackImportedEvent
+  {
+      public string TrackId { get; set; }
+      public string ProjectId { get; set; }
+      public ImportSource Source { get; set; }
+  }
+  
+  public class DownloadStateChangedEvent
+  {
+      public string TrackId { get; set; }
+      public DownloadState OldState { get; set; }
+      public DownloadState NewState { get; set; }
+      public string? ErrorMessage { get; set; }
+  }
+  ```
+- [ ] Enhance `EventBusService` to store event history (last 1000 events)
+- [ ] Add `GetHistory(since, eventType)` method
+- [ ] Add `ReplayEvents(events)` method for debugging
+- [ ] Create Developer Tools page to inspect event stream
+
+**Impact**: Far more debuggable during complex multi-stage imports.
+
+---
+
+### 0B.4 Profile-Based Tuning System (5 hours) - ENHANCE EXISTING ⭐⭐ MEDIUM
+**Current**: Generic weight sliders (Phase 1.5)  
+**Enhancement**: Pre-configured profiles for different user types
+
+**Implementation**:
+- [ ] Define profiles in `Configuration/ScoringProfiles.cs`:
+  ```csharp
+  public static class ScoringProfiles
+  {
+      public static RankingWeights AudiophileProfile => new()
+      {
+          LosslessScore = 300,
+          BitrateWeight = 250,
+          BpmMatchWeight = 50,
+          DurationToleranceMs = 3000
+      };
+      
+      public static RankingWeights DJProfile => new()
+      {
+          LosslessScore = 100,
+          BitrateWeight = 150,
+          BpmMatchWeight = 300,
+          DurationToleranceMs = 10000
+      };
+  }
+  ```
+- [ ] Add profile selector to Settings UI
+- [ ] Allow users to customize profiles and save as presets
+
+**Impact**: Fulfills vision of "Soulseek client with a brain" tailored to user workflow.
+
+---
+
+## Phase 0C: Stabilization Tooling (8-Week Freeze Support) 🧪 DEV TOOLS
+
+### 0C.1 Automated Stress Tests (12 hours) - NEW ⭐⭐⭐ CRITICAL for freeze
+**Problem**: No automated validation of resilience improvements.  
+**Solution**: Comprehensive test suite simulating real-world edge cases.
+
+**Implementation**:
+- [ ] Create `Tests/StressTests.cs`:
+  - `Test_500TrackImport()` - Validate bulk import performance
+  - `Test_NetworkDropDuringDownload()` - Simulate WiFi drop, verify resume
+  - `Test_SlowPeer()` - Verify automatic peer switching
+  - `Test_CorruptedFile()` - Validate SonicIntegrityService
+  - `Test_DuplicateHeavyPlaylist()` - 100 tracks, 50% duplicates
+- [ ] Configure GitHub Actions for nightly stress test runs
+- [ ] Generate reports for failures
+
+**Impact**: Validates all resilience work. Essential for 8-week stabilization freeze.
+
+---
+
+### 0C.2 Performance Overlay (Debug Mode) (4 hours) - NEW ⭐ LOW (Dev Tool)
+**Problem**: No visibility into performance bottlenecks during development.  
+**Solution**: Real-time performance HUD (FPS, DB queries, memory, events).
+
+**Implementation**:
+- [ ] Create `Views/PerformanceOverlay.axaml` (top-right corner overlay)
+- [ ] Display metrics:
+  - FPS (60 target)
+  - DB queries per second
+  - Memory usage (MB)
+  - Event bus traffic
+- [ ] Hook into rendering pipeline and DB interceptors
+- [ ] Activate with Ctrl+Shift+P or Settings toggle
+
+**Impact**: Helps catch bottlenecks instantly during development.
+
+---
+
+### 0C.3 Stability Mode Build Flag (2 hours) - NEW ⭐⭐ MEDIUM
+**Problem**: Need enhanced logging during 8-week stabilization without affecting production builds.  
+**Solution**: Conditional compilation flag for verbose diagnostics.
+
+**Implementation**:
+- [ ] Add to `.csproj`:
+  ```xml
+  <PropertyGroup Condition="'$(Configuration)' == 'Stability'">
+      <DefineConstants>STABILITY_MODE</DefineConstants>
+  </PropertyGroup>
+  ```
+- [ ] Wrap verbose logging in `#if STABILITY_MODE` blocks
+- [ ] Enable crash recovery logging
+- [ ] Build command: `dotnet build -c Stability`
+
+---
 
 ## Phase 1.5: Advanced Ranking Configuration (4 hours) ✨ NEW
 
@@ -1710,7 +2169,60 @@ public QualityFlags Flags { get; set; }
 
 ---
 
-## Unique Advantages Over Spotify
+## 📊 "The Brain" Enhancements
+
+### Live Scoring Preview (4 hours) - NEW ⭐⭐ MEDIUM
+**Problem**: Users don't understand WHY one search result ranks higher than another.  
+**Solution**: Real-time transparency into "The Brain's" decision-making.
+
+**Implementation**:
+- [ ] Add hover tooltip/flyout to search result items showing score breakdown:
+  ```
+  SCORE BREAKDOWN
+  + 2000  Free Upload Slot
+  - 120   Queue Length (6 people)
+  + 300   Bitrate (320kbps = excellent)
+  + 150   BPM Match (128.0 vs 128.0)
+  - 50    Duration Mismatch (+2s difference)
+  + 200   String Similarity (95% match)
+  ───────────────────────────────────
+  = 2480  TOTAL SCORE (Rank #1)
+  ```
+- [ ] Create `Models/ScoringBreakdown.cs` with component list
+- [ ] Integrate with `ResultSorter` to expose detailed scoring data
+- [ ] Add flyout UI to `SearchPage.axaml`
+
+**Impact**: Builds trust and transparency. Users understand and trust the system's decisions.
+
+---
+
+## 🚫 Deferred Features (Post-v1.0 Stabilization)
+
+> [!CAUTION]
+> **8-Week Feature Freeze**: The following features are valuable but DEFERRED until after v1.0 stabilization is complete. Focus on reliability and speed first.
+
+### Deferred UX Enhancements
+- **Draggable Column Reordering** (TODO line 278-281) - User customization, but not critical
+- **Download Timeline Visualization** - Nice-to-have transparency feature
+- **Scoring Sandbox** (Dev Tool) - Power user feature, low priority
+
+### Deferred Search Features
+- **Advanced Filtering HUD** - Bitrate sliders, format chips, user trust toggle
+- **Batch Actions & Selection** - Multi-select download/add to playlist
+- **Overlay Bug Fix** - Non-blocking if no user reports
+
+### Deferred Advanced Features
+- **Self-Healing Upgrade Scout UI** - Backend exists, defer UI polish
+- **DJ-Focused Visuals** - Camelot wheel, waveform preview
+- **Rekordbox/Denon USB Export** - Workflow integration, not core functionality
+
+**Rationale**: These features require significant development time but don't impact core reliability. Early adopters must experience a bug-free, fast app before we add complexity.
+
+**Re-evaluation Date**: After 8-week stabilization period (February 2026)
+
+---
+
+##Unique Advantages Over Spotify
 
 1. **P2P Downloads** - Own your music forever
 2. **No Subscription** - Free forever

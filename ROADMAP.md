@@ -1,7 +1,12 @@
-# ORBIT (formerly SLSKDONET): Current Status & Roadmap
+# ORBIT (formerly SLSKDONET): v1.0 Stabilization Roadmap
 
-**Last Updated**: December 21, 2025  
-**Repository**: https://github.com/MeshDigital/ORBIT
+**Last Updated**: December 24, 2025  
+**Repository**: https://github.com/MeshDigital/ORBIT  
+**Current Phase**: **8-Week Stabilization Focus** (Weeks 1-4: Resilience, Weeks 5-8: Speed/UX)
+
+> [!IMPORTANT]
+> **Strategic Decision**: NEW FEATURES PAUSED for 8 weeks to focus on operational resilience and performance optimization.  
+> **Goal**: Build trust with early adopters (DJ/audiophile communities) through reliability before adding complexity.
 
 ---
 
@@ -142,6 +147,109 @@
 - **Filename Normalization**: Strip illegal characters and deduplicate "feat." tags
 - **Downloads Page Hydration**: Query DB on init to populate list (fixes empty page on navigation)
 - **Circuit Breaker UI**: Add visual "Spotify Unavailable" indicator in header
+
+---
+
+## 🎯 ORBIT v1.0: Stabilization Priorities (8-Week Focus)
+
+**Source**: ORBIT v1.0 Complete Development Strategy + Advanced Professional Improvements
+
+### Month 1: Critical Operational Resilience (Weeks 1-4) 🔴 CURRENT FOCUS
+
+#### 1. Crash Recovery System (8 hours) - HIGHEST PRIORITY
+- **Crash Recovery Journal**: Transaction log for automatic recovery on startup
+- **Orphaned File Detection**: Detect and clean up `.part` files from crashes
+- **Checkpoint-Based Resume**: Resume downloads from last known state
+- **Rollback Capability**: Undo incomplete metadata writes
+- **Impact**: Prevents 100% of data loss from crashes/power loss
+
+#### 2. Download Resilience Overhaul (10 hours) - CRITICAL
+- **SafeWrite Wrapper**: Reusable atomic write utility (Write → Verify → Rename)
+- **Atomic File Operations**: `.part` file workflow with verification
+- **Download Health Monitor**: Auto-retry, peer blacklisting, automatic peer switching
+- **Connection Resilience**: WiFi drop recovery without full restart
+- **Impact**: Transforms from "fire-and-forget" to transactional, resumable pipeline
+
+#### 3. Database Performance (2 hours) - HIGH
+- **SQLite WAL Mode**: Enable Write-Ahead Logging for better concurrency
+- **Index Audit**: Add `DatabaseService.AuditIndexesAsync()` for optimization
+- **Impact**: Writers don't block readers, faster UI responsiveness
+
+---
+
+### Month 2: Speed & UX Optimization (Weeks 5-8) 🟡 NEXT PHASE
+
+#### 1. UI Virtualization (6 hours) - CRITICAL
+- **Large Library Support**: 20,000+ tracks without stuttering
+- **Virtualizing Stack Panels**: Implement in Library, Search, Downloads pages
+- **60 FPS Target**: Smooth scrolling even with massive collections
+- **Impact**: Essential for scalability
+
+#### 2. Lazy Image Loading (4 hours) - HIGH
+- **Artwork Proxy Pattern**: Load images only when visible in viewport
+- **Memory Optimization**: 80% reduction in memory usage
+- **Placeholder Strategy**: Show placeholder until card enters viewport
+- **Impact**: Smooth library browsing with 1000+ albums
+
+#### 3. Progressive Interaction Design (5 hours) - MEDIUM
+- **Progress Bars in Buttons**: Inline progress feedback
+- **Optimistic UI**: Immediate visual response, rollback if operation fails
+- **Smart Empty States**: Contextual messages instead of blank pages
+- **Skeleton Screens**: Ghost rows during loading
+- **Impact**: App feels 2x faster through perceived performance
+
+#### 4. System Health Panel (4 hours) - MEDIUM
+- **Real-Time Diagnostics**: Soulseek connection, Spotify API rate limits, Disk I/O, Analysis queue
+- **Color-Coded Status**: 🟢 Good, 🟡 Warning, 🔴 Error
+- **Dashboard Widget**: Professional transparency tool
+- **Impact**: Users trust the system and understand its state
+
+---
+
+### Architectural Modernization (Weeks 9-12) 🔵 FOUNDATION
+
+#### 1. Unified Pipeline Orchestrator (16 hours) - HIGH
+- **8-Stage Pipeline**: Discovery → Ranking → Download → Verify → Normalize → Import → Index → Notify
+- **Eliminates Race Conditions**: Single source of truth for download state
+- **Resumability**: Restart from any stage after crash
+- **Impact**: Cleaner architecture, trivial resumability
+
+#### 2. Track Fingerprint Abstraction (8 hours) - HIGH
+- **Composite Identity**: ISRC + Spotify ID + normalized metadata + duration bucket
+- **Powers Features**: Duplicate detection, upgrade scout, self-healing library
+- **Canonical Hash**: Single source of truth for track identity
+- **Impact**: Foundation for advanced library intelligence
+
+#### 3. Strongly Typed Event Bus (6 hours) - MEDIUM
+- **Event Replay**: Store last 1000 events for debugging
+- **Typed Events**: `TrackImportedEvent`, `DownloadStateChangedEvent`
+- **Developer Tools**: Event stream inspector
+- **Impact**: Far more debuggable during complex operations
+
+#### 4. Profile-Based Tuning (5 hours) - MEDIUM
+- **User Profiles**: Audiophile, DJ, Balanced presets
+- **Customizable Weights**: BPM vs Bitrate vs Quality priorities
+- **"Brain" Customization**: Tailor scoring to user workflow
+- **Impact**: Fulfills "Soulseek with a brain" vision
+
+---
+
+### Stabilization Tooling 🧪 VALIDATION
+
+#### 1. Automated Stress Tests (12 hours) - CRITICAL
+- **Edge Case Simulation**: 500-track imports, network drops, corrupted files, duplicate-heavy playlists
+- **Nightly CI Runs**: Continuous validation
+- **Impact**: Validates all resilience improvements
+
+#### 2. Performance Overlay (4 hours) - DEV TOOL
+- **Real-Time HUD**: FPS, DB queries, memory usage, event traffic
+- **Bottleneck Detection**: Instant visibility during development
+- **Activation**: Ctrl+Shift+P or Settings toggle
+
+#### 3. Stability Mode Build (2 hours) - DIAGNOSTIC
+- **Verbose Logging**: Enhanced diagnostics without affecting production
+- **Conditional Compilation**: `#if STABILITY_MODE` blocks
+- **Build Command**: `dotnet build -c Stability`
 
 ---
 
@@ -635,18 +743,46 @@ public async Task ProcessQueueLoop(CancellationToken ct)
 
 ---
 
-## 📝 Next Immediate Actions
 
-1. **The Brain 2.0 Implementation Plan** - Architect the Adaptive Intelligence layer.
-   - **Fuzzy Normalization**: Strip special dashes (`—`), mobile share link redirects, and redundant "feat." tags.
-   - **Relaxation Mechanism**: Automatically widen duration tolerance (±3s → ±10s) and lower bitrate floor if no results found after 30s.
-   - **DJ Mode Bias**: Prioritize results analyzed by other ORBIT users to leverage the metadata gravity well.
-2. **Phase 8 Implementation Plan** - Architect the Spectral Analysis worker.
-2. **Complete album downloading** - Improve recursive directory parsing.
-3. **User documentation** - Tutorials and guides.
+## 📝 Immediate Actions (Month 1: Weeks 1-4)
+
+1. **Crash Recovery System** - Implement transaction log and automatic recovery
+2. **SafeWrite Wrapper** - Create reusable atomic write utility
+3. **Download Health Monitor** - Add auto-retry and peer blacklisting
+4. **SQLite WAL Mode** - Enable Write-Ahead Logging for performance
+5. **Automated Stress Tests** - Begin validation infrastructure
 
 ---
 
-**Last Updated**: December 17, 2024
-**Current Version**: 1.2.1
-**Status**: Active Development
+## 🚫 Deferred Features (Post-8-Week Stabilization)
+
+> [!CAUTION]
+> **Feature Freeze Active**: The following features are valuable but DEFERRED until operational resilience is proven.
+
+### Deferred UI/UX
+- Advanced Filtering HUD (bitrate sliders, format chips)
+- Draggable Column Reordering
+- DJ-Focused Visuals (Camelot wheel, waveform preview)
+- Download Timeline Visualization
+
+### Deferred Advanced Features
+- Self-Healing Upgrade Scout UI (backend ready, defer polish)
+- Rekordbox/Denon USB Export
+- Batch Actions & Multi-Select improvements
+- Advanced Search Features
+
+### Deferred Intelligence
+- The Brain 2.0 - Adaptive Intelligence refinements
+- Fuzzy Normalization enhancements
+- Relaxation Strategy (dynamic tolerance)
+- DJ Mode Bias
+
+**Rationale**: Early adopters must experience bulletproof reliability and speed before feature complexity. DJ and audiophile communities are unforgiving of bugs.
+
+**Re-evaluation**: February 2026 (after 8-week stabilization complete)
+
+---
+
+**Last Updated**: December 24, 2025  
+**Current Phase**: v1.0 Stabilization (Month 1: Operational Resilience)  
+**Status**: Feature Freeze Active — Focus on Reliability & Speed
