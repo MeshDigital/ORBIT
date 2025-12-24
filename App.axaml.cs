@@ -306,7 +306,10 @@ public partial class App : Application
         // EventBus - Unified event communication
         services.AddSingleton<IEventBus, EventBusService>();
         
-        // Session 1: Performance Optimization - Smart caching layer
+        // Phase 1A: SafeWrite Service - Atomic file operations (ORBIT v1.0)
+        services.AddSingleton<SLSKDONET.Services.IO.IFileWriteService, SLSKDONET.Services.IO.SafeWriteService>();
+        
+        //Session 1: Performance Optimization - Smart caching layer
         services.AddSingleton<LibraryCacheService>();
         
         // Session 2: Performance Optimization - Extracted services
