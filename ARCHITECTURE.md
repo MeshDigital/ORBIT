@@ -22,7 +22,7 @@
                          │
         ┌────────────────▼────────────────┐
         │   Application Services          │
-        │  DownloadManager 🛡️             │
+        │  DownloadManager (Multi-Lane) 🚥│
         │  DownloadHealthMonitor 💚      │
         │  CrashRecoveryService 🛡️        │
         │  SonicIntegrityService ✨       │
@@ -124,6 +124,24 @@ The audio layer is deeply integrated with the `Rekordbox.AnlzFileParser`:
 - **Probing Service**: Automatically scans for `.DAT/.EXT` companion files.
 - **Binary Extraction**: Extracts high-resolution waveforms and cue points without re-analyzing audio.
 - **XOR Descrambler**: Decrypts phrase data for song structure visualization.
+
+---
+
+## 🚥 Multi-Lane Priority Engine (Phase 3C)
+
+The `DownloadManager` uses a weighted semaphore system to prevent "Traffic Jams" (large imports blocking single downloads).
+
+### Priority Lanes
+1.  **Lane A (Express)**: `Priority = 0`. Reserved for user-initiated single downloads or "Prioritized" playlists.
+    *   **Allocation**: 2 slots guaranteed + can steal unused Standard/Background slots.
+    *   **Preemption**: If all 4 slots are full, a High Priority task will **PAUSE** the lowest priority active task to force its way in.
+2.  **Lane B (Standard)**: `Priority = 1`. Default for CSV/Spotify imports.
+    *   **Allocation**: Max 2 slots concurrent.
+3.  **Lane C (Background)**: `Priority >= 10`. Large bulk tasks.
+    *   **Allocation**: Fills remaining capacity only.
+
+### Logic Flow
+`ProcessQueueLoop` → `SelectNextTrackWithLaneAllocation` → Check Slots → `WaitAsync(Semaphore)` → `Start Download`.
 
 ---
 

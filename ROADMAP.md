@@ -9,6 +9,15 @@
 
 ---
 
+### Phase 3C: Advanced Queue Orchestration - COMPLETE
+**Impact**: Solves "Traffic Jam" issues where large imports block single downloads.
+- **Multi-Lane Priority Engine**:
+  - **Lane A (Express)**: Priority 0 (2 guaranteed slots).
+  - **Lane B (Standard)**: Priority 1 (2 max slots).
+  - **Lane C (Background)**: Priority 10+ (Background fill).
+- **Preemption Logic**: High priority downloads automatically pause lowest-priority active tasks.
+- **Project Prioritization**: "VIP Pass" logic to bump entire playlists to Priority 0.
+
 ## ✅ Recently Completed (December 2025)
 
 ### Phase 5B: Rekordbox Analysis Preservation & Hi-Fi Player - COMPLETE
@@ -67,7 +76,11 @@
 - **KeyConverter**: Musical key normalization (Standard → Camelot → OpenKey)
 - **XmlSanitizer**: Metadata safety for Rekordbox compatibility
 - **Playlist Export**: Context menu on playlist items
-- **Monthly Drop**: Tools menu feature for recent tracks (last 30 days)
+  - ✅ **Database Sync**: Synced Spotify features between `LibraryEntry` and `PlaylistTrack`.
+- ✅ **Phase 3C: Advanced Queue Orchestration**:
+  - ✅ **Multi-Lane Priority**: Express (0), Standard (1), Background (10) lanes.
+  - ✅ **Preemption**: High priority tasks pause lower priority downloads when slots are full.
+  - ✅ **Persistence**: Priority levels saved to DB for crash resilience.s (last 30 days)
 - **SaveFileDialog**: Integrated using Avalonia StorageProvider
 
 ## ✅ Phase 5A: Self-Healing Library - COMPLETE

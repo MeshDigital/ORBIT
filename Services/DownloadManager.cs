@@ -237,7 +237,8 @@ public class DownloadManager : INotifyPropertyChanged, IDisposable
                         SpotifyTrackId = t.SpotifyTrackId,
                         AlbumArtUrl = t.AlbumArtUrl,
                         Format = t.Format,
-                        Bitrate = t.Bitrate
+                        Bitrate = t.Bitrate,
+                        Priority = t.Priority
                     };
                     
                     // Map status to download state
@@ -1561,9 +1562,10 @@ public class DownloadManager : INotifyPropertyChanged, IDisposable
                 .FirstOrDefault();
         }
 
-        if (lowestPriority != null && lowestPriority.Model.Priority >= 10) // Only preempt background
+        if (lowestPriority != null && lowestPriority.Model.Priority > 0) // Preempt anything lower than High Priority (0)
         {
-            _logger.LogInformation("⏸ Preempting background download: {Title}", lowestPriority.Model.Title);
+            _logger.LogInformation("⏸ Preempting lower priority download (Priority {Prio}): {Title}", 
+                lowestPriority.Model.Priority, lowestPriority.Model.Title);
             await PauseTrackAsync(lowestPriority.Model.TrackUniqueHash);
         }
     }
