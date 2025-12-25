@@ -23,11 +23,13 @@
         ┌────────────────▼────────────────┐
         │   Application Services          │
         │  DownloadManager 🛡️             │
+        │  DownloadHealthMonitor 💚      │
         │  CrashRecoveryService 🛡️        │
         │  SonicIntegrityService ✨       │
         │  SearchOrchestrator 🧠          │
         │  LibraryService                 │
-        └────────────┬────────────────────┘
+        │  RekordboxService 📀           │
+        └────────────┼────────────────┘────┘
                      │
         ┌────────────▼────────────────┐
         │ Infrastructure Layer        │
@@ -38,7 +40,7 @@
         └─────────────────────────────┘
 ```
 
-🛡️ **Phase 2A (Recovery)** | ✨ **Phase 8 (Sonic Integrity)** | 🧠 **Phase 1 (The Brain)**
+🛡️ **Phase 2A (Recovery)** | 💚 **Phase 3B (Health Monitor)** | 📀 **Phase 4 (Rekordbox Export)** | ✨ **Phase 8 (Sonic Integrity)** | 🧠 **Phase 1 (The Brain)**
 
 ---
 
@@ -186,7 +188,10 @@ The following technical guides provide deep-dives into specific subsystems:
 | Subsystem | Documentation | Description |
 | :--- | :--- | :--- |
 | **Resilience** | [RESILIENCE.md](DOCS/RESILIENCE.md) | Overview of the crash recovery system and standard patterns. |
+| **Download Health** | [DOWNLOAD_RESILIENCE.md](DOCS/DOWNLOAD_RESILIENCE.md) | Adaptive timeout logic and stall detection (Phase 3B). |
 | **Atomic Downloads** | [ATOMIC_DOWNLOADS.md](DOCS/ATOMIC_DOWNLOADS.md) | Details the "Trust Journal, Truncate Disk" resume pattern. |
 | **SafeWrite** | [SAFE_WRITE.md](DOCS/SAFE_WRITE.md) | Explains the ACID transaction wrapper for file operations. |
+| **Database Schema** | [DATABASE_SCHEMA.md](DOCS/DATABASE_SCHEMA.md) | Dual-Truth model with IntegrityLevel enum (Phase 3B). |
 | **The Brain** | [THE_BRAIN_SCORING.md](DOCS/THE_BRAIN_SCORING.md) | Breakdown of the scoring algorithms, tiers, and point values. |
+| **Rekordbox Export** | [PRO_DJ_TOOLS.md](DOCS/PRO_DJ_TOOLS.md) | XML generation, key conversion, and URI normalization (Phase 4). |
 | **Spotify Auth** | [SPOTIFY_AUTH.md](DOCS/SPOTIFY_AUTH.md) | PKCE authentication flow and token security. |
