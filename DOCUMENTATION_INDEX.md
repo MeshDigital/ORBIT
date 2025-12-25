@@ -30,10 +30,28 @@
 - **[DOCS/HIGH_FIDELITY_AUDIO.md](DOCS/HIGH_FIDELITY_AUDIO.md)** - NAudio engine, VU meters, & waveforms (Dec 2025) ✨ NEW
 - **[DOCS/SPOTIFY_ENRICHMENT_PIPELINE.md](DOCS/SPOTIFY_ENRICHMENT_PIPELINE.md)** - Deep musical intelligence worker ✨ NEW
 
+#### Phase 3C: Multi-Lane Priority Orchestration ⭐ NEW (Wave 1)
+- **[DOCS/MULTI_LANE_ORCHESTRATION.md](DOCS/MULTI_LANE_ORCHESTRATION.md)** - Complete Phase 3C technical deep-dive (Dec 25, 2025) 🚀
+  - Lane system architecture (Express/Standard/Background)
+  - Priority persistence strategy
+  - Preemption logic and fairness constraints
+  - Lazy hydration (Waiting Room pattern)
+  - Lane switching algorithm
+  - Performance metrics and troubleshooting
+
 #### Phase 4 (Modern UI) ✨
 - **[PHASE4_QUICK_REFERENCE.md](PHASE4_QUICK_REFERENCE.md)** - 5-minute overview
 - **[PHASE4_UI_IMPLEMENTATION.md](PHASE4_UI_IMPLEMENTATION.md)** - 450-line detailed guide
 - **[PHASE4_COMPLETION_SUMMARY.md](PHASE4_COMPLETION_SUMMARY.md)** - Completion report
+
+#### Phase 6: Mission Control Dashboard ⭐ NEW (Wave 1)
+- **[DOCS/MISSION_CONTROL_DASHBOARD.md](DOCS/MISSION_CONTROL_DASHBOARD.md)** - Complete Phase 6 architecture and roadmap (Dec 25, 2025) 🚀
+  - Three-tier system (Aggregator → Materialized Intelligence → Live Ops)
+  - Real-time operations grid with virtualization
+  - Genre Galaxy visualization (LiveCharts2)
+  - One-Click Missions framework
+  - Vibe Search NLP integration
+  - Implementation status and Q1 2026 roadmap
 
 ### Checklist & Status
 - **[CHECKLIST.md](CHECKLIST.md)** - Complete project checklist
