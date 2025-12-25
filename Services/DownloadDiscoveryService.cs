@@ -47,6 +47,24 @@ public class DownloadDiscoveryService
     /// </summary>
     public async Task<Track?> FindBestMatchAsync(PlaylistTrack track, CancellationToken ct, HashSet<string>? blacklistedUsers = null)
     {
+        // Connectivity Gating: Wait for Soulseek connection before starting search
+        if (!_searchOrchestrator.IsConnected)
+        {
+            _logger.LogInformation("Waiting for Soulseek connection before searching for {Title}...", track.Title);
+            var waitStart = DateTime.UtcNow;
+            while (!_searchOrchestrator.IsConnected && (DateTime.UtcNow - waitStart).TotalSeconds < 10)
+            {
+                if (ct.IsCancellationRequested) return null;
+                await Task.Delay(500, ct);
+            }
+
+            if (!_searchOrchestrator.IsConnected)
+            {
+                _logger.LogWarning("Timeout waiting for Soulseek connection. Search for {Title} aborted.", track.Title);
+                return null;
+            }
+        }
+
         var query = $"{track.Artist} {track.Title}";
         _logger.LogInformation("Discovery started for: {Query} (GlobalId: {Id})", query, track.TrackUniqueHash);
 

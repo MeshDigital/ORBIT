@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
@@ -37,7 +38,7 @@ public class LibraryScanner
     /// </summary>
     public async IAsyncEnumerable<List<UpgradeCandidate>> ScanForUpgradesAsync(
         UpgradeScanOptions options,
-        CancellationToken ct = default)
+        [EnumeratorCancellation] CancellationToken ct = default)
     {
         _logger.LogInformation("Starting library scan for upgrade candidates (BatchSize: {Size})", BATCH_SIZE);
         

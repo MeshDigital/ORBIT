@@ -406,19 +406,26 @@ public class ProjectListViewModel : INotifyPropertyChanged
         var updatedJob = await _libraryService.FindPlaylistJobAsync(jobId);
         if (updatedJob == null) return;
 
-        await Dispatcher.UIThread.InvokeAsync(() =>
+        try 
         {
-            var existingJob = AllProjects.FirstOrDefault(j => j.Id == jobId);
-            if (existingJob != null)
+            await Dispatcher.UIThread.InvokeAsync(() =>
             {
-                existingJob.SuccessfulCount = updatedJob.SuccessfulCount;
-                existingJob.FailedCount = updatedJob.FailedCount;
-                existingJob.MissingCount = updatedJob.MissingCount;
+                var existingJob = AllProjects.FirstOrDefault(j => j.Id == jobId);
+                if (existingJob != null)
+                {
+                    existingJob.SuccessfulCount = updatedJob.SuccessfulCount;
+                    existingJob.FailedCount = updatedJob.FailedCount;
+                    existingJob.MissingCount = updatedJob.MissingCount;
 
-                _logger.LogDebug("Updated project {Title}: {Succ}/{Total}",
-                    existingJob.SourceTitle, existingJob.SuccessfulCount, existingJob.TotalTracks);
-            }
-        });
+                    _logger.LogDebug("Updated project {Title}: {Succ}/{Total}",
+                        existingJob.SourceTitle, existingJob.SuccessfulCount, existingJob.TotalTracks);
+                }
+            });
+        }
+        catch (TaskCanceledException)
+        {
+            _logger.LogDebug("Project update UI task canceled for {JobId}", jobId);
+        }
     }
 
     private async void OnProjectDeleted(object? sender, Guid projectId)

@@ -38,6 +38,8 @@ public class SearchOrchestrationService
         _config = config;
     }
     
+    public bool IsConnected => _soulseek.IsConnected;
+    
     /// <summary>
     /// Execute a search with the given parameters and stream ranked results.
     /// </summary>

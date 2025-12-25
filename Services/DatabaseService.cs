@@ -142,6 +142,24 @@ public class DatabaseService
                 columnsToAdd.Add(("Bitrate", "Bitrate INTEGER DEFAULT 0"));
             if (!existingColumns.Contains("Format"))
                 columnsToAdd.Add(("Format", "Format TEXT NULL"));
+            if (!existingColumns.Contains("Integrity"))
+                columnsToAdd.Add(("Integrity", "Integrity INTEGER DEFAULT 0"));
+            
+            // Phase 3C: Advanced Queue Orchestration
+            if (!existingColumns.Contains("Priority"))
+                columnsToAdd.Add(("Priority", "Priority INTEGER DEFAULT 1"));
+            if (!existingColumns.Contains("SourcePlaylistId"))
+                columnsToAdd.Add(("SourcePlaylistId", "SourcePlaylistId TEXT NULL"));
+            if (!existingColumns.Contains("SourcePlaylistName"))
+                columnsToAdd.Add(("SourcePlaylistName", "SourcePlaylistName TEXT NULL"));
+            
+            // Phase 3C: Advanced Queue Orchestration
+            if (!existingColumns.Contains("Priority"))
+                columnsToAdd.Add(("Priority", "Priority INTEGER DEFAULT 1"));
+            if (!existingColumns.Contains("SourcePlaylistId"))
+                columnsToAdd.Add(("SourcePlaylistId", "SourcePlaylistId TEXT NULL"));
+            if (!existingColumns.Contains("SourcePlaylistName"))
+                columnsToAdd.Add(("SourcePlaylistName", "SourcePlaylistName TEXT NULL"));
             
             foreach (var (name, definition) in columnsToAdd)
             {
@@ -205,6 +223,38 @@ public class DatabaseService
                 _logger.LogWarning("Schema Patch: Adding missing column 'DateUpdated' to PlaylistJobs");
                 var now = DateTime.UtcNow.ToString("o");
                 await context.Database.ExecuteSqlAsync($"ALTER TABLE PlaylistJobs ADD COLUMN DateUpdated TEXT DEFAULT {now}");
+            }
+
+            // Check LibraryEntries table
+            cmd.CommandText = "PRAGMA table_info(LibraryEntries)";
+            existingColumns.Clear();
+            using (var reader = await cmd.ExecuteReaderAsync())
+            {
+                while (await reader.ReadAsync())
+                {
+                    existingColumns.Add(reader.GetString(1));
+                }
+            }
+            if (!existingColumns.Contains("Integrity"))
+            {
+                _logger.LogWarning("Schema Patch: Adding missing column 'Integrity' to LibraryEntries");
+                await context.Database.ExecuteSqlRawAsync("ALTER TABLE LibraryEntries ADD COLUMN Integrity INTEGER DEFAULT 0");
+            }
+
+            // Check Tracks table
+            cmd.CommandText = "PRAGMA table_info(Tracks)";
+            existingColumns.Clear();
+            using (var reader = await cmd.ExecuteReaderAsync())
+            {
+                while (await reader.ReadAsync())
+                {
+                    existingColumns.Add(reader.GetString(1));
+                }
+            }
+            if (!existingColumns.Contains("Integrity"))
+            {
+                _logger.LogWarning("Schema Patch: Adding missing column 'Integrity' to Tracks");
+                await context.Database.ExecuteSqlRawAsync("ALTER TABLE Tracks ADD COLUMN Integrity INTEGER DEFAULT 0");
             }
             
             _logger.LogInformation("[{Ms}ms] Database Init: Schema patches completed", sw.ElapsedMilliseconds);
