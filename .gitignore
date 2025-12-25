@@ -79,6 +79,11 @@ error*.txt
 startup*.log
 msbuild*.log
 
+# Allow build debugging logs
+!BuildLogs/
+!BuildLogs/*.txt
+!BuildLogs/*.log
+
 # Dev/Debug data
 crash_*.json
 debug_*.json

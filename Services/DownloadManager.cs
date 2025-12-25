@@ -1386,14 +1386,20 @@ public class DownloadManager : INotifyPropertyChanged, IDisposable
                 // Clean up old final file if it exists (race condition edge case)
                 if (File.Exists(finalPath))
                 {
-                    _logger.LogWarning("Final path {Path} already exists during atomic rename. Deleting.", finalPath);
-                    File.Delete(finalPath);
+                    _logger.LogWarning("Final file already exists, overwriting: {Path}", finalPath);
+                    // File.Delete is handled by MoveAtomicAsync logic (via WriteAtomicAsync)
                 }
 
-                // ATOMIC OPERATION: Only now does .mp3 appear
-                File.Move(partPath, finalPath);
+                // ATOMIC OPERATION: Use SafeWrite to move .part to .mp3
+                var moveSuccess = await _fileWriteService.MoveAtomicAsync(partPath, finalPath);
                 
-                _logger.LogInformation("Atomic rename complete: {Part} → {Final}", 
+                if (!moveSuccess)
+                {
+                     // If move failed (e.g. disk full during copy phase), throw execution to trigger retry/fail logic
+                     throw new IOException($"Failed to atomically move file from {partPath} to {finalPath}");
+                }
+                
+                _logger.LogInformation("Atomic move complete: {Part} → {Final}", 
                     Path.GetFileName(partPath), Path.GetFileName(finalPath));
 
                 // Phase 1A: POST-DOWNLOAD VERIFICATION

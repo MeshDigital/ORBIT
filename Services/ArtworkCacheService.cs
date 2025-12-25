@@ -17,9 +17,14 @@ public class ArtworkCacheService
     private readonly string _cacheDirectory;
     private readonly string _placeholderPath;
 
-    public ArtworkCacheService(ILogger<ArtworkCacheService> logger)
+    private readonly SLSKDONET.Services.IO.IFileWriteService _fileWriteService;
+
+    public ArtworkCacheService(
+        ILogger<ArtworkCacheService> logger,
+        SLSKDONET.Services.IO.IFileWriteService fileWriteService)
     {
         _logger = logger;
+        _fileWriteService = fileWriteService;
         _httpClient = new HttpClient();
         
         // Set cache directory to %AppData%/SLSKDONET/artwork/
@@ -64,10 +69,22 @@ public class ArtworkCacheService
 
             if (!File.Exists(originalPath))
             {
-                // Download original artwork
+                // Download original artwork atomically
                 _logger.LogInformation("Downloading original artwork for album {AlbumId} from {Url}", spotifyAlbumId, albumArtUrl);
                 var imageBytes = await _httpClient.GetByteArrayAsync(albumArtUrl);
-                await File.WriteAllBytesAsync(originalPath, imageBytes);
+                
+                if (imageBytes != null && imageBytes.Length > 0)
+                {
+                    await _fileWriteService.WriteAtomicAsync(
+                        originalPath,
+                        async (tempPath) => await File.WriteAllBytesAsync(tempPath, imageBytes),
+                        async (tempPath) => 
+                        {
+                             // Verify image is not empty
+                             return new FileInfo(tempPath).Length > 0;
+                        }
+                    );
+                }
             }
 
             if (requestedSize.HasValue)
@@ -107,7 +124,7 @@ public class ArtworkCacheService
             var placeholderBytes = Convert.FromBase64String(
                 "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==");
             
-            await File.WriteAllBytesAsync(_placeholderPath, placeholderBytes);
+            await _fileWriteService.WriteAllBytesAtomicAsync(_placeholderPath, placeholderBytes);
             _logger.LogInformation("Created placeholder image at {Path}", _placeholderPath);
         }
         catch (Exception ex)

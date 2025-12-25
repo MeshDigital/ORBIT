@@ -34,6 +34,7 @@
 
   <ItemGroup>
     <!-- Soulseek.NET library -->
+    <PackageReference Include="Avalonia.Controls.ItemsRepeater" Version="11.1.5" />
     <PackageReference Include="DynamicData" Version="9.4.1" />
     <PackageReference Include="LibVLCSharp" Version="3.9.5" />
     <PackageReference Include="LibVLCSharp.Avalonia" Version="3.9.5" />

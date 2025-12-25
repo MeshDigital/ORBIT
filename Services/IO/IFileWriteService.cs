@@ -40,5 +40,14 @@ namespace SLSKDONET.Services.IO
             string targetPath,
             bool preserveTimestamps = true,
             CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Atomically moves a file to a new location.
+        /// Useful for finalizing downloads (.part -> .mp3).
+        /// </summary>
+        Task<bool> MoveAtomicAsync(
+            string sourcePath,
+            string targetPath,
+            CancellationToken cancellationToken = default);
     }
 }

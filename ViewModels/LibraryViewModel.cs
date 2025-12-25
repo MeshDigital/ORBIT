@@ -657,14 +657,14 @@ public class LibraryViewModel : INotifyPropertyChanged
 
             // Find matches using HarmonicMatchService
             var matches = await _harmonicMatchService.GetHarmonicMatchesAsync(
-                seedTrack.GlobalId,
+                seedTrack.Model.Id,
                 limit: 20,
                 includeBpmRange: true,
                 includeEnergyMatch: true);
 
             if (!matches.Any())
             {
-                await _notificationService.ShowAsync(
+                 _notificationService.Show(
                     "Harmonic Matches",
                     $"No compatible tracks found for '{seedTrack.Title}'. Ensure tracks have Key and BPM metadata.",
                     NotificationType.Information);
@@ -702,7 +702,7 @@ public class LibraryViewModel : INotifyPropertyChanged
                 matchSummary.AppendLine($"\n...and {matches.Count - 5} more");
             }
 
-            await _notificationService.ShowAsync(
+             _notificationService.Show(
                 "Harmonic Matches",
                 matchSummary.ToString(),
                 NotificationType.Success);
@@ -712,7 +712,7 @@ public class LibraryViewModel : INotifyPropertyChanged
         catch (Exception ex)
         {
             _logger.LogError(ex, "Failed to find harmonic matches");
-            await _notificationService.ShowAsync(
+             _notificationService.Show(
                 "Harmonic Matches",
                 $"Error: {ex.Message}",
                 NotificationType.Error);
@@ -742,7 +742,7 @@ public class LibraryViewModel : INotifyPropertyChanged
 
             // Find matches
             var matches = await _harmonicMatchService.GetHarmonicMatchesAsync(
-                seedTrack.GlobalId,
+                seedTrack.Model.Id,
                 limit: 10, // Sidebar shows top 10
                 includeBpmRange: true,
                 includeEnergyMatch: true);

@@ -3,6 +3,7 @@
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              xmlns:vm="clr-namespace:SLSKDONET.ViewModels"
+             xmlns:controls="clr-namespace:SLSKDONET.Views.Avalonia.Controls"
              mc:Ignorable="d" d:DesignWidth="300" d:DesignHeight="800"
              x:Class="SLSKDONET.Views.Avalonia.PlayerControl"
              x:DataType="vm:PlayerViewModel"
@@ -125,7 +126,7 @@
         <StackPanel x:Name="QueueZone" Grid.Row="3" Spacing="16" Margin="16,0,16,20" DragDrop.AllowDrop="True">
             
             <!-- Waveform Seekbar -->
-            <StackPanel Spacing="8" xmlns:controls="clr-namespace:SLSKDONET.Views.Avalonia.Controls">
+            <StackPanel Spacing="8">
                 <Panel Height="40">
                     <!-- Background Waveform -->
                     <controls:WaveformControl Data="{Binding WaveformData}" 
@@ -148,7 +149,7 @@
                                 <Setter Property="Height" Value="40"/>
                                 <Setter Property="CornerRadius" Value="0"/>
                             </Style>
-                            <Style Selector="Slider /template/ TrackBackground">
+                            <Style Selector="Slider /template/ Border#TrackBackground">
                                 <Setter Property="IsVisible" Value="False"/>
                             </Style>
                         </Slider.Styles>

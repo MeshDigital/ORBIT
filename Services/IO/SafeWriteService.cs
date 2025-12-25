@@ -314,5 +314,49 @@ namespace SLSKDONET.Services.IO
 
             await sourceStream.CopyToAsync(destStream, bufferSize, cancellationToken);
         }
+
+        public async Task<bool> MoveAtomicAsync(
+            string sourcePath,
+            string targetPath,
+            CancellationToken cancellationToken = default)
+        {
+            if (!File.Exists(sourcePath))
+            {
+                _logger.LogError("Source file for atomic move not found: {SourcePath}", sourcePath);
+                return false;
+            }
+
+            var sourceInfo = new FileInfo(sourcePath);
+            var expectedSize = sourceInfo.Length;
+
+            var success = await WriteAtomicAsync(
+                targetPath,
+                async (tempPath) =>
+                {
+                    await CopyFileWithProgressAsync(sourcePath, tempPath, cancellationToken);
+                },
+                async (tempPath) =>
+                {
+                    return new FileInfo(tempPath).Length == expectedSize;
+                },
+                cancellationToken
+            );
+
+            if (success)
+            {
+                try 
+                {
+                    File.Delete(sourcePath);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex, "Failed to delete source file after atomic move: {Path}", sourcePath);
+                    // We return true because the move (copy+verify+swap) effectively succeeded for the target.
+                    // The source file remaining is customizable behavior, but for "Move", we typically want it gone.
+                }
+            }
+
+            return success;
+        }
     }
 }

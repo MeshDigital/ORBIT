@@ -100,7 +100,7 @@ public class HomeViewModel : INotifyPropertyChanged, IDisposable
     public int ExpressCount => _downloadCenter?.ExpressItems.Count ?? 0;
     public int StandardCount => _downloadCenter?.StandardItems.Count ?? 0;
     public int BackgroundCount => _downloadCenter?.BackgroundItems.Count ?? 0;
-    // public string DownloadSpeed => _downloadCenter?.GlobalSpeedDisplay; // Already defined/mocked below, removing duplicate
+    public string DownloadSpeed => _downloadCenter?.GlobalSpeedDisplay; // Already defined/mocked below, removing duplicate
 
     // Commands
     public ICommand RefreshDashboardCommand { get; }
