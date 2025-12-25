@@ -552,6 +552,9 @@
 ---
 
 ## Phase 12: Search Experience 2.0 (Technical Breakdown) 🟡 NEW
+- [x] Basic Filter Implementation
+- [x] Batch Download Actions (Selection Logic)
+- [x] Advanced Filtering logic (SearchFilterViewModel)
 
 ### 12.1 Reactive Search (Streaming) (4 hours)
 - [x] Refactor `SearchOrchestrationService` to return `IAsyncEnumerable<AlbumResultViewModel>` (Done previously)

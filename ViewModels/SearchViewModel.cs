@@ -35,8 +35,18 @@ public partial class SearchViewModel : ReactiveObject
 
     // Child ViewModels
     public ImportPreviewViewModel ImportPreviewViewModel { get; }
+    public SearchFilterViewModel FilterViewModel { get; } = new();
 
-    // Search input state
+    // Hidden Results Counter
+    private int _hiddenResultsCount;
+    public int HiddenResultsCount
+    {
+        get => _hiddenResultsCount;
+        set => this.RaiseAndSetIfChanged(ref _hiddenResultsCount, value);
+    }
+    
+    // Selected items for Batch Actions
+    public ObservableCollection<SearchResult> SelectedResults { get; } = new();
     private string _searchQuery = "";
     public string SearchQuery
     {
@@ -90,11 +100,7 @@ public partial class SearchViewModel : ReactiveObject
     // Album Results (Legacy/Separate collection for now)
     public ObservableCollection<AlbumResultViewModel> AlbumResults { get; } = new();
 
-    // Filter properties (Post-Search)
-    private int _filterMinBitrate = 320;
-    private bool _filterMp3 = true;
-    private bool _filterFlac = true;
-    private bool _filterWav = true;
+    // Filter properties (Post-Search) - Managed by FilterViewModel now
     
     // Search Parameters (Pre-Search)
     private int _minBitrate = 320;
@@ -111,33 +117,6 @@ public partial class SearchViewModel : ReactiveObject
         set => this.RaiseAndSetIfChanged(ref _maxBitrate, value);
     }
 
-    // Note: Import overlay is now handled via NavigationService.NavigateTo("ImportPreview") in ImportOrchestrator
-    // Removed IsImportOverlayActive property to fix dual-overlay bug (Dec 21, 2024)
-    
-    // Dynamic Filters
-    public int FilterMinBitrate 
-    {
-        get => _filterMinBitrate;
-        set { SetProperty(ref _filterMinBitrate, value); } 
-    }
-
-    public bool FilterMp3 
-    {
-        get => _filterMp3;
-        set { SetProperty(ref _filterMp3, value); }
-    }
-
-    public bool FilterFlac 
-    {
-        get => _filterFlac;
-        set { SetProperty(ref _filterFlac, value); }
-    }
-
-    public bool FilterWav 
-    {
-        get => _filterWav;
-        set { SetProperty(ref _filterWav, value); }
-    }
 
     // Commands
     public ICommand UnifiedSearchCommand { get; }
@@ -146,6 +125,7 @@ public partial class SearchViewModel : ReactiveObject
     public ICommand PasteTracklistCommand { get; }
     public ICommand CancelSearchCommand { get; }
     public ICommand AddToDownloadsCommand { get; }
+    public ICommand DownloadSelectedCommand { get; }
 
     public SearchViewModel(
         ILogger<SearchViewModel> logger,
@@ -178,18 +158,21 @@ public partial class SearchViewModel : ReactiveObject
         // --- Reactive Pipeline Setup ---
         // Connect SourceList -> Filter -> Sort -> Bind -> Public Collection
         
-        var filterPredicate = this.WhenAnyValue(
-            x => x.FilterMinBitrate,
-            x => x.FilterMp3,
-            x => x.FilterFlac,
-            x => x.FilterWav)
-            .Select(BuildFilter);
+        // Observe filter changes from Child ViewModel
+        var filterPredicate = FilterViewModel.FilterChanged;
 
         _searchResults.Connect()
             .Filter(filterPredicate)
             .ObserveOn(RxApp.MainThreadScheduler)
             .Bind(out _publicSearchResults)
-            .Subscribe();
+            .DisposeMany() // Ensure items are disposed if needed
+            .Subscribe(set => 
+            {
+                // Update Hidden Count
+                // Total in source - Total in public view
+                // Note: Count retrieval needs to be thread safe, SourceList.Count is generally safe
+                HiddenResultsCount = _searchResults.Count - _publicSearchResults.Count;
+            });
 
         // Commands
         var canSearch = this.WhenAnyValue(x => x.SearchQuery, query => !string.IsNullOrWhiteSpace(query));
@@ -200,31 +183,13 @@ public partial class SearchViewModel : ReactiveObject
         PasteTracklistCommand = ReactiveCommand.CreateFromTask(ExecutePasteTracklistAsync);
         CancelSearchCommand = ReactiveCommand.Create(ExecuteCancelSearch);
         AddToDownloadsCommand = ReactiveCommand.CreateFromTask(ExecuteAddToDownloadsAsync);
+        DownloadSelectedCommand = ReactiveCommand.CreateFromTask(ExecuteDownloadSelectedAsync);
         
         // Note: Import overlay visibility is now handled by ImportOrchestrator via navigation
         // Event handlers for AddedToLibrary and Cancelled are set up in ImportOrchestrator.SetupPreviewCallbacks()
     }
 
-    private Func<SearchResult, bool> BuildFilter((int minKbps, bool mp3, bool flac, bool wav) tuple)
-    {
-        return result =>
-        {
-            if (result.Model == null) return true;
-            
-            // 1. Bitrate Check
-            if (result.Model.Bitrate < tuple.minKbps) return false;
-
-            // 2. Format Check
-            var ext = System.IO.Path.GetExtension(result.Model.Filename)?.ToLowerInvariant().TrimStart('.');
-            if (string.IsNullOrEmpty(ext)) return true; // Keep unknown?
-
-            if (ext == "mp3" && !tuple.mp3) return false;
-            if (ext == "flac" && !tuple.flac) return false;
-            if (ext == "wav" && !tuple.wav) return false;
-
-            return true;
-        };
-    }
+    // Removed BuildFilter - logic moved to SearchFilterViewModel
 
     private async Task ExecuteUnifiedSearchAsync()
     {
@@ -240,21 +205,22 @@ public partial class SearchViewModel : ReactiveObject
         {
             var lower = token.ToLowerInvariant();
             
+            
             // Format Tokens
-            if (lower == "flac") { FilterFlac = true; FilterMp3 = false; FilterWav = false; filtersModified = true; continue; }
-            if (lower == "wav") { FilterWav = true; FilterMp3 = false; FilterFlac = false; filtersModified = true; continue; }
-            if (lower == "mp3") { FilterMp3 = true; FilterFlac = false; FilterWav = false; filtersModified = true; continue; }
+            if (lower == "flac") { FilterViewModel.FilterFlac = true; FilterViewModel.FilterMp3 = false; FilterViewModel.FilterWav = false; filtersModified = true; continue; }
+            if (lower == "wav") { FilterViewModel.FilterWav = true; FilterViewModel.FilterMp3 = false; FilterViewModel.FilterFlac = false; filtersModified = true; continue; }
+            if (lower == "mp3") { FilterViewModel.FilterMp3 = true; FilterViewModel.FilterFlac = false; FilterViewModel.FilterWav = false; filtersModified = true; continue; }
             
             // Quality Tokens (>320 or 320+)
             if (lower.StartsWith(">") && int.TryParse(lower.TrimStart('>'), out int minQ))
             {
-                FilterMinBitrate = minQ; 
+                FilterViewModel.MinBitrate = minQ; 
                 filtersModified = true;
                 continue;
             }
             if (lower.EndsWith("+") && int.TryParse(lower.TrimEnd('+'), out int minQ2))
             {
-                FilterMinBitrate = minQ2;
+                FilterViewModel.MinBitrate = minQ2;
                 filtersModified = true;
                 continue;
             }
@@ -419,15 +385,29 @@ public partial class SearchViewModel : ReactiveObject
 
     private async Task ExecuteAddToDownloadsAsync()
     {
-        var selected = SearchResults.Where(t => t.IsSelected).ToList();
+         // Legacy "Add All Visible/Selected" fallback? 
+         // Prefer DownloadSelectedCommand for explicit batch
+         await ExecuteDownloadSelectedAsync();
+    }
+
+    private async Task ExecuteDownloadSelectedAsync()
+    {
+        var selected = SelectedResults.ToList();
         if (!selected.Any()) return;
+
+        // Safety Gate
+        if (selected.Count > 20)
+        {
+            // TODO: In a real app we'd show a Dialog here. 
+            // For now, we'll log a warning and proceed, or we could just clamp it?
+            _logger.LogWarning("Batch download > 20 items requested.");
+        }
 
         foreach (var track in selected)
         {
              _downloadManager.EnqueueTrack(track.Model);
         }
         StatusText = $"Queued {selected.Count} downloads";
-        await Task.CompletedTask;
     }
 
     public void ResetState()

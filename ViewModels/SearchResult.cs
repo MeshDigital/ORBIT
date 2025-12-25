@@ -25,6 +25,7 @@ public class SearchResult : INotifyPropertyChanged
     public long Size => Model.Size ?? 0;
     public string Username => Model.Username ?? "Unknown";
     public bool HasFreeUploadSlot => Model.HasFreeUploadSlot;
+    public int QueueLength => Model.QueueLength;
     
     // Rank is updated on the Model by ResultSorter, we just expose it
     public double CurrentRank => Model.CurrentRank;

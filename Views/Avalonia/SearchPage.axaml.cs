@@ -12,10 +12,41 @@ namespace SLSKDONET.Views.Avalonia
         {
             InitializeComponent();
             
+            // Wire up selection synchronization
+            var grid = this.FindControl<DataGrid>("ResultsGrid");
+            if (grid != null)
+            {
+                grid.SelectionChanged += ValidatingSelectionChanged;
+            }
+
             // Enable Drag & Drop
             DragDrop.SetAllowDrop(this, true);
             AddHandler(DragDrop.DragOverEvent, OnDragOver);
             AddHandler(DragDrop.DropEvent, OnDrop);
+        }
+
+        private void ValidatingSelectionChanged(object? sender, SelectionChangedEventArgs e)
+        {
+            if (DataContext is SearchViewModel vm)
+            {
+                // Synchronize selection to ViewModel
+                // Note: We clear and re-add or just modify?
+                // ObservableCollection doesn't support range actions easily but we can use helper.
+                
+                // Optimized approach: 
+                // 1. Remove items that were unselected
+                foreach (var item in e.RemovedItems.OfType<SearchResult>())
+                {
+                    vm.SelectedResults.Remove(item);
+                }
+
+                // 2. Add items that were selected
+                foreach (var item in e.AddedItems.OfType<SearchResult>())
+                {
+                    if (!vm.SelectedResults.Contains(item))
+                        vm.SelectedResults.Add(item);
+                }
+            }
         }
 
         public SearchPage(SearchViewModel viewModel) : this()
