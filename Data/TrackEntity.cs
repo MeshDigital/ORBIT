@@ -218,6 +218,25 @@ public class PlaylistTrackEntity
     public bool? IsTrustworthy { get; set; }
     public string? QualityDetails { get; set; }
     
+    // Phase 3C: Advanced Queue Orchestration
+    /// <summary>
+    /// Download priority: 0=High (manual/bump-to-top), 1=Standard (playlist), 10=Background (large imports).
+    /// Used for multi-lane priority queue to prevent large imports from blocking smaller playlists.
+    /// </summary>
+    public int Priority { get; set; } = 1;
+    
+    /// <summary>
+    /// Source playlist ID for origin tracking and project grouping.
+    /// Enables "Group by Project" view and bulk operations.
+    /// </summary>
+    public Guid? SourcePlaylistId { get; set; }
+    
+    /// <summary>
+    /// Cached source playlist name for performance (avoids JOIN in download queue queries).
+    /// Displayed as origin tag in Download Center UI.
+    /// </summary>
+    public string? SourcePlaylistName { get; set; }
+    
     // New Flag
     public bool IsEnriched { get; set; } = false;
 
