@@ -122,6 +122,8 @@ To match the speed of `slsk-batchdl`, "The Brain" now operates in real-time.
     *   **Result**: The track starts downloading immediately (usually within 2-4 seconds).
     *   **Why?**: A 92% match (Correct Title, Artist, Duration ±5s, Bitrate > 256kbps) is statistically guaranteed to be the correct file. There is no need to wait 30 seconds for marginally "better" options.
 
+    *   **Why?**: A 92% match (Correct Title, Artist, Duration ±5s, Bitrate > 256kbps) is statistically guaranteed to be the correct file. There is no need to wait 30 seconds for marginally "better" options.
+
 This moves ORBIT from a "Wait-and-Sort" architecture to a "Race-and-Replace" architecture.
-- **Silver Match**: Score > 0.7 (Starts speculatively if no Gold match found in 5s — Planned Phase 3C.5).
-- **Gold Match**: Score > 0.92 (Starts immediately, cancelling any Silver download).
+- **Silver Match (Speculative)**: Score > 0.7. If no Gold match is found within **5 seconds**, the best Silver match starts automatically. (Implemented in Phase 3C.5).
+- **Gold Match**: Score > 0.92. Starts immediately (< 1s), cancelling any search.

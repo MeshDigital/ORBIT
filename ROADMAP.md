@@ -40,6 +40,9 @@
 - **Phase 3C.4: Threshold Trigger (Completed Dec 2025)**
   - **Instant Downloads**: Starts download immediately if score > 92%.
   - **Real-Time Scoring**: Evaluates stream instead of buffering.
+- **Phase 3C.5: Speculative Start (Completed Dec 2025)**
+  - **Silver Match Default**: If no Gold match in 5s, start best available (>70%).
+  - **Time-to-Music**: Guarantees max 5s wait for available tracks.
 - **Phase 5C: Industrial Hardening (Completed Dec 2025)**
   - **Security**: Windows DPAPI encryption for Spotify tokens (replacing Base64).
   - **Resource Mgmt**: Explicit process killing for FFmpeg (Anti-Zombie).

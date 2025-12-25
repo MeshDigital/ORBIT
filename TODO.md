@@ -142,9 +142,8 @@
   - [x] **Multi-Lane Priority**: High (User) vs Low (Background/Import) lanes.
   - [x] **Lazy Hydration**: Only hydrate 50 tracks to memory.
   - [x] **Threshold Trigger**: Start download if score > 92%.
-  - [ ] **Speculative Start**: Start silver match (70%) after 5s (Hot-Swap).
-  - [x] Project Prioritization (VIP Pass)
-  - [x] **Hardening**: Atomic Slot Allocator (Race Condition Fix)
+  - [x] **Speculative Start**: Start silver match (>70%) after 5s timeout.
+  - [x] **Project Prioritization**: "VIP Pass" logic (P1-P10). [x] **Hardening**: Atomic Slot Allocator (Race Condition Fix)
   - [x] **Hardening**: Lazy Hydration (Waiting Room Pattern for 2k+ queues)`Services/DownloadHealthMonitor.cs`
 - [ ] Track health metrics per download:
   - Stall count

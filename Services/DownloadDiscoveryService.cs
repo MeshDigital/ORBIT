@@ -89,6 +89,9 @@ public class DownloadDiscoveryService
             // But 'OverallScore' is relative? No, it's absolute calculation in ResultSorter now.
             
             var allTracks = new System.Collections.Generic.List<Track>();
+            var searchStartTime = DateTime.UtcNow;
+            Track? bestSilverMatch = null;
+            double bestSilverScore = 0;
 
             // Consume the stream
             await foreach (var searchTrack in _searchOrchestrator.SearchAsync(
@@ -117,6 +120,26 @@ public class DownloadDiscoveryService
                     _logger.LogInformation("🚀 THRESHOLD TRIGGER: Found 'Gold' match ({Score:P0}) early! Skipping rest of search. File: {File}", 
                         score, searchTrack.Filename);
                     return searchTrack;
+                }
+
+                // Phase 3C.5: Speculative Start (Silver Match)
+                // If we have a decent match (>0.7) and 5 seconds have passed, take it.
+                if (score > 0.7)
+                {
+                    // Track best silver match found so far
+                    if (bestSilverMatch == null || score > bestSilverScore)
+                    {
+                        bestSilverMatch = searchTrack;
+                        bestSilverScore = score;
+                    }
+                }
+
+                // Check speculative timeout (5s)
+                if ((DateTime.UtcNow - searchStartTime).TotalSeconds > 5 && bestSilverMatch != null)
+                {
+                    _logger.LogInformation("🥈 SPECULATIVE TRIGGER: 5s timeout reached with Silver match ({Score:P0}). Starting speculative download. File: {File}", 
+                        bestSilverScore, bestSilverMatch.Filename);
+                    return bestSilverMatch;
                 }
 
                 allTracks.Add(searchTrack);
