@@ -1003,8 +1003,18 @@ public class DownloadManager : INotifyPropertyChanged, IDisposable
             
             // Phase 3A: Atomic Handshake - Trust Journal, Truncate Disk
             var confirmedBytes = await _crashJournal.GetConfirmedBytesAsync(ctx.GlobalId);
+            long expectedSize = bestMatch.Size ?? 0;
 
-            if (confirmedBytes > 0 && diskBytes > confirmedBytes)
+            // Fix: Ghost File Race Condition Check
+            // If file is fully downloaded on disk but journal says 99% (crash during finalization),
+            // TRUST THE DISK. Do not truncate. Verification step will validate integrity.
+            if (expectedSize > 0 && diskBytes >= expectedSize)
+            {
+                startPosition = diskBytes;
+                _logger.LogInformation("👻 Ghost File Detected: Disk ({Disk}) >= Expected ({Expected}). Skipping truncation despite Journal ({Journal}).", 
+                    diskBytes, expectedSize, confirmedBytes);
+            }
+            else if (confirmedBytes > 0 && diskBytes > confirmedBytes)
             {
                 // Case 1: Disk has more data than journal (unconfirmed tail)
                 // Truncate to confirmed bytes to ensure no corrupt/torn data is kept
@@ -1079,6 +1089,9 @@ public class DownloadManager : INotifyPropertyChanged, IDisposable
             {
                 while (await heartbeatTimer.WaitForNextTickAsync(heartbeatCts.Token))
                 {
+                    // Phase 3A: Finalization Guard - Stop heartbeat immediately if completion logic started
+                    if (ctx.IsFinalizing) return;
+
                     var currentBytes = ctx.BytesReceived; // Thread-safe Interlocked read
                     
                     // STALL DETECTION: 4 heartbeats (1 minute) of no progress
@@ -1256,6 +1269,9 @@ public class DownloadManager : INotifyPropertyChanged, IDisposable
                 // Phase 2A: Complete checkpoint on success
                 if (checkpointId != null)
                 {
+                    // Phase 3A: Sentinel Flag - Prevent heartbeat from re-creating checkpoint
+                    ctx.IsFinalizing = true;
+                    
                     await _crashJournal.CompleteCheckpointAsync(checkpointId);
                     _logger.LogDebug("✅ Download checkpoint completed: {Id}", checkpointId);
                 }

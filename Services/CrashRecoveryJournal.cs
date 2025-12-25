@@ -66,7 +66,7 @@ public class HydrationCheckpointState
 /// Tracks in-progress operations for automatic recovery after crashes.
 /// Uses monotonic timestamps, dead-letter handling, and connection pooling.
 /// </summary>
-public class CrashRecoveryJournal : IDisposable
+public class CrashRecoveryJournal : IDisposable, IAsyncDisposable
 {
     private readonly ILogger<CrashRecoveryJournal> _logger;
     private static readonly SemaphoreSlim _journalLock = new(1, 1);
@@ -76,6 +76,7 @@ public class CrashRecoveryJournal : IDisposable
     private SqliteCommand? _insertCheckpointCmd;
     private SqliteCommand? _updateHeartbeatCmd;
     private SqliteCommand? _deleteCheckpointCmd;
+    private SqliteCommand? _resetFailureCountCmd;
     
     private bool _disposed = false;
 
@@ -155,6 +156,10 @@ public class CrashRecoveryJournal : IDisposable
             _deleteCheckpointCmd = _journalConnection.CreateCommand();
             _deleteCheckpointCmd.CommandText = "DELETE FROM RecoveryCheckpoints WHERE Id = @id";
             _deleteCheckpointCmd.Prepare();
+
+            _resetFailureCountCmd = _journalConnection.CreateCommand();
+            _resetFailureCountCmd.CommandText = "UPDATE RecoveryCheckpoints SET FailureCount = 0 WHERE TargetPath = @path";
+            _resetFailureCountCmd.Prepare();
 
             _logger.LogInformation("✅ Ironclad Recovery Journal initialized with optimized connection pool");
         }
@@ -252,6 +257,32 @@ public class CrashRecoveryJournal : IDisposable
             if (rowsAffected > 0)
             {
                 _logger.LogDebug("✅ Completed checkpoint: {Id}", checkpointId);
+            }
+        }
+        finally
+        {
+            _journalLock.Release();
+        }
+    }
+
+    /// <summary>
+    /// Resets failure count to 0 for a given target path (manual retry).
+    /// </summary>
+    public async Task ResetFailureCountAsync(string targetPath)
+    {
+        if (_disposed || _resetFailureCountCmd == null)
+            return;
+
+        await _journalLock.WaitAsync();
+        try
+        {
+            _resetFailureCountCmd.Parameters.Clear();
+            _resetFailureCountCmd.Parameters.AddWithValue("@path", targetPath);
+            
+            var rows = await _resetFailureCountCmd.ExecuteNonQueryAsync();
+            if (rows > 0)
+            {
+                _logger.LogInformation("🔄 Reset failure count for checkout path: {Path}", targetPath);
             }
         }
         finally
@@ -378,16 +409,50 @@ public class CrashRecoveryJournal : IDisposable
 
     public void Dispose()
     {
+        Dispose(disposing: true);
+        GC.SuppressFinalize(this);
+    }
+
+    protected virtual void Dispose(bool disposing)
+    {
         if (_disposed)
             return;
 
+        if (disposing)
+        {
+            _insertCheckpointCmd?.Dispose();
+            _updateHeartbeatCmd?.Dispose();
+            _deleteCheckpointCmd?.Dispose();
+            _resetFailureCountCmd?.Dispose();
+            _journalConnection?.Dispose();
+            _journalLock.Dispose();
+        }
+
+
         _disposed = true;
+        _logger.LogInformation("Crash recovery journal disposed");
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        if (_disposed)
+            return;
 
         _insertCheckpointCmd?.Dispose();
         _updateHeartbeatCmd?.Dispose();
         _deleteCheckpointCmd?.Dispose();
-        _journalConnection?.Dispose();
+        _resetFailureCountCmd?.Dispose();
+        
+        if (_journalConnection != null)
+        {
+            await _journalConnection.DisposeAsync();
+        }
+        
+        _journalLock.Dispose();
 
-        _logger.LogInformation("Crash recovery journal disposed");
+        _disposed = true;
+        _logger.LogInformation("Crash recovery journal disposed asynchronously");
+        
+        GC.SuppressFinalize(this);
     }
 }

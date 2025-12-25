@@ -85,6 +85,14 @@ public partial class App : Application
                             Serilog.Log.Information("Closing database connections...");
                             await databaseService.CloseConnectionsAsync();
                         }
+
+                        // Phase 2A: Close Crash Recovery Journal (prevents locked WAL files)
+                        var crashJournal = Services?.GetService<CrashRecoveryJournal>();
+                        if (crashJournal != null)
+                        {
+                            Serilog.Log.Information("Closing crash recovery journal...");
+                            await crashJournal.DisposeAsync();
+                        }
                     }
                     catch (Exception ex)
                     {

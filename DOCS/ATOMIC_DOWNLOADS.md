@@ -26,12 +26,19 @@ Before reserving a download byte range, `DownloadManager` performs this check:
 
 ```csharp
 long diskBytes = new FileInfo(path).Length;
-long confirmedBytes = await _crashJournal.GetConfirmedBytesAsync(id); // From WAL DB
+long confirmedBytes = await _crashJournal.GetConfirmedBytesAsync(id);
+long expectedSize = metadata.Size;
 
-if (diskBytes > confirmedBytes)
+if (diskBytes >= expectedSize)
 {
-    // RISK DETECTED: Disk has data we didn't confirm safe.
-    // ACTION: Truncate the file to the safe offset.
+    // GHOST FILE EXCEPTION: Disk has full file, Journal didn't finalize.
+    // ACTION: Trust the disk (verification will catch corruption).
+    // Do NOT truncate.
+}
+else if (diskBytes > confirmedBytes)
+{
+    // TORN WRITE RISK: Disk has confirmed tail or garbage.
+    // ACTION: Truncate to confirmed offset.
     FileStream.SetLength(confirmedBytes);
 }
 ```
@@ -50,14 +57,17 @@ sequenceDiagram
     O->>D: Get Length (10.5 MB)
     O->>J: Get Confirmed Bytes (10.0 MB)
     
-    rect rgb(255, 200, 200)
-    Note over O: Mismatch Detected!
+    alt Ghost File (Disk >= Expected)
+        Note over O: TRUST DISK (Skip Truncation)
+        O->>D: Verify Integrity
+    else Torn Write Risk
+        rect rgb(255, 200, 200)
+        Note over O: Mismatch Detected!
+        end
+        O->>D: Truncate to 10.0 MB
     end
     
-    O->>D: Truncate to 10.0 MB
-    Note over D: File is now 10.0 MB (Safe)
-    
-    O->>Soulseek: Request Resume from 10.0 MB
+    O->>Soulseek: Request Resume
 ```
 
 ---

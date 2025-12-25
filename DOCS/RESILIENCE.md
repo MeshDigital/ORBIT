@@ -70,6 +70,16 @@ Downloads in P2P networks are volatile. ORBIT mitigates this with a state-aware 
     *   *Match*: Resumes from the last byte.
     *   *Mismatch*: Rolls back to the checkpointed safe state.
 
+### 2.1 Heartbeat Re-entrancy Guard (Phase 3A)
+To prevent "Zombie Checkpoints" (where a background thread logs a heartbeat for a completed track):
+*   `DownloadContext` uses an atomic `IsFinalizing` flag.
+*   Heartbeat threads exit immediately if finalization has started.
+*   This creates a strict mutex between the "Progress" and "Success" states.
+
+### 2.2 Resource Safety
+*   **IAsyncDisposable**: `CrashRecoveryJournal` implements explicit async disposal.
+*   **Shutdown Hook**: The connection pool is gracefully drained on app exit, ensuring no `.db-wal` or `.db-shm` files remain locked on the file system.
+
 ### 3. SafeWrite Service (ACID File Operations)
 Tagging files carries the risk of corruption if the app crashes mid-write. `SafeWriteService` wraps system I/O in a transaction.
 
@@ -121,3 +131,6 @@ Infinite crash loops are the enemy of stability. ORBIT employs a **"3-Strike"** 
     *   User notified via "Warning" toast.
 
 This ensures that a single corrupted file or edge case cannot prevent the application from launching or operating normally.
+
+### Manual Retry Mechanism
+If a file is dead-lettered but the user fixes the issue (e.g., clears disk space), they can trigger a manual retry. The system calls `ResetFailureCountAsync`, setting failures to 0 and returning the checkpoint to the active queue.

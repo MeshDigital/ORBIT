@@ -32,6 +32,15 @@ public class DownloadContext
     
     public bool IsResuming { get; set; }        // UI/Log feedback for "Resuming" vs "Downloading"
 
+    // Phase 3A: Finalization Guard (prevents heartbeat race conditions)
+    // 0 = false, 1 = true
+    private int _isFinalizing; 
+    public bool IsFinalizing 
+    {
+        get => Interlocked.CompareExchange(ref _isFinalizing, 0, 0) == 1;
+        set => Interlocked.Exchange(ref _isFinalizing, value ? 1 : 0);
+    }
+
     // Reliability (Phase 7: DJ's Studio)
     public int RetryCount { get; set; }
     public DateTime? NextRetryTime { get; set; }
