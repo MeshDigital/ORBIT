@@ -893,6 +893,38 @@ public class DownloadManager : INotifyPropertyChanged, IDisposable
                 // This blocks until a slot is available, ensuring max 4 concurrent downloads
                 await _downloadSemaphore.WaitAsync(token);
 
+                // Phase 3C Hardening: Race Condition Check
+                // After waiting, the world may have changed (e.g., lane filled by stealth/high prio).
+                // We MUST re-confirm this track is still the best choice and valid.
+                DownloadContext? confirmedContext = null;
+                lock (_collectionLock)
+                {
+                    // Update Active map with new reality
+                    var activeByPriority = GetActiveDownloadsByPriority();
+                    
+                    // Check if our pre-selected 'nextContext' is still valid and optimal
+                    // Or simply re-run selection to be safe
+                    var eligibleTracks = _downloads.Where(t => 
+                        t.State == PlaylistTrackState.Pending && 
+                        (!t.NextRetryTime.HasValue || t.NextRetryTime.Value <= DateTime.Now))
+                        .ToList();
+
+                    confirmedContext = SelectNextTrackWithLaneAllocation(eligibleTracks, activeByPriority);
+                }
+
+                if (confirmedContext == null)
+                {
+                    // False alarm or lane filled up while waiting
+                    _logger.LogDebug("Race Condition: Slot acquired but no eligible track found after wait. Releasing.");
+                    _downloadSemaphore.Release();
+                    await Task.Delay(100, token); // Backoff
+                    continue;
+                }
+
+                // If we switched tracks (e.g. a higher priority one came in), use the new one.
+                // If confirmedContext matches nextContext, great. If not, confirmedContext is better.
+                nextContext = confirmedContext;
+
                 // Transition state via update method
                 await UpdateStateAsync(nextContext, PlaylistTrackState.Searching);
 
@@ -1403,8 +1435,16 @@ public class DownloadManager : INotifyPropertyChanged, IDisposable
 
         _ = Task.Run(async () => 
         {
-            await UpdateStateAsync(ctx, PlaylistTrackState.Downloading);
-            await DownloadFileAsync(ctx, e.BestMatch, _globalCts.Token);
+            // Phase 3C Hardening: Enforce Priority 0 (Express Lane) and persistence
+            ctx.Model.Priority = 0;
+            // Persist valid priority for restart resilience
+            await _databaseService.UpdatePlaylistTrackPriorityAsync(ctx.Model.Id, 0); 
+            
+            // Allow loop to pick it up naturally (respecting semaphore)
+            await UpdateStateAsync(ctx, PlaylistTrackState.Pending);
+            
+            // Check if we need to preempt immediately (wake up loop)
+            // The loop runs every 500ms when idle, so latent pickup is fast.
         });
     }
 
@@ -1428,9 +1468,11 @@ public class DownloadManager : INotifyPropertyChanged, IDisposable
             ctx.Model.SpectralHash = null;
             ctx.Model.IsTrustworthy = null;
 
-            // 3. Start download of higher quality file
-            await UpdateStateAsync(ctx, PlaylistTrackState.Downloading);
-            await DownloadFileAsync(ctx, e.BestMatch, _globalCts.Token);
+            // 3. Set High Priority and Queue
+            ctx.Model.Priority = 0;
+            await _databaseService.UpdatePlaylistTrackPriorityAsync(ctx.Model.Id, 0); 
+
+            await UpdateStateAsync(ctx, PlaylistTrackState.Pending);
         });
     }
 

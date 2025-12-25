@@ -1705,7 +1705,7 @@ public class DatabaseService
 
         using var command = conn.CreateCommand();
         command.CommandText = @"
-            UPDATE PlaylistTrackEntity 
+            UPDATE PlaylistTracks 
             SET Priority = @priority 
             WHERE PlaylistId = @playlistId AND Status = 0"; // 0 = Missing (pending download)
 
@@ -1715,6 +1715,24 @@ public class DatabaseService
         var rowsAffected = await command.ExecuteNonQueryAsync();
         _logger.LogInformation("Updated priority to {Priority} for {Count} tracks in playlist {PlaylistId}",
             newPriority, rowsAffected, playlistId);
+    }
+
+    /// <summary>
+    /// Phase 3C: Updates priority for a single playlist track.
+    /// Used for "Bump to Top" or Auto-Download overrides.
+    /// </summary>
+    public async Task UpdatePlaylistTrackPriorityAsync(Guid trackId, int newPriority)
+    {
+        using var conn = GetConnection();
+        await conn.OpenAsync();
+
+        using var command = conn.CreateCommand();
+        command.CommandText = @"UPDATE PlaylistTracks SET Priority = @priority WHERE Id = @id";
+        command.Parameters.AddWithValue("@priority", newPriority);
+        command.Parameters.AddWithValue("@id", trackId.ToString());
+
+        await command.ExecuteNonQueryAsync();
+        _logger.LogDebug("Updated priority to {Priority} for track {Id}", newPriority, trackId);
     }
 
 
