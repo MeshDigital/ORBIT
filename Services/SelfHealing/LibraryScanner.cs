@@ -20,19 +20,16 @@ public class LibraryScanner
 {
     private readonly ILogger<LibraryScanner> _logger;
     private readonly DatabaseService _databaseService;
-    private readonly FileVerificationHelper _fileVerificationHelper;
     
     private const int BATCH_SIZE = 50; // Process 50 tracks at a time
     private const int SCAN_COOLDOWN_DAYS = 7; // Don't rescan files within 7 days
     
     public LibraryScanner(
         ILogger<LibraryScanner> logger,
-        DatabaseService databaseService,
-        FileVerificationHelper fileVerificationHelper)
+        DatabaseService databaseService)
     {
         _logger = logger;
         _databaseService = databaseService;
-        _fileVerificationHelper = fileVerificationHelper;
     }
     
     /// <summary>
