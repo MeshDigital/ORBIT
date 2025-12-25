@@ -54,6 +54,9 @@ public class DownloadManager : INotifyPropertyChanged, IDisposable
     private readonly List<DownloadContext> _downloads = new();
     private readonly object _collectionLock = new object();
     
+    private const int LAZY_QUEUE_BUFFER_SIZE = 100;
+    private const int REFILL_THRESHOLD = 20;
+
     // Expose read-only copy for internal checks
     public IReadOnlyList<DownloadContext> ActiveDownloads 
     {
@@ -216,52 +219,17 @@ public class DownloadManager : INotifyPropertyChanged, IDisposable
         {
             await _databaseService.InitAsync();
             
-            // BUGFIX: Load from PlaylistTracks (has PlaylistId, filters deleted) instead of legacy Tracks table
-            var playlistTracks = await _databaseService.GetAllPlaylistTracksAsync();
+            // Phase 3C.5: Lazy Hydration - Only load active/history and a buffer of pending tracks
             
-            lock (_collectionLock)
-            {
-                foreach (var t in playlistTracks)
-                {
-                    // Map PlaylistTrackEntity -> PlaylistTrack Model
-                    var model = new PlaylistTrack 
-                    { 
-                        Id = t.Id,
-                        PlaylistId = t.PlaylistId,
-                        Artist = t.Artist, 
-                        Title = t.Title,
-                        Album = t.Album,
-                        TrackUniqueHash = t.TrackUniqueHash,
-                        Status = t.Status,
-                        ResolvedFilePath = t.ResolvedFilePath,
-                        SpotifyTrackId = t.SpotifyTrackId,
-                        AlbumArtUrl = t.AlbumArtUrl,
-                        Format = t.Format,
-                        Bitrate = t.Bitrate,
-                        Priority = t.Priority
-                    };
-                    
-                    // Map status to download state
-                    var ctx = new DownloadContext(model);
-                    ctx.State = t.Status switch
-                    {
-                        TrackStatus.Downloaded => PlaylistTrackState.Completed,
-                        TrackStatus.Failed => PlaylistTrackState.Failed,
-                        TrackStatus.Skipped => PlaylistTrackState.Cancelled,
-                        _ => PlaylistTrackState.Pending
-                    };
-                    
-                    // Reset transient states
-                    if (ctx.State == PlaylistTrackState.Downloading || ctx.State == PlaylistTrackState.Searching)
-                        ctx.State = PlaylistTrackState.Pending;
+            // 1. Load History & Active (Status != Missing)
+            var nonPendingTracks = await _databaseService.GetNonPendingTracksAsync();
+            HydrateAndAddEntities(nonPendingTracks);
+            
+            _logger.LogInformation("Hydrated {Count} active/history tracks", nonPendingTracks.Count);
 
-                    _downloads.Add(ctx);
-                    
-                    // Publish event with initial state
-                    _eventBus.Publish(new TrackAddedEvent(model, ctx.State));
-                }
-            }
-            _logger.LogInformation("Hydrated {Count} tracks from PlaylistTracks (excludes deleted albums)", playlistTracks.Count);
+            // 2. Initial Refill of Waiting Room (Top N Pending)
+            await RefillQueueAsync();
+
             
             // Phase 2.5: Crash Recovery - Detect orphaned downloads and resume with .part files
             await HydrateFromCrashAsync();
@@ -426,6 +394,18 @@ public class DownloadManager : INotifyPropertyChanged, IDisposable
                     continue;
                 }
                 
+                // Phase 3C.5: Lazy Hydration Guard
+                // If buffer is full, don't add new low-priority tracks to memory yet.
+                // They are already persisted to DB by QueueProject or SaveTrackToDb below.
+                // Exception: Priority 0 (High) should always bypass buffer limit.
+                if (_downloads.Count(d => d.State == PlaylistTrackState.Pending) >= LAZY_QUEUE_BUFFER_SIZE 
+                    && track.Priority > 0)
+                {
+                     // Skip adding to memory, it will be picked up by RefillQueueAsync later
+                     skipped++; 
+                     continue; 
+                }
+
                 var ctx = new DownloadContext(track);
                 _downloads.Add(ctx);
                 existingTrackIds.Add(track.Id); // Add to set for subsequent iterations
@@ -450,6 +430,95 @@ public class DownloadManager : INotifyPropertyChanged, IDisposable
             _logger.LogInformation("Queued {Queued} new tracks, skipped {Skipped} already queued tracks", queued, skipped);
         }
         
+        // Trigger generic refill in case we have capacity
+        if (queued > 0)
+        {
+             _ = RefillQueueAsync();
+        }
+    }
+
+    private void HydrateAndAddEntities(List<PlaylistTrackEntity> entities)
+    {
+        lock (_collectionLock)
+        {
+            foreach (var t in entities)
+            {
+                // Map PlaylistTrackEntity -> PlaylistTrack Model
+                var model = new PlaylistTrack 
+                { 
+                    Id = t.Id,
+                    PlaylistId = t.PlaylistId,
+                    Artist = t.Artist, 
+                    Title = t.Title,
+                    Album = t.Album,
+                    TrackUniqueHash = t.TrackUniqueHash,
+                    Status = t.Status,
+                    ResolvedFilePath = t.ResolvedFilePath,
+                    SpotifyTrackId = t.SpotifyTrackId,
+                    AlbumArtUrl = t.AlbumArtUrl,
+                    Format = t.Format,
+                    Bitrate = t.Bitrate,
+                    Priority = t.Priority
+                };
+                
+                // Map status to download state
+                var ctx = new DownloadContext(model);
+                ctx.State = t.Status switch
+                {
+                    TrackStatus.Downloaded => PlaylistTrackState.Completed,
+                    TrackStatus.Failed => PlaylistTrackState.Failed,
+                    TrackStatus.Skipped => PlaylistTrackState.Cancelled,
+                    _ => PlaylistTrackState.Pending
+                };
+                
+                // Reset transient states
+                if (ctx.State == PlaylistTrackState.Downloading || ctx.State == PlaylistTrackState.Searching)
+                    ctx.State = PlaylistTrackState.Pending;
+
+                _downloads.Add(ctx);
+                
+                // Publish event with initial state
+                _eventBus.Publish(new TrackAddedEvent(model, ctx.State));
+            }
+        }
+    }
+
+    /// <summary>
+    /// Phase 3C.5: "The Waiting Room" - Fetches pending tracks from DB if buffer is low.
+    /// Manages memory pressure by ensuring we don't hydrate 50,000 pending tracks.
+    /// </summary>
+    private async Task RefillQueueAsync()
+    {
+        try
+        {
+            List<Guid> excludeIds;
+            int needed;
+
+            lock (_collectionLock)
+            {
+                int pendingCount = _downloads.Count(d => d.State == PlaylistTrackState.Pending);
+                if (pendingCount >= LAZY_QUEUE_BUFFER_SIZE) return; // Buffer full enough
+
+                needed = LAZY_QUEUE_BUFFER_SIZE - pendingCount;
+                excludeIds = _downloads.Select(d => d.Model.Id).ToList();
+            }
+
+            if (needed <= 0) return;
+
+            // Fetch next batch from "Waiting Room" (DB)
+            var newTracks = await _databaseService.GetPendingPriorityTracksAsync(needed, excludeIds);
+            
+            if (newTracks.Any())
+            {
+                _logger.LogDebug("Refilling queue with {Count} tracks from Waiting Room", newTracks.Count);
+                HydrateAndAddEntities(newTracks);
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to refill queue from database");
+        }
+    }    
         // Processing loop picks this up automatically
     }
 
@@ -880,6 +949,14 @@ public class DownloadManager : INotifyPropertyChanged, IDisposable
                         
                         // Try to find next track respecting lane limits
                         nextContext = SelectNextTrackWithLaneAllocation(eligibleTracks, activeByPriority);
+                    }
+                    
+                    // Phase 3C.5: Check if we need to release the hounds (Refill)
+                    var pendingCount = _downloads.Count(d => d.State == PlaylistTrackState.Pending);
+                    if (pendingCount < REFILL_THRESHOLD)
+                    {
+                         // Trigger background refill
+                         _ = Task.Run(() => RefillQueueAsync());
                     }
                 }
 

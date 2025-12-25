@@ -1525,6 +1525,52 @@ public class DatabaseService
             .ToListAsync();
     }
 
+    /// <summary>
+    /// Phase 3C.5: Lazy Hydration - Fetch pending tracks for the waiting room.
+    /// Orders by Priority (0=High) then Time. LIMITs result to buffer size.
+    /// </summary>
+    public async Task<List<PlaylistTrackEntity>> GetPendingPriorityTracksAsync(int limit, List<Guid> excludeIds)
+    {
+        using var context = new AppDbContext();
+        
+        // 1. Get valid jobs
+        var validJobIds = context.PlaylistJobs
+            .Where(j => !j.IsDeleted)
+            .Select(j => j.Id);
+            
+        // 2. Query Pending (Status=0) tracks
+        // Rule: Priority ASC (0, 1, 10...), then AddedAt ASC (FIFO)
+        var query = context.PlaylistTracks
+            .AsNoTracking()
+            .Where(t => validJobIds.Contains(t.PlaylistId) && t.Status == TrackStatus.Missing);
+
+        if (excludeIds.Any())
+        {
+            query = query.Where(t => !excludeIds.Contains(t.Id));
+        }
+
+        return await query
+            .OrderBy(t => t.Priority)
+            .ThenBy(t => t.AddedAt)
+            .Take(limit)
+            .ToListAsync();
+    }
+
+    /// <summary>
+    /// Phase 3C.5: Lazy Hydration - Fetch all non-pending tracks (History/Active).
+    /// </summary>
+    public async Task<List<PlaylistTrackEntity>> GetNonPendingTracksAsync()
+    {
+        using var context = new AppDbContext();
+        var validJobIds = context.PlaylistJobs.Where(j => !j.IsDeleted).Select(j => j.Id);
+        
+        return await context.PlaylistTracks
+            .AsNoTracking()
+            .Where(t => validJobIds.Contains(t.PlaylistId) && t.Status != TrackStatus.Missing)
+            .OrderByDescending(t => t.AddedAt)
+            .ToListAsync();
+    }
+
     public async Task LogActivityAsync(PlaylistActivityLogEntity log)
     {
         using var context = new AppDbContext();
