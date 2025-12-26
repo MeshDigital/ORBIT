@@ -198,6 +198,13 @@ public class SpotifyMetadataService : ISpotifyMetadataService
             return results;
         }
 
+        // Check if Audio Features are enabled (403 in Developer Mode)
+        if (!_config.SpotifyEnableAudioFeatures)
+        {
+            _logger.LogDebug("Skipping audio features batch: Audio Features disabled in settings");
+            return results;
+        }
+
         // Circuit Breaker Check
         if (_audioFeaturesDisabled)
         {
