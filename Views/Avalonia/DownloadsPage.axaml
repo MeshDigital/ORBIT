@@ -631,6 +631,10 @@
                                                     <Run Text="{Binding TrackTitle}"/>
                                                 </TextBlock>
                                                 <TextBlock Text="{Binding AlbumName}" FontSize="11" Foreground="#808080"/>
+                                                <TextBlock Text="{Binding FailureReasonDisplay}" 
+                                                           FontSize="11" 
+                                                           Foreground="#F44336"
+                                                           IsVisible="{Binding FailureReason, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
                                             </StackPanel>
                                             <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
                                                 <ToggleButton IsChecked="{Binding IsFilterExpanded}"

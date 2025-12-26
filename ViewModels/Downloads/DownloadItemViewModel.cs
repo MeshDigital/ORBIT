@@ -149,6 +149,25 @@ public class DownloadItemViewModel : INotifyPropertyChanged
         }
     }
     
+    // Phase 12.6: Failure reason visibility - user can see why download failed
+    private string? _failureReason;
+    public string? FailureReason
+    {
+        get => _failureReason;
+        set
+        {
+            if (_failureReason != value)
+            {
+                _failureReason = value;
+                OnPropertyChanged();
+                OnPropertyChanged(nameof(StatusText));
+                OnPropertyChanged(nameof(FailureReasonDisplay));
+            }
+        }
+    }
+    
+    public string FailureReasonDisplay => !string.IsNullOrEmpty(FailureReason) ? $"Reason: {FailureReason}" : "";
+    
     // Phase 13: Per-Track Search Filter Properties
     private string[] _allowedFormats = new[] { "mp3", "flac" };
     public string[] AllowedFormats
@@ -321,6 +340,8 @@ public class DownloadItemViewModel : INotifyPropertyChanged
         get
         {
             if (IsResuming) return "Resuming...";
+            if (State == PlaylistTrackState.Failed && !string.IsNullOrEmpty(FailureReason))
+                return $"Failed: {FailureReason}";
             return State switch
             {
                 PlaylistTrackState.Searching => "Searching...",

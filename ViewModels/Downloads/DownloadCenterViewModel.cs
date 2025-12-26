@@ -241,6 +241,16 @@ public class DownloadCenterViewModel : INotifyPropertyChanged, IDisposable
             if (item.HasValue)
             {
                 item.Value.State = e.NewState;
+                
+                // Phase 12.6: Wire failure reason to UI
+                if (e.NewState == PlaylistTrackState.Failed && !string.IsNullOrEmpty(e.ErrorMessage))
+                {
+                    item.Value.FailureReason = e.ErrorMessage;
+                }
+                else if (e.NewState != PlaylistTrackState.Failed)
+                {
+                    item.Value.FailureReason = null; // Clear on state change
+                }
                 // DynamicData AutoRefresh handles moving between collections
             }
             
