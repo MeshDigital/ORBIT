@@ -61,6 +61,34 @@ public class SoulseekAdapter : ISoulseekAdapter, IDisposable
             
             _logger.LogInformation("Successfully connected to Soulseek as {Username}", _config.Username);
             _eventBus.Publish(new SoulseekConnectionStatusEvent("connected", _config.Username ?? "Unknown"));
+
+            // Initialize file sharing to reduce peer rejection rates (Phase 13 Optimization)
+            if (_client != null && !string.IsNullOrEmpty(_config.DownloadDirectory))
+            {
+                _ = Task.Run(async () =>
+                {
+                    try
+                    {
+                        // Wait for login to stabilize
+                        await Task.Delay(5000, ct);
+                        if (_client.State.HasFlag(SoulseekClientStates.LoggedIn))
+                        {
+                            _logger.LogInformation("Soulseek: Scanning shared files in {Path}...", _config.DownloadDirectory);
+                            // NOTE: BuildSharedFileListAsync/UpdateSharedFilesAsync not found in Soulseek.NET 1.0.0
+                            // TODO: Implement file sharing correctly when library support is confirmed
+                            /*
+                            var sharedFiles = await _client.BuildSharedFileListAsync(_config.DownloadDirectory);
+                            await _client.UpdateSharedFilesAsync(sharedFiles);
+                            _logger.LogInformation("Soulseek: Now sharing {Count} files to improve peer acceptance.", sharedFiles.Count);
+                            */
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogWarning(ex, "Failed to initialize shared files (non-critical)");
+                    }
+                }, ct);
+            }
         }
         catch (Exception ex)
         {
@@ -594,6 +622,12 @@ public class SoulseekAdapter : ISoulseekAdapter, IDisposable
             this._logger.LogWarning("Network error during download: {Filename} from {Username} - {Message}", filename, username, ex.Message);
             _eventBus.Publish(new TransferFailedEvent(filename, username, "Connection failed"));
             return false;
+        }
+        catch (Soulseek.TransferRejectedException)
+        {
+             // RETHROW: "Too many files" or "Banned" 
+             // This allows DownloadManager to catch it and trigger Exponential Backoff / Retry
+             throw; 
         }
         catch (Exception ex)
         {

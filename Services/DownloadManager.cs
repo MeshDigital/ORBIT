@@ -16,6 +16,7 @@ using SLSKDONET.Data;
 using SLSKDONET.Models;
 using SLSKDONET.Services.InputParsers;
 using SLSKDONET.Utils;
+using SLSKDONET.Models;
 using SLSKDONET.Services.Models;
 using Microsoft.EntityFrameworkCore;
 
@@ -389,11 +390,35 @@ public class DownloadManager : INotifyPropertyChanged, IDisposable
             
             foreach (var track in tracks)
             {
-                // Skip if already queued
+                // Check if already queued
                 if (existingTrackIds.Contains(track.Id))
                 {
+                    // Fix: Retry if in a terminal/failure state
+                    var existingCtx = _downloads.FirstOrDefault(d => d.Model.Id == track.Id);
+                    if (existingCtx != null && (existingCtx.State == PlaylistTrackState.Failed || 
+                                              existingCtx.State == PlaylistTrackState.Cancelled || 
+                                              existingCtx.State == PlaylistTrackState.Deferred))
+                    {
+                        _logger.LogInformation("Retrying existing track {Title} (State: {State})", track.Title, existingCtx.State);
+                        
+                        // Reset State
+                        // Do not await here to avoid blocking loop
+                        _ = UpdateStateAsync(existingCtx, PlaylistTrackState.Pending);
+                        
+                        // Reset Retry Counters
+                        existingCtx.RetryCount = 0;
+                        existingCtx.NextRetryTime = null;
+                        existingCtx.FailureReason = null;
+                        
+                        // Queue for enrichment/download
+                        _enrichmentOrchestrator.QueueForEnrichment(existingCtx.Model);
+                        queued++; // Count as queued now
+                        continue;
+                    }
+
                     skipped++;
-                    _logger.LogDebug("Skipping track {Artist} - {Title}: already queued", track.Artist, track.Title);
+                    _logger.LogDebug("Skipping track {Artist} - {Title}: already queued (State: {State})", 
+                        track.Artist, track.Title, existingCtx?.State);
                     continue;
                 }
                 
@@ -590,8 +615,15 @@ public class DownloadManager : INotifyPropertyChanged, IDisposable
         var displayMessage = failureReason.ToDisplayMessage();
         var suggestion = failureReason.ToActionableSuggestion();
         
+        // Only append search diagnostics if the failure is search-related (i.e. we couldn't find a valid track)
+        // If we passed the search phase and failed later (TransferFailed), irrelevant rejections shouldn't be shown.
+        var isSearchFailure = failureReason == DownloadFailureReason.NoSearchResults ||
+                              failureReason == DownloadFailureReason.AllResultsRejectedQuality ||
+                              failureReason == DownloadFailureReason.AllResultsRejectedFormat ||
+                              failureReason == DownloadFailureReason.AllResultsBlacklisted;
+
         // If we have search attempt logs, add the best rejection details
-        if (ctx.SearchAttempts.Any())
+        if (isSearchFailure && ctx.SearchAttempts.Any())
         {
             var lastAttempt = ctx.SearchAttempts.Last();
             if (lastAttempt.Top3RejectedResults.Any())
@@ -617,7 +649,7 @@ public class DownloadManager : INotifyPropertyChanged, IDisposable
         ctx.ErrorMessage = error; // Update context
         
         // Publish with ProjectId for targeted updates
-        _eventBus.Publish(new Events.TrackStateChangedEvent(ctx.GlobalId, ctx.Model.PlaylistId, newState, error));
+        _eventBus.Publish(new TrackStateChangedEvent(ctx.GlobalId, ctx.Model.PlaylistId, newState, error));
         
         // DB Persistence for critical states
         await SaveTrackToDb(ctx);
@@ -625,6 +657,12 @@ public class DownloadManager : INotifyPropertyChanged, IDisposable
         if (newState == PlaylistTrackState.Completed || newState == PlaylistTrackState.Failed || newState == PlaylistTrackState.Cancelled)
         {
              await UpdatePlaylistStatusAsync(ctx);
+        }
+
+        // Phase 6 Fix: Real-time population of "All Tracks" (LibraryEntry)
+        if (newState == PlaylistTrackState.Completed && !string.IsNullOrEmpty(ctx.Model.ResolvedFilePath))
+        {
+            await _libraryService.AddTrackToLibraryIndexAsync(ctx.Model, ctx.Model.ResolvedFilePath);
         }
     }
     
@@ -787,7 +825,7 @@ public class DownloadManager : INotifyPropertyChanged, IDisposable
         ctx.CancellationTokenSource = new CancellationTokenSource(); // Reset CTS
         
         // Publish reset event (handled by StateChanged to Pending usually, but verify UI clears error)
-        _eventBus.Publish(new Events.TrackStateChangedEvent(ctx.GlobalId, ctx.Model.PlaylistId, PlaylistTrackState.Pending, null));
+        _eventBus.Publish(new TrackStateChangedEvent(ctx.GlobalId, ctx.Model.PlaylistId, PlaylistTrackState.Pending, null));
     }
 
     public void CancelTrack(string globalId)
@@ -1286,7 +1324,14 @@ public class DownloadManager : INotifyPropertyChanged, IDisposable
                 // Phase 3.1: Use Detection Service (Searching State)
                 // Refactor Note: DiscoveryService now takes PlaylistTrack (Decoupled).
                 // Phase 3B: Pass Blacklisted users for Health Monitor retries
-                var bestMatch = await _discoveryService.FindBestMatchAsync(ctx.Model, trackCt, ctx.BlacklistedUsers);
+                var discoveryResult = await _discoveryService.FindBestMatchAsync(ctx.Model, trackCt, ctx.BlacklistedUsers);
+                var bestMatch = discoveryResult.BestMatch;
+
+                // Capture search diagnostics
+                if (discoveryResult.Log != null)
+                {
+                    ctx.SearchAttempts.Add(discoveryResult.Log);
+                }
 
                 if (bestMatch == null)
                 {
@@ -1364,16 +1409,24 @@ public class DownloadManager : INotifyPropertyChanged, IDisposable
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "ProcessTrackAsync error for {GlobalId}", ctx.GlobalId);
+                if (ex.GetType().Name.Contains("TransferRejectedException") || ex.Message.Contains("Too many files"))
+                {
+                    _logger.LogWarning("Peer Limit Reached for {Title}: {Message}. Triggering Retry Logic.", ctx.Model.Title, ex.Message);
+                }
+                else
+                {
+                    _logger.LogError(ex, "ProcessTrackAsync error for {GlobalId}", ctx.GlobalId);
+                }
                 
                 // Exponential Backoff Logic (Phase 7)
                 ctx.RetryCount++;
                 if (ctx.RetryCount < _config.MaxDownloadRetries)
                 {
                     var delayMinutes = Math.Pow(2, ctx.RetryCount); // 2, 4, 8, 16...
-                    ctx.NextRetryTime = DateTime.Now.AddMinutes(delayMinutes);
+                    ctx.NextRetryTime = DateTime.UtcNow.AddMinutes(delayMinutes);
+                    ctx.Model.Priority = 20; // LOW PRIORITY: Send retries to back of queue (fresh downloads = priority 10)
                     await UpdateStateAsync(ctx, PlaylistTrackState.Pending, $"Retrying in {delayMinutes}m: {ex.Message}");
-                    _logger.LogInformation("Scheduled retry #{Count} for {GlobalId} at {Time}", ctx.RetryCount, ctx.GlobalId, ctx.NextRetryTime);
+                    _logger.LogInformation("Scheduled retry #{Count} for {GlobalId} at {Time} (low priority)", ctx.RetryCount, ctx.GlobalId, ctx.NextRetryTime);
                 }
                 else
                 {
@@ -1581,7 +1634,7 @@ public class DownloadManager : INotifyPropertyChanged, IDisposable
             // Throttle to 10 updates/sec to prevent UI stuttering
             if ((DateTime.Now - lastNotificationTime).TotalMilliseconds > 100)
             {
-                _eventBus.Publish(new Events.TrackProgressChangedEvent(
+                _eventBus.Publish(new TrackProgressChangedEvent(
                     ctx.GlobalId, 
                     ctx.Progress,
                     ctx.BytesReceived,
