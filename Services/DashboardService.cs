@@ -133,7 +133,7 @@ public class DashboardService
             // DatabaseService doesn't have a direct "GetRecent" yet, we'll query it here or add to DatabaseService
             // For now, using AppDbContext directly for simplicity in DashboardService
             using var context = new AppDbContext();
-            var entities = await context.PlaylistJobs
+            var entities = await context.Projects
                 .OrderByDescending(j => j.CreatedAt)
                 .Take(count)
                 .ToListAsync();

@@ -9,7 +9,7 @@ public class AppDbContext : DbContext
 {
     public DbSet<TrackEntity> Tracks { get; set; }
     public DbSet<LibraryEntryEntity> LibraryEntries { get; set; }
-    public DbSet<PlaylistJobEntity> PlaylistJobs { get; set; }
+    public DbSet<PlaylistJobEntity> Projects { get; set; }
     public DbSet<PlaylistTrackEntity> PlaylistTracks { get; set; }
     public DbSet<PlaylistActivityLogEntity> ActivityLogs { get; set; }
     public DbSet<QueueItemEntity> QueueItems { get; set; }
@@ -70,6 +70,9 @@ public class AppDbContext : DbContext
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
+        
+        // Phase 0B: Map PlaylistJobEntity to "Projects" table (terminology unification)
+        modelBuilder.Entity<PlaylistJobEntity>().ToTable("Projects");
         
         // Configure PlaylistJob -> PlaylistTrack relationship
         modelBuilder.Entity<PlaylistJobEntity>()

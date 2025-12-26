@@ -212,9 +212,10 @@
                     </StackPanel>
                 </ScrollViewer>
 
-                <!-- Track Search Results -->
-                <ScrollViewer IsVisible="{Binding !IsAlbumSearch}">
-                    <StackPanel Margin="24,0,24,24" IsVisible="True">
+                <!-- Track Search Results (Virtualization Fix: Removed outer ScrollViewer) -->
+                <Grid Grid.Row="2" RowDefinitions="Auto,*" IsVisible="{Binding !IsAlbumSearch}">
+                    
+                    <StackPanel Grid.Row="0" Margin="24,0,24,16" IsVisible="True">
                     
                         <!-- Instant Filter HUD -->
                         <Border Margin="0,0,0,16" Background="#2D2D2D" CornerRadius="8" Padding="16,12">
@@ -267,84 +268,88 @@
                             </Button>
                         </Grid>
 
-                        <!-- Results DataGrid -->
-                        <DataGrid x:Name="ResultsGrid"
-                                  ItemsSource="{Binding SearchResults}"
-                                  AutoGenerateColumns="False"
-                                  Background="Transparent"
-                                  BorderThickness="0"
-                                  GridLinesVisibility="Horizontal"
-                                  RowBackground="Transparent"
-                                  Foreground="#DDD"
-                                  HeadersVisibility="Column"
-                                  CanUserReorderColumns="False"
-                                  CanUserResizeColumns="True"
-                                  CanUserSortColumns="True"
-                                  IsReadOnly="True"
-                                  SelectionMode="Extended">
-                            <DataGrid.Styles>
-                                <Style Selector="DataGridRow:pointerover">
-                                    <Setter Property="Background" Value="#1AFFFFFF"/>
-                                </Style>
-                                <Style Selector="DataGridRow:selected">
-                                    <Setter Property="Background" Value="#2A0078D4"/>
-                                </Style>
-                            </DataGrid.Styles>
-                            
-                            <!-- Context Menu -->
-                            <DataGrid.ContextMenu>
-                                <ContextMenu>
-                                    <MenuItem Header="Download Selected" Command="{Binding DownloadSelectedCommand}">
-                                        <MenuItem.Icon>
-                                            <TextBlock Text="⬇️"/>
-                                        </MenuItem.Icon>
-                                    </MenuItem>
-                                    <!-- 
-                                    <MenuItem Header="Add to Playlist..." Command="{Binding AddToPlaylistCommand}"/>
-                                    -->
-                                </ContextMenu>
-                            </DataGrid.ContextMenu>
-
-                            <DataGrid.Columns>
-                                <!-- Status Column -->
-                                <DataGridTextColumn Header="Status" Binding="{Binding StatusIcon}" Width="60"/>
-                                <DataGridTemplateColumn Header="Rank" Width="60">
-                                    <DataGridTemplateColumn.CellTemplate>
-                                        <DataTemplate>
-                                            <TextBlock Text="{Binding CurrentRank, StringFormat='{}{0:F1}'}" 
-                                                       HorizontalAlignment="Center" 
-                                                       VerticalAlignment="Center"
-                                                       ToolTip.Tip="{Binding ScoreBreakdown}"
-                                                       Background="Transparent"/>
-                                        </DataTemplate>
-                                    </DataGridTemplateColumn.CellTemplate>
-                                </DataGridTemplateColumn>
-                                <DataGridTextColumn Header="Artist" Binding="{Binding Artist}" Width="2*"/>
-                                <DataGridTextColumn Header="Title" Binding="{Binding Title}" Width="3*"/>
-                                <DataGridTextColumn Header="Album" Binding="{Binding Album}" Width="2*"/>
-                                <DataGridTextColumn Header="Quality" Binding="{Binding Bitrate, StringFormat='{}{0} kbps'}" Width="100"/>
-                                <DataGridTextColumn Header="User" Binding="{Binding Username}" Width="120"/>
-                                <DataGridTextColumn Header="Size" Binding="{Binding Size, StringFormat='{}{0:N0} KB'}" Width="100"/>
-                                <DataGridTemplateColumn Header="🚀" Width="40">
-                                    <DataGridTemplateColumn.CellTemplate>
-                                        <DataTemplate>
-                                            <TextBlock Text="✓" Foreground="#4CAF50" HorizontalAlignment="Center" FontWeight="Bold" IsVisible="{Binding HasFreeUploadSlot}"/>
-                                        </DataTemplate>
-                                    </DataGridTemplateColumn.CellTemplate>
-                                </DataGridTemplateColumn>
-                            </DataGrid.Columns>
-                        </DataGrid>
-
-                        <!-- Empty State -->
-                        <Border Background="#252526" CornerRadius="8" Padding="48,32" IsVisible="{Binding !SearchResults.Count}" Margin="0,24,0,0">
-                            <StackPanel HorizontalAlignment="Center" Spacing="16">
-                                <TextBlock Text="🔍" FontSize="48" HorizontalAlignment="Center"/>
-                                <TextBlock Text="No results yet" FontSize="18" FontWeight="SemiBold" Foreground="White" HorizontalAlignment="Center"/>
-                                <TextBlock Text="Try searching for a track, artist, or album" FontSize="13" Foreground="#A0A0A0" HorizontalAlignment="Center"/>
-                            </StackPanel>
-                        </Border>
                     </StackPanel>
-                </ScrollViewer>
+
+                    <!-- Results DataGrid (Now in '*' row to allow internal scrolling/virtualization) -->
+                    <DataGrid Grid.Row="1" 
+                              x:Name="ResultsGrid"
+                              ItemsSource="{Binding SearchResults}"
+                              AutoGenerateColumns="False"
+                              Background="Transparent"
+                              BorderThickness="0"
+                              GridLinesVisibility="Horizontal"
+                              RowBackground="Transparent"
+                              Foreground="#DDD"
+                              HeadersVisibility="Column"
+                              CanUserReorderColumns="False"
+                              CanUserResizeColumns="True"
+                              CanUserSortColumns="True"
+                              IsReadOnly="True"
+                              SelectionMode="Extended"
+                              Margin="24,0,24,0">
+                              
+                        <DataGrid.Styles>
+                            <Style Selector="DataGridRow:pointerover">
+                                <Setter Property="Background" Value="#1AFFFFFF"/>
+                            </Style>
+                            <Style Selector="DataGridRow:selected">
+                                <Setter Property="Background" Value="#2A0078D4"/>
+                            </Style>
+                        </DataGrid.Styles>
+                        
+                        <!-- Context Menu -->
+                        <DataGrid.ContextMenu>
+                            <ContextMenu>
+                                <MenuItem Header="Download Selected" Command="{Binding DownloadSelectedCommand}">
+                                    <MenuItem.Icon>
+                                        <TextBlock Text="⬇️"/>
+                                    </MenuItem.Icon>
+                                </MenuItem>
+                            </ContextMenu>
+                        </DataGrid.ContextMenu>
+
+                        <DataGrid.Columns>
+                            <!-- Status Column -->
+                            <DataGridTextColumn Header="Status" Binding="{Binding StatusIcon}" Width="60"/>
+                            
+                            <!-- Rank Column with Tooltip -->
+                            <DataGridTemplateColumn Header="Rank" Width="60">
+                                <DataGridTemplateColumn.CellTemplate>
+                                    <DataTemplate>
+                                        <TextBlock Text="{Binding CurrentRank, StringFormat='{}{0:F1}'}" 
+                                                   HorizontalAlignment="Center" 
+                                                   VerticalAlignment="Center"
+                                                   ToolTip.Tip="{Binding ScoreBreakdown}"
+                                                   Background="Transparent"/>
+                                    </DataTemplate>
+                                </DataGridTemplateColumn.CellTemplate>
+                            </DataGridTemplateColumn>
+                            
+                            <DataGridTextColumn Header="Artist" Binding="{Binding Artist}" Width="2*"/>
+                            <DataGridTextColumn Header="Title" Binding="{Binding Title}" Width="3*"/>
+                            <DataGridTextColumn Header="Album" Binding="{Binding Album}" Width="2*"/>
+                            <DataGridTextColumn Header="Quality" Binding="{Binding Bitrate, StringFormat='{}{0} kbps'}" Width="100"/>
+                            <DataGridTextColumn Header="User" Binding="{Binding Username}" Width="120"/>
+                            <DataGridTextColumn Header="Size" Binding="{Binding Size, StringFormat='{}{0:N0} KB'}" Width="100"/>
+                            <DataGridTemplateColumn Header="🚀" Width="40">
+                                <DataGridTemplateColumn.CellTemplate>
+                                    <DataTemplate>
+                                        <TextBlock Text="✓" Foreground="#4CAF50" HorizontalAlignment="Center" FontWeight="Bold" IsVisible="{Binding HasFreeUploadSlot}"/>
+                                    </DataTemplate>
+                                </DataGridTemplateColumn.CellTemplate>
+                            </DataGridTemplateColumn>
+                        </DataGrid.Columns>
+                    </DataGrid>
+
+                    <!-- Empty State (Overlay) -->
+                    <Border Grid.Row="1" Background="#252526" CornerRadius="8" Padding="48,32" IsVisible="{Binding !SearchResults.Count}" Margin="24,24,24,0" VerticalAlignment="Top">
+                        <StackPanel HorizontalAlignment="Center" Spacing="16">
+                            <TextBlock Text="🔍" FontSize="48" HorizontalAlignment="Center"/>
+                            <TextBlock Text="No results yet" FontSize="18" FontWeight="SemiBold" Foreground="White" HorizontalAlignment="Center"/>
+                            <TextBlock Text="Try searching for a track, artist, or album" FontSize="13" Foreground="#A0A0A0" HorizontalAlignment="Center"/>
+                        </StackPanel>
+                    </Border>
+                </Grid>
             </Grid>
 
             <!-- Bottom Action Bar -->

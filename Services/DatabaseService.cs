@@ -65,11 +65,27 @@ public class DatabaseService
             // Optimize: Check all columns at once using PRAGMA table_info
             await connection.OpenAsync();
             
-            using var cmd = connection.CreateCommand();
-            cmd.CommandText = "PRAGMA table_info(PlaylistTracks)";
+            // Phase 0B: Rename PlaylistJobs -> Projects (if table exists)
+            using (var cmd = connection.CreateCommand())
+            {
+                // Check if old table exists
+                cmd.CommandText = "SELECT name FROM sqlite_master WHERE type='table' AND name='PlaylistJobs'";
+                var oldTableExists = await cmd.ExecuteScalarAsync();
+                
+                if (oldTableExists != null)
+                {
+                    _logger.LogWarning("Schema Migration: Renaming 'PlaylistJobs' table to 'Projects'");
+                    cmd.CommandText = "ALTER TABLE PlaylistJobs RENAME TO Projects";
+                    await cmd.ExecuteNonQueryAsync();
+                    _logger.LogInformation("[{Ms}ms] Database Init: Table renamed to 'Projects'", sw.ElapsedMilliseconds);
+                }
+            }
+            
+            using var cmdSchema = connection.CreateCommand();
+            cmdSchema.CommandText = "PRAGMA table_info(PlaylistTracks)";
             var existingColumns = new HashSet<string>();
             
-            using (var reader = await cmd.ExecuteReaderAsync())
+            using (var reader = await cmdSchema.ExecuteReaderAsync())
             {
                 while (await reader.ReadAsync())
                 {
@@ -145,6 +161,10 @@ public class DatabaseService
             if (!existingColumns.Contains("Integrity"))
                 columnsToAdd.Add(("Integrity", "Integrity INTEGER DEFAULT 0"));
             
+            // Phase 5: Self-Healing (Upgrade Detection)
+            if (!existingColumns.Contains("PreviousBitrate"))
+                columnsToAdd.Add(("PreviousBitrate", "PreviousBitrate INTEGER DEFAULT 0"));
+            
             // Phase 3C: Advanced Queue Orchestration
             if (!existingColumns.Contains("Priority"))
                 columnsToAdd.Add(("Priority", "Priority INTEGER DEFAULT 1"));
@@ -177,10 +197,10 @@ public class DatabaseService
             }
             
             // Check PlaylistJobs table
-            cmd.CommandText = "PRAGMA table_info(PlaylistJobs)";
+            cmdSchema.CommandText = "PRAGMA table_info(PlaylistJobs)";
             existingColumns.Clear();
             
-            using (var reader = await cmd.ExecuteReaderAsync())
+            using (var reader = await cmdSchema.ExecuteReaderAsync())
             {
                 while (await reader.ReadAsync())
                 {
@@ -232,9 +252,9 @@ public class DatabaseService
             }
 
             // Check LibraryEntries table
-            cmd.CommandText = "PRAGMA table_info(LibraryEntries)";
+            cmdSchema.CommandText = "PRAGMA table_info(LibraryEntries)";
             existingColumns.Clear();
-            using (var reader = await cmd.ExecuteReaderAsync())
+            using (var reader = await cmdSchema.ExecuteReaderAsync())
             {
                 while (await reader.ReadAsync())
                 {
@@ -246,11 +266,16 @@ public class DatabaseService
                 _logger.LogWarning("Schema Patch: Adding missing column 'Integrity' to LibraryEntries");
                 await context.Database.ExecuteSqlRawAsync("ALTER TABLE LibraryEntries ADD COLUMN Integrity INTEGER DEFAULT 0");
             }
+            if (!existingColumns.Contains("PreviousBitrate"))
+            {
+                _logger.LogWarning("Schema Patch: Adding missing column 'PreviousBitrate' to LibraryEntries");
+                await context.Database.ExecuteSqlRawAsync("ALTER TABLE LibraryEntries ADD COLUMN PreviousBitrate INTEGER DEFAULT 0");
+            }
 
             // Check Tracks table
-            cmd.CommandText = "PRAGMA table_info(Tracks)";
+            cmdSchema.CommandText = "PRAGMA table_info(Tracks)";
             existingColumns.Clear();
-            using (var reader = await cmd.ExecuteReaderAsync())
+            using (var reader = await cmdSchema.ExecuteReaderAsync())
             {
                 while (await reader.ReadAsync())
                 {
@@ -269,9 +294,9 @@ public class DatabaseService
             }
 
             // Check LibraryHealth table
-            cmd.CommandText = "PRAGMA table_info(LibraryHealth)";
+            cmdSchema.CommandText = "PRAGMA table_info(LibraryHealth)";
             existingColumns.Clear();
-            using (var reader = await cmd.ExecuteReaderAsync())
+            using (var reader = await cmdSchema.ExecuteReaderAsync())
             {
                 while (await reader.ReadAsync())
                 {
@@ -323,6 +348,11 @@ public class DatabaseService
                     -- Tracks index for Spotify metadata lookups
                     CREATE INDEX IF NOT EXISTS idx_tracks_spotifytrackid 
                     ON Tracks(SpotifyTrackId);
+                    
+                    -- Phase 5/13: Self-Healing & System Health Dashboard
+                    -- Index on Integrity for filtering Failed/Unknown tracks
+                    CREATE INDEX IF NOT EXISTS idx_library_entries_integrity 
+                    ON LibraryEntries(Integrity);
                 ");
                 _logger.LogInformation("[{Ms}ms] Database Init: Performance indexes created", sw.ElapsedMilliseconds);
             }
@@ -438,7 +468,7 @@ public class DatabaseService
             // Patch LibraryEntries columns
             using (var schemaCmd = connection.CreateCommand())
             {
-                schemaCmd.CommandText = "PRAGMA table_info(LibraryEntries)";
+                cmdSchema.CommandText = "PRAGMA table_info(LibraryEntries)";
                 var libColumns = new HashSet<string>();
                 using (var reader = await schemaCmd.ExecuteReaderAsync())
                 {
@@ -486,7 +516,7 @@ public class DatabaseService
             // Patch Tracks columns
             using (var schemaCmd = connection.CreateCommand())
             {
-                schemaCmd.CommandText = "PRAGMA table_info(Tracks)";
+                cmdSchema.CommandText = "PRAGMA table_info(Tracks)";
                 var tracksColumns = new HashSet<string>();
                 using (var reader = await schemaCmd.ExecuteReaderAsync())
                 {
@@ -547,7 +577,7 @@ public class DatabaseService
             // Patch PlaylistTracks columns (Phase 8 Support)
             using (var schemaCmd = connection.CreateCommand())
             {
-                schemaCmd.CommandText = "PRAGMA table_info(PlaylistTracks)";
+                cmdSchema.CommandText = "PRAGMA table_info(PlaylistTracks)";
                 var ptColumns = new HashSet<string>();
                 using (var reader = await schemaCmd.ExecuteReaderAsync())
                 {
@@ -834,7 +864,7 @@ public class DatabaseService
         }
         
         // 3. Fetch all affected jobs and all their related tracks in two efficient queries
-        var jobsToUpdate = await context.PlaylistJobs
+        var jobsToUpdate = await context.Projects
             .Where(j => distinctJobIds.Contains(j.Id))
             .ToListAsync();
 
@@ -1115,7 +1145,7 @@ public class DatabaseService
     public async Task<List<PlaylistJobEntity>> LoadAllPlaylistJobsAsync()
     {
         using var context = new AppDbContext();
-        return await context.PlaylistJobs
+        return await context.Projects
             .AsNoTracking()
             .Where(j => !j.IsDeleted)
             .Include(j => j.Tracks)
@@ -1128,7 +1158,7 @@ public class DatabaseService
         using var context = new AppDbContext();
         // BUGFIX: Also exclude soft-deleted jobs, otherwise duplicate detection finds deleted jobs
         // that won't show in the library list (LoadAllPlaylistJobsAsync filters by !IsDeleted)
-        return await context.PlaylistJobs.AsNoTracking()
+        return await context.Projects.AsNoTracking()
             .Include(j => j.Tracks)
             .FirstOrDefaultAsync(j => j.Id == jobId && !j.IsDeleted);
 
@@ -1143,7 +1173,7 @@ public class DatabaseService
         // We set CreatedAt here if it's a new entity. The DB context tracks the entity state.
         if (context.Entry(job).State == EntityState.Detached)
              job.CreatedAt = DateTime.UtcNow;
-        context.PlaylistJobs.Update(job);
+        context.Projects.Update(job);
         await context.SaveChangesAsync();
         _logger.LogInformation("Saved PlaylistJob: {Title} ({Id})", job.SourceTitle, job.Id);
     }
@@ -1151,10 +1181,10 @@ public class DatabaseService
     public async Task DeletePlaylistJobAsync(Guid jobId)
     {
         using var context = new AppDbContext();
-        var job = await context.PlaylistJobs.FindAsync(jobId);
+        var job = await context.Projects.FindAsync(jobId);
         if (job != null)
         {
-            context.PlaylistJobs.Remove(job);
+            context.Projects.Remove(job);
             await context.SaveChangesAsync();
             _logger.LogInformation("Deleted PlaylistJob: {Id}", jobId);
         }
@@ -1163,7 +1193,7 @@ public class DatabaseService
     public async Task SoftDeletePlaylistJobAsync(Guid jobId)
     {
         using var context = new AppDbContext();
-        var job = await context.PlaylistJobs.FindAsync(jobId);
+        var job = await context.Projects.FindAsync(jobId);
         if (job != null)
         {
             job.IsDeleted = true;
@@ -1210,7 +1240,7 @@ public class DatabaseService
 
     private static async Task UpdatePlaylistJobCountersAsync(AppDbContext context, Guid playlistId)
     {
-        var job = await context.PlaylistJobs.FirstOrDefaultAsync(j => j.Id == playlistId);
+        var job = await context.Projects.FirstOrDefaultAsync(j => j.Id == playlistId);
         if (job == null)
         {
             return;
@@ -1302,7 +1332,7 @@ public class DatabaseService
             // Even with semaphore, we check first. If missing, we TRY ADD.
             // If that fails with Unique Constraint, we CATCH and UPDATE (Upsert).
             
-            var existingJob = await context.PlaylistJobs.FirstOrDefaultAsync(j => j.Id == job.Id);
+            var existingJob = await context.Projects.FirstOrDefaultAsync(j => j.Id == job.Id);
             bool jobExists = existingJob != null;
 
             if (jobExists)
@@ -1312,7 +1342,7 @@ public class DatabaseService
                  existingJob.SourceTitle = job.SourceTitle;
                  existingJob.SourceType = job.SourceType;
                  existingJob.IsDeleted = false;
-                 context.PlaylistJobs.Update(existingJob);
+                 context.Projects.Update(existingJob);
             }
             else
             {
@@ -1330,7 +1360,7 @@ public class DatabaseService
                      MissingCount = job.MissingCount,
                      IsDeleted = false
                  };
-                 context.PlaylistJobs.Add(jobEntity);
+                 context.Projects.Add(jobEntity);
                  
                  // Immediate save to catch Unique Constraint violation NOW
                  try
@@ -1346,12 +1376,12 @@ public class DatabaseService
                      context.Entry(jobEntity).State = EntityState.Detached;
 
                      // Re-fetch the phantom existing job
-                     existingJob = await context.PlaylistJobs.FirstOrDefaultAsync(j => j.Id == job.Id);
+                     existingJob = await context.Projects.FirstOrDefaultAsync(j => j.Id == job.Id);
                      if (existingJob != null)
                      {
                          existingJob.TotalTracks = Math.Max(existingJob.TotalTracks, job.TotalTracks);
                          existingJob.IsDeleted = false;
-                         context.PlaylistJobs.Update(existingJob);
+                         context.Projects.Update(existingJob);
                          jobExists = true; 
                      }
                      else
@@ -1485,7 +1515,7 @@ public class DatabaseService
 
             // Phase 2: Recalculate and update header counts to ensure accuracy after merges/updates.
             // This prevents "lost counts" when merging a small batch into a large existing playlist.
-            var consolidatedJob = await context.PlaylistJobs.FirstOrDefaultAsync(j => j.Id == job.Id);
+            var consolidatedJob = await context.Projects.FirstOrDefaultAsync(j => j.Id == job.Id);
             if (consolidatedJob != null)
             {
                 // Source of truth is now the aggregate of all tracks for this PlaylistId in the DB
@@ -1494,7 +1524,7 @@ public class DatabaseService
                 consolidatedJob.FailedCount = await context.PlaylistTracks.CountAsync(t => t.PlaylistId == job.Id && (t.Status == TrackStatus.Failed || t.Status == TrackStatus.Skipped));
                 consolidatedJob.MissingCount = await context.PlaylistTracks.CountAsync(t => t.PlaylistId == job.Id && t.Status == TrackStatus.Missing);
                 
-                context.PlaylistJobs.Update(consolidatedJob);
+                context.Projects.Update(consolidatedJob);
                 await context.SaveChangesAsync();
             }
 
@@ -1521,7 +1551,7 @@ public class DatabaseService
     public async Task LogPlaylistJobDiagnostic(Guid jobId)
     {
         using var context = new AppDbContext();
-        var job = await context.PlaylistJobs
+        var job = await context.Projects
             .AsNoTracking()
             .Include(j => j.Tracks)
             .FirstOrDefaultAsync(j => j.Id == jobId);
@@ -1560,7 +1590,7 @@ public class DatabaseService
         using var context = new AppDbContext();
         
         // Filter out tracks from soft-deleted jobs
-        var validJobIds = context.PlaylistJobs
+        var validJobIds = context.Projects
             .Where(j => !j.IsDeleted)
             .Select(j => j.Id);
             
@@ -1580,7 +1610,7 @@ public class DatabaseService
         using var context = new AppDbContext();
         
         // 1. Get valid jobs
-        var validJobIds = context.PlaylistJobs
+        var validJobIds = context.Projects
             .Where(j => !j.IsDeleted)
             .Select(j => j.Id);
             
@@ -1608,7 +1638,7 @@ public class DatabaseService
     public async Task<List<PlaylistTrackEntity>> GetNonPendingTracksAsync()
     {
         using var context = new AppDbContext();
-        var validJobIds = context.PlaylistJobs.Where(j => !j.IsDeleted).Select(j => j.Id);
+        var validJobIds = context.Projects.Where(j => !j.IsDeleted).Select(j => j.Id);
         
         return await context.PlaylistTracks
             .AsNoTracking()

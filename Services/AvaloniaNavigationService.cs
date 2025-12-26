@@ -10,6 +10,7 @@ namespace SLSKDONET.Services;
 /// Avalonia-based navigation service.
 /// Uses ContentControl binding instead of WPF Frame navigation.
 /// Pages are registered as view models/controls and swapped via ContentControl.Content binding.
+/// Phase 1A: Implements ViewCache pattern to prevent state loss during navigation.
 /// </summary>
 public interface INavigationService
 {
@@ -27,6 +28,9 @@ public class NavigationService : INavigationService
     private readonly Dictionary<string, Type> _pages = new();
     private readonly Stack<object?> _pageHistory = new();
     private object? _currentPage;
+    
+    // Phase 1A: ViewCache pattern - prevents state loss during navigation
+    private readonly Dictionary<Type, UserControl> _viewCache = new();
 
     public object? CurrentPage => _currentPage;
 
@@ -48,14 +52,29 @@ public class NavigationService : INavigationService
         if (_pages.TryGetValue(pageKey, out var pageType))
         {
             _logger.LogInformation("Navigating to page: {PageKey}", pageKey);
+            
             // Save current page in history (if exists)
             if (_currentPage != null)
             {
                 _pageHistory.Push(_currentPage);
             }
 
-            // Create new page instance via DI
-            var page = _serviceProvider.GetService(pageType) as UserControl;
+            // Phase 1A: Check view cache first
+            if (!_viewCache.TryGetValue(pageType, out var page))
+            {
+                // Create new page instance via DI and cache it
+                page = _serviceProvider.GetService(pageType) as UserControl;
+                if (page != null)
+                {
+                    _viewCache[pageType] = page;
+                    _logger.LogDebug("Created and cached new view: {PageType}", pageType.Name);
+                }
+            }
+            else
+            {
+                _logger.LogDebug("Reusing cached view: {PageType}", pageType.Name);
+            }
+
             if (page != null)
             {
                 _currentPage = page;

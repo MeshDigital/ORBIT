@@ -195,6 +195,9 @@ public partial class SearchViewModel : ReactiveObject
     {
         if (string.IsNullOrWhiteSpace(SearchQuery)) return;
 
+        // Reset Filters (Polish: Ensure clean state unless locked - naive reset for now)
+        FilterViewModel.Reset();
+
         // --- VIBE SEARCH: Natural Language Parsing ---
         // Parse tokens like "flac", "wav", ">320", "kbps:320"
         var tokens = SearchQuery.Split(' ', StringSplitOptions.RemoveEmptyEntries).ToList();
@@ -405,6 +408,8 @@ public partial class SearchViewModel : ReactiveObject
 
         foreach (var track in selected)
         {
+             // Immediate Feedback (Polish)
+             track.Status = TrackStatus.Pending;
              _downloadManager.EnqueueTrack(track.Model);
         }
         StatusText = $"Queued {selected.Count} downloads";

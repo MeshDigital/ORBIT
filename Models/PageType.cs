@@ -5,7 +5,7 @@ public enum PageType
     Home,
     Search,
     Library,
-    Downloads,
+    Projects,
     Settings,
     Import,
     UpgradeScout,

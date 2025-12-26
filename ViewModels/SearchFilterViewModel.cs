@@ -101,8 +101,15 @@ public class SearchFilterViewModel : ReactiveObject
         {
             if (result.Model == null) return false;
 
-            // 1. Bitrate
-            if (result.Bitrate < minBitrate) return false;
+            // 1. Bitrate Check with "Bucket Logic" for VBR
+            // If user asks for 320, we allow V0 (~240+)
+            // If user asks for 256, we allow ~220
+            int effectiveMin = minBitrate;
+            if (minBitrate >= 320) effectiveMin = 240;      // Allow V0
+            else if (minBitrate >= 256) effectiveMin = 220; // Allow V1
+            else if (minBitrate >= 192) effectiveMin = 180; // Allow V2
+
+            if (result.Bitrate < effectiveMin) return false;
 
             // 2. Format
             // Normalize extension
@@ -117,5 +124,20 @@ public class SearchFilterViewModel : ReactiveObject
 
             return true;
         };
+    }
+
+    public void Reset()
+    {
+        MinBitrate = 320;
+        UseHighReliability = false;
+        
+        // Reset formats (avoid triggering too many updates)
+        if (SelectedFormats.Count != 3) 
+        {
+             SelectedFormats.Clear();
+             SelectedFormats.Add("MP3");
+             SelectedFormats.Add("FLAC");
+             SelectedFormats.Add("WAV");
+        }
     }
 }

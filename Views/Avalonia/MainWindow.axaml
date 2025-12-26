@@ -26,8 +26,8 @@
         <!-- Ctrl+L: Go to Library -->
         <KeyBinding Gesture="Ctrl+L" Command="{Binding NavigateLibraryCommand}"/>
         
-        <!-- Ctrl+D: Go to Downloads -->
-        <KeyBinding Gesture="Ctrl+D" Command="{Binding NavigateDownloadsCommand}"/>
+        <!-- Ctrl+D: Go to Projects -->
+        <KeyBinding Gesture="Ctrl+D" Command="{Binding NavigateProjectsCommand}"/>
         
         <!-- Ctrl+Shift+S: Go to Settings (Ctrl+S conflicts with save) -->
         <KeyBinding Gesture="Ctrl+Shift+S" Command="{Binding NavigateSettingsCommand}"/>
@@ -233,13 +233,13 @@
                     </Button>
                     
                     <Button Classes="nav" 
-                            Command="{Binding NavigateDownloadsCommand}"
-                            Classes.selected="{Binding CurrentPageType, Converter={StaticResource EqualityConverter}, ConverterParameter={x:Static models:PageType.Downloads}}">
+                            Command="{Binding NavigateProjectsCommand}"
+                            Classes.selected="{Binding CurrentPageType, Converter={StaticResource EqualityConverter}, ConverterParameter={x:Static models:PageType.Projects}}">
                         <Grid ColumnDefinitions="Auto,*">
                             <Border Grid.ColumnSpan="2" CornerRadius="4" IsVisible="False"/>
                             <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="12">
-                                <TextBlock Text="⬇️" FontSize="16"/>
-                                <TextBlock Text="Downloads" FontSize="14"/>
+                                <TextBlock Text="📂" FontSize="16"/>
+                                <TextBlock Text="Projects" FontSize="14"/>
                             </StackPanel>
                         </Grid>
                     </Button>

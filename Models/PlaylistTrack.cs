@@ -157,7 +157,8 @@ public enum TrackStatus
     Missing = 0,      // Track not yet downloaded, queued for search
     Downloaded = 1,   // Track found in library (either just downloaded or previously)
     Failed = 2,       // Download was attempted but failed
-    Skipped = 3       // Track was skipped during import
+    Skipped = 3,      // Track was skipped during import
+    Pending = 4       // Track accepted for download, waiting for queue
 }
 
 public enum PlaylistTrackState

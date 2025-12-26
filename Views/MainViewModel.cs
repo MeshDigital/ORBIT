@@ -107,7 +107,7 @@ public class MainViewModel : INotifyPropertyChanged
         NavigateHomeCommand = new RelayCommand(NavigateToHome); // Phase 6D
         NavigateSearchCommand = new RelayCommand(NavigateToSearch);
         NavigateLibraryCommand = new RelayCommand(NavigateToLibrary);
-        NavigateDownloadsCommand = new RelayCommand(NavigateToDownloads);
+        NavigateProjectsCommand = new RelayCommand(NavigateToProjects);
         NavigateSettingsCommand = new RelayCommand(NavigateToSettings);
         NavigateUpgradeScoutCommand = new RelayCommand(NavigateUpgradeScout);
         NavigateInspectorCommand = new RelayCommand(NavigateInspector);
@@ -179,7 +179,7 @@ public class MainViewModel : INotifyPropertyChanged
         _navigationService.RegisterPage("Home", typeof(Avalonia.HomePage));
         _navigationService.RegisterPage("Search", typeof(Avalonia.SearchPage));
         _navigationService.RegisterPage("Library", typeof(Avalonia.LibraryPage));
-        _navigationService.RegisterPage("Downloads", typeof(Avalonia.DownloadsPage));
+        _navigationService.RegisterPage("Projects", typeof(Avalonia.DownloadsPage));
         _navigationService.RegisterPage("Settings", typeof(Avalonia.SettingsPage));
         _navigationService.RegisterPage("Import", typeof(Avalonia.ImportPage));
         _navigationService.RegisterPage("ImportPreview", typeof(Avalonia.ImportPreviewPage));
@@ -355,7 +355,7 @@ public class MainViewModel : INotifyPropertyChanged
     public ICommand NavigateHomeCommand { get; } // Phase 6D
     public ICommand NavigateSearchCommand { get; }
     public ICommand NavigateLibraryCommand { get; }
-    public ICommand NavigateDownloadsCommand { get; }
+    public ICommand NavigateProjectsCommand { get; }
     public ICommand NavigateSettingsCommand { get; }
     public ICommand NavigateUpgradeScoutCommand { get; }
     public ICommand NavigateInspectorCommand { get; }
@@ -390,7 +390,7 @@ public class MainViewModel : INotifyPropertyChanged
                 "HomePage" => PageType.Home,
                 "SearchPage" => PageType.Search,
                 "LibraryPage" => PageType.Library,
-                "DownloadsPage" => PageType.Downloads,
+                "DownloadsPage" => PageType.Projects,
                 "SettingsPage" => PageType.Settings,
                 "ImportPage" => PageType.Import,
                 "ImportPreviewPage" => PageType.Import, // Map preview to Import category
@@ -430,9 +430,9 @@ public class MainViewModel : INotifyPropertyChanged
         _navigationService.NavigateTo("Library");
     }
 
-    private void NavigateToDownloads()
+    private void NavigateToProjects()
     {
-        _navigationService.NavigateTo("Downloads");
+        _navigationService.NavigateTo("Projects");
     }
 
     private void NavigateUpgradeScout()

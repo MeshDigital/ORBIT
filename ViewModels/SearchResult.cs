@@ -68,7 +68,9 @@ public class SearchResult : INotifyPropertyChanged
         TrackStatus.Downloaded => "✅",
         TrackStatus.Failed => "❌",
         TrackStatus.Skipped => "⏭",
-        _ => "" 
+        TrackStatus.Pending => "⏳",
+        _ => ""
+
     };
 
     public event PropertyChangedEventHandler? PropertyChanged;
