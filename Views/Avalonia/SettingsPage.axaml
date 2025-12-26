@@ -265,6 +265,16 @@
                         </StackPanel>
                         <ToggleSwitch Grid.Column="1" IsChecked="{Binding SpotifyUseApi}" OnContent="On" OffContent="Off"/>
                     </Grid>
+
+                    <!-- Audio Features Toggle (Advanced - 403 in Developer Mode) -->
+                    <Grid ColumnDefinitions="*,Auto">
+                        <StackPanel Grid.Column="0" Spacing="2">
+                            <TextBlock Text="Spotify Audio Features (BPM, Energy)" FontWeight="SemiBold" Foreground="#DDD"/>
+                            <TextBlock Text="Enable BPM, Energy, and Valence enrichment. Disabled by default (403 Forbidden in Spotify Developer Mode). Only enable if you've whitelisted your email in Spotify Dashboard." 
+                                       Foreground="#666" FontSize="11" TextWrapping="Wrap"/>
+                        </StackPanel>
+                        <ToggleSwitch Grid.Column="1" IsChecked="{Binding SpotifyEnableAudioFeatures}" OnContent="On" OffContent="Off"/>
+                    </Grid>
                 </StackPanel>
             </Border>
 

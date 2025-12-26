@@ -206,6 +206,14 @@ public class LibraryEnrichmentWorker : IDisposable
 
         if (allIds != null && allIds.Any())
         {
+             // Check if Audio Features are enabled (403 Forbidden in Spotify Developer Mode)
+             if (!_config.SpotifyEnableAudioFeatures)
+             {
+                 _logger.LogDebug("Audio Features disabled in settings. Skipping Stage 2 (BPM/Energy enrichment)");
+                 // Continue to allow album art and basic identification in earlier stages
+                 return didWork;
+             }
+
              _logger.LogInformation("Enrichment Stage 2: Batch Features for {Count} unique tracks", allIds.Count);
              
              try 

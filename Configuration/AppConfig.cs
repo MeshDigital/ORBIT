@@ -35,6 +35,7 @@ public class AppConfig
     public string? SpotifyClientId { get; set; }
     public string? SpotifyClientSecret { get; set; }
     public bool SpotifyUseApi { get; set; } = true; // Circuit Breaker handles 403s gracefully
+    public bool SpotifyEnableAudioFeatures { get; set; } = false; // Disabled by default (403 in Developer Mode)
     public bool SpotifyUsePublicOnly { get; set; } = true; // Default to public scraping only
     
     // Spotify OAuth settings

@@ -175,6 +175,12 @@ public class SettingsViewModel : INotifyPropertyChanged
         get => _config.SpotifyUseApi;
         set { _config.SpotifyUseApi = value; OnPropertyChanged(); }
     }
+
+    public bool SpotifyEnableAudioFeatures
+    {
+        get => _config.SpotifyEnableAudioFeatures;
+        set { _config.SpotifyEnableAudioFeatures = value; OnPropertyChanged(); }
+    }
     
     // Phase 2.4: Ranking Strategy Selection
     // NOTE: RankingPreset property doesn't exist in AppConfig - using CustomWeights directly
