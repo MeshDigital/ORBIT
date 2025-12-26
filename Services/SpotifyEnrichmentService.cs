@@ -258,9 +258,11 @@ public class SpotifyEnrichmentService
             
             if (!seedTrackIds.Any())
             {
-                // Fallback: If no top tracks, use some generic seeds or return empty
+                _logger.LogWarning("No top tracks available for Recommendations. This usually means: (1) Missing 'user-top-read' scope - re-login required, or (2) No listening history on Spotify account.");
                 return result;
             }
+
+            _logger.LogDebug("Using {Count} top tracks as seeds for recommendations", seedTrackIds.Count);
 
             // SpotifyAPI.Web v7.2.1: Use Browse.GetRecommendations with proper request object
             var recommendationsReq = new RecommendationsRequest();
