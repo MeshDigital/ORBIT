@@ -260,7 +260,8 @@ public class SpotifyMetadataService : ISpotifyMetadataService
                 }
                 else
                 {
-                    _logger.LogError(apiEx, "Spotify API 403 Forbidden persists after refresh. Disabling Audio Features for this session.");
+                    _logger.LogError(apiEx, "Spotify API 403 Forbidden persists after refresh. Disabling Audio Features for this session. Reason: {Body}", 
+                        apiEx.Response?.Body ?? "Unknown");
                     _audioFeaturesDisabled = true; // Circuit Breaker: Stop hitting the endpoint
                     break; // Give up
                 }

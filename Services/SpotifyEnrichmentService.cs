@@ -21,6 +21,8 @@ public class SpotifyEnrichmentService
     private static bool _isServiceDegraded = false;
     private static DateTime _retryAfter = DateTime.MinValue;
 
+    public static bool IsServiceDegraded => _isServiceDegraded;
+
     public SpotifyEnrichmentService(
         SpotifyAuthService authService, 
         ILogger<SpotifyEnrichmentService> logger,
@@ -120,6 +122,18 @@ public class SpotifyEnrichmentService
             _isServiceDegraded = true;
             _retryAfter = DateTime.UtcNow.Add(ex.RetryAfter).AddSeconds(1); // Buffer
             return new TrackEnrichmentResult { Success = false, Error = "Rate Limit Hit" };
+        }
+        catch (APIException apiEx)
+        {
+             if (apiEx.Response?.StatusCode == System.Net.HttpStatusCode.Forbidden)
+             {
+                 _logger.LogWarning("Spotify API 403 Forbidden during Identification. Service degraded for 30 mins. Reason: {Body}", apiEx.Response?.Body ?? "Unknown");
+                 _isServiceDegraded = true;
+                 _retryAfter = DateTime.UtcNow.AddMinutes(30);
+                 return new TrackEnrichmentResult { Success = false, Error = "Service Degraded (403)" };
+             }
+             _logger.LogError(apiEx, "Spotify Identification failed (API Error) for {Artist} - {Track}", artist, trackName);
+             return new TrackEnrichmentResult { Success = false, Error = apiEx.Message };
         }
         catch (Exception ex)
         {

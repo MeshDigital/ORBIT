@@ -124,13 +124,13 @@ public class HarmonicMatchService
                     minBpm,
                     maxBpm);
 
-                if (score > 0)
+                if (score > 0 && !string.IsNullOrEmpty(candidate.Key))
                 {
                     results.Add(new HarmonicMatchResult
                     {
                         Track = candidate,
                         CompatibilityScore = score,
-                        KeyRelationship = GetKeyRelationship(seedTrack.Key, candidate.Key),
+                        KeyRelationship = GetKeyRelationship(seedTrack.Key!, candidate.Key),
                         BpmDifference = CalculateBpmDifference(seedTrack.Bpm, candidate.Bpm),
                         EnergyDifference = CalculateEnergyDifference(seedTrack, candidate)
                     });
@@ -178,6 +178,9 @@ public class HarmonicMatchService
         double score = 0;
 
         // KEY MATCH (0-50 points)
+        if (string.IsNullOrEmpty(seed.Key) || string.IsNullOrEmpty(candidate.Key))
+            return 0;
+
         var relationship = GetKeyRelationship(seed.Key, candidate.Key);
         score += relationship switch
         {

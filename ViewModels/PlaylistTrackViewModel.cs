@@ -200,8 +200,8 @@ public class PlaylistTrackViewModel : INotifyPropertyChanged, Library.ILibraryNo
         // Smart Subscription
         if (_eventBus != null)
         {
-            _eventBus.GetEvent<Events.TrackStateChangedEvent>().Subscribe(OnStateChanged);
-            _eventBus.GetEvent<Events.TrackProgressChangedEvent>().Subscribe(OnProgressChanged);
+            _eventBus.GetEvent<TrackStateChangedEvent>().Subscribe(OnStateChanged);
+            _eventBus.GetEvent<TrackProgressChangedEvent>().Subscribe(OnProgressChanged);
             _eventBus.GetEvent<Models.TrackMetadataUpdatedEvent>().Subscribe(OnMetadataUpdated);
         }
     }
@@ -224,19 +224,19 @@ public class PlaylistTrackViewModel : INotifyPropertyChanged, Library.ILibraryNo
         });
     }
 
-    private void OnStateChanged(Events.TrackStateChangedEvent evt)
+    private void OnStateChanged(TrackStateChangedEvent evt)
     {
         if (evt.TrackGlobalId != GlobalId) return;
         
         // Marshal to UI Thread
         Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() =>
         {
-             State = evt.NewState;
-             if (evt.ErrorMessage != null) ErrorMessage = evt.ErrorMessage;
+             State = evt.State;
+             if (evt.Error != null) ErrorMessage = evt.Error;
         });
     }
 
-    private void OnProgressChanged(Events.TrackProgressChangedEvent evt)
+    private void OnProgressChanged(TrackProgressChangedEvent evt)
     {
         if (evt.TrackGlobalId != GlobalId) return;
         

@@ -109,7 +109,8 @@ public class UpgradeScoutViewModel : INotifyPropertyChanged
                     Bitrate = candidate.CurrentBitrate
                 };
 
-                var bestMatch = await _discoveryService.FindBestMatchAsync(trackModel, default);
+                var result = await _discoveryService.FindBestMatchAsync(trackModel, default);
+                var bestMatch = result.BestMatch;
                 
                 if (bestMatch != null && (bestMatch.Bitrate > candidate.CurrentBitrate))
                 {

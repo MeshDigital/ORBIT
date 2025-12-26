@@ -912,13 +912,24 @@ public class DatabaseService
     public async Task SaveLibraryEntryAsync(LibraryEntryEntity entry)
     {
         using var context = new AppDbContext();
-
-        // EF Core's Update() on a detached entity with a PK acts as an "upsert".
-        // It will generate an INSERT if the key doesn't exist, or an UPDATE if it does.
-        // This is more atomic than a separate read-then-write operation.
-        // Note: For this to work, LibraryEntryEntity.UniqueHash must be configured as the primary key.
-        entry.LastUsedAt = DateTime.UtcNow; // Ensure the timestamp is always updated.
-        context.LibraryEntries.Update(entry);
+        
+        // Robust Upsert Pattern: Check existence first to avoid DbUpdateConcurrencyException
+        var existing = await context.LibraryEntries.FindAsync(entry.UniqueHash);
+        
+        if (existing == null)
+        {
+            // It doesn't exist, so we ADD it.
+            context.LibraryEntries.Add(entry);
+        }
+        else
+        {
+            // It exists, so we UPDATE it.
+            // Since 'existing' is tracked and 'entry' is detached, we use SetValues.
+            context.Entry(existing).CurrentValues.SetValues(entry);
+            
+            // Ensure LastUsedAt is updated on the tracked entity
+            existing.LastUsedAt = DateTime.UtcNow; 
+        }
         
         await context.SaveChangesAsync();
     }

@@ -267,6 +267,23 @@ public partial class App : Application
                         // Start Library Enrichment Worker (Phase 1)
                         var enrichmentWorker = Services.GetRequiredService<LibraryEnrichmentWorker>();
                         enrichmentWorker.Start();
+
+                        // Phase 9: Start Metadata Orchestrator (with 15s delay)
+                        // Must run to catch "Pending Orchestrations" from previous session
+                        var orchestrator = Services.GetRequiredService<MetadataEnrichmentOrchestrator>();
+                        orchestrator.Start();
+
+                        // Start Library Sync (Phase 13: "All Tracks" persistence)
+                        try
+                        {
+                            var libraryService = Services.GetRequiredService<ILibraryService>();
+                            await libraryService.SyncLibraryEntriesFromTracksAsync();
+                            Serilog.Log.Information("✅ Start-up Library synchronization completed");
+                        }
+                        catch (Exception syncEx)
+                        {
+                            Serilog.Log.Error(syncEx, "Start-up Library sync failed");
+                        }
                         
                         // Start Mission Control (Phase 0A)
                         var missionControl = Services.GetRequiredService<MissionControlService>();

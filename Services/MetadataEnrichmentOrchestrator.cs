@@ -174,6 +174,16 @@ public class MetadataEnrichmentOrchestrator : IDisposable
 
     private async Task ProcessQueueLoop(CancellationToken token)
     {
+        // Phase 9: Startup Fairness
+        // Wait 15s before processing to allow UI and MissionControl to stabilize
+        // This staggers it from LibraryEnrichmentWorker (30s)
+        try
+        {
+             _logger.LogInformation("Orchestrator warming up... (15s delay)");
+             await Task.Delay(15000, token);
+        }
+        catch (OperationCanceledException) { return; }
+
         while (!token.IsCancellationRequested)
         {
             try

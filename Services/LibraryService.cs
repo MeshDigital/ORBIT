@@ -133,6 +133,124 @@ public class LibraryService : ILibraryService
         }
     }
 
+    public async Task SyncLibraryEntriesFromTracksAsync()
+    {
+        try
+        {
+            _logger.LogInformation("Starting Library Entry Synchronization...");
+
+            // 1. Get all completed playlist tracks that have a resolved file path
+            var allTracks = await _databaseService.GetAllPlaylistTracksAsync();
+            var completedTracks = allTracks
+                .Where(t => t.Status == TrackStatus.Downloaded && !string.IsNullOrEmpty(t.ResolvedFilePath))
+                .ToList();
+
+            if (!completedTracks.Any())
+            {
+                _logger.LogInformation("No completed tracks found to sync.");
+                return;
+            }
+
+            // 2. Get all existing library entry hashes directly
+            var existingEntries = await _databaseService.LoadAllLibraryEntriesAsync();
+            var existingHashes = new HashSet<string>(existingEntries.Select(e => e.UniqueHash));
+
+            // 3. Identify missing entries
+            var missingTracks = completedTracks
+                .Where(t => !existingHashes.Contains(t.TrackUniqueHash))
+                .GroupBy(t => t.TrackUniqueHash) // Deduplicate by hash
+                .Select(g => g.First())
+                .ToList();
+
+            if (!missingTracks.Any())
+            {
+                _logger.LogInformation("All completed tracks are already indexed in LibraryEntry.");
+                return;
+            }
+
+            _logger.LogInformation("Found {Count} tracks missing from LibraryEntry index. Backfilling...", missingTracks.Count);
+
+            // 4. Create and save missing entries
+            int addedCount = 0;
+            foreach (var track in missingTracks)
+            {
+                // Basic check to ensure file actually exists before indexing
+                if (!System.IO.File.Exists(track.ResolvedFilePath))
+                {
+                    _logger.LogWarning("Skipping index for missing file: {Path}", track.ResolvedFilePath);
+                    continue;
+                }
+
+                var entry = new LibraryEntry
+                {
+                    UniqueHash = track.TrackUniqueHash,
+                    Artist = track.Artist,
+                    Title = track.Title,
+                    Album = track.Album,
+                    FilePath = track.ResolvedFilePath,
+                    Bitrate = track.Bitrate,
+                    // Use canonical duration if available, otherwise 0
+                    DurationSeconds = track.CanonicalDuration ?? 0, 
+                    Format = System.IO.Path.GetExtension(track.ResolvedFilePath).TrimStart('.').ToLowerInvariant(),
+                    AddedAt = track.AddedAt,
+
+                    // Transfer Metadata
+                    SpotifyTrackId = track.SpotifyTrackId,
+                    BPM = track.BPM,
+                    MusicalKey = track.MusicalKey,
+                    Energy = track.Energy,
+                    Danceability = track.Danceability,
+                    Valence = track.Valence,
+                    IsEnriched = track.IsEnriched
+                };
+
+                await SaveOrUpdateLibraryEntryAsync(entry);
+                addedCount++;
+            }
+
+            _logger.LogInformation("Library Synchronization Completed. Added {Count} new entries.", addedCount);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to synchronize Library Entries.");
+        }
+    }
+
+    public async Task AddTrackToLibraryIndexAsync(PlaylistTrack track, string finalPath)
+    {
+        try
+        {
+            var entry = new LibraryEntry
+            {
+                UniqueHash = track.TrackUniqueHash,
+                Artist = track.Artist,
+                Title = track.Title,
+                Album = track.Album,
+                FilePath = finalPath,
+                Bitrate = track.Bitrate ?? 0,
+                DurationSeconds = track.CanonicalDuration ?? 0,
+                Format = System.IO.Path.GetExtension(finalPath).TrimStart('.').ToLowerInvariant(),
+                AddedAt = DateTime.UtcNow,
+
+                // Map Scientific Metadata
+                SpotifyTrackId = track.SpotifyTrackId,
+                BPM = track.BPM,
+                MusicalKey = track.MusicalKey,
+                Energy = track.Energy,
+                Danceability = track.Danceability,
+                Valence = track.Valence,
+                IsEnriched = track.IsEnriched
+            };
+
+            await SaveOrUpdateLibraryEntryAsync(entry);
+            _logger.LogInformation("Indexed track for All Tracks view: {Title}", track.Title);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to index completed track {Title} for All Tracks view", track.Title);
+        }
+    }
+
     // ===== INDEX 2: PlaylistJob (Playlist Headers - Database Backed) =====
 
     public async Task<List<PlaylistJob>> GetHistoricalJobsAsync()

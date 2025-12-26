@@ -83,6 +83,7 @@ msbuild*.log
 !BuildLogs/
 !BuildLogs/*.txt
 !BuildLogs/*.log
+!build.log
 
 # Dev/Debug data
 crash_*.json

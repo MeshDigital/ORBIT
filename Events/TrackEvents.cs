@@ -46,37 +46,8 @@ public class TrackSearchStartedEvent
 
 // NOTE: TrackAddedEvent and TrackRemovedEvent moved to Models/Events.cs to avoid duplication
 
-public class TrackProgressChangedEvent
-{
-    public string TrackGlobalId { get; }
-    public double Progress { get; }
-    public long BytesReceived { get; }  // Phase 2.5: Byte-level tracking
-    public long TotalBytes { get; }     // Phase 2.5: Byte-level tracking
-    
-    public TrackProgressChangedEvent(string globalId, double progress, long bytesReceived, long totalBytes)
-    {
-        TrackGlobalId = globalId;
-        Progress = progress;
-        BytesReceived = bytesReceived;
-        TotalBytes = totalBytes;
-    }
-}
-
-public class TrackStateChangedEvent
-{
-    public string TrackGlobalId { get; }
-    public Guid ProjectId { get; } // NEW: For efficient project lookup
-    public PlaylistTrackState NewState { get; }
-    public string? ErrorMessage { get; }
-    
-    public TrackStateChangedEvent(string globalId, Guid projectId, PlaylistTrackState newState, string? errorMessage = null)
-    {
-        TrackGlobalId = globalId;
-        ProjectId = projectId;
-        NewState = newState;
-        ErrorMessage = errorMessage;
-    }
-}
+// TrackProgressChangedEvent moved to Models/Events.cs
+// TrackStateChangedEvent moved to Models/Events.cs
 
 /// <summary>
 /// Published for significant library changes (e.g. project reload required)

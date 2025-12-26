@@ -37,6 +37,17 @@ public interface ILibraryService
     /// This replaces separate Add and Update methods to prevent race conditions.
     /// </summary>
     Task SaveOrUpdateLibraryEntryAsync(LibraryEntry entry);
+    
+    /// <summary>
+    /// Scans all completed PlaylistTracks and populates the global LibraryEntry index if missing.
+    /// Called on startup to fix "All Tracks" empty view for existing downloads.
+    /// </summary>
+    Task SyncLibraryEntriesFromTracksAsync();
+
+    /// <summary>
+    /// Standardized entry point for adding a successful download to the global library index.
+    /// </summary>
+    Task AddTrackToLibraryIndexAsync(PlaylistTrack track, string finalPath);
 
     // ===== INDEX 2: PlaylistJob (Playlist Headers) =====
 

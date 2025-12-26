@@ -197,10 +197,10 @@ public class ProjectListViewModel : INotifyPropertyChanged
         eventBus.GetEvent<ProjectDeletedEvent>().Subscribe(evt => OnProjectDeleted(this, evt.ProjectId));
         
         // Subscribe to track state changes to update active download counts in real-time
-        eventBus.GetEvent<Events.TrackStateChangedEvent>().Subscribe(OnTrackStateChanged);
+        eventBus.GetEvent<TrackStateChangedEvent>().Subscribe(OnTrackStateChanged);
     }
     
-    private void OnTrackStateChanged(Events.TrackStateChangedEvent evt)
+    private void OnTrackStateChanged(TrackStateChangedEvent evt)
     {
         // PERFORMANCE FIX: Target specific project instead of looping through all
         Dispatcher.UIThread.InvokeAsync(() =>

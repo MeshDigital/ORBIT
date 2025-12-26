@@ -36,6 +36,11 @@ public class DownloadDiscoveryService
         _eventBus = eventBus;
     }
 
+    public record DiscoveryResult(Track? BestMatch, SearchAttemptLog? Log)
+    {
+        public int Bitrate => BestMatch?.Bitrate ?? 0;
+    }
+
     /// <summary>
     /// Searches for a track and returns the single best match based on user preferences.
     /// </summary>
@@ -45,8 +50,10 @@ public class DownloadDiscoveryService
     /// Phase 12: Updated to use streaming search logic.
     /// Phase 3B: Added support for peer blacklisting (Health Monitor).
     /// </summary>
-    public async Task<Track?> FindBestMatchAsync(PlaylistTrack track, CancellationToken ct, HashSet<string>? blacklistedUsers = null)
+    public async Task<DiscoveryResult> FindBestMatchAsync(PlaylistTrack track, CancellationToken ct, HashSet<string>? blacklistedUsers = null)
     {
+        var log = new SearchAttemptLog { QueryString = $"{track.Artist} - {track.Title}" };
+
         // Connectivity Gating: Wait for Soulseek connection before starting search
         if (!_searchOrchestrator.IsConnected)
         {
@@ -54,14 +61,14 @@ public class DownloadDiscoveryService
             var waitStart = DateTime.UtcNow;
             while (!_searchOrchestrator.IsConnected && (DateTime.UtcNow - waitStart).TotalSeconds < 10)
             {
-                if (ct.IsCancellationRequested) return null;
+                if (ct.IsCancellationRequested) return new DiscoveryResult(null, log);
                 await Task.Delay(500, ct);
             }
 
             if (!_searchOrchestrator.IsConnected)
             {
                 _logger.LogWarning("Timeout waiting for Soulseek connection. Search for {Title} aborted.", track.Title);
-                return null;
+                return new DiscoveryResult(null, log);
             }
         }
 
@@ -102,24 +109,28 @@ public class DownloadDiscoveryService
                 isAlbumSearch: false,
                 cancellationToken: ct))
             {
+                log.ResultsCount++;
+
                 // Phase 3B: Peer Blacklisting
                 if (blacklistedUsers != null && 
                     !string.IsNullOrEmpty(searchTrack.Username) && 
                     blacklistedUsers.Contains(searchTrack.Username))
                 {
+                    log.RejectedByBlacklist++;
                     continue;
                 }
 
                 // Phase 3C.4: Threshold Trigger (Race & Replace)
                 // Real-time evaluation of incoming results
-                var score = _matcher.CalculateScore(track, searchTrack);
+                var matchResult = _matcher.CalculateMatchResult(track, searchTrack);
+                var score = matchResult.Score;
                 
                 // If we find a "Gold" match (>0.92) early, trigger immediate download
                 if (score > 0.92)
                 {
                     _logger.LogInformation("🚀 THRESHOLD TRIGGER: Found 'Gold' match ({Score:P0}) early! Skipping rest of search. File: {File}", 
                         score, searchTrack.Filename);
-                    return searchTrack;
+                    return new DiscoveryResult(searchTrack, log);
                 }
 
                 // Phase 3C.5: Speculative Start (Silver Match)
@@ -133,13 +144,22 @@ public class DownloadDiscoveryService
                         bestSilverScore = score;
                     }
                 }
+                else
+                {
+                    // Track why it was rejected if it's in top 100 results to avoid overcounting
+                    if (allTracks.Count < 100)
+                    {
+                        if (matchResult.ShortReason?.StartsWith("Duration") == true) log.RejectedByQuality++;
+                        else if (matchResult.ShortReason?.Contains("Mismatch") == true) log.RejectedByQuality++;
+                    }
+                }
 
                 // Check speculative timeout (5s)
                 if ((DateTime.UtcNow - searchStartTime).TotalSeconds > 5 && bestSilverMatch != null)
                 {
                     _logger.LogInformation("🥈 SPECULATIVE TRIGGER: 5s timeout reached with Silver match ({Score:P0}). Starting speculative download. File: {File}", 
                         bestSilverScore, bestSilverMatch.Filename);
-                    return bestSilverMatch;
+                    return new DiscoveryResult(bestSilverMatch, log);
                 }
 
                 allTracks.Add(searchTrack);
@@ -148,17 +168,23 @@ public class DownloadDiscoveryService
             if (!allTracks.Any())
             {
                 _logger.LogWarning("No results found for {Query}", query);
-                return null;
+                return new DiscoveryResult(null, log);
             }
 
             // 3. Select Best Match with "The Brain" (Metadata Matching)
             // Use SearchResultMatcher which checks Duration, BPM, Artist/Title similarity
-            var bestMatch = _matcher.FindBestMatch(track, allTracks);
+            var diagResult = _matcher.FindBestMatchWithDiagnostics(track, allTracks);
+            var bestMatch = diagResult.BestMatch;
+            
+            // Merge diagnostics: use the comprehensive log from Matcher but keep our discovery counts
+            diagResult.Log.ResultsCount = log.ResultsCount;
+            diagResult.Log.RejectedByBlacklist = log.RejectedByBlacklist;
+            log = diagResult.Log;
 
             if (bestMatch != null)
             {
                 _logger.LogInformation("🧠 BRAIN: Matcher selected: {Filename} (Score > 0.7)", bestMatch.Filename);
-                return bestMatch;
+                return new DiscoveryResult(bestMatch, log);
             }
 
             // 4. Adaptive Relaxation Strategy (Phase 2.0) - WITH TIMEOUT
@@ -181,7 +207,7 @@ public class DownloadDiscoveryService
                     if (bestMatch != null)
                     {
                         _logger.LogInformation("🧠 BRAIN: Tier 1 match found: {Filename}", bestMatch.Filename);
-                        return bestMatch;
+                        return new DiscoveryResult(bestMatch, log);
                     }
                 }
 
@@ -193,19 +219,12 @@ public class DownloadDiscoveryService
                 {
                     _logger.LogInformation("🧠 BRAIN: Tier 2 fallback: {Filename} ({Bitrate}kbps)", 
                         bestMatch.Filename, bestMatch.Bitrate);
-                    return bestMatch;
+                    return new DiscoveryResult(bestMatch, log);
                 }
             }
 
-            if (bestMatch != null)
-            {
-                _logger.LogInformation("Best match found (relaxed): {Filename} ({Bitrate}kbps, {Length}s)", 
-                    bestMatch.Filename, bestMatch.Bitrate, bestMatch.Length);
-                return bestMatch;
-            }
-
-            _logger.LogWarning("🧠 BRAIN: No suitable match found even after relaxation.");
-            return null;
+            _logger.LogWarning("🧠 BRAIN: No suitable match found for {Query}. {Summary}", query, log.GetSummary());
+            return new DiscoveryResult(null, log);
         }
         catch (OperationCanceledException)
         {
@@ -215,7 +234,7 @@ public class DownloadDiscoveryService
         catch (Exception ex)
         {
             _logger.LogError(ex, "Discovery failed for {Query}", query);
-            return null;
+            return new DiscoveryResult(null, log);
         }
     }
 
@@ -225,7 +244,8 @@ public class DownloadDiscoveryService
     public async Task DiscoverAndQueueTrackAsync(PlaylistTrack track, CancellationToken ct = default, HashSet<string>? blacklistedUsers = null)
     {
         // Step T.1: Pass model directly
-        var bestMatch = await FindBestMatchAsync(track, ct, blacklistedUsers);
+        var result = await FindBestMatchAsync(track, ct, blacklistedUsers);
+        var bestMatch = result.BestMatch;
         if (bestMatch == null) return;
 
         // Determine if this is an upgrade search based on whether the track already has a file

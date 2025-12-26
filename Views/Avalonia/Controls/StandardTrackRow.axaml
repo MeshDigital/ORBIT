@@ -1,0 +1,158 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:vm="clr-namespace:SLSKDONET.ViewModels.Downloads;assembly=SLSKDONET"
+             mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="60"
+             x:Class="SLSKDONET.Views.Avalonia.Controls.StandardTrackRow"
+             x:DataType="vm:UnifiedTrackViewModel">
+             
+    <UserControl.Styles>
+        <Style Selector="Button.ActionBtn">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Padding" Value="8"/>
+            <Setter Property="CornerRadius" Value="4"/>
+            <Setter Property="Foreground" Value="#CCCCCC"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+        </Style>
+        <Style Selector="Button.ActionBtn:hover">
+            <Setter Property="Background" Value="#33FFFFFF"/>
+            <Setter Property="Foreground" Value="White"/>
+        </Style>
+        
+        <!-- Integrity Badge Styles -->
+        <Style Selector="Border.IntegrityBadge">
+            <Setter Property="CornerRadius" Value="2"/>
+            <Setter Property="Padding" Value="4,1"/>
+            <Setter Property="Margin" Value="0,0,6,0"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+        </Style>
+        <Style Selector="Border.IntegrityBadge.Secure">
+            <Setter Property="Background" Value="#2000FF00"/>
+            <Setter Property="BorderBrush" Value="#00FF00"/>
+            <Setter Property="BorderThickness" Value="1"/>
+        </Style>
+        <Style Selector="Border.IntegrityBadge.Suspect">
+            <Setter Property="Background" Value="#20FFD700"/>
+            <Setter Property="BorderBrush" Value="#FFD700"/>
+            <Setter Property="BorderThickness" Value="1"/>
+        </Style>
+    </UserControl.Styles>
+
+    <Border Background="#1E1E1E" 
+            BorderBrush="#333333" 
+            BorderThickness="0,0,0,1" 
+            Padding="8,6">
+            
+        <Grid ColumnDefinitions="50, 12, *, Auto" RowDefinitions="Auto, Auto">
+        
+            <!-- Column 0: Album Art / Status Icon -->
+            <Border Grid.Row="0" Grid.RowSpan="2" Grid.Column="0" 
+                    Width="48" Height="48" 
+                    CornerRadius="4" ClipToBounds="True" Background="#111">
+                <Panel>
+                    <!-- Actual Image -->
+                    <Image Source="{Binding AlbumArtUrl, TargetNullValue={x:Null}}" 
+                           Stretch="UniformToFill"
+                           IsVisible="{Binding AlbumArtUrl, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
+                           
+                    <!-- Placeholder/Status Overlay if no art or if downloading -->
+                    <PathIcon Data="{StaticResource music_regular}" 
+                              Foreground="#444" 
+                              Width="24" Height="24"
+                              IsVisible="{Binding AlbumArtUrl, Converter={x:Static StringConverters.IsNullOrEmpty}}"/>
+                              
+                    <!-- Download Progress Overlay (Circular) -->
+                    <Arc Width="40" Height="40"
+                         StartAngle="-90"
+                         SweepAngle="{Binding Progress, Converter={StaticResource PercentageToAngleConverter}}"
+                         Stroke="#00BFFF" StrokeThickness="3"
+                         IsVisible="{Binding IsActive}"
+                         Opacity="0.8"/>
+                </Panel>
+            </Border>
+            
+            <!-- Column 1: Spacer -->
+            
+            <!-- Column 2: Main Content -->
+            <StackPanel Grid.Row="0" Grid.Column="2" Orientation="Vertical" VerticalAlignment="Center" Spacing="2">
+                <!-- Line 1: Artist - Title -->
+                <StackPanel Orientation="Horizontal" Spacing="6">
+                   <TextBlock Text="{Binding ArtistName}" FontWeight="SemiBold" Foreground="#DDD" FontSize="14" TextTrimming="CharacterEllipsis"/>
+                   <TextBlock Text="-" Foreground="#777"/>
+                   <TextBlock Text="{Binding TrackTitle}" Foreground="#EEE" FontSize="14" TextTrimming="CharacterEllipsis"/>
+                   
+                   <!-- Integrity Check Badge -->
+                   <Border Classes="IntegrityBadge Secure" IsVisible="{Binding IsSecure}">
+                       <TextBlock Text="✓ VERIFIED" FontSize="9" FontWeight="Bold" Foreground="#00FF00"/>
+                   </Border>
+                </StackPanel>
+            </StackPanel>
+            
+            <StackPanel Grid.Row="1" Grid.Column="2" Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
+                <!-- Line 2: Tech Specs & Curation Data -->
+                
+                <!-- Status/Speed -->
+                <TextBlock Text="{Binding StatusText}" Foreground="{Binding StatusColor}" FontSize="11" FontWeight="Medium"/>
+                
+                <TextBlock Text="•" Foreground="#444"/>
+                
+                <!-- Tech Summary -->
+                <TextBlock Text="{Binding TechnicalSummary}" Foreground="#999" FontSize="11" FontFamily="Consolas"/>
+                
+                <TextBlock Text="•" Foreground="#444" IsVisible="{Binding IsCompleted}"/>
+                
+                <!-- BPM/Key Badges -->
+                <StackPanel Orientation="Horizontal" Spacing="6" IsVisible="{Binding IsCompleted}">
+                    <Border Background="#222" CornerRadius="3" Padding="4,0">
+                        <TextBlock Text="{Binding BpmDisplay}" Foreground="#AAA" FontSize="10" FontFamily="Consolas">
+                           <TextBlock.Effect>
+                               <DropShadowEffect BlurRadius="0" Color="Black" OffsetX="1" OffsetY="1" Opacity="0.5"/>
+                           </TextBlock.Effect>
+                        </TextBlock>
+                    </Border>
+                    <Border Background="#222" CornerRadius="3" Padding="4,0">
+                         <TextBlock Text="{Binding KeyDisplay}" Foreground="#AAA" FontSize="10" FontFamily="Consolas"/>
+                    </Border>
+                </StackPanel>
+            </StackPanel>
+            
+            <!-- Column 3: Action Zone -->
+            <StackPanel Grid.Row="0" Grid.RowSpan="2" Grid.Column="3" Orientation="Horizontal" Spacing="4" VerticalAlignment="Center">
+            
+                <!-- PLAY BUTTON (Success only) -->
+                <Button Classes="ActionBtn" Command="{Binding PlayCommand}" IsVisible="{Binding IsCompleted}" ToolTip.Tip="Play Now">
+                    <PathIcon Data="{StaticResource play_circle_regular}" Width="20" Height="20" Foreground="#00BFFF"/>
+                </Button>
+                
+                <!-- REVEAL BUTTON (Success only) -->
+                 <Button Classes="ActionBtn" Command="{Binding RevealFileCommand}" IsVisible="{Binding IsCompleted}" ToolTip.Tip="Show in Explorer">
+                    <PathIcon Data="{StaticResource folder_open_regular}" Width="18" Height="18"/>
+                </Button>
+                
+                 <!-- ADD TO PROJECT (Success only) -->
+                 <Button Classes="ActionBtn" Command="{Binding AddToProjectCommand}" IsVisible="{Binding IsCompleted}" ToolTip.Tip="Add to Project">
+                    <PathIcon Data="{StaticResource add_circle_regular}" Width="18" Height="18"/>
+                </Button>
+                
+                <!-- CANCEL/PAUSE (Active only) -->
+                <Button Classes="ActionBtn" Command="{Binding PauseCommand}" IsVisible="{Binding IsActive}" ToolTip.Tip="Pause">
+                    <PathIcon Data="{StaticResource pause_regular}" Width="16" Height="16"/>
+                </Button>
+                
+                 <Button Classes="ActionBtn" Command="{Binding CancelCommand}" IsVisible="{Binding IsActive}" ToolTip.Tip="Cancel">
+                    <PathIcon Data="{StaticResource dismiss_regular}" Width="16" Height="16" Foreground="#FF6666"/>
+                </Button>
+                
+                <!-- RETRY (Failed only) -->
+                <Button Classes="ActionBtn" Command="{Binding RetryCommand}" IsVisible="{Binding IsFailed}" ToolTip.Tip="Retry">
+                    <PathIcon Data="{StaticResource arrow_counterclockwise_regular}" Width="16" Height="16"/>
+                </Button>
+
+            </StackPanel>
+            
+        </Grid>
+    </Border>
+</UserControl>

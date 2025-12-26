@@ -211,6 +211,11 @@ public class LibraryViewModel : INotifyPropertyChanged
         
         // Phase 3: Post-Import Navigation - Auto-navigate to Library and select imported album
         _eventBus.GetEvent<ProjectAddedEvent>().Subscribe(OnProjectAdded);
+        
+        // Phase 6: Sync "All Tracks" LibraryEntry index on startup
+        // This fixes the issue where the "All Tracks" view is empty because LibraryEntry wasn't populated.
+        // It runs in the background and is safe to call repeatedly (idempotent).
+        Task.Run(() => _libraryService.SyncLibraryEntriesFromTracksAsync()).ConfigureAwait(false);
     }
     
     private async void OnProjectAdded(ProjectAddedEvent evt)

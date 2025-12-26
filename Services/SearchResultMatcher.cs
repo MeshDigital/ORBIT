@@ -22,39 +22,75 @@ public class SearchResultMatcher
         _config = config;
     }
 
+    public record MatchResult(double Score, string? RejectionReason = null, string? ShortReason = null);
+
     /// <summary>
     /// Finds the best matching track from a list of candidates.
     /// Returns null if no acceptable match is found.
     /// </summary>
-    /// <summary>
-    /// Finds the best matching track using rich metadata (BPM, Duration, etc.) from PlaylistTrack.
-    /// </summary>
-    /// <summary>
-    /// Finds the best matching track using rich metadata (BPM, Duration, etc.) from PlaylistTrack.
-    /// </summary>
     public Track? FindBestMatch(PlaylistTrack model, IEnumerable<Track> candidates)
     {
-        if (!candidates.Any()) return null;
+        return FindBestMatchWithDiagnostics(model, candidates).BestMatch;
+    }
 
-        var matches = new List<(Track Track, double Score)>();
+    public (Track? BestMatch, SearchAttemptLog Log) FindBestMatchWithDiagnostics(PlaylistTrack model, IEnumerable<Track> candidates)
+    {
+        var log = new SearchAttemptLog
+        {
+            QueryString = $"{model.Artist} - {model.Title}",
+            ResultsCount = candidates.Count()
+        };
+
+        if (!candidates.Any()) return (null, log);
+
+        var matches = new List<(Track Track, MatchResult Result)>();
+        var rejections = new List<(Track Track, MatchResult Result)>();
 
         foreach (var candidate in candidates)
         {
-            var score = CalculateScore(model, candidate);
-            if (score >= 0.7)
+            var result = CalculateMatchResult(model, candidate);
+            if (result.Score >= 0.7)
             {
-                matches.Add((candidate, score));
+                matches.Add((candidate, result));
+            }
+            else
+            {
+                rejections.Add((candidate, result));
+                
+                if (result.ShortReason?.StartsWith("Duration") == true) log.RejectedByQuality++;
+                else if (result.ShortReason?.Contains("Mismatch") == true) log.RejectedByQuality++;
+                else if (result.ShortReason?.Contains("Format") == true) log.RejectedByFormat++;
+                else if (result.ShortReason?.Contains("Blacklist") == true) log.RejectedByBlacklist++;
             }
         }
 
+        // Capture top 3 rejections for diagnostics
+        log.Top3RejectedResults = rejections
+            .OrderByDescending(r => r.Result.Score)
+            .Take(3)
+            .Select((r, i) => new RejectedResult
+            {
+                Rank = i + 1,
+                Username = r.Track.Username ?? "Unknown",
+                Bitrate = r.Track.Bitrate,
+                Format = r.Track.Format ?? "Unknown",
+                FileSize = r.Track.Size ?? 0,
+                Filename = r.Track.Filename ?? "Unknown",
+                SearchScore = r.Result.Score,
+                RejectionReason = r.Result.RejectionReason ?? "Unknown rejection",
+                ShortReason = r.Result.ShortReason ?? "Rejected"
+            })
+            .ToList();
+
         if (!matches.Any())
         {
-            _logger.LogWarning("No acceptable matches for {Artist} - {Title}", model.Artist, model.Title);
-            return null;
+            _logger.LogWarning("No acceptable matches for {Artist} - {Title}. {Summary}", 
+                model.Artist, model.Title, log.GetSummary());
+            return (null, log);
         }
 
-        var best = matches.OrderByDescending(m => m.Score).First();
-        return best.Track;
+        var best = matches.OrderByDescending(m => m.Result.Score).First();
+        return (best.Track, log);
     }
 
     /// <summary>
@@ -63,16 +99,23 @@ public class SearchResultMatcher
     /// </summary>
     public double CalculateScore(PlaylistTrack model, Track candidate)
     {
+        return CalculateMatchResult(model, candidate).Score;
+    }
+
+    public MatchResult CalculateMatchResult(PlaylistTrack model, Track candidate)
+    {
         var expectedDuration = model.CanonicalDuration.HasValue ? model.CanonicalDuration.Value / 1000 : 0;
         var lengthTolerance = _config.SearchLengthToleranceSeconds;
 
         // Base score (Artist/Title/Duration)
-        var score = CalculateMatchScore(
+        var result = CalculateMatchResultInternal(
             model.Artist,
             model.Title,
             expectedDuration,
             candidate,
             lengthTolerance);
+
+        var score = result.Score;
 
         // BPM Bonus
         if (model.BPM.HasValue && model.BPM > 0)
@@ -88,7 +131,7 @@ public class SearchResultMatcher
             }
         }
         
-        return Math.Min(1.0, score);
+        return result with { Score = Math.Min(1.0, score) };
     }
 
     /// <summary>
@@ -130,16 +173,16 @@ public class SearchResultMatcher
 
         foreach (var candidate in candidates)
         {
-            var score = CalculateMatchScore(
+            var result = CalculateMatchResultInternal(
                 expectedArtist,
                 expectedTitle,
                 expectedDurationSeconds,
                 candidate,
                 lengthTolerance);
 
-            if (score >= 0.7) // Minimum acceptable match threshold
+            if (result.Score >= 0.7) // Minimum acceptable match threshold
             {
-                matches.Add((candidate, score));
+                matches.Add((candidate, result.Score));
             }
         }
 
@@ -164,7 +207,7 @@ public class SearchResultMatcher
     /// Calculates a match score (0-1) between expected and actual track.
     /// Factors: artist name similarity, title similarity, duration match.
     /// </summary>
-    private double CalculateMatchScore(
+    private MatchResult CalculateMatchResultInternal(
         string expectedArtist,
         string expectedTitle,
         int expectedDurationSeconds,
@@ -173,20 +216,28 @@ public class SearchResultMatcher
     {
         // Check duration first (hard constraint)
         if (expectedDurationSeconds > 0 && !IsDurationAcceptable(expectedDurationSeconds, candidate.Length ?? 0, lengthToleranceSeconds))
-            return 0.0;
+        {
+            return new MatchResult(0.0, 
+                $"Duration mismatch: expected {expectedDurationSeconds}s, actual {candidate.Length}s (tol: {lengthToleranceSeconds}s)", 
+                $"Duration ({candidate.Length}s != {expectedDurationSeconds}s)");
+        }
 
         // Strict filename matching (slsk-batchdl approach)
         // Filename must contain title and artist with word boundaries
         if (!StrictTitleSatisfies(candidate.Filename, expectedTitle))
         {
             _logger.LogTrace("Strict title check failed: {Filename} does not contain {Title}", candidate.Filename, expectedTitle);
-            return 0.0; // Hard reject if filename doesn't contain title
+            return new MatchResult(0.0, 
+                $"Strict title check failed: '{candidate.Filename}' does not contain '{expectedTitle}'", 
+                "Title Mismatch");
         }
 
         if (!StrictArtistSatisfies(candidate.Filename, expectedArtist))
         {
             _logger.LogTrace("Strict artist check failed: {Filename} does not contain {Artist}", candidate.Filename, expectedArtist);
-            return 0.0; // Hard reject if filename doesn't contain artist
+            return new MatchResult(0.0, 
+                $"Strict artist check failed: '{candidate.Filename}' does not contain '{expectedArtist}'", 
+                "Artist Mismatch");
         }
 
         // Calculate string similarity (0-1)
@@ -201,7 +252,7 @@ public class SearchResultMatcher
 
         var finalScore = Math.Min(1.0, combinedSimilarity + durationBonus);
         
-        return finalScore;
+        return new MatchResult(finalScore);
     }
 
     /// <summary>

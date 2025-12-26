@@ -152,7 +152,7 @@ public partial class SearchViewModel : ReactiveObject
         _searchOrchestration = searchOrchestration;
 
         // Reactive Status Updates
-        eventBus.GetEvent<Events.TrackStateChangedEvent>().Subscribe(OnTrackStateChanged);
+        eventBus.GetEvent<TrackStateChangedEvent>().Subscribe(OnTrackStateChanged);
         eventBus.GetEvent<TrackAddedEvent>().Subscribe(OnTrackAdded);
 
         // --- Reactive Pipeline Setup ---
@@ -498,14 +498,14 @@ public partial class SearchViewModel : ReactiveObject
         StatusText = "Ready";
     }
 
-    private void OnTrackStateChanged(Events.TrackStateChangedEvent evt)
+    private void OnTrackStateChanged(TrackStateChangedEvent evt)
     {
         // Update any matching search results via UI thread
         if (_searchResults.Count == 0) return;
 
         Dispatcher.UIThread.InvokeAsync(() =>
         {
-            var status = evt.NewState switch
+            var status = evt.State switch
             {
                 PlaylistTrackState.Completed => TrackStatus.Downloaded,
                 PlaylistTrackState.Failed => TrackStatus.Failed,

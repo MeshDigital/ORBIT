@@ -73,6 +73,14 @@ public class LibraryEnrichmentWorker : IDisposable
 
             while (!_cts.Token.IsCancellationRequested)
             {
+                // Circuit Breaker Check
+                if (SpotifyEnrichmentService.IsServiceDegraded)
+                {
+                    _logger.LogWarning("Spotify Service Degraded (Circuit Breaker Active). Worker pausing for 1 minute.");
+                    await Task.Delay(TimeSpan.FromMinutes(1), _cts.Token);
+                    continue;
+                }
+
                 try 
                 {
                     bool workDone = await ProcessBatchAsync();
@@ -115,6 +123,16 @@ public class LibraryEnrichmentWorker : IDisposable
             {
                 if (_cts.Token.IsCancellationRequested) break;
                 
+                // Cache-First Check
+                var cached = await _enrichmentService.GetCachedMetadataAsync(track.Artist, track.Title);
+                if (cached != null)
+                {
+                     await _databaseService.UpdatePlaylistTrackEnrichmentAsync(track.Id, cached);
+                     _logger.LogDebug("Cache Hit (PlaylistTrack): {Artist} - {Title}", track.Artist, track.Title);
+                     enrichedCount++;
+                     continue; // Skip API call
+                }
+
                 await Task.Delay(RateLimitDelayMs, _cts.Token); 
 
                 try 
@@ -145,6 +163,16 @@ public class LibraryEnrichmentWorker : IDisposable
             {
                 if (_cts.Token.IsCancellationRequested) break;
                 
+                // Cache-First Check
+                var cached = await _enrichmentService.GetCachedMetadataAsync(track.Artist, track.Title);
+                if (cached != null)
+                {
+                     await _databaseService.UpdateLibraryEntryEnrichmentAsync(track.UniqueHash, cached);
+                     _logger.LogDebug("Cache Hit (LibraryEntry): {Artist} - {Title}", track.Artist, track.Title);
+                     enrichedCount++;
+                     continue; // Skip API call
+                }
+
                 await Task.Delay(RateLimitDelayMs, _cts.Token); 
 
                 try 
@@ -176,7 +204,7 @@ public class LibraryEnrichmentWorker : IDisposable
             .Take(100)
             .ToList();
 
-        if (allIds.Any())
+        if (allIds != null && allIds.Any())
         {
              _logger.LogInformation("Enrichment Stage 2: Batch Features for {Count} unique tracks", allIds.Count);
              
@@ -184,11 +212,14 @@ public class LibraryEnrichmentWorker : IDisposable
              {
                  var featuresMap = await _enrichmentService.GetAudioFeaturesBatchAsync(allIds);
                  
-                 // Batch DB update (Updates both LibraryEntry and PlaylistTrack tables via Intelligence Sync)
-                 await _databaseService.UpdateLibraryEntriesFeaturesAsync(featuresMap);
-                 
-                 enrichedCount += featuresMap.Count;
-                 _logger.LogInformation("Stage 2 Complete: Enriched {Count} tracks with audio features", featuresMap.Count);
+                 if (featuresMap != null)
+                 {
+                    // Batch DB update (Updates both LibraryEntry and PlaylistTrack tables via Intelligence Sync)
+                    await _databaseService.UpdateLibraryEntriesFeaturesAsync(featuresMap);
+                    
+                    enrichedCount += featuresMap.Count;
+                    _logger.LogInformation("Stage 2 Complete: Enriched {Count} tracks with audio features", featuresMap.Count);
+                 }
              }
              catch (Exception ex)
              {
