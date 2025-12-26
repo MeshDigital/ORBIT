@@ -185,8 +185,53 @@ public partial class SearchViewModel : ReactiveObject
         AddToDownloadsCommand = ReactiveCommand.CreateFromTask(ExecuteAddToDownloadsAsync);
         DownloadSelectedCommand = ReactiveCommand.CreateFromTask(ExecuteDownloadSelectedAsync);
         
+        // Phase 12.6: Bi-directional filter sync - wire callback
+        FilterViewModel.OnTokenSyncRequested = HandleTokenSync;
+        
         // Note: Import overlay visibility is now handled by ImportOrchestrator via navigation
         // Event handlers for AddedToLibrary and Cancelled are set up in ImportOrchestrator.SetupPreviewCallbacks()
+    }
+
+    // Phase 12.6: Token sync methods for bi-directional filter
+    private void HandleTokenSync(string token, bool shouldAdd)
+    {
+        if (shouldAdd)
+            InjectToken(token);
+        else
+            RemoveToken(token);
+    }
+
+    private void InjectToken(string token)
+    {
+        // If it's a bitrate token (ends with +), remove any existing bitrate tokens first
+        if (token.EndsWith("+") || token.StartsWith(">"))
+        {
+            RemoveBitrateTokens();
+        }
+        
+        // Don't duplicate - check with word boundary
+        var pattern = $@"\b{System.Text.RegularExpressions.Regex.Escape(token)}\b";
+        if (System.Text.RegularExpressions.Regex.IsMatch(SearchQuery ?? "", pattern, System.Text.RegularExpressions.RegexOptions.IgnoreCase))
+            return;
+        
+        SearchQuery = $"{SearchQuery} {token}".Trim();
+    }
+
+    private void RemoveToken(string token)
+    {
+        // Word-boundary removal
+        var pattern = $@"\b{System.Text.RegularExpressions.Regex.Escape(token)}\b";
+        var clean = System.Text.RegularExpressions.Regex.Replace(SearchQuery ?? "", pattern, "", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+        // Collapse multiple spaces and trim
+        SearchQuery = System.Text.RegularExpressions.Regex.Replace(clean, @"\s+", " ").Trim();
+    }
+
+    private void RemoveBitrateTokens()
+    {
+        // Remove existing bitrate tokens like "320+", ">320", "256+"
+        var pattern = @"\b(\d{2,4}\+?|>\d{2,4})\b";
+        var clean = System.Text.RegularExpressions.Regex.Replace(SearchQuery ?? "", pattern, "", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+        SearchQuery = System.Text.RegularExpressions.Regex.Replace(clean, @"\s+", " ").Trim();
     }
 
     // Removed BuildFilter - logic moved to SearchFilterViewModel
@@ -195,42 +240,46 @@ public partial class SearchViewModel : ReactiveObject
     {
         if (string.IsNullOrWhiteSpace(SearchQuery)) return;
 
-        // Reset Filters (Polish: Ensure clean state unless locked - naive reset for now)
-        FilterViewModel.Reset();
-
-        // --- VIBE SEARCH: Natural Language Parsing ---
-        // Parse tokens like "flac", "wav", ">320", "kbps:320"
-        var tokens = SearchQuery.Split(' ', StringSplitOptions.RemoveEmptyEntries).ToList();
+        // Phase 12.6: Parse tokens without triggering reverse sync
         var processedQuery = new List<string>();
         bool filtersModified = false;
-
-        foreach (var token in tokens)
+        
+        FilterViewModel.SetFromQueryParsing(() =>
         {
-            var lower = token.ToLowerInvariant();
-            
-            
-            // Format Tokens
-            if (lower == "flac") { FilterViewModel.FilterFlac = true; FilterViewModel.FilterMp3 = false; FilterViewModel.FilterWav = false; filtersModified = true; continue; }
-            if (lower == "wav") { FilterViewModel.FilterWav = true; FilterViewModel.FilterMp3 = false; FilterViewModel.FilterFlac = false; filtersModified = true; continue; }
-            if (lower == "mp3") { FilterViewModel.FilterMp3 = true; FilterViewModel.FilterFlac = false; FilterViewModel.FilterWav = false; filtersModified = true; continue; }
-            
-            // Quality Tokens (>320 or 320+)
-            if (lower.StartsWith(">") && int.TryParse(lower.TrimStart('>'), out int minQ))
-            {
-                FilterViewModel.MinBitrate = minQ; 
-                filtersModified = true;
-                continue;
-            }
-            if (lower.EndsWith("+") && int.TryParse(lower.TrimEnd('+'), out int minQ2))
-            {
-                FilterViewModel.MinBitrate = minQ2;
-                filtersModified = true;
-                continue;
-            }
+            // Reset Filters (Polish: Ensure clean state unless locked - naive reset for now)
+            FilterViewModel.Reset();
 
-            // Normal keyword
-            processedQuery.Add(token);
-        }
+            // --- VIBE SEARCH: Natural Language Parsing ---
+            // Parse tokens like "flac", "wav", ">320", "kbps:320"
+            var tokens = SearchQuery.Split(' ', StringSplitOptions.RemoveEmptyEntries).ToList();
+
+            foreach (var token in tokens)
+            {
+                var lower = token.ToLowerInvariant();
+                
+                // Format Tokens
+                if (lower == "flac") { FilterViewModel.FilterFlac = true; FilterViewModel.FilterMp3 = false; FilterViewModel.FilterWav = false; filtersModified = true; continue; }
+                if (lower == "wav") { FilterViewModel.FilterWav = true; FilterViewModel.FilterMp3 = false; FilterViewModel.FilterFlac = false; filtersModified = true; continue; }
+                if (lower == "mp3") { FilterViewModel.FilterMp3 = true; FilterViewModel.FilterFlac = false; FilterViewModel.FilterWav = false; filtersModified = true; continue; }
+                
+                // Quality Tokens (>320 or 320+)
+                if (lower.StartsWith(">") && int.TryParse(lower.TrimStart('>'), out int minQ))
+                {
+                    FilterViewModel.MinBitrate = minQ; 
+                    filtersModified = true;
+                    continue;
+                }
+                if (lower.EndsWith("+") && int.TryParse(lower.TrimEnd('+'), out int minQ2))
+                {
+                    FilterViewModel.MinBitrate = minQ2;
+                    filtersModified = true;
+                    continue;
+                }
+
+                // Normal keyword
+                processedQuery.Add(token);
+            }
+        });
 
         // Use parsed query if we extracted tokens, otherwise original
         string effectiveQuery = filtersModified ? string.Join(" ", processedQuery) : SearchQuery;

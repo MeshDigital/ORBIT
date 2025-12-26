@@ -17,7 +17,15 @@ public class SearchFilterViewModel : ReactiveObject
     public int MinBitrate 
     { 
         get => _minBitrate; 
-        set => this.RaiseAndSetIfChanged(ref _minBitrate, value); 
+        set
+        {
+            var oldVal = _minBitrate;
+            if (this.RaiseAndSetIfChanged(ref _minBitrate, value) != oldVal && !_isSyncingFromQuery)
+            {
+                // Phase 12.6: Sync bitrate as "320+" style token
+                OnTokenSyncRequested?.Invoke($"{value}+", true);
+            }
+        }
     }
 
     // Formats
@@ -37,6 +45,26 @@ public class SearchFilterViewModel : ReactiveObject
     {
         get => _hideSuspects;
         set => this.RaiseAndSetIfChanged(ref _hideSuspects, value);
+    }
+
+    // Phase 12.6: Bi-directional sync infrastructure
+    private bool _isSyncingFromQuery;
+    
+    /// <summary>
+    /// Callback to notify parent ViewModel when a token should be injected/removed from search bar.
+    /// Args: (token, shouldAdd)
+    /// </summary>
+    public Action<string, bool>? OnTokenSyncRequested { get; set; }
+
+    /// <summary>
+    /// Execute filter changes without triggering reverse sync to search bar.
+    /// Use when parsing tokens from query.
+    /// </summary>
+    public void SetFromQueryParsing(Action action)
+    {
+        _isSyncingFromQuery = true;
+        try { action(); }
+        finally { _isSyncingFromQuery = false; }
     }
 
     // Format Toggles (Helpers for UI binding)
@@ -75,11 +103,10 @@ public class SearchFilterViewModel : ReactiveObject
             SelectedFormats.Add(format);
         else if (!isSelected && SelectedFormats.Contains(format))
             SelectedFormats.Remove(format);
-            
-        // Trigger a re-evaluation of the predicate is handled by the WhenAnyValue in SearchViewModel observing this object
-        // But for SelectedFormats (collection), we might need an observable.
-        // Actually, simpler: The parent VM observes this object properties.
-        // For collection changes, we might want to expose a "FilterChanged" observable.
+        
+        // Phase 12.6: Bi-directional sync - notify search bar
+        if (!_isSyncingFromQuery)
+            OnTokenSyncRequested?.Invoke(format.ToLowerInvariant(), isSelected);
     }
 
     public IObservable<Func<SearchResult, bool>> FilterChanged => 
