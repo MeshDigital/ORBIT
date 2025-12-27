@@ -24,17 +24,20 @@ public class SearchOrchestrationService
     private readonly ILogger<SearchOrchestrationService> _logger;
     private readonly ISoulseekAdapter _soulseek;
     private readonly SearchQueryNormalizer _searchQueryNormalizer;
+    private readonly SearchNormalizationService _searchNormalization; // Phase 4.6: Replaces broken parenthesis stripping
     private readonly AppConfig _config;
     
     public SearchOrchestrationService(
         ILogger<SearchOrchestrationService> logger,
         ISoulseekAdapter soulseek,
         SearchQueryNormalizer searchQueryNormalizer,
+        SearchNormalizationService searchNormalization, // Phase 4.6
         AppConfig config)
     {
         _logger = logger;
         _soulseek = soulseek;
         _searchQueryNormalizer = searchQueryNormalizer;
+        _searchNormalization = searchNormalization;
         _config = config;
     }
     
@@ -58,8 +61,16 @@ public class SearchOrchestrationService
         {
             _logger.LogInformation("Streaming search started for: {Query}", query);
         
-        var normalizedQuery = _searchQueryNormalizer.RemoveFeatArtists(query);
-        normalizedQuery = _searchQueryNormalizer.RemoveYoutubeMarkers(normalizedQuery);
+        // Phase 4.6 HOTFIX: Use new SearchNormalizationService instead of aggressive parenthesis stripping
+        // OLD (BROKEN): Removes ALL parentheses including (VIP), (feat. X), (Remix)
+        // NEW: Preserves musical identity, only removes junk
+        var (normalizedArtist, normalizedTitle) = _searchNormalization.NormalizeForSoulseek("", query);
+        var normalizedQuery = normalizedTitle;
+        
+        // Legacy normalization (feat removal) - now redundant but kept for safety
+        // SearchNormalizationService already handles this better
+        // normalizedQuery = _searchQueryNormalizer.RemoveFeatArtists(normalizedQuery);
+        // normalizedQuery = _searchQueryNormalizer.RemoveYoutubeMarkers(normalizedQuery); // REMOVED: This was the bug!
         
         var formatFilter = preferredFormats.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
         
