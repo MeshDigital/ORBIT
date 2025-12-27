@@ -539,6 +539,7 @@ public partial class App : Application
         // Phase 4.2: Drop Detection & Cue Generation Engines
         services.AddSingleton<Services.Musical.DropDetectionEngine>();
         services.AddSingleton<Services.Musical.CueGenerationEngine>();
+        services.AddSingleton<Services.Musical.ManualCueGenerationService>(); // User-triggered batch cue processing
         
         // Phase 0: ViewModel Refactoring - Library child ViewModels
         services.AddTransient<ViewModels.Library.ProjectListViewModel>();

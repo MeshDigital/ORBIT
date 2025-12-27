@@ -12,7 +12,7 @@ namespace SLSKDONET.Services;
 
 public interface IAudioIntelligenceService
 {
-    Task<AudioFeaturesEntity?> AnalyzeTrackAsync(string filePath, string trackUniqueHash);
+    Task<AudioFeaturesEntity?> AnalyzeTrackAsync(string filePath, string trackUniqueHash, bool generateCues = false);
     bool IsEssentiaAvailable();
 }
 
@@ -90,7 +90,7 @@ public class EssentiaAnalyzerService : IAudioIntelligenceService
         return false;
     }
 
-    public async Task<AudioFeaturesEntity?> AnalyzeTrackAsync(string filePath, string trackUniqueHash)
+    public async Task<AudioFeaturesEntity?> AnalyzeTrackAsync(string filePath, string trackUniqueHash, bool generateCues = false)
     {
         // Phase 4.1: Graceful degradation - skip if binary missing
         if (!IsEssentiaAvailable())
@@ -207,8 +207,9 @@ public class EssentiaAnalyzerService : IAudioIntelligenceService
                 AnalyzedAt = DateTime.UtcNow
             };
             
-            // Phase 4.2: Drop Detection & Cue Generation
-            if (entity.Bpm > 0)
+            // Phase 4.2: Drop Detection & Cue Generation (OPT-IN ONLY for safety)
+            // User must manually trigger via UI to avoid unintended modifications
+            if (generateCues && entity.Bpm > 0)
             {
                 try
                 {
@@ -232,6 +233,10 @@ public class EssentiaAnalyzerService : IAudioIntelligenceService
                         
                         _logger.LogInformation("🎯 Drop + Cues generated: Drop={Drop:F1}s, Build={Build:F1}s, PhraseStart={PS:F1}s",
                             dropTime.Value, cues.Build, cues.PhraseStart);
+                    }
+                    else
+                    {
+                        _logger.LogDebug("No clear drop detected for {Hash}", trackUniqueHash);
                     }
                 }
                 catch (Exception ex)
