@@ -49,6 +49,7 @@ public class DownloadManager : INotifyPropertyChanged, IDisposable
     private readonly CrashRecoveryJournal _crashJournal; // Phase 2A
     private readonly IEnrichmentTaskRepository _enrichmentTaskRepository; // [NEW]
     private readonly IAudioAnalysisService _audioAnalysisService; // Phase 3: Local Audio Analysis
+    private readonly AnalysisQueueService _analysisQueue; // Phase 4: Musical Brain Queue
 
     // Phase 2.5: Concurrency control with SemaphoreSlim throttling
     private readonly CancellationTokenSource _globalCts = new();
@@ -85,7 +86,8 @@ public class DownloadManager : INotifyPropertyChanged, IDisposable
         SLSKDONET.Services.IO.IFileWriteService fileWriteService,
         CrashRecoveryJournal crashJournal,
         IEnrichmentTaskRepository enrichmentTaskRepository,
-        IAudioAnalysisService audioAnalysisService) // [NEW] Injected
+        IAudioAnalysisService audioAnalysisService,
+        AnalysisQueueService analysisQueue) // [NEW] Injected
     {
         _logger = logger;
         _config = config;
@@ -100,6 +102,7 @@ public class DownloadManager : INotifyPropertyChanged, IDisposable
         _fileWriteService = fileWriteService;
         _enrichmentTaskRepository = enrichmentTaskRepository;
         _audioAnalysisService = audioAnalysisService;
+        _analysisQueue = analysisQueue;
 
         // Initialize from config, but allow runtime changes
         int initialLimit = _config.MaxConcurrentDownloads > 0 ? _config.MaxConcurrentDownloads : 4;
@@ -1867,6 +1870,11 @@ public class DownloadManager : INotifyPropertyChanged, IDisposable
                                 db.AudioAnalysis.Add(analysis);
                                 await db.SaveChangesAsync();
                                 _logger.LogInformation("🔊 Audio analysis completed for {Track}", ctx.Model.Title);
+                                
+                                // Phase 4: Queue for Musical Background Analysis (Essentia)
+                                // Only queue if technical analysis succeeded (file is valid)
+                                _analysisQueue.QueueAnalysis(analysisParams.Path, analysisParams.Hash);
+                                _logger.LogInformation("🧠 Queued for musical analysis: {Title}", ctx.Model.Title);
                             }
                         }
                         catch (Exception ex)

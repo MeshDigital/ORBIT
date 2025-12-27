@@ -531,6 +531,11 @@ public partial class App : Application
         services.AddSingleton<UpgradeScoutViewModel>();
         services.AddSingleton<Services.Export.RekordboxService>(); // Phase 4: DJ Export
         
+        // Phase 4: Musical Intelligence (The Brain)
+        services.AddSingleton<IAudioIntelligenceService, EssentiaAnalyzerService>();
+        services.AddSingleton<AnalysisQueueService>();
+        services.AddHostedService<AnalysisWorker>();
+        
         // Phase 0: ViewModel Refactoring - Library child ViewModels
         services.AddTransient<ViewModels.Library.ProjectListViewModel>();
         services.AddTransient<ViewModels.Library.TrackListViewModel>();
