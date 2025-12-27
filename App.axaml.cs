@@ -491,6 +491,9 @@ public partial class App : Application
         // Phase 4.6 Hotfix: Search String Normalization
         services.AddSingleton<SearchNormalizationService>();
         
+        // Phase 4.7: Forensic Logging (Track-scoped correlation)
+        services.AddSingleton<TrackForensicLogger>();
+        
         services.AddSingleton<DownloadManager>();
         services.AddSingleton<DownloadHealthMonitor>(); // Phase 3B: Active Health Monitor
         

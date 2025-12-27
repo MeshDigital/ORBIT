@@ -19,6 +19,7 @@ public class AppDbContext : DbContext
     public DbSet<Entities.EnrichmentTaskEntity> EnrichmentTasks { get; set; }
     public DbSet<Entities.AudioAnalysisEntity> AudioAnalysis { get; set; }
     public DbSet<Entities.AudioFeaturesEntity> AudioFeatures { get; set; }
+    public DbSet<Entities.ForensicLogEntry> ForensicLogs { get; set; } // Phase 4.7: Forensic Logging
 
     protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
     {
