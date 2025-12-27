@@ -487,6 +487,10 @@ public partial class App : Application
         services.AddSingleton<PathProviderService>();
 
         // Download manager
+        
+        // Phase 4.6 Hotfix: Search String Normalization
+        services.AddSingleton<SearchNormalizationService>();
+        
         services.AddSingleton<DownloadManager>();
         services.AddSingleton<DownloadHealthMonitor>(); // Phase 3B: Active Health Monitor
         
