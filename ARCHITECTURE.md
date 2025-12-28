@@ -6,9 +6,9 @@
 ┌─────────────────────────────────────────────────────────────┐
 │                         UI Layer                            │
 │  ┌─────────────────────────────┐   ┌──────────────────────┐ │
-│  │ MainWindow (navigation shell)│  │ WPF Pages (Search,   │ │
-│  │ ├─ NavigationService         │  │ Library, Downloads,  │ │
-│  │ ├─ PlayerViewModel           │  │ Settings, History)   │ │
+│  │ MainWindow (navigation shell)│  │ Avalonia Pages (Search,│ │
+│  │ ├─ NavigationService         │  │ Library, Downloads,   │ │
+│  │ ├─ PlayerViewModel           │  │ Settings, TrackInspector)│ │
 │  │ └─ Drag-and-Drop Adorners    │  │                      │ │
 │  └──────────────┬───────────────┘   └───────────┬──────────┘ │
 │                 │                               │            │
@@ -24,6 +24,8 @@
         │   Application Services          │
         │  DownloadManager (Multi-Lane) 🚥│
         │  DownloadHealthMonitor 💚      │
+        │  AnalysisQueueService 🧠        │
+        │  EssentiaAnalyzerService 🎛️     │
         │  CrashRecoveryService 🛡️        │
         │  SonicIntegrityService ✨       │
         │  SearchOrchestrator 🧠          │
@@ -188,6 +190,37 @@ Trust Score Update (DB)
 
 ---
 
+## 🧪 Audio Analysis & Cue Generation (Essentia Sidecar)
+
+### Pipeline
+```
+Download Completed
+    │
+    ▼
+AnalysisQueueService (Channel<T>)
+    │ (SemaphoreSlim(2) workers)
+    ▼
+EssentiaAnalyzerService (FFmpeg + Essentia sidecar)
+    │
+    ├─ AudioFeaturesEntity (BPM, Key, Energy, Danceability)
+    ├─ DropDetectionEngine (loudness + spectral + onset)
+    └─ CueGenerationEngine (32-bar phrase, beat-aligned)
+    ▼
+Library Updates + TrackInspector auto-refresh
+```
+
+### Resilience
+- 45s watchdog kills hung external processes
+- Atomic DB writes (features + waveform in a single transaction)
+- Correlated forensic logging for every track (TrackForensicLogger)
+
+### User Experience
+- Glass Box status bar: "🧠 Analyzing: N remaining ~ ETA"
+- Pause/Resume support on the queue
+- Track Inspector live-refresh when analysis completes
+
+---
+
 ## 🔄 Import Pipeline
 
 ```
@@ -208,9 +241,10 @@ DownloadManager.QueueProject
 
 ## 🔊 Audio Playback System
 
-*   **LibVLCSharp**: Core engine for playback (MP3, FLAC, WAV).
+*   **NAudio**: Low-latency playback (MP3, FLAC, WAV) with hardware-style pitch.
 *   **PlayerViewModel**: Manages transport controls (Play/Pause/Seek).
 *   **State Machine**: Handles transition between `Stopped` → `Buffering` → `Playing`.
+*   **WaveformControl**: Renders Rekordbox PWAV data or locally generated peaks.
 
 ---
 

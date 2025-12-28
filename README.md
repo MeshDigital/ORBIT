@@ -27,6 +27,11 @@ Where traditional P2P clients download the first available file, ORBIT analyzes 
 
 ## ✨ Core Features
 
+### 📌 Latest Highlights (Dec 28, 2025)
+- **Audio Analysis Pipeline**: FFmpeg + Essentia sidecar with 45s watchdog, atomic DB updates, and Track Inspector auto-refresh.
+- **Library Track Display**: Rich duration/size badges (⏱, 💾) with smart KB/MB formatting and dual-source loading.
+- **Glass Box Queue Visibility**: Observable AnalysisQueueService with pause/resume, smart ETA, and animated status bar pulse.
+
 ### 🎯 Intelligent Search Ranking
 - **Quality-First Scoring**: Bitrate is the primary factor, musical attributes act as tiebreakers
 - **VBR Validation**: Detects upconverted files (128→320, MP3→FLAC)
@@ -122,7 +127,8 @@ File D: "FLAC", 1411kbps, "Strobe.flac" (9 MB - FAKE)
 - **UI Framework**: Avalonia (cross-platform XAML)
 - **Backend**: .NET 8.0 (C#)
 - **Database**: SQLite + Entity Framework Core
-- **Audio Playback**: LibVLC
+- **Audio Playback**: NAudio (hi-fi, low-latency)
+- **Audio Analysis**: Essentia + FFmpeg sidecar (drop detection, cues, features)
 - **P2P Network**: Soulseek.NET
 - **Metadata**: TagLib# (audio tagging)
 
