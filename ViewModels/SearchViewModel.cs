@@ -16,6 +16,7 @@ using DynamicData;
 using DynamicData.Binding;
 using ReactiveUI;
 using System.Reactive.Linq;
+using SLSKDONET.Configuration;
 
 namespace SLSKDONET.ViewModels;
 

@@ -66,7 +66,7 @@
 ### Recent Updates (December 28, 2025)
 - ✅ **Search Intelligence (The Brain 2.0)**:
   - ✅ **Three-Zone Dashboard**: Initiator (Search), Brain (Rank/Filter), Gatekeeper (Results) layout.
-  - ✅ **Control Surface**: Real-time Ranking Sliders (Bitrate vs Reliability vs Match) and Format Toggles.
+  - ✅ **Control Surface**: Real-time Ranking Sliders (Bitrate vs Reliability vs Match) and Format Toggles (Auto-Saved).
   - ✅ **Search Presets**: One-click configuration for "Balanced", "DJ Mode", "Audiophile", and "Data Saver".
 - ✅ **Library UX Polish**:
   - ✅ **Enhanced Track Cards**: Added real-time "Download Status" badges (Color-coded) and "Enrichment Sparkles".
@@ -326,6 +326,7 @@
 - [ ] **Coordinate Precision**: Refactor `LibraryPage.axaml.cs` drag-drop to use `VisualRoot` / `PointToClient` for transformations.
 - [ ] **Selection Robustness**: Replace `Task.Delay` in `LibraryViewModel` with a reactive "Wait until Project exists in collection" logic.
 - [ ] **Source of Truth Sync**: Update `TrackListViewModel` to cross-reference `DownloadManager` for active tracks not yet in global index.
+- [ ] **Shared Folder Logic**: Implement backend logic in `SoulseekAdapter` to actually share files from the configured Shared Folder (currently UI-only).
 
 ### 🎯 Metadata Gravity Well 2.0 - Refinements (SpotiSharp Integration)
 **Source**: Deep dive analysis comparing ORBIT implementation with SpotiSharp reference architecture
