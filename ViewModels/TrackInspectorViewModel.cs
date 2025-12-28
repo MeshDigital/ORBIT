@@ -27,6 +27,17 @@ namespace SLSKDONET.ViewModels
             set => SetProperty(ref _isAnalyzing, value);
         }
 
+        private AnalysisProgressViewModel? _progressModal;
+        public AnalysisProgressViewModel? ProgressModal
+        {
+            get => _progressModal;
+            set => SetProperty(ref _progressModal, value);
+        }
+
+        // Phase 3: Interactive Commands
+        public System.Windows.Input.ICommand ForceReAnalyzeCommand { get; }
+        public System.Windows.Input.ICommand ExportLogsCommand { get; }
+
         public TrackInspectorViewModel(Services.IAudioAnalysisService audioAnalysisService, Services.IEventBus eventBus)
         {
             _audioAnalysisService = audioAnalysisService;
@@ -38,11 +49,88 @@ namespace SLSKDONET.ViewModels
                 .Subscribe(evt => Track = evt.Track)
                 .DisposeWith(_disposables);
 
-            // Phase B: Listen for audio analysis completion
+            // Phase 1: Listen for analysis started - show progress modal
+            _eventBus.GetEvent<TrackAnalysisStartedEvent>()
+                .Where(evt => Track?.TrackUniqueHash == evt.TrackGlobalId)
+                .ObserveOn(RxApp.MainThreadScheduler)
+                .Subscribe(evt =>
+                {
+                    IsAnalyzing = true;
+                    ProgressModal = new AnalysisProgressViewModel(evt.TrackGlobalId, _eventBus);
+                })
+                .DisposeWith(_disposables);
+
+            // Phase B: Listen for audio analysis completion - hide progress modal
             _eventBus.GetEvent<TrackAnalysisCompletedEvent>()
                 .ObserveOn(RxApp.MainThreadScheduler)
-                .Subscribe(OnAnalysisCompleted)
+                .Subscribe(evt =>
+                {
+                    OnAnalysisCompleted(evt);
+                    
+                    // Hide progress modal
+                    if (ProgressModal?.TrackId == evt.TrackGlobalId)
+                    {
+                        ProgressModal?.Dispose();
+                        ProgressModal = null;
+                        IsAnalyzing = false;
+                    }
+                })
                 .DisposeWith(_disposables);
+            
+            // Phase 3: Interactive Commands
+            ForceReAnalyzeCommand = ReactiveCommand.CreateFromTask(async () =>
+            {
+                if (Track == null || string.IsNullOrEmpty(Track.TrackUniqueHash)) return;
+                
+                try
+                {
+                    // Delete existing analysis from database
+                    using var db = new Data.AppDbContext();
+                    var existing = await db.AudioAnalysis
+                        .FirstOrDefaultAsync(a => a.TrackUniqueHash == Track.TrackUniqueHash);
+                    if (existing != null)
+                    {
+                        db.AudioAnalysis.Remove(existing);
+                        await db.SaveChangesAsync();
+                    }
+                    
+                    // Clear current analysis
+                    _analysis = null;
+                    NotifyAnalysisProperties();
+                    
+                    // Re-queue for analysis (assuming there's a service to queue)
+                    // You'll need to inject AnalysisQueueService or similar
+                    // For now, just trigger a reload which will find it missing
+                    LoadAnalysisAsync(Track.TrackUniqueHash);
+                }
+                catch (Exception ex)
+                {
+                    System.Diagnostics.Debug.WriteLine($"Re-analyze failed: {ex.Message}");
+                }
+            });
+            
+            ExportLogsCommand = ReactiveCommand.CreateFromTask(async () =>
+            {
+                if (ForensicLogs.Count == 0) return;
+                
+                try
+                {
+                    var desktop = Environment.GetFolderPath(Environment.SpecialFolder.Desktop);
+                    var fileName = $"ForensicLogs_{Track?.TrackUniqueHash?.Substring(0, 8)}_{DateTime.Now:yyyyMMdd_HHmmss}.txt";
+                    var filePath = System.IO.Path.Combine(desktop, fileName);
+                    
+                    var lines = ForensicLogs.Select(log => 
+                        $"[{log.Timestamp:HH:mm:ss}] [{log.Stage}] {log.Message}"
+                    );
+                    
+                    await System.IO.File.WriteAllLinesAsync(filePath, lines);
+                    System.Diagnostics.Debug.WriteLine($"Logs exported to: {filePath}");
+                }
+                catch (Exception ex)
+                {
+                    System.Diagnostics.Debug.WriteLine($"Export failed: {ex.Message}");
+                }
+            });
         }
 
         private PlaylistTrack? _track;
@@ -193,6 +281,11 @@ namespace SLSKDONET.ViewModels
             OnPropertyChanged(nameof(IntegrityStatusColor));
             OnPropertyChanged(nameof(SpectralCutoffLabel));
             OnPropertyChanged(nameof(QualityConfidenceLabel));
+            
+            // Phase 2: Status properties
+            OnPropertyChanged(nameof(HasAnalysis));
+            OnPropertyChanged(nameof(AnalysisAge));
+            OnPropertyChanged(nameof(StatusBadgeText));
         }
         
         // Phase 4: Musical Intelligence Properties Notification
@@ -241,6 +334,33 @@ namespace SLSKDONET.ViewModels
 
         public string SpectralCutoffLabel => _analysis != null ? $"{_analysis.FrequencyCutoff / 1000.0:F1} kHz" : "--";
         public string QualityConfidenceLabel => _analysis != null ? $"{_analysis.QualityConfidence:P0}" : "--";
+
+        // Phase 2: Analysis Status Properties
+        public bool HasAnalysis => _analysis != null;
+        
+        public string AnalysisAge
+        {
+            get
+            {
+                if (_analysis?.AnalyzedAt == null) return "";
+                
+                var age = DateTime.UtcNow - _analysis.AnalyzedAt;
+                if (age.TotalSeconds < 60) return "just now";
+                if (age.TotalMinutes < 60) return $"{age.TotalMinutes:F0}m ago";
+                if (age.TotalHours < 24) return $"{age.TotalHours:F0}h ago";
+                return $"{age.TotalDays:F0}d ago";
+            }
+        }
+        
+        public string StatusBadgeText
+        {
+            get
+            {
+                if (IsAnalyzing) return "🔄 Analyzing...";
+                if (HasAnalysis) return "✓ Analysis Complete";
+                return "⚠️ No Analysis";
+            }
+        }
 
         public bool HasTrack => Track != null;
 

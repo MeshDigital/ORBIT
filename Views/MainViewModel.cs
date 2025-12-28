@@ -33,6 +33,7 @@ public class MainViewModel : INotifyPropertyChanged
     private readonly ISpotifyMetadataService _spotifyMetadata;
     private readonly SpotifyAuthService _spotifyAuth;
     private readonly IFileInteractionService _fileInteractionService;
+    private readonly AnalysisQueueService _analysisQueue;
 
     // Child ViewModels
     public PlayerViewModel PlayerViewModel { get; }
@@ -41,6 +42,7 @@ public class MainViewModel : INotifyPropertyChanged
     public ConnectionViewModel ConnectionViewModel { get; }
     public SettingsViewModel SettingsViewModel { get; }
     public HomeViewModel HomeViewModel { get; }
+    public StatusBarViewModel StatusBar { get; }
 
     public event PropertyChangedEventHandler? PropertyChanged;
 
@@ -80,7 +82,8 @@ public class MainViewModel : INotifyPropertyChanged
         ISpotifyMetadataService spotifyMetadata,
         SpotifyAuthService spotifyAuth,
         IFileInteractionService fileInteractionService,
-        IEventBus eventBus)
+        IEventBus eventBus,
+        AnalysisQueueService analysisQueue)
     {
         _logger = logger;
         _config = config;
@@ -95,6 +98,7 @@ public class MainViewModel : INotifyPropertyChanged
         _downloadManager = downloadManager;
         _spotifyMetadata = spotifyMetadata;
         _spotifyAuth = spotifyAuth;
+        _analysisQueue = analysisQueue;
 
         PlayerViewModel = playerViewModel;
         LibraryViewModel = libraryViewModel;
@@ -102,6 +106,7 @@ public class MainViewModel : INotifyPropertyChanged
         ConnectionViewModel = connectionViewModel;
         SettingsViewModel = settingsViewModel;
         HomeViewModel = homeViewModel;
+        StatusBar = new StatusBarViewModel(eventBus);
 
         // Initialize commands
         NavigateHomeCommand = new RelayCommand(NavigateToHome); // Phase 6D
@@ -118,6 +123,7 @@ public class MainViewModel : INotifyPropertyChanged
         ZoomInCommand = new RelayCommand(ZoomIn);
         ZoomOutCommand = new RelayCommand(ZoomOut);
         ResetZoomCommand = new RelayCommand(ResetZoom);
+        ToggleAnalysisPauseCommand = new RelayCommand(ToggleAnalysisPause);
 
         // Spotify Hub Initialization (TODO: Phase 7 - Implement when needed)
         // Downloads Page Commands
@@ -144,6 +150,24 @@ public class MainViewModel : INotifyPropertyChanged
              // For now, we can log or show a toast
              StatusText = $"Request to add '{evt.Track.Title}' to project (Coming Soon)";
         });
+        
+        // Glass Box Architecture: Analysis Queue Visibility
+        _eventBus.GetEvent<AnalysisQueueStatusChangedEvent>().Subscribe(evt =>
+        {
+            // Marshal to UI thread
+            Dispatcher.UIThread.Post(() =>
+            {
+                AnalysisQueueCount = evt.QueuedCount;
+                AnalysisProcessedCount = evt.ProcessedCount;
+                IsAnalysisPaused = evt.IsPaused;
+            });
+        });
+        
+        // Fix #2: Startup State Sync - prevent "ghost queue" race condition
+        // Sync initial state in case events fired before subscription
+        AnalysisQueueCount = _analysisQueue.QueuedCount;
+        AnalysisProcessedCount = _analysisQueue.ProcessedCount;
+        IsAnalysisPaused = _analysisQueue.IsPaused;
         
         // Local collection monitoring for stats
         AllGlobalTracks.CollectionChanged += (s, e) => 
@@ -275,6 +299,79 @@ public class MainViewModel : INotifyPropertyChanged
     }
 
 
+    // === Analysis Queue Status (Glass Box Architecture) ===
+    
+    private int _analysisQueueCount;
+    public int AnalysisQueueCount
+    {
+        get => _analysisQueueCount;
+        set
+        {
+            if (SetProperty(ref _analysisQueueCount, value))
+            {
+                OnPropertyChanged(nameof(HasActiveAnalysis));
+                OnPropertyChanged(nameof(AnalysisETA));
+                OnPropertyChanged(nameof(HasETA));
+            }
+        }
+    }
+
+    private int _analysisProcessedCount;
+    public int AnalysisProcessedCount
+    {
+        get => _analysisProcessedCount;
+        set => SetProperty(ref _analysisProcessedCount, value);
+    }
+
+    public bool HasActiveAnalysis => AnalysisQueueCount > 0;
+
+    private bool _isAnalysisPaused;
+    public bool IsAnalysisPaused
+    {
+        get => _isAnalysisPaused;
+        set
+        {
+            if (SetProperty(ref _isAnalysisPaused, value))
+            {
+                OnPropertyChanged(nameof(PauseButtonTooltip));
+                OnPropertyChanged(nameof(PauseButtonIcon));
+            }
+        }
+    }
+
+    public string PauseButtonTooltip => IsAnalysisPaused 
+        ? "Resume Analysis (CPU saver mode active)" 
+        : "Pause Analysis (save CPU for gaming/other tasks)";
+
+    public string PauseButtonIcon => IsAnalysisPaused 
+        ? "play_regular" 
+        : "pause_regular";
+
+    public string? AnalysisETA
+    {
+        get
+        {
+            if (AnalysisQueueCount == 0) return null;
+            
+            // Estimate: ~2 seconds per track
+            int seconds = AnalysisQueueCount * 2;
+            
+            if (seconds < 60)
+                return $"~{seconds}s";
+            
+            int minutes = seconds / 60;
+            if (minutes < 60)
+                return $"~{minutes}m";
+            
+            int hours = minutes / 60;
+            int remainingMinutes = minutes % 60;
+            return $"~{hours}h {remainingMinutes}m";
+        }
+    }
+
+    public bool HasETA => !string.IsNullOrEmpty(AnalysisETA);
+
+
     public bool IsPlayerInSidebar => !_isPlayerAtBottom;
 
     private double _baseFontSize = 14.0;
@@ -377,6 +474,7 @@ public class MainViewModel : INotifyPropertyChanged
     public ICommand ZoomInCommand { get; }
     public ICommand ZoomOutCommand { get; }
     public ICommand ResetZoomCommand { get; }
+    public ICommand ToggleAnalysisPauseCommand { get; }
     public ICommand ExecuteBrainTestCommand { get; }
     
     // Downloads Page Commands
@@ -663,5 +761,21 @@ public class MainViewModel : INotifyPropertyChanged
     {
         if (track == null) return;
         await _downloadManager.DeleteTrackFromDiskAndHistoryAsync(track.GlobalId);
+    }
+
+    private void ToggleAnalysisPause()
+    {
+        if (_analysisQueue == null)
+        {
+            _logger.LogWarning("AnalysisQueueService not available");
+            return;
+        }
+        
+        _analysisQueue.IsPaused = !_analysisQueue.IsPaused;
+        IsAnalysisPaused = _analysisQueue.IsPaused;
+        
+        string action = IsAnalysisPaused ? "paused" : "resumed";
+        StatusText = $"Analysis queue {action}";
+        _logger.LogInformation("Analysis queue {Action} by user", action);
     }
 }

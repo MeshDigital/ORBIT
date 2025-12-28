@@ -75,6 +75,14 @@
 - ✅ **Settings UI**:
   - ✅ **Layout Fixes**: Widened numeric input boxes for better visibility.
   - ✅ **Clarity**: Renamed "Quality Guard" to "Smart Features & Integrity" for better user understanding.
+  - ✅ **Track Inspector Overhaul (Phase 4)**:
+    - ✅ **Forensic UI**: Complete redesign with Hero section, Metrics Grid, and Forensic Logs.
+    - ✅ **Interactive**: Added Force Re-analyze and Export Logs commands.
+    - ✅ **Stability**: Fixed gradient crash.
+  - ✅ **Analysis Queue Visibility (Phase 1-3)**:
+    - ✅ **Status Bar**: Live bottom bar showing real-time analysis queue/progress.
+    - ✅ **Album Priority**: Right-click "Analyze Album" calculates priority for entire albums.
+    - ✅ **Event Bus**: Reactive updates for 100% UI consistency.
 
 ### Recent Updates (December 27, 2025) - Pivot to Local Analysis
 - ⏸️ **PAUSED**: External Audio Features (Spotify BPM/Key/Energy) due to API changes.

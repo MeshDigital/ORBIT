@@ -42,7 +42,7 @@
         <KeyBinding Gesture="Ctrl+N" Command="{Binding ToggleNavigationCommand}"/>
     </Window.KeyBindings>
     
-    <Grid RowDefinitions="Auto,*">
+    <Grid RowDefinitions="Auto,*,Auto">
         <!-- Top Status Bar -->
         <Border Grid.Row="0" Background="#252526" Padding="16,8">
             <Grid ColumnDefinitions="Auto,*,Auto">
@@ -382,5 +382,31 @@
                 </StackPanel>
             </Border>
         </Grid>
+        
+        <!-- Bottom: Analysis Queue Status Bar -->
+        <Border Grid.Row="2" 
+                Background="#1E1E1E" 
+                BorderThickness="0,1,0,0" 
+                BorderBrush="#333"
+                Padding="12,6">
+            <Grid ColumnDefinitions="*,Auto">
+                <TextBlock Grid.Column="0"
+                           Text="{Binding StatusBar.StatusText}" 
+                           Foreground="#AAA" 
+                           FontSize="11"
+                           VerticalAlignment="Center"
+                           Margin="4,0"/>
+                
+                <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8"
+                            IsVisible="{Binding StatusBar.IsProcessing}">
+                    <TextBlock Text="•" Foreground="#1DB954" FontSize="12"/>
+                    <TextBlock Text="{Binding StatusBar.QueuedCount, StringFormat='{}{0} pending'}" 
+                               Foreground="#888" FontSize="10"/>
+                    <TextBlock Text="•" Foreground="#666" FontSize="10"/>
+                    <TextBlock Text="{Binding StatusBar.ProcessedCount, StringFormat='{}{0} done'}" 
+                               Foreground="#888" FontSize="10"/>
+                </StackPanel>
+            </Grid>
+        </Border>
     </Grid>
 </Window>

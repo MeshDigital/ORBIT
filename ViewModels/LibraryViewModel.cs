@@ -28,6 +28,7 @@ public class LibraryViewModel : INotifyPropertyChanged
     private readonly INotificationService _notificationService;
     private readonly SpotifyEnrichmentService _spotifyEnrichmentService; // Phase 5: Cache-First
     private readonly HarmonicMatchService _harmonicMatchService; // Phase 8: DJ Features
+    private readonly AnalysisQueueService _analysisQueueService; // Analysis queue control
     private System.Threading.Timer? _selectionDebounceTimer; // Debounce for harmonic matching
     private System.Threading.CancellationTokenSource? _matchLoadCancellation; // Phase 9B: Cancel overlapping operations
     private Views.MainViewModel? _mainViewModel; // Reference to parent
@@ -140,6 +141,7 @@ public class LibraryViewModel : INotifyPropertyChanged
     public System.Windows.Input.ICommand ExportMonthlyDropCommand { get; }
     public System.Windows.Input.ICommand FindHarmonicMatchesCommand { get; }
     public System.Windows.Input.ICommand ToggleMixHelperCommand { get; } // Phase 9: Toggle sidebar
+    public System.Windows.Input.ICommand AnalyzeAlbumCommand { get; } // Queue album for analysis
 
     public LibraryViewModel(
         ILogger<LibraryViewModel> logger,
@@ -156,9 +158,10 @@ public class LibraryViewModel : INotifyPropertyChanged
         TrackInspectorViewModel trackInspector,
         Services.Export.RekordboxService rekordboxService,
         IDialogService dialogService,
-        INotificationService notificationService,
+       INotificationService notificationService,
         SpotifyEnrichmentService spotifyEnrichmentService,
-        HarmonicMatchService harmonicMatchService) // Phase 8: DJ Features
+        HarmonicMatchService harmonicMatchService, // Phase 8: DJ Features
+        AnalysisQueueService analysisQueueService) // Analysis queue
     {
         _logger = logger;
         _navigationService = navigationService;
@@ -170,6 +173,7 @@ public class LibraryViewModel : INotifyPropertyChanged
         _notificationService = notificationService;
         _spotifyEnrichmentService = spotifyEnrichmentService;
         _harmonicMatchService = harmonicMatchService;
+        _analysisQueueService = analysisQueueService;
         
         // Assign child ViewModels
         Projects = projects;
@@ -192,6 +196,7 @@ public class LibraryViewModel : INotifyPropertyChanged
         ExportMonthlyDropCommand = new AsyncRelayCommand(ExecuteExportMonthlyDropAsync);
         FindHarmonicMatchesCommand = new AsyncRelayCommand<PlaylistTrackViewModel>(ExecuteFindHarmonicMatchesAsync);
         ToggleMixHelperCommand = new RelayCommand<object>(_ => IsMixHelperVisible = !IsMixHelperVisible);
+        AnalyzeAlbumCommand = new AsyncRelayCommand<string>(ExecuteAnalyzeAlbumAsync);
         
         PlayerViewModel = playerViewModel;
         UpgradeScout = upgradeScout;
@@ -794,6 +799,38 @@ public class LibraryViewModel : INotifyPropertyChanged
         finally
         {
             IsLoadingMatches = false;
+        }
+    }
+    
+    // Album Analysis Queue Priority
+    private async Task ExecuteAnalyzeAlbumAsync(string? albumName)
+    {
+        if (string.IsNullOrEmpty(albumName)) return;
+        
+        try
+        {
+            // Get all tracks for this album from current view
+            var albumTracks = Tracks.FilteredTracks
+                .Where(t => t.Album == albumName && t.Model.Status == TrackStatus.Downloaded)
+                .Select(vm => vm.Model)
+                .ToList();
+            
+            if (albumTracks.Count == 0)
+            {
+                await _dialogService.ShowAlertAsync("No Tracks", $"No downloaded tracks found for album '{albumName}'");
+                return;
+            }
+            
+            // Queue for analysis
+            var count = _analysisQueueService.QueueAlbumWithPriority(albumTracks);
+            
+            _notificationService.Show("Analysis Queued", $"Queued {count} tracks from '{albumName}' for analysis", NotificationType.Success);
+            _logger.LogInformation("Queued {Count} tracks from album '{Album}' for priority analysis", count, albumName);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to queue album for analysis");
+            await _dialogService.ShowAlertAsync("Error", "Failed to queue album for analysis");
         }
     }
 }

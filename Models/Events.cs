@@ -54,8 +54,24 @@ public record TrackStateChangedEvent(string TrackGlobalId, Guid ProjectId, Playl
 public record TrackProgressChangedEvent(string TrackGlobalId, double Progress, long BytesReceived, long TotalBytes);
 public record TrackMetadataUpdatedEvent(string TrackGlobalId);
 
-// Audio Analysis Pipeline (Phase 3 Integration)
+// Audio Analysis Pipeline (Phase 3 Integration + Phase 1 Progress)
 public record TrackAnalysisCompletedEvent(string TrackGlobalId, bool Success, string? ErrorMessage = null);
+public record TrackAnalysisStartedEvent(string TrackGlobalId, string FileName);
+public record AnalysisProgressEvent(string TrackGlobalId, string CurrentStep, int ProgressPercent);
+
+// Analysis Queue Visibility (Glass Box Architecture)
+public record AnalysisQueueStatusChangedEvent(
+    int QueuedCount,
+    int ProcessedCount,
+    string? CurrentTrackHash,
+    bool IsPaused
+);
+
+public record AnalysisCompletedEvent(
+    string TrackHash,
+    bool Success,
+    string? ErrorMessage = null
+);
 
 // Phase 8: Automation & Upgrade Events
 public record AutoDownloadTrackEvent(string TrackGlobalId, Track BestMatch);

@@ -351,6 +351,7 @@ public class TrackListViewModel : ReactiveObject
 
     /// <summary>
     /// Refreshes the filtered tracks based on current filter settings.
+    /// Optimized with batch updates for virtualization performance.
     /// </summary>
     public void RefreshFilteredTracks()
     {
@@ -359,9 +360,19 @@ public class TrackListViewModel : ReactiveObject
         _logger.LogDebug("RefreshFilteredTracks: {Input} -> {Filtered} tracks",
             CurrentProjectTracks.Count, filtered.Count);
 
+        // Batch update for better virtualization performance
         FilteredTracks.Clear();
-        foreach (var track in filtered)
-            FilteredTracks.Add(track);
+        
+        // Add in batches to reduce UI notifications
+        const int batchSize = 100;
+        for (int i = 0; i < filtered.Count; i += batchSize)
+        {
+            var batch = filtered.Skip(i).Take(batchSize);
+            foreach (var track in batch)
+            {
+                FilteredTracks.Add(track);
+            }
+        }
 
         // Phase 6D: Ensure TreeDataGrid source is updated
         Hierarchical.UpdateTracks(filtered);

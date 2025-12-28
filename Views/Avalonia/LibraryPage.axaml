@@ -335,16 +335,22 @@
                 </Grid>
             </Border>
 
-            <!-- Track List (Replaced TreeDataGrid with ListBox for Inspector Card) -->
+            <!-- Track List (UI Virtualized for 50k+ track support) -->
             <Grid Grid.Row="2">
                 <ListBox ItemsSource="{Binding Tracks.FilteredTracks}"
                          SelectionMode="Multiple"
                          SelectedItems="{Binding Tracks.SelectedTracks}"
                          Background="Transparent"
                          BorderThickness="0">
+                    <ListBox.ItemsPanel>
+                        <ItemsPanelTemplate>
+                            <VirtualizingStackPanel/>
+                        </ItemsPanelTemplate>
+                    </ListBox.ItemsPanel>
                     <ListBox.Styles>
                         <Style Selector="ListBoxItem">
                             <Setter Property="Padding" Value="4"/>
+                            <Setter Property="Height" Value="72"/>  <!-- Fixed height for virtualization -->
                             <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
                             <Setter Property="Background" Value="Transparent"/>
                             <Setter Property="BorderThickness" Value="0,0,0,1"/>
@@ -356,7 +362,7 @@
                     </ListBox.Styles>
                     
                     <ListBox.ItemTemplate>
-                        <DataTemplate>
+                        <DataTemplate DataType="vm:PlaylistTrackViewModel">
                             <Border Background="Transparent" Padding="8,6">
                                 <Border.ContextMenu>
                                     <ContextMenu>
@@ -411,6 +417,14 @@
                                                   CommandParameter="{Binding}">
                                              <MenuItem.Icon>
                                                 <TextBlock Text="🎹"/>
+                                            </MenuItem.Icon>
+                                        </MenuItem>
+
+                                        <MenuItem Header="Analyze Album" 
+                                                  Command="{Binding $parent[UserControl].DataContext.AnalyzeAlbumCommand}" 
+                                                  CommandParameter="{Binding Album}">
+                                             <MenuItem.Icon>
+                                                <TextBlock Text="🔬"/>
                                             </MenuItem.Icon>
                                         </MenuItem>
                                     </ContextMenu>
