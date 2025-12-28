@@ -315,17 +315,20 @@ public class LibraryViewModel : INotifyPropertyChanged
             _matchLoadCancellation?.Dispose();
             _matchLoadCancellation = new System.Threading.CancellationTokenSource();
             
-            _selectionDebounceTimer?.Dispose();
             _selectionDebounceTimer = new System.Threading.Timer(
                 _ => Avalonia.Threading.Dispatcher.UIThread.Post(() => LoadHarmonicMatchesAsync(trackVm, _matchLoadCancellation.Token)),
                 null,
                 250, // Wait 250ms after last selection change
                 System.Threading.Timeout.Infinite);
+
+            // Phase 12.6: Publish global selection event to sync standalone Inspector Page
+            _eventBus.Publish(new TrackSelectionChangedEvent(trackVm.Model));
         }
         else
         {
             // No selection
             TrackInspector.Track = null;
+            _eventBus.Publish(new TrackSelectionChangedEvent(null));
         }
     }
 

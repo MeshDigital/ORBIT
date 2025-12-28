@@ -36,9 +36,14 @@ public record PlaybackProgressEvent(TimeSpan Position, TimeSpan Duration);
 
 // Navigation & Global UI Events
 public record NavigationEvent(PageType PageType);
+public record TrackSelectionChangedEvent(PlaylistTrack? Track); // Phase 12.6: Inspector Sync
 public record PlayTrackRequestEvent(PlaylistTrackViewModel Track);
 public record PlayAlbumRequestEvent(System.Collections.Generic.IEnumerable<PlaylistTrack> Tracks);
 public record DownloadAlbumRequestEvent(object Album); // object to handle AlbumNode or PlaylistJob
+
+
+public record AddToProjectRequestEvent(PlaylistTrack Track); // Phase 12.7: Context Menu Actions
+public record RevealFileRequestEvent(string FilePath);
 
 // Explicit Track Events (missing in record list but used in code)
 public record TrackAddedEvent(PlaylistTrack TrackModel, PlaylistTrackState? InitialState = null);
@@ -48,6 +53,9 @@ public record TrackStateChangedEvent(string TrackGlobalId, Guid ProjectId, Playl
 // Phase 2.5: Enhanced with byte-level progress tracking
 public record TrackProgressChangedEvent(string TrackGlobalId, double Progress, long BytesReceived, long TotalBytes);
 public record TrackMetadataUpdatedEvent(string TrackGlobalId);
+
+// Audio Analysis Pipeline (Phase 3 Integration)
+public record TrackAnalysisCompletedEvent(string TrackGlobalId, bool Success, string? ErrorMessage = null);
 
 // Phase 8: Automation & Upgrade Events
 public record AutoDownloadTrackEvent(string TrackGlobalId, Track BestMatch);

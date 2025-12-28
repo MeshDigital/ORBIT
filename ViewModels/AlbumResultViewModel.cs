@@ -10,6 +10,7 @@ namespace SLSKDONET.ViewModels;
 public class AlbumResultViewModel
 {
     private readonly DownloadManager _downloadManager;
+    private readonly AnalysisQueueService _analysisQueue;
 
     public string AlbumTitle { get; private set; } = string.Empty;
     public string Artist { get; private set; } = string.Empty;
@@ -23,13 +24,15 @@ public class AlbumResultViewModel
     public double TotalSizeMb { get; private set; }
 
     public ICommand DownloadAlbumCommand { get; }
+    public ICommand ForceScanAlbumCommand { get; }
 
     public List<Track> Tracks { get; }
 
-    public AlbumResultViewModel(List<Track> tracks, DownloadManager downloadManager)
+    public AlbumResultViewModel(List<Track> tracks, DownloadManager downloadManager, AnalysisQueueService analysisQueue)
     {
         Tracks = tracks;
         _downloadManager = downloadManager;
+        _analysisQueue = analysisQueue;
 
         if (tracks.Any())
         {
@@ -62,6 +65,7 @@ public class AlbumResultViewModel
         }
         
         DownloadAlbumCommand = new RelayCommand(DownloadAlbum_Execute);
+        ForceScanAlbumCommand = new RelayCommand(ForceScanAlbum_Execute);
     }
 
     private async void DownloadAlbum_Execute()
@@ -100,5 +104,25 @@ public class AlbumResultViewModel
         
         // Use new QueueProject overload - creates job in Library and queues tracks
         await _downloadManager.QueueProject(job);
+    }
+
+    private void ForceScanAlbum_Execute()
+    {
+        // Queue all tracks for audio analysis (waveform, BPM, key detection)
+        // This will scan both downloaded and library tracks
+        foreach (var track in Tracks)
+        {
+            if (!string.IsNullOrEmpty(track.Filename))
+            {
+                // Construct file path from directory + filename
+                var filePath = System.IO.Path.Combine(Directory, track.Filename);
+                
+                // Only queue if file exists (downloaded or in library)
+                if (System.IO.File.Exists(filePath))
+                {
+                    _analysisQueue.QueueAnalysis(filePath, track.UniqueHash ?? string.Empty);
+                }
+            }
+        }
     }
 }

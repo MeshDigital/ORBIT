@@ -4,20 +4,45 @@ using System.Collections.ObjectModel;
 using System.Runtime.CompilerServices;
 using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
+using ReactiveUI;
+using System.Reactive.Disposables;
+using System.Reactive.Linq;
 using SLSKDONET.Data.Entities;
 using SLSKDONET.Models;
 
 namespace SLSKDONET.ViewModels
 {
-    public class TrackInspectorViewModel : INotifyPropertyChanged
+    public class TrackInspectorViewModel : INotifyPropertyChanged, IDisposable
     {
         private readonly Services.IAudioAnalysisService _audioAnalysisService;
+        private readonly Services.IEventBus _eventBus;
+        private readonly CompositeDisposable _disposables = new();
         private Data.Entities.AudioAnalysisEntity? _analysis;
         private Data.Entities.AudioFeaturesEntity? _audioFeatures; // Phase 4: Musical Intelligence
+        
+        private bool _isAnalyzing;
+        public bool IsAnalyzing
+        {
+            get => _isAnalyzing;
+            set => SetProperty(ref _isAnalyzing, value);
+        }
 
-        public TrackInspectorViewModel(Services.IAudioAnalysisService audioAnalysisService)
+        public TrackInspectorViewModel(Services.IAudioAnalysisService audioAnalysisService, Services.IEventBus eventBus)
         {
             _audioAnalysisService = audioAnalysisService;
+            _eventBus = eventBus;
+
+            // Phase 12.6: Listen for global track selection
+            _eventBus.GetEvent<TrackSelectionChangedEvent>()
+                .ObserveOn(RxApp.MainThreadScheduler)
+                .Subscribe(evt => Track = evt.Track)
+                .DisposeWith(_disposables);
+
+            // Phase B: Listen for audio analysis completion
+            _eventBus.GetEvent<TrackAnalysisCompletedEvent>()
+                .ObserveOn(RxApp.MainThreadScheduler)
+                .Subscribe(OnAnalysisCompleted)
+                .DisposeWith(_disposables);
         }
 
         private PlaylistTrack? _track;
@@ -63,12 +88,17 @@ namespace SLSKDONET.ViewModels
 
         private async void LoadAnalysisAsync(string hash)
         {
+            IsAnalyzing = true;
             try
             {
                 _analysis = await _audioAnalysisService.GetAnalysisAsync(hash);
                 NotifyAnalysisProperties();
             }
             catch (Exception) { /* Fail silently */ }
+            finally
+            {
+                IsAnalyzing = false;
+            }
         }
         
         // Phase 4: Load Musical Intelligence data from AudioFeaturesEntity
@@ -87,6 +117,42 @@ namespace SLSKDONET.ViewModels
                 NotifyMusicalIntelligenceProperties();
             }
             catch (Exception) { /* Fail silently */ }
+        }
+
+        /// <summary>
+        /// Handles TrackAnalysisCompletedEvent. Refreshes inspector if currently viewing the analyzed track.
+        /// </summary>
+        private void OnAnalysisCompleted(TrackAnalysisCompletedEvent evt)
+        {
+            // Only refresh if we're currently inspecting the analyzed track
+            if (Track?.TrackUniqueHash != evt.TrackGlobalId)
+                return;
+
+            if (evt.Success)
+            {
+                // Reload analysis data from DB
+                LoadAnalysisAsync(evt.TrackGlobalId);
+                LoadAudioFeaturesAsync(evt.TrackGlobalId);
+
+                // Refresh all analysis-related properties
+                NotifyAnalysisProperties();
+                NotifyMusicalIntelligenceProperties();
+
+                // Force refresh of key derived properties
+                OnPropertyChanged(nameof(BitrateLabel));
+                OnPropertyChanged(nameof(AudioGuardColor));
+                OnPropertyChanged(nameof(AudioGuardIcon));
+                OnPropertyChanged(nameof(FrequencyCutoffLabel));
+                OnPropertyChanged(nameof(ConfidenceLabel));
+                OnPropertyChanged(nameof(IsTrustworthy));
+                OnPropertyChanged(nameof(TrustColor));
+                
+                System.Diagnostics.Debug.WriteLine($"[Inspector] Analysis completed for {evt.TrackGlobalId}, UI refreshed");
+            }
+            else
+            {
+                System.Diagnostics.Debug.WriteLine($"[Inspector] Analysis failed for {evt.TrackGlobalId}: {evt.ErrorMessage}");
+            }
         }
 
         // Phase 4.7: Load Forensic Logs
@@ -297,7 +363,12 @@ namespace SLSKDONET.ViewModels
             if (System.Collections.Generic.EqualityComparer<T>.Default.Equals(field, value)) return false;
             field = value;
             OnPropertyChanged(propertyName);
-            return true;
+            return false;
+        }
+
+        public void Dispose()
+        {
+            _disposables?.Dispose();
         }
     }
 }

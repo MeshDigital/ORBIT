@@ -535,6 +535,9 @@ public partial class App : Application
         // Phase 4.7: Forensic Logging (Track-scoped correlation)
         services.AddSingleton<TrackForensicLogger>();
         
+        // Phase 3: Audio Analysis Services
+        services.AddSingleton<WaveformAnalysisService>();
+        
         services.AddSingleton<DownloadManager>();
         services.AddSingleton<DownloadHealthMonitor>(); // Phase 3B: Active Health Monitor
         

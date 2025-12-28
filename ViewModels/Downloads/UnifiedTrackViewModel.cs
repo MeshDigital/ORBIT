@@ -1,5 +1,6 @@
 using System;
 using System.Reactive.Disposables;
+using System.Reactive.Linq;
 using System.Windows.Input;
 using Avalonia.Threading;
 using ReactiveUI;
@@ -53,12 +54,15 @@ public class UnifiedTrackViewModel : ReactiveObject, IDisplayableTrack, IDisposa
         
         RevealFileCommand = ReactiveCommand.Create(() => 
         {
-            // TODO: Implement file reveal service
+            if (!string.IsNullOrEmpty(Model.ResolvedFilePath))
+            {
+                 _eventBus.Publish(new RevealFileRequestEvent(Model.ResolvedFilePath));
+            }
         }, this.WhenAnyValue(x => x.IsCompleted));
 
         AddToProjectCommand = ReactiveCommand.Create(() => 
         {
-            // TODO: Trigger "Add to Project" dialog
+            _eventBus.Publish(new AddToProjectRequestEvent(Model));
         }, this.WhenAnyValue(x => x.IsCompleted));
 
         PauseCommand = ReactiveCommand.CreateFromTask(async () => 
@@ -84,16 +88,19 @@ public class UnifiedTrackViewModel : ReactiveObject, IDisplayableTrack, IDisposa
              await _downloadManager.DeleteTrackFromDiskAndHistoryAsync(GlobalId);
         }, this.WhenAnyValue(x => x.IsCompleted, x => x.IsFailed, (c, f) => c || f));
 
-        // Subscribe to Events
+        // Subscribe to Events with Rx Scheduler for Thread Safety
         _eventBus.GetEvent<TrackStateChangedEvent>()
+            .ObserveOn(RxApp.MainThreadScheduler)
             .Subscribe(OnStateChanged)
             .DisposeWith(_disposables);
 
         _eventBus.GetEvent<TrackProgressChangedEvent>()
+            .ObserveOn(RxApp.MainThreadScheduler)
             .Subscribe(OnProgressChanged)
             .DisposeWith(_disposables);
 
         _eventBus.GetEvent<TrackMetadataUpdatedEvent>()
+            .ObserveOn(RxApp.MainThreadScheduler)
             .Subscribe(OnMetadataUpdated)
             .DisposeWith(_disposables);
             
@@ -238,57 +245,51 @@ public class UnifiedTrackViewModel : ReactiveObject, IDisplayableTrack, IDisposa
     {
         if (e.TrackGlobalId != GlobalId) return;
         
-        Dispatcher.UIThread.Post(() => {
-            State = e.State;
+        State = e.State;
         FailureReason = e.Error;
-        });
     }
 
     private void OnProgressChanged(TrackProgressChangedEvent e)
     {
         if (e.TrackGlobalId != GlobalId) return;
         
-        Dispatcher.UIThread.Post(() => {
-             Progress = e.Progress;
-             _totalBytes = e.TotalBytes;
-             
-             // Speed Calc
-             var now = DateTime.UtcNow;
-             if (_lastProgressTime != DateTime.MinValue)
+         Progress = e.Progress;
+         _totalBytes = e.TotalBytes;
+         
+         // Speed Calc
+         var now = DateTime.UtcNow;
+         if (_lastProgressTime != DateTime.MinValue)
+         {
+             var seconds = (now - _lastProgressTime).TotalSeconds;
+             if (seconds > 0)
              {
-                 var seconds = (now - _lastProgressTime).TotalSeconds;
-                 if (seconds > 0)
+                 var bytesDiff = e.BytesReceived - _bytesReceived;
+                 if (bytesDiff > 0)
                  {
-                     var bytesDiff = e.BytesReceived - _bytesReceived;
-                     if (bytesDiff > 0)
-                     {
-                         var instantSpeed = bytesDiff / seconds;
-                         // Simple smoothing
-                         _currentSpeed = (_currentSpeed * 0.7) + (instantSpeed * 0.3); 
-                         this.RaisePropertyChanged(nameof(TechnicalSummary));
-                     }
+                     var instantSpeed = bytesDiff / seconds;
+                     // Simple smoothing
+                     _currentSpeed = (_currentSpeed * 0.7) + (instantSpeed * 0.3); 
+                     this.RaisePropertyChanged(nameof(TechnicalSummary));
                  }
              }
-             _bytesReceived = e.BytesReceived;
-             _lastProgressTime = now;
-             
-             this.RaisePropertyChanged(nameof(StatusText));
-        });
+         }
+         _bytesReceived = e.BytesReceived;
+         _lastProgressTime = now;
+         
+         this.RaisePropertyChanged(nameof(StatusText));
     }
 
     private void OnMetadataUpdated(TrackMetadataUpdatedEvent e)
     {
         if (e.TrackGlobalId != GlobalId) return;
         
-        Dispatcher.UIThread.Post(() => {
-            this.RaisePropertyChanged(nameof(ArtistName));
-            this.RaisePropertyChanged(nameof(TrackTitle));
-            this.RaisePropertyChanged(nameof(AlbumName));
-            this.RaisePropertyChanged(nameof(AlbumArtUrl));
-            this.RaisePropertyChanged(nameof(BpmDisplay));
-            this.RaisePropertyChanged(nameof(KeyDisplay));
-            this.RaisePropertyChanged(nameof(IntegrityScore));
-        });
+        this.RaisePropertyChanged(nameof(ArtistName));
+        this.RaisePropertyChanged(nameof(TrackTitle));
+        this.RaisePropertyChanged(nameof(AlbumName));
+        this.RaisePropertyChanged(nameof(AlbumArtUrl));
+        this.RaisePropertyChanged(nameof(BpmDisplay));
+        this.RaisePropertyChanged(nameof(KeyDisplay));
+        this.RaisePropertyChanged(nameof(IntegrityScore));
     }
     
     private void PlayTrack()
@@ -298,7 +299,7 @@ public class UnifiedTrackViewModel : ReactiveObject, IDisplayableTrack, IDisposa
         var payload = new PlaylistTrackViewModel(Model);
         
         // Publish event
-        _eventBus.Publish(new Models.PlayTrackRequestEvent(payload));
+        _eventBus.Publish(new PlayTrackRequestEvent(payload));
     }
 
     public void Dispose()

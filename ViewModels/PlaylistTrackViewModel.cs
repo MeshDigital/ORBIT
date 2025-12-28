@@ -233,7 +233,32 @@ public class PlaylistTrackViewModel : INotifyPropertyChanged, Library.ILibraryNo
         {
              State = evt.State;
              if (evt.Error != null) ErrorMessage = evt.Error;
+             
+             // NEW: Load file size from disk when track completes
+             if (evt.State == PlaylistTrackState.Completed && FileSizeBytes == 0)
+             {
+                 LoadFileSizeFromDisk();
+             }
         });
+    }
+    
+    /// <summary>
+    /// Loads file size from disk for existing completed tracks (fallback when event didn't provide TotalBytes)
+    /// </summary>
+    private void LoadFileSizeFromDisk()
+    {
+        if (string.IsNullOrEmpty(Model.ResolvedFilePath))
+            return;
+            
+        try
+        {
+            if (System.IO.File.Exists(Model.ResolvedFilePath))
+            {
+                var fileInfo = new System.IO.FileInfo(Model.ResolvedFilePath);
+                FileSizeBytes = fileInfo.Length;
+            }
+        }
+        catch { /* Fail silently */ }
     }
 
     private void OnProgressChanged(TrackProgressChangedEvent evt)
@@ -244,6 +269,12 @@ public class PlaylistTrackViewModel : INotifyPropertyChanged, Library.ILibraryNo
         Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() =>
         {
              Progress = evt.Progress;
+             
+             // NEW: Capture file size during download
+             if (evt.TotalBytes > 0)
+             {
+                 FileSizeBytes = evt.TotalBytes;
+             }
         });
     }
 
@@ -415,6 +446,42 @@ public class PlaylistTrackViewModel : INotifyPropertyChanged, Library.ILibraryNo
     }
 
     public string ReleaseYear => Model.ReleaseDate.HasValue ? Model.ReleaseDate.Value.Year.ToString() : string.Empty;
+
+    /// <summary>
+    /// Raw file size in bytes (populated during download via event or from disk for existing files)
+    /// </summary>
+    private long _fileSizeBytes = 0;
+    public long FileSizeBytes
+    {
+        get => _fileSizeBytes;
+        private set
+        {
+            if (_fileSizeBytes != value)
+            {
+                _fileSizeBytes = value;
+                OnPropertyChanged();
+                OnPropertyChanged(nameof(FileSizeDisplay));
+            }
+        }
+    }
+
+    /// <summary>
+    /// Formatted file size display (e.g., "10.5 MB" or "850 KB")
+    /// </summary>
+    public string FileSizeDisplay
+    {
+        get
+        {
+            if (FileSizeBytes == 0) return "—";
+            
+            double mb = FileSizeBytes / 1024.0 / 1024.0;
+            if (mb >= 1.0)
+                return $"{mb:F1} MB";
+            
+            double kb = FileSizeBytes / 1024.0;
+            return $"{kb:F0} KB";
+        }
+    }
 
     // Phase 9: Metadata display defaults (no empty cells)
     public string BpmDisplay => Model.BPM.HasValue && Model.BPM.Value > 0 ? $"{Model.BPM:F1}" : "—";

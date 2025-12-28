@@ -27,7 +27,7 @@ namespace SLSKDONET.Migrations
 
                     b.HasKey("TrackUniqueHash");
 
-                    b.ToTable("PendingOrchestrations");
+                    b.ToTable("PendingOrchestrations", (string)null);
                 });
 
             modelBuilder.Entity("SLSKDONET.Data.Entities.SpotifyMetadataCacheEntity", b =>
@@ -47,7 +47,7 @@ namespace SLSKDONET.Migrations
 
                     b.HasKey("SpotifyId");
 
-                    b.ToTable("SpotifyMetadataCache");
+                    b.ToTable("SpotifyMetadataCache", (string)null);
                 });
 
             modelBuilder.Entity("SLSKDONET.Data.LibraryEntryEntity", b =>
@@ -164,7 +164,7 @@ namespace SLSKDONET.Migrations
 
                     b.HasKey("UniqueHash");
 
-                    b.ToTable("LibraryEntries");
+                    b.ToTable("LibraryEntries", (string)null);
                 });
 
             modelBuilder.Entity("SLSKDONET.Data.LibraryHealthEntity", b =>
@@ -208,7 +208,7 @@ namespace SLSKDONET.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("LibraryHealth");
+                    b.ToTable("LibraryHealth", (string)null);
                 });
 
             modelBuilder.Entity("SLSKDONET.Data.PlaylistActivityLogEntity", b =>
@@ -235,7 +235,7 @@ namespace SLSKDONET.Migrations
 
                     b.HasIndex("PlaylistId");
 
-                    b.ToTable("ActivityLogs");
+                    b.ToTable("ActivityLogs", (string)null);
                 });
 
             modelBuilder.Entity("SLSKDONET.Data.PlaylistJobEntity", b =>
@@ -478,7 +478,7 @@ namespace SLSKDONET.Migrations
 
                     b.HasIndex("TrackUniqueHash");
 
-                    b.ToTable("PlaylistTracks");
+                    b.ToTable("PlaylistTracks", (string)null);
                 });
 
             modelBuilder.Entity("SLSKDONET.Data.QueueItemEntity", b =>
@@ -501,7 +501,7 @@ namespace SLSKDONET.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("QueueItems");
+                    b.ToTable("QueueItems", (string)null);
                 });
 
             modelBuilder.Entity("SLSKDONET.Data.TrackEntity", b =>
@@ -666,7 +666,7 @@ namespace SLSKDONET.Migrations
 
                     b.HasKey("GlobalId");
 
-                    b.ToTable("Tracks");
+                    b.ToTable("Tracks", (string)null);
                 });
 
             modelBuilder.Entity("SLSKDONET.Data.PlaylistActivityLogEntity", b =>

@@ -134,6 +134,17 @@ public class MainViewModel : INotifyPropertyChanged
         _eventBus.GetEvent<TrackAddedEvent>().Subscribe(evt => OnTrackAdded(evt.TrackModel));
         _eventBus.GetEvent<TrackRemovedEvent>().Subscribe(evt => OnTrackRemoved(evt.TrackGlobalId));
         
+        // Phase 12.7: Context Menu Requests
+        _eventBus.GetEvent<RevealFileRequestEvent>().Subscribe(evt => 
+            _fileInteractionService.RevealFileInExplorer(evt.FilePath));
+            
+        _eventBus.GetEvent<AddToProjectRequestEvent>().Subscribe(evt => 
+        {
+             // TODO: Phase 6D - Show "Add to Project" Dialog
+             // For now, we can log or show a toast
+             StatusText = $"Request to add '{evt.Track.Title}' to project (Coming Soon)";
+        });
+        
         // Local collection monitoring for stats
         AllGlobalTracks.CollectionChanged += (s, e) => 
         {

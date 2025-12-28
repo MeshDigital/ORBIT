@@ -161,6 +161,20 @@
                 <!-- Tech Summary -->
                 <TextBlock Text="{Binding TechnicalSummary}" Foreground="#999" FontSize="11" FontFamily="Consolas"/>
                 
+                <!-- NEW: Duration (only show if completed) -->
+                <TextBlock Text="•" Foreground="#444" IsVisible="{Binding IsCompleted}"/>
+                <StackPanel Orientation="Horizontal" Spacing="4" IsVisible="{Binding IsCompleted}">
+                    <TextBlock Text="⏱" FontSize="11" Foreground="#666"/>
+                    <TextBlock Text="{Binding Duration}" Foreground="#AAA" FontSize="11" FontFamily="Consolas"/>
+                </StackPanel>
+                
+                <!-- NEW: File Size (only show if completed) -->
+                <TextBlock Text="•" Foreground="#444" IsVisible="{Binding IsCompleted}"/>
+                <StackPanel Orientation="Horizontal" Spacing="4" IsVisible="{Binding IsCompleted}">
+                    <TextBlock Text="💾" FontSize="11" Foreground="#666"/>
+                    <TextBlock Text="{Binding FileSizeDisplay}" Foreground="#AAA" FontSize="11" FontFamily="Consolas"/>
+                </StackPanel>
+                
                 <TextBlock Text="•" Foreground="#444" IsVisible="{Binding IsCompleted}"/>
                 
                 <!-- BPM/Key Badges -->

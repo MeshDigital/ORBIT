@@ -13,6 +13,7 @@ using Microsoft.Extensions.Logging;
 using Serilog.Context;
 using SLSKDONET.Configuration;
 using SLSKDONET.Data;
+using SLSKDONET.Data.Entities;
 using SLSKDONET.Models;
 using SLSKDONET.Services.InputParsers;
 using SLSKDONET.Utils;
@@ -50,6 +51,7 @@ public class DownloadManager : INotifyPropertyChanged, IDisposable
     private readonly IEnrichmentTaskRepository _enrichmentTaskRepository; // [NEW]
     private readonly IAudioAnalysisService _audioAnalysisService; // Phase 3: Local Audio Analysis
     private readonly AnalysisQueueService _analysisQueue; // Phase 4: Musical Brain Queue
+    private readonly WaveformAnalysisService _waveformService; // Phase 3: Waveform Generation
 
     // Phase 2.5: Concurrency control with SemaphoreSlim throttling
     private readonly CancellationTokenSource _globalCts = new();
@@ -87,7 +89,8 @@ public class DownloadManager : INotifyPropertyChanged, IDisposable
         CrashRecoveryJournal crashJournal,
         IEnrichmentTaskRepository enrichmentTaskRepository,
         IAudioAnalysisService audioAnalysisService,
-        AnalysisQueueService analysisQueue) // [NEW] Injected
+        AnalysisQueueService analysisQueue,
+        WaveformAnalysisService waveformService) // Phase 3: Waveform Integration
     {
         _logger = logger;
         _config = config;
@@ -100,9 +103,11 @@ public class DownloadManager : INotifyPropertyChanged, IDisposable
         _enrichmentOrchestrator = enrichmentOrchestrator; 
         _pathProvider = pathProvider;
         _fileWriteService = fileWriteService;
+        _crashJournal = crashJournal; // FIX: Missing assignment causing NullReferenceException
         _enrichmentTaskRepository = enrichmentTaskRepository;
         _audioAnalysisService = audioAnalysisService;
         _analysisQueue = analysisQueue;
+        _waveformService = waveformService;
 
         // Initialize from config, but allow runtime changes
         int initialLimit = _config.MaxConcurrentDownloads > 0 ? _config.MaxConcurrentDownloads : 4;
@@ -1855,7 +1860,7 @@ public class DownloadManager : INotifyPropertyChanged, IDisposable
 
                 _logger.LogInformation("📚 Added to library: {Artist} - {Title}", ctx.Model.Artist, ctx.Model.Title);
 
-                // Phase 3: Local Audio Analysis (FFmpeg)
+                // Phase 3: Integrated Audio Analysis Pipeline (Waveform + Technical + UI Feedback)
                 try
                 {
                     var analysisParams = new { Path = finalPath, Hash = ctx.Model.TrackUniqueHash };
@@ -1863,23 +1868,88 @@ public class DownloadManager : INotifyPropertyChanged, IDisposable
                     {
                         try
                         {
-                            var analysis = await _audioAnalysisService.AnalyzeFileAsync(analysisParams.Path, analysisParams.Hash);
-                            if (analysis != null)
+                            _logger.LogInformation("🔬 Starting post-download analysis for {Title}", ctx.Model.Title);
+
+                            // A. Generate Waveform (Visual)
+                            WaveformAnalysisData? waveform = null;
+                            try
+                            {
+                                waveform = await _waveformService.GenerateWaveformAsync(analysisParams.Path);
+                                _logger.LogInformation("✅ Waveform generated: {Points} points", waveform.PeakData.Length);
+                            }
+                            catch (Exception ex)
+                            {
+                                _logger.LogWarning(ex, "⚠️ Waveform generation failed (non-critical)");
+                            }
+
+                            // B. Analyze Audio Quality (Technical)
+                            AudioAnalysisEntity? analysis = null;
+                            try
+                            {
+                                analysis = await _audioAnalysisService.AnalyzeFileAsync(analysisParams.Path, analysisParams.Hash);
+                                _logger.LogInformation("✅ Audio analysis complete: {Loudness} LUFS", analysis?.LoudnessLufs);
+                            }
+                            catch (Exception ex)
+                            {
+                                _logger.LogWarning(ex, "⚠️ Audio analysis failed (non-critical)");
+                            }
+
+                            // C. Atomic Database Update (All or Nothing)
+                            try
                             {
                                 using var db = new AppDbContext();
-                                db.AudioAnalysis.Add(analysis);
-                                await db.SaveChangesAsync();
-                                _logger.LogInformation("🔊 Audio analysis completed for {Track}", ctx.Model.Title);
                                 
-                                // Phase 4: Queue for Musical Background Analysis (Essentia)
-                                // Only queue if technical analysis succeeded (file is valid)
-                                _analysisQueue.QueueAnalysis(analysisParams.Path, analysisParams.Hash);
-                                _logger.LogInformation("🧠 Queued for musical analysis: {Title}", ctx.Model.Title);
+                                // C1. Save Technical Analysis (if successful)
+                                if (analysis != null)
+                                {
+                                    var existing = await db.AudioAnalysis
+                                        .FirstOrDefaultAsync(a => a.TrackUniqueHash == analysisParams.Hash);
+                                    if (existing != null) 
+                                        db.AudioAnalysis.Remove(existing);
+                                    
+                                    db.AudioAnalysis.Add(analysis);
+                                    _logger.LogInformation("🔊 Audio analysis saved for {Track}", ctx.Model.Title);
+                                }
+
+                                // C2. Update ALL PlaylistTrack instances with waveform & metrics
+                                var trackInstances = await db.PlaylistTracks
+                                    .Where(t => t.TrackUniqueHash == analysisParams.Hash)
+                                    .ToListAsync();
+
+                                foreach (var track in trackInstances)
+                                {
+                                    // Waveform data for UI
+                                    if (waveform != null && waveform.PeakData.Length > 0)
+                                    {
+                                        track.WaveformData = waveform.PeakData;
+                                    }
+                                }
+
+                                await db.SaveChangesAsync();
+                                _logger.LogInformation("✅ Analysis persisted for {Count} playlist instances", trackInstances.Count);
+
+                                // D. Notify UI (Success)
+                                _eventBus.Publish(new TrackAnalysisCompletedEvent(analysisParams.Hash, true));
+
+                                // E. Queue for Musical Intelligence (Phase 4 - Essentia)
+                                if (analysis != null)
+                                {
+                                    _analysisQueue.QueueAnalysis(analysisParams.Path, analysisParams.Hash);
+                                    _logger.LogInformation("🧠 Queued for musical analysis: {Title}", ctx.Model.Title);
+                                }
+                            }
+                            catch (Exception dbEx)
+                            {
+                                _logger.LogError(dbEx, "❌ Failed to persist analysis results");
+                                _eventBus.Publish(new TrackAnalysisCompletedEvent(
+                                    analysisParams.Hash, false, dbEx.Message));
                             }
                         }
                         catch (Exception ex)
                         {
-                            _logger.LogError(ex, "Audio analysis failed for {Track}", ctx.Model.Title);
+                            _logger.LogError(ex, "❌ Analysis pipeline catastrophic failure");
+                            _eventBus.Publish(new TrackAnalysisCompletedEvent(
+                                analysisParams.Hash, false, "Analysis pipeline failed"));
                         }
                     });
                 }

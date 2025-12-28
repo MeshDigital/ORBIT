@@ -76,4 +76,19 @@ public class FileInteractionService : IFileInteractionService
 
         return null;
     }
+    public void RevealFileInExplorer(string filePath)
+    {
+        if (string.IsNullOrEmpty(filePath) || !System.IO.File.Exists(filePath)) return;
+
+        try
+        {
+            // Windows-specific for now, but this agent is running in Windows context per user metadata
+            System.Diagnostics.Process.Start("explorer.exe", $"/select,\"{filePath}\"");
+        }
+        catch (System.Exception ex)
+        {
+             // Log or ignore
+             System.Diagnostics.Debug.WriteLine($"Failed to reveal file: {ex.Message}");
+        }
+    }
 }
