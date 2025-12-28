@@ -39,80 +39,181 @@ public class SettingsViewModel : INotifyPropertyChanged
     public string DownloadPath
     {
         get => _config.DownloadDirectory ?? "";
-        set { _config.DownloadDirectory = value; OnPropertyChanged(); }
+        set
+        {
+            if (_config.DownloadDirectory != value)
+            {
+                _config.DownloadDirectory = value;
+                OnPropertyChanged();
+                SaveSettings(); 
+            }
+        }
     }
 
     public string SharedFolderPath
     {
         get => _config.SharedFolderPath ?? "";
-        set { _config.SharedFolderPath = value; OnPropertyChanged(); }
+        set
+        {
+            if (_config.SharedFolderPath != value)
+            {
+                _config.SharedFolderPath = value;
+                OnPropertyChanged();
+                SaveSettings();
+            }
+        }
     }
 
     public int MaxConcurrentDownloads
     {
         get => _config.MaxConcurrentDownloads;
-        set { _config.MaxConcurrentDownloads = value; OnPropertyChanged(); }
+        set
+        {
+            if (_config.MaxConcurrentDownloads != value)
+            {
+                _config.MaxConcurrentDownloads = value;
+                OnPropertyChanged();
+                SaveSettings();
+            }
+        }
     }
 
     public string FileNameFormat
     {
         get => _config.NameFormat ?? "{artist} - {title}";
-        set { _config.NameFormat = value; OnPropertyChanged(); }
+        set
+        {
+            if (_config.NameFormat != value)
+            {
+                _config.NameFormat = value;
+                OnPropertyChanged();
+                SaveSettings();
+            }
+        }
     }
     
     public bool CheckForDuplicates
     {
         get => _config.CheckForDuplicates;
-        set { _config.CheckForDuplicates = value; OnPropertyChanged(); }
+        set
+        {
+            if (_config.CheckForDuplicates != value)
+            {
+                _config.CheckForDuplicates = value;
+                OnPropertyChanged();
+                SaveSettings();
+            }
+        }
     }
 
     // Phase 8: Upgrade Scout
     public bool UpgradeScoutEnabled
     {
         get => _config.UpgradeScoutEnabled;
-        set { _config.UpgradeScoutEnabled = value; OnPropertyChanged(); }
+        set
+        {
+            if (_config.UpgradeScoutEnabled != value)
+            {
+                _config.UpgradeScoutEnabled = value;
+                OnPropertyChanged();
+                SaveSettings();
+            }
+        }
     }
 
     public int UpgradeMinBitrateThreshold
     {
         get => _config.UpgradeMinBitrateThreshold;
-        set { _config.UpgradeMinBitrateThreshold = value; OnPropertyChanged(); }
+        set
+        {
+            if (_config.UpgradeMinBitrateThreshold != value)
+            {
+                _config.UpgradeMinBitrateThreshold = value;
+                OnPropertyChanged();
+                SaveSettings();
+            }
+        }
     }
 
     public int UpgradeMinGainKbps
     {
         get => _config.UpgradeMinGainKbps;
-        set { _config.UpgradeMinGainKbps = value; OnPropertyChanged(); }
+        set
+        {
+            if (_config.UpgradeMinGainKbps != value)
+            {
+                _config.UpgradeMinGainKbps = value;
+                OnPropertyChanged();
+                SaveSettings();
+            }
+        }
     }
 
     public bool UpgradeAutoQueueEnabled
     {
         get => _config.UpgradeAutoQueueEnabled;
-        set { _config.UpgradeAutoQueueEnabled = value; OnPropertyChanged(); }
+        set
+        {
+            if (_config.UpgradeAutoQueueEnabled != value)
+            {
+                _config.UpgradeAutoQueueEnabled = value;
+                OnPropertyChanged();
+                SaveSettings();
+            }
+        }
     }
 
     public int MinBitrate
     {
         get => _config.PreferredMinBitrate;
-        set { _config.PreferredMinBitrate = value; OnPropertyChanged(); }
+        set
+        {
+            if (_config.PreferredMinBitrate != value)
+            {
+                _config.PreferredMinBitrate = value;
+                OnPropertyChanged();
+                SaveSettings();
+            }
+        }
     }
 
     public int MaxBitrate
     {
         get => _config.PreferredMaxBitrate;
-        set { _config.PreferredMaxBitrate = value; OnPropertyChanged(); }
+        set
+        {
+            if (_config.PreferredMaxBitrate != value)
+            {
+                _config.PreferredMaxBitrate = value;
+                OnPropertyChanged();
+                SaveSettings();
+            }
+        }
     }
 
     public string PreferredFormats
     {
         get => string.Join(",", _config.PreferredFormats ?? new List<string>());
-        set { _config.PreferredFormats = value.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).ToList(); OnPropertyChanged(); }
+        set
+        {
+            _config.PreferredFormats = value.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).ToList();
+            OnPropertyChanged();
+            SaveSettings();
+        }
     }
 
     public bool UseSpotifyApi
     {
         get => _config.SpotifyUseApi;
-        set { _config.SpotifyUseApi = value; OnPropertyChanged(); }
+        set
+        {
+            if (_config.SpotifyUseApi != value)
+            {
+                _config.SpotifyUseApi = value;
+                OnPropertyChanged();
+                SaveSettings();
+            }
+        }
     }
 
     public string SpotifyClientId
@@ -137,43 +238,99 @@ public class SettingsViewModel : INotifyPropertyChanged
     public bool EnableFuzzyNormalization
     {
         get => _config.EnableFuzzyNormalization;
-        set { _config.EnableFuzzyNormalization = value; OnPropertyChanged(); }
+        set
+        {
+            if (_config.EnableFuzzyNormalization != value)
+            {
+                _config.EnableFuzzyNormalization = value;
+                OnPropertyChanged();
+                SaveSettings();
+            }
+        }
     }
 
     public bool EnableRelaxationStrategy
     {
         get => _config.EnableRelaxationStrategy;
-        set { _config.EnableRelaxationStrategy = value; OnPropertyChanged(); }
+        set
+        {
+            if (_config.EnableRelaxationStrategy != value)
+            {
+                _config.EnableRelaxationStrategy = value;
+                OnPropertyChanged();
+                SaveSettings();
+            }
+        }
     }
 
     public bool EnableVbrFraudDetection
     {
         get => _config.EnableVbrFraudDetection;
-        set { _config.EnableVbrFraudDetection = value; OnPropertyChanged(); }
+        set
+        {
+            if (_config.EnableVbrFraudDetection != value)
+            {
+                _config.EnableVbrFraudDetection = value;
+                OnPropertyChanged();
+                SaveSettings();
+            }
+        }
     }
 
     public bool AutoRetryFailedDownloads
     {
         get => _config.AutoRetryFailedDownloads;
-        set { _config.AutoRetryFailedDownloads = value; OnPropertyChanged(); }
+        set
+        {
+            if (_config.AutoRetryFailedDownloads != value)
+            {
+                _config.AutoRetryFailedDownloads = value;
+                OnPropertyChanged();
+                SaveSettings();
+            }
+        }
     }
 
     public int MaxDownloadRetries
     {
         get => _config.MaxDownloadRetries;
-        set { _config.MaxDownloadRetries = value; OnPropertyChanged(); }
+        set
+        {
+            if (_config.MaxDownloadRetries != value)
+            {
+                _config.MaxDownloadRetries = value;
+                OnPropertyChanged();
+                SaveSettings();
+            }
+        }
     }
 
     public int RelaxationTimeoutSeconds
     {
         get => _config.RelaxationTimeoutSeconds;
-        set { _config.RelaxationTimeoutSeconds = value; OnPropertyChanged(); }
+        set
+        {
+            if (_config.RelaxationTimeoutSeconds != value)
+            {
+                _config.RelaxationTimeoutSeconds = value;
+                OnPropertyChanged();
+                SaveSettings();
+            }
+        }
     }
 
     public bool SpotifyEnableAudioFeatures
     {
         get => _config.SpotifyEnableAudioFeatures;
-        set { _config.SpotifyEnableAudioFeatures = value; OnPropertyChanged(); }
+        set
+        {
+            if (_config.SpotifyEnableAudioFeatures != value)
+            {
+                _config.SpotifyEnableAudioFeatures = value;
+                OnPropertyChanged();
+                SaveSettings();
+            }
+        }
     }
     
     // Phase 2.4: Ranking Strategy Selection
@@ -215,43 +372,44 @@ public class SettingsViewModel : INotifyPropertyChanged
             OnPropertyChanged(nameof(StringWeight));
             OnPropertyChanged(nameof(ConditionsWeight));
             UpdateLivePreview();
+            SaveSettings();
         }
     }
 
     public double AvailabilityWeight
     {
         get => CustomWeights.AvailabilityWeight;
-        set { CustomWeights.AvailabilityWeight = value; ResultSorter.SetWeights(CustomWeights); UpdateLivePreview(); OnPropertyChanged(); }
+        set { CustomWeights.AvailabilityWeight = value; ResultSorter.SetWeights(CustomWeights); UpdateLivePreview(); OnPropertyChanged(); SaveSettings(); }
     }
 
     public double QualityWeight
     {
         get => CustomWeights.QualityWeight;
-        set { CustomWeights.QualityWeight = value; ResultSorter.SetWeights(CustomWeights); UpdateLivePreview(); OnPropertyChanged(); }
+        set { CustomWeights.QualityWeight = value; ResultSorter.SetWeights(CustomWeights); UpdateLivePreview(); OnPropertyChanged(); SaveSettings(); }
     }
 
     public double MusicalWeight
     {
         get => CustomWeights.MusicalWeight;
-        set { CustomWeights.MusicalWeight = value; ResultSorter.SetWeights(CustomWeights); UpdateLivePreview(); OnPropertyChanged(); }
+        set { CustomWeights.MusicalWeight = value; ResultSorter.SetWeights(CustomWeights); UpdateLivePreview(); OnPropertyChanged(); SaveSettings(); }
     }
 
     public double MetadataWeight
     {
         get => CustomWeights.MetadataWeight;
-        set { CustomWeights.MetadataWeight = value; ResultSorter.SetWeights(CustomWeights); UpdateLivePreview(); OnPropertyChanged(); }
+        set { CustomWeights.MetadataWeight = value; ResultSorter.SetWeights(CustomWeights); UpdateLivePreview(); OnPropertyChanged(); SaveSettings(); }
     }
 
     public double StringWeight
     {
         get => CustomWeights.StringWeight;
-        set { CustomWeights.StringWeight = value; ResultSorter.SetWeights(CustomWeights); UpdateLivePreview(); OnPropertyChanged(); }
+        set { CustomWeights.StringWeight = value; ResultSorter.SetWeights(CustomWeights); UpdateLivePreview(); OnPropertyChanged(); SaveSettings(); }
     }
 
     public double ConditionsWeight
     {
         get => CustomWeights.ConditionsWeight;
-        set { CustomWeights.ConditionsWeight = value; ResultSorter.SetWeights(CustomWeights); UpdateLivePreview(); OnPropertyChanged(); }
+        set { CustomWeights.ConditionsWeight = value; ResultSorter.SetWeights(CustomWeights); UpdateLivePreview(); OnPropertyChanged(); SaveSettings(); }
     }
 
     private List<SLSKDONET.Models.Track> _livePreviewTracks = new();
@@ -869,7 +1027,7 @@ public class SettingsViewModel : INotifyPropertyChanged
         var path = await _fileInteractionService.OpenFolderDialogAsync("Select Download Folder");
         if (!string.IsNullOrEmpty(path))
         {
-            DownloadPath = path;
+            DownloadPath = path; // Setter triggers SaveSettings
         }
     }
 
@@ -878,7 +1036,7 @@ public class SettingsViewModel : INotifyPropertyChanged
         var path = await _fileInteractionService.OpenFolderDialogAsync("Select Shared Folder");
         if (!string.IsNullOrEmpty(path))
         {
-            SharedFolderPath = path;
+            SharedFolderPath = path; // Setter triggers SaveSettings
         }
     }
 

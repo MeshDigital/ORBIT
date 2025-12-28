@@ -23,6 +23,8 @@ public partial class SearchViewModel : ReactiveObject
 {
     private readonly ILogger<SearchViewModel> _logger;
     private readonly SoulseekAdapter _soulseek;
+    private readonly AppConfig _config;
+    private readonly ConfigManager _configManager;
     private readonly ImportOrchestrator _importOrchestrator;
     private readonly IEnumerable<IImportProvider> _importProviders;
     private readonly DownloadManager _downloadManager;
@@ -118,25 +120,45 @@ public partial class SearchViewModel : ReactiveObject
     }
 
     // Phase 5: Ranking Weights (Control Surface)
-    private double _bitrateWeight = 1.0;
+    // Now backed by AppConfig for persistence
     public double BitrateWeight
     {
-        get => _bitrateWeight;
-        set { if (SetProperty(ref _bitrateWeight, value)) OnRankingWeightsChanged(); }
+        get => _config.CustomWeights.QualityWeight;
+        set 
+        { 
+            _config.CustomWeights.QualityWeight = value;
+            this.RaisePropertyChanged();
+            OnRankingWeightsChanged();
+            _configManager.Save(_config);
+        }
     }
 
-    private double _reliabilityWeight = 1.0;
     public double ReliabilityWeight
     {
-        get => _reliabilityWeight;
-        set { if (SetProperty(ref _reliabilityWeight, value)) OnRankingWeightsChanged(); }
+        get => _config.CustomWeights.AvailabilityWeight;
+        set 
+        { 
+            _config.CustomWeights.AvailabilityWeight = value;
+            this.RaisePropertyChanged(); // Notify UI
+            OnRankingWeightsChanged();
+            _configManager.Save(_config);
+        }
     }
 
-    private double _matchWeight = 1.0;
     public double MatchWeight
     {
-        get => _matchWeight;
-        set { if (SetProperty(ref _matchWeight, value)) OnRankingWeightsChanged(); }
+        get => _config.CustomWeights.MusicalWeight; // Use Musical as the primary "Match" representative
+        set 
+        { 
+            // Fan out to all "Match" related weights
+            _config.CustomWeights.MusicalWeight = value;
+            _config.CustomWeights.MetadataWeight = value;
+            _config.CustomWeights.StringWeight = value;
+            
+            this.RaisePropertyChanged();
+            OnRankingWeightsChanged();
+            _configManager.Save(_config);
+        }
     }
 
     // Format Toggles (Zone C)
@@ -172,6 +194,8 @@ public partial class SearchViewModel : ReactiveObject
     public SearchViewModel(
         ILogger<SearchViewModel> logger,
         SoulseekAdapter soulseek,
+        AppConfig config,
+        ConfigManager configManager,
         ImportOrchestrator importOrchestrator,
         IEnumerable<IImportProvider> importProviders,
         ImportPreviewViewModel importPreviewViewModel,
@@ -184,6 +208,8 @@ public partial class SearchViewModel : ReactiveObject
     {
         _logger = logger;
         _soulseek = soulseek;
+        _config = config;
+        _configManager = configManager;
         _importOrchestrator = importOrchestrator;
         _importProviders = importProviders;
         ImportPreviewViewModel = importPreviewViewModel;
@@ -637,15 +663,11 @@ public partial class SearchViewModel : ReactiveObject
     private void OnRankingWeightsChanged()
     {
         // Update Static Weights
-        var weights = new Configuration.ScoringWeights
-        {
-            QualityWeight = BitrateWeight,
-            AvailabilityWeight = ReliabilityWeight,
-            MusicalWeight = MatchWeight,
-            MetadataWeight = MatchWeight,
-            StringWeight = MatchWeight,
-            ConditionsWeight = 1.0
-        };
+        // NOTE: Now we read directly from _config which is already updated by setters
+        var weights = _config.CustomWeights;
+        
+        // No need to recreate object if we are just setting properties on the shared instance
+        // But ResultSorter might need a fresh set call to trigger downstream logic
         ResultSorter.SetWeights(weights);
 
         // FilterViewModel changes update reactive filter automatically, 
