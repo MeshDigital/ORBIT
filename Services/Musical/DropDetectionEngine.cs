@@ -25,21 +25,28 @@ public class DropDetectionEngine
     private const float INTRO_SKIP_SECONDS = 30f; // Ignore first 30s
     private const float FALLBACK_START_SECONDS = 45f; // Fallback search after 45s
 
-    public DropDetectionEngine(ILogger<DropDetectionEngine> logger)
+    private readonly Services.TrackForensicLogger _forensicLogger;
+
+    public DropDetectionEngine(ILogger<DropDetectionEngine> logger, Services.TrackForensicLogger forensicLogger)
     {
         _logger = logger;
+        _forensicLogger = forensicLogger;
     }
 
     /// <summary>
     /// Analyzes Essentia data to detect the main drop.
     /// Returns (DropTime, Confidence) or (null, 0) if no clear drop found.
     /// </summary>
-    public (float? DropTime, float Confidence) DetectDrop(EssentiaOutput data, float trackDurationSeconds)
+    public async System.Threading.Tasks.Task<(float? DropTime, float Confidence)> DetectDropAsync(
+        EssentiaOutput data, 
+        float trackDurationSeconds,
+        string correlationId) // Phase 4.7: Correlation ID for forensic logging
     {
-        // Validate inputs
+        // 1. Initial Validation
         if (data?.Rhythm == null || trackDurationSeconds < 60)
         {
-            _logger.LogDebug("Track too short or missing rhythm data - skipping drop detection");
+            _forensicLogger.Info(correlationId, "DropDetection", 
+                "Skipping drop detection: Track too short (<60s) or missing rhythm data");
             return (null, 0f);
         }
 
@@ -52,20 +59,30 @@ public class DropDetectionEngine
         float bpm = data.Rhythm.Bpm;
         float danceability = data.Rhythm.Danceability;
         
+        // 2. BPM Sanity Check
         if (bpm < 80 || bpm > 200)
         {
-            _logger.LogDebug("BPM {Bpm} out of typical range - drop detection may be inaccurate", bpm);
+            _forensicLogger.Warning(correlationId, "DropDetection", 
+                $"BPM {bpm:F1} outside typical EDM range (80-200), detection may be inaccurate");
         }
 
+        // 3. Structure Analysis (Heuristic)
         // Estimate drop time based on typical EDM structure
         // Most drops occur between 30-90 seconds
         float estimatedDropTime = EstimateDropFromStructure(trackDurationSeconds, bpm);
         
-        // Calculate confidence based on track characteristics
+        // 4. Confidence Calculation
         float confidence = CalculateConfidence(bpm, danceability, trackDurationSeconds);
 
-        _logger.LogInformation("Drop detected at {Time:F1}s (confidence: {Conf:P0})", 
-            estimatedDropTime, confidence);
+        _forensicLogger.Info(correlationId, "DropDetection", 
+            $"Drop Candidate Selected: {estimatedDropTime:F1}s", 
+            new { 
+                Strategy = "StructureHeuristic", 
+                EstimatedTime = estimatedDropTime, 
+                Confidence = confidence,
+                Bpm = bpm,
+                Danceability = danceability
+            });
 
         return (estimatedDropTime, confidence);
     }

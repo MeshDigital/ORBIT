@@ -245,7 +245,7 @@ public class EssentiaAnalyzerService : IAudioIntelligenceService, IDisposable
                     float estimatedDuration = 180f; // Default 3 minutes
                     
                     // Detect drop
-                    var (dropTime, confidence) = _dropEngine.DetectDrop(data, estimatedDuration);
+                    var (dropTime, confidence) = await _dropEngine.DetectDropAsync(data, estimatedDuration, trackUniqueHash);
                     
                     if (dropTime.HasValue)
                     {

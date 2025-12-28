@@ -1,6 +1,10 @@
 using System;
 using System.ComponentModel;
+using System.Collections.ObjectModel;
 using System.Runtime.CompilerServices;
+using System.Threading.Tasks;
+using Microsoft.EntityFrameworkCore;
+using SLSKDONET.Data.Entities;
 using SLSKDONET.Models;
 
 namespace SLSKDONET.ViewModels
@@ -40,14 +44,18 @@ namespace SLSKDONET.ViewModels
                     
                     // Reset analysis
                     _analysis = null;
+                    _analysis = null;
                     _audioFeatures = null; // Phase 4
+                    ForensicLogs.Clear(); // Phase 4.7
                     NotifyAnalysisProperties();
                     NotifyMusicalIntelligenceProperties(); // Phase 4
+                    OnPropertyChanged(nameof(ForensicLogs));
                     
                     if (value != null && !string.IsNullOrEmpty(value.TrackUniqueHash))
                     {
                         LoadAnalysisAsync(value.TrackUniqueHash);
                         LoadAudioFeaturesAsync(value.TrackUniqueHash); // Phase 4
+                        LoadForensicLogsAsync(value.TrackUniqueHash); // Phase 4.7
                     }
                 }
             }
@@ -77,6 +85,32 @@ namespace SLSKDONET.ViewModels
                 });
                 
                 NotifyMusicalIntelligenceProperties();
+            }
+            catch (Exception) { /* Fail silently */ }
+        }
+
+        // Phase 4.7: Load Forensic Logs
+        public ObservableCollection<ForensicLogEntry> ForensicLogs { get; } = new();
+
+        private async void LoadForensicLogsAsync(string trackHash)
+        {
+            try
+            {
+                var logs = await Task.Run(async () =>
+                {
+                    using var db = new Data.AppDbContext();
+                    return await db.ForensicLogs
+                        .Where(l => l.CorrelationId == trackHash)
+                        .OrderByDescending(l => l.Timestamp)
+                        .ToListAsync();
+                });
+
+                ForensicLogs.Clear();
+                foreach (var log in logs)
+                {
+                    ForensicLogs.Add(log);
+                }
+                 OnPropertyChanged(nameof(ForensicLogs));
             }
             catch (Exception) { /* Fail silently */ }
         }

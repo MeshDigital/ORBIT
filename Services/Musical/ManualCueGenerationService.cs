@@ -73,8 +73,9 @@ public class ManualCueGenerationService
         {
             var track = tracks[i];
             
-            // Phase 4.7: Each track gets its own correlation ID (child of batch)
-            var trackCorrelationId = CorrelationIdExtensions.NewCorrelationId();
+            // Phase 4.7: Use TrackUniqueHash as CorrelationId to link logs to the track across the system
+            var trackCorrelationId = track.TrackUniqueHash;
+            if (string.IsNullOrEmpty(trackCorrelationId)) trackCorrelationId = CorrelationIdExtensions.NewCorrelationId();
             
             try
             {
