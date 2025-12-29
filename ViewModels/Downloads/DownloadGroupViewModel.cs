@@ -28,6 +28,7 @@ public class DownloadGroupViewModel : ReactiveObject, IDisposable
     public string Subtitle { get; }
     public string? ArtworkUrl { get; }
     public ReadOnlyObservableCollection<UnifiedTrackViewModel> Tracks { get; }
+    public DateTime LastActivity { get; private set; }
     
     // Aggregate Properties
     public double TotalProgress
@@ -159,7 +160,7 @@ public class DownloadGroupViewModel : ReactiveObject, IDisposable
         {
             StatusText = $"{downloading} downloading, {queued} queued";
         }
-        else if (HasFailures)
+        if (HasFailures)
         {
             StatusText = $"{failed} failed";
         }
@@ -167,6 +168,8 @@ public class DownloadGroupViewModel : ReactiveObject, IDisposable
         {
             StatusText = $"{Tracks.Count} tracks";
         }
+
+        LastActivity = Tracks.Any() ? Tracks.Max(t => t.Model.AddedAt) : DateTime.MinValue;
     }
 
     public void Dispose()

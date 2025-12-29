@@ -232,7 +232,7 @@ public class SearchResultMatcher
                 "Title Mismatch");
         }
 
-        if (!StrictArtistSatisfies(candidate.Filename, expectedArtist))
+        if (!StrictArtistSatisfies(candidate.Filename ?? string.Empty, expectedArtist))
         {
             _logger.LogTrace("Strict artist check failed: {Filename} does not contain {Artist}", candidate.Filename, expectedArtist);
             return new MatchResult(0.0, 

@@ -30,12 +30,7 @@ namespace SLSKDONET.Services
             set 
             {
                 _pitch = value;
-                if (_resampler != null)
-                {
-                    // For turntable style pitch, we change the output sample rate
-                    // However WdlResamplingSampleProvider expects a fixed target rate.
-                    // To do dynamic pitch, we'd ideally use a provider that supports varying its source rate.
-                }
+                // resampler pitch adjustment placeholder
             }
         }
 

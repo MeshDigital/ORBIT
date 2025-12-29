@@ -173,8 +173,8 @@ public class DownloadCenterViewModel : ReactiveObject, IDisposable
         // Group by AlbumId (or null for Singles)
         sharedSource
             .Filter(x => x.IsActive || x.IsIndeterminate) // Only group active items
-            .Group(x => x.Model.PlaylistId == Guid.Empty ? Guid.Empty : x.Model.PlaylistId)
-            .Transform((IGroup<UnifiedTrackViewModel, string, Guid> group) => new DownloadGroupViewModel(group))
+            .Group(x => x.Model.PlaylistId == Guid.Empty ? (Guid?)Guid.Empty : x.Model.PlaylistId)
+            .Transform((IGroup<UnifiedTrackViewModel, string, Guid?> group) => new DownloadGroupViewModel(group))
             .DisposeMany() // Dispose GroupVMs when removed
             .SortAndBind(out _activeGroups, SortExpressionComparer<DownloadGroupViewModel>.Descending(x => x.LastActivity))
             .Subscribe()
