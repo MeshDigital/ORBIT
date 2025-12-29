@@ -224,7 +224,7 @@ public class SearchResultMatcher
 
         // Strict filename matching (slsk-batchdl approach)
         // Filename must contain title and artist with word boundaries
-        if (!StrictTitleSatisfies(candidate.Filename, expectedTitle))
+        if (!StrictTitleSatisfies(candidate.Filename ?? string.Empty, expectedTitle))
         {
             _logger.LogTrace("Strict title check failed: {Filename} does not contain {Title}", candidate.Filename, expectedTitle);
             return new MatchResult(0.0, 

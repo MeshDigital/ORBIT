@@ -43,6 +43,7 @@ public class MainViewModel : INotifyPropertyChanged
     public SettingsViewModel SettingsViewModel { get; }
     public HomeViewModel HomeViewModel { get; }
     public StatusBarViewModel StatusBar { get; }
+    public AnalysisQueueViewModel AnalysisQueueViewModel { get; }
 
     public event PropertyChangedEventHandler? PropertyChanged;
 
@@ -83,7 +84,8 @@ public class MainViewModel : INotifyPropertyChanged
         SpotifyAuthService spotifyAuth,
         IFileInteractionService fileInteractionService,
         IEventBus eventBus,
-        AnalysisQueueService analysisQueue)
+        AnalysisQueueService analysisQueue,
+        AnalysisQueueViewModel analysisQueueViewModel)
     {
         _logger = logger;
         _config = config;
@@ -107,6 +109,8 @@ public class MainViewModel : INotifyPropertyChanged
         SettingsViewModel = settingsViewModel;
         HomeViewModel = homeViewModel;
         StatusBar = new StatusBarViewModel(eventBus);
+        
+        AnalysisQueueViewModel = analysisQueueViewModel;
 
         // Initialize commands
         NavigateHomeCommand = new RelayCommand(NavigateToHome); // Phase 6D
@@ -115,7 +119,7 @@ public class MainViewModel : INotifyPropertyChanged
         NavigateProjectsCommand = new RelayCommand(NavigateToProjects);
         NavigateSettingsCommand = new RelayCommand(NavigateToSettings);
         NavigateUpgradeScoutCommand = new RelayCommand(NavigateUpgradeScout);
-        NavigateInspectorCommand = new RelayCommand(NavigateInspector);
+        NavigateInspectorCommand = new RelayCommand(NavigateAnalysisQueue);
         NavigateImportCommand = new RelayCommand(NavigateToImport); // Phase 6D
         ToggleNavigationCommand = new RelayCommand(() => IsNavigationCollapsed = !IsNavigationCollapsed);
         TogglePlayerCommand = new RelayCommand(() => IsPlayerSidebarVisible = !IsPlayerSidebarVisible);
@@ -549,9 +553,11 @@ public class MainViewModel : INotifyPropertyChanged
         _navigationService.NavigateTo("UpgradeScout");
     }
 
-    private void NavigateInspector()
+    private void NavigateAnalysisQueue()
     {
-        _navigationService.NavigateTo("Inspector");
+        CurrentPage = AnalysisQueueViewModel;
+        // Keeping CurrentPageType consistent if needed for binding
+        CurrentPageType = PageType.Inspector; 
     }
 
     private void NavigateToImport()

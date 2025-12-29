@@ -1474,7 +1474,7 @@ public class DatabaseService
             var existingJob = await context.Projects.FirstOrDefaultAsync(j => j.Id == job.Id);
             bool jobExists = existingJob != null;
 
-            if (jobExists)
+            if (existingJob != null)
             {
                  // Update existing job logic
                  existingJob.TotalTracks = Math.Max(existingJob.TotalTracks, job.TotalTracks);
@@ -1688,7 +1688,7 @@ public class DatabaseService
                 job.PlaylistTracks.Count,
                 Thread.CurrentThread.ManagedThreadId);
         }
-        catch (Exception ex)
+        catch
         {
             throw;
         }
@@ -2021,7 +2021,7 @@ public class DatabaseService
         try
         {
             var totalTracks = await context.PlaylistTracks.CountAsync();
-            var hqTracks = await context.PlaylistTracks.CountAsync(t => t.Bitrate >= 256 || t.Format.ToLower() == "flac");
+            var hqTracks = await context.PlaylistTracks.CountAsync(t => t.Bitrate >= 256 || (t.Format != null && t.Format.ToLower() == "flac"));
             var lowBitrateTracks = await context.PlaylistTracks.CountAsync(t => t.Status == TrackStatus.Downloaded && t.Bitrate > 0 && t.Bitrate < 256);
             
             var health = await context.LibraryHealth.FindAsync(1) ?? new LibraryHealthEntity { Id = 1 };

@@ -10,7 +10,7 @@ namespace SLSKDONET.Services
     {
         private IWavePlayer? _outputDevice;
         private AudioFileReader? _audioFile;
-        private WdlResamplingSampleProvider? _resampler;
+        // private WdlResamplingSampleProvider? _resampler;
         private SampleChannel? _sampleChannel;
         private MeteringSampleProvider? _meteringProvider;
         private bool _isInitialized;

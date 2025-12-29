@@ -21,7 +21,7 @@ public class DownloadGroupViewModel : ReactiveObject, IDisposable
     private double _totalSpeed;
     private string _statusText;
     private bool _hasFailures;
-    private bool _isPaused;
+    // private bool _isPaused; // Unused
 
     public Guid? GroupKey { get; } // AlbumId or ProjectId
     public string Title { get; }

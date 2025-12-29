@@ -48,14 +48,14 @@ public class SpotifyEnrichmentService
              return new TrackEnrichmentResult
              {
                  Success = true,
-                 SpotifyId = cached.SpotifyTrackId,
-                 OfficialArtist = cached.Artist,
-                 OfficialTitle = cached.Title,
+                 SpotifyId = cached.SpotifyTrackId ?? string.Empty,
+                 OfficialArtist = cached.Artist ?? string.Empty,
+                 OfficialTitle = cached.Title ?? string.Empty,
                  Bpm = cached.SpotifyBPM ?? cached.BPM,
                  Energy = cached.Energy,
                  Valence = cached.Valence,
                  Danceability = cached.Danceability,
-                 AlbumArtUrl = cached.AlbumArtUrl,
+                 AlbumArtUrl = cached.AlbumArtUrl ?? string.Empty,
                  ISRC = cached.ISRC
              };
         }

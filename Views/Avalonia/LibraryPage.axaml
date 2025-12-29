@@ -19,7 +19,7 @@
         <conv:BitmapValueConverter x:Key="BitmapValueConverter"/>
     </UserControl.Resources>
 
-    <Grid ColumnDefinitions="280,Auto,*,Auto,Auto">
+    <Grid ColumnDefinitions="280,Auto,*,Auto,Auto,Auto,Auto">
         
         <!-- LEFT PANEL: Playlist List -->
         <Border Grid.Column="0" Background="#202020" BorderBrush="#3E3E3E" BorderThickness="0,0,1,0">
@@ -505,9 +505,20 @@
                                         </Border>
                                         
                                         <!-- Actions -->
-                                        <Button Grid.RowSpan="2" Grid.Column="3" Theme="{StaticResource SimpleButton}" Padding="8">
-                                            <TextBlock Text="⋮" FontSize="16" Foreground="#888"/>
-                                        </Button>
+                                        <StackPanel Grid.RowSpan="2" Grid.Column="3" Orientation="Horizontal">
+                                             <Button Command="{Binding $parent[UserControl].DataContext.ToggleInspectorCommand}" 
+                                                    CommandParameter="{Binding}"
+                                                    
+ 
+                                                    Padding="8"
+                                                    ToolTip.Tip="Inspect Track">
+                                                <TextBlock Text="🔬" FontSize="14" Foreground="#888"/>
+                                            </Button>
+                                            <Button 
+ Padding="8">
+                                                <TextBlock Text="⋮" FontSize="16" Foreground="#888"/>
+                                            </Button>
+                                        </StackPanel>
                                     </Grid>
                                     
                                     <!-- EXPANDING INSPECTOR CARD (Row Details) -->
@@ -586,35 +597,40 @@
                     <Separator Width="1" Height="16" Background="#444"/>
                     
                     <StackPanel Orientation="Horizontal" Spacing="8">
-                        <Button Command="{Binding Tracks.BulkDownloadCommand}" Classes="accent" Theme="{StaticResource SimpleButton}">
+                        <Button Command="{Binding Tracks.BulkDownloadCommand}" Classes="accent" 
+>
                             <StackPanel Orientation="Horizontal" Spacing="6">
                                 <TextBlock Text="💾"/>
                                 <TextBlock Text="Download Selected"/>
                             </StackPanel>
                         </Button>
                         
-                        <Button Command="{Binding Tracks.CopyToFolderCommand}" Classes="accent" Theme="{StaticResource SimpleButton}">
+                        <Button Command="{Binding Tracks.CopyToFolderCommand}" Classes="accent" 
+>
                             <StackPanel Orientation="Horizontal" Spacing="6">
                                 <TextBlock Text="📂"/>
                                 <TextBlock Text="Copy to Folder"/>
                             </StackPanel>
                         </Button>
                         
-                        <Button Command="{Binding Tracks.BulkRetryCommand}" Theme="{StaticResource SimpleButton}">
+                        <Button Command="{Binding Tracks.BulkRetryCommand}" 
+>
                             <StackPanel Orientation="Horizontal" Spacing="6">
                                 <TextBlock Text="🔄"/>
                                 <TextBlock Text="Retry Failed"/>
                             </StackPanel>
                         </Button>
                         
-                        <Button Command="{Binding Tracks.BulkCancelCommand}" Classes="danger" Theme="{StaticResource SimpleButton}">
+                        <Button Command="{Binding Tracks.BulkCancelCommand}" Classes="danger" 
+>
                             <StackPanel Orientation="Horizontal" Spacing="6">
                                 <TextBlock Text="✕"/>
                                 <TextBlock Text="Cancel Active"/>
                             </StackPanel>
                         </Button>
                         
-                        <Button Command="{Binding Tracks.BulkReEnrichCommand}" Theme="{StaticResource SimpleButton}">
+                        <Button Command="{Binding Tracks.BulkReEnrichCommand}" 
+>
                             <StackPanel Orientation="Horizontal" Spacing="6">
                                 <TextBlock Text="🔍"/>
                                 <TextBlock Text="Re-Enrich Metadata"/>
@@ -813,6 +829,19 @@
                     </StackPanel>
                 </ScrollViewer>
             </Grid>
+        </Border>
+
+        <!-- RIGHT SPLITTER (Inspector) -->
+        <GridSplitter Grid.Column="5" Width="4" Background="Transparent" ResizeDirection="Columns" IsVisible="{Binding IsInspectorOpen}"/>
+
+        <!-- RIGHT PANEL: Slide-In Track Inspector -->
+        <Border Grid.Column="6" 
+                Width="450"
+                Background="#1A1A1A" 
+                BorderBrush="#3E3E3E" 
+                BorderThickness="1,0,0,0"
+                IsVisible="{Binding IsInspectorOpen}">
+            <views:TrackInspectorView DataContext="{Binding TrackInspector}"/>
         </Border>
 
     </Grid>

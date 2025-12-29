@@ -4,6 +4,8 @@ using System.Collections.Generic;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 
+using SLSKDONET.Models;
+
 namespace SLSKDONET.Services;
 
 /// <summary>
@@ -16,6 +18,7 @@ public interface INavigationService
 {
     void RegisterPage(string key, Type pageType);
     void NavigateTo(string pageKey);
+    void NavigateTo(PageType pageKey); // Added Overload
     void GoBack();
     object? CurrentPage { get; }
     event EventHandler<UserControl>? Navigated;
@@ -46,6 +49,11 @@ public class NavigationService : INavigationService
     }
 
     public event EventHandler<UserControl>? Navigated;
+
+    public void NavigateTo(PageType pageKey)
+    {
+        NavigateTo(pageKey.ToString());
+    }
 
     public void NavigateTo(string pageKey)
     {

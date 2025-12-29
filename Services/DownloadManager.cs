@@ -17,7 +17,6 @@ using SLSKDONET.Data.Entities;
 using SLSKDONET.Models;
 using SLSKDONET.Services.InputParsers;
 using SLSKDONET.Utils;
-using SLSKDONET.Models;
 using SLSKDONET.Services.Models;
 using Microsoft.EntityFrameworkCore;
 using SLSKDONET.Services.Repositories; // [NEW] Namespace
@@ -1710,7 +1709,7 @@ public class DownloadManager : INotifyPropertyChanged, IDisposable
         var progress = new Progress<double>(p =>
         {
             ctx.Progress = p * 100;
-            ctx.BytesReceived = (long)(bestMatch.Size * p);
+            ctx.BytesReceived = (long)((bestMatch.Size ?? 0) * p);
 
             // Throttle to 10 updates/sec to prevent UI stuttering
             if ((DateTime.Now - lastNotificationTime).TotalMilliseconds > 100)

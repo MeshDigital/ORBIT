@@ -141,7 +141,22 @@ public class LibraryViewModel : INotifyPropertyChanged
     public System.Windows.Input.ICommand ExportMonthlyDropCommand { get; }
     public System.Windows.Input.ICommand FindHarmonicMatchesCommand { get; }
     public System.Windows.Input.ICommand ToggleMixHelperCommand { get; } // Phase 9: Toggle sidebar
+    public System.Windows.Input.ICommand ToggleInspectorCommand { get; } // Slide-in Inspector
     public System.Windows.Input.ICommand AnalyzeAlbumCommand { get; } // Queue album for analysis
+
+    private bool _isInspectorOpen;
+    public bool IsInspectorOpen
+    {
+        get => _isInspectorOpen;
+        set 
+        {
+            if (_isInspectorOpen != value)
+            {
+                _isInspectorOpen = value;
+                OnPropertyChanged();
+            }
+        }
+    }
 
     public LibraryViewModel(
         ILogger<LibraryViewModel> logger,
@@ -180,6 +195,9 @@ public class LibraryViewModel : INotifyPropertyChanged
         Tracks = tracks;
         Operations = operations;
         SmartPlaylists = smartPlaylists;
+        PlayerViewModel = playerViewModel;
+        UpgradeScout = upgradeScout;
+        TrackInspector = trackInspector;
         
         // Initialize commands
         ViewHistoryCommand = new AsyncRelayCommand(ExecuteViewHistoryAsync);
@@ -196,18 +214,32 @@ public class LibraryViewModel : INotifyPropertyChanged
         ExportMonthlyDropCommand = new AsyncRelayCommand(ExecuteExportMonthlyDropAsync);
         FindHarmonicMatchesCommand = new AsyncRelayCommand<PlaylistTrackViewModel>(ExecuteFindHarmonicMatchesAsync);
         ToggleMixHelperCommand = new RelayCommand<object>(_ => IsMixHelperVisible = !IsMixHelperVisible);
+        ToggleInspectorCommand = new RelayCommand<object>(param => 
+        {
+            if (param is PlaylistTrackViewModel track)
+            {
+                 TrackInspector.Track = track.Model;
+                 // Ensure selection follows
+                 if (!Tracks.SelectedTracks.Contains(track))
+                 {
+                     Tracks.SelectedTracks.Clear();
+                     Tracks.SelectedTracks.Add(track);
+                 }
+                 IsInspectorOpen = true;
+            }
+            else
+            {
+                IsInspectorOpen = !IsInspectorOpen;
+            }
+        });
         AnalyzeAlbumCommand = new AsyncRelayCommand<string>(ExecuteAnalyzeAlbumAsync);
         
-        PlayerViewModel = playerViewModel;
-        UpgradeScout = upgradeScout;
         
         // Wire up events between child ViewModels
         Projects.ProjectSelected += OnProjectSelected;
         SmartPlaylists.SmartPlaylistSelected += OnSmartPlaylistSelected;
         
         _logger.LogInformation("LibraryViewModel initialized with child ViewModels");
-
-        TrackInspector = trackInspector;
 
         // Subscribe to selection changes in Tracks.SelectedTracks (ListBox)
         Tracks.SelectedTracks.CollectionChanged += OnTrackSelectionChanged;
@@ -278,6 +310,7 @@ public class LibraryViewModel : INotifyPropertyChanged
         if (lastSelected is PlaylistTrackViewModel trackVm)
         {
             TrackInspector.Track = trackVm.Model;
+            IsInspectorOpen = true; // Auto-open slide-in panel
             
             // Handle row expansion (Accordion style - collapse others)
             foreach (var t in Tracks.CurrentProjectTracks)
@@ -321,7 +354,7 @@ public class LibraryViewModel : INotifyPropertyChanged
             _matchLoadCancellation = new System.Threading.CancellationTokenSource();
             
             _selectionDebounceTimer = new System.Threading.Timer(
-                _ => Avalonia.Threading.Dispatcher.UIThread.Post(() => LoadHarmonicMatchesAsync(trackVm, _matchLoadCancellation.Token)),
+                _ => Avalonia.Threading.Dispatcher.UIThread.Post(() => { _ = LoadHarmonicMatchesAsync(trackVm, _matchLoadCancellation.Token); }),
                 null,
                 250, // Wait 250ms after last selection change
                 System.Threading.Timeout.Infinite);

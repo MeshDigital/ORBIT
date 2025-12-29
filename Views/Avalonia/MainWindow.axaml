@@ -256,14 +256,15 @@
                         </Grid>
                     </Button>
 
+                    <!-- Analysis Queue Dashboard -->
                     <Button Classes="nav" 
                             Command="{Binding NavigateInspectorCommand}"
                             Classes.selected="{Binding CurrentPageType, Converter={StaticResource EqualityConverter}, ConverterParameter={x:Static models:PageType.Inspector}}">
                         <Grid ColumnDefinitions="Auto,*">
                             <Border Grid.ColumnSpan="2" CornerRadius="4" IsVisible="False"/>
                             <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="12">
-                                <TextBlock Text="🔍" FontSize="16"/>
-                                <TextBlock Text="Inspector" FontSize="14"/>
+                                <TextBlock Text="📊" FontSize="16"/>
+                                <TextBlock Text="Analysis Queue" FontSize="14"/>
                             </StackPanel>
                         </Grid>
                     </Button>

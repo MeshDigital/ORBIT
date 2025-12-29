@@ -58,6 +58,7 @@ public record TrackMetadataUpdatedEvent(string TrackGlobalId);
 public record TrackAnalysisCompletedEvent(string TrackGlobalId, bool Success, string? ErrorMessage = null);
 public record TrackAnalysisStartedEvent(string TrackGlobalId, string FileName);
 public record AnalysisProgressEvent(string TrackGlobalId, string CurrentStep, int ProgressPercent);
+public record TrackAnalysisFailedEvent(string TrackGlobalId, string Error);
 
 // Analysis Queue Visibility (Glass Box Architecture)
 public record AnalysisQueueStatusChangedEvent(

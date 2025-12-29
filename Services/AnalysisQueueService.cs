@@ -94,9 +94,10 @@ public class AnalysisQueueService : INotifyPropertyChanged
         PublishStatusEvent();
     }
 
-    public void NotifyProcessingStarted(string trackHash)
+    public void NotifyProcessingStarted(string trackHash, string fileName)
     {
         CurrentTrackHash = trackHash;
+        _eventBus.Publish(new TrackAnalysisStartedEvent(trackHash, fileName));
     }
 
     public void NotifyProcessingCompleted(string trackHash, bool success, string? error = null)
@@ -107,10 +108,16 @@ public class AnalysisQueueService : INotifyPropertyChanged
         
         OnPropertyChanged(nameof(QueuedCount));
         OnPropertyChanged(nameof(ProcessedCount));
-        
-        // Publish completion event for UI
-        _eventBus.Publish(new AnalysisCompletedEvent(trackHash, success, error));
         PublishStatusEvent();
+        
+        _eventBus.Publish(new TrackAnalysisCompletedEvent(trackHash, success, error));
+        // Publish legacy completion event for UI compatibility
+        _eventBus.Publish(new AnalysisCompletedEvent(trackHash, success, error));
+        
+        if (!success && error != null)
+        {
+             _eventBus.Publish(new TrackAnalysisFailedEvent(trackHash, error));
+        }
     }
 
     // Album Priority: Queue entire album for immediate analysis
@@ -182,7 +189,7 @@ public class AnalysisWorker : BackgroundService
             try
             {
                 // Notify start (updates CurrentTrackHash, publishes event)
-                _queue.NotifyProcessingStarted(trackHash);
+                _queue.NotifyProcessingStarted(trackHash, request.FilePath);
 
                 using var scope = _serviceProvider.CreateScope();
                 var analyzer = scope.ServiceProvider.GetRequiredService<IAudioIntelligenceService>();

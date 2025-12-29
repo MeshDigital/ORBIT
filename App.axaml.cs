@@ -586,6 +586,7 @@ public partial class App : Application
         services.AddSingleton<IAudioIntelligenceService, EssentiaAnalyzerService>();
         services.AddSingleton<AnalysisQueueService>();
         services.AddHostedService<AnalysisWorker>();
+        services.AddSingleton<AnalysisQueueViewModel>();
         
         // Phase 4.2: Drop Detection & Cue Generation Engines
         services.AddSingleton<Services.Musical.DropDetectionEngine>();

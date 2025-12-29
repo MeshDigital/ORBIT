@@ -1,0 +1,80 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:vm="clr-namespace:SLSKDONET.ViewModels"
+             mc:Ignorable="d" d:DesignWidth="1200" d:DesignHeight="800"
+             x:Class="SLSKDONET.Views.Avalonia.AnalysisQueuePage"
+             Background="#1E1E1E" Foreground="White">
+
+    <Grid RowDefinitions="Auto,*,Auto,*,Auto,200">
+        
+        <!-- Header -->
+        <Border Grid.Row="0" Margin="32,32,32,16">
+            <StackPanel Spacing="8">
+                <TextBlock Text="Analysis Queue" FontSize="28" FontWeight="Bold"/>
+                <TextBlock Text="Real-time monitoring of local music intelligence processing" Foreground="#888"/>
+            </StackPanel>
+        </Border>
+
+        <!-- Active Jobs -->
+        <Grid Grid.Row="1" Margin="32,0,32,16" RowDefinitions="Auto,*">
+            <TextBlock Grid.Row="0" Text="ACTIVE PROCESSING" FontSize="12" FontWeight="Bold" Foreground="#4EC9B0" Margin="0,0,0,8"/>
+            <DataGrid Grid.Row="1" ItemsSource="{Binding ActiveJobs}" AutoGenerateColumns="False" CanUserResizeColumns="True" Background="#252526" BorderThickness="0" CornerRadius="8">
+                <DataGrid.Columns>
+                    <DataGridTextColumn Header="File" Binding="{Binding FileName}" Width="*"/>
+                    <DataGridTextColumn Header="Status" Binding="{Binding Status}" Width="120"/>
+                    <DataGridTextColumn Header="Step" Binding="{Binding Step}" Width="180"/>
+                    <DataGridTemplateColumn Header="Progress" Width="200">
+                        <DataGridTemplateColumn.CellTemplate>
+                            <DataTemplate>
+                                <ProgressBar Value="{Binding ProgressPercent}" Maximum="100" Height="6" VerticalAlignment="Center" Margin="8,0" Foreground="#4EC9B0" Background="#333"/>
+                            </DataTemplate>
+                        </DataGridTemplateColumn.CellTemplate>
+                    </DataGridTemplateColumn>
+                </DataGrid.Columns>
+            </DataGrid>
+        </Grid>
+
+        <!-- Splitter -->
+        <GridSplitter Grid.Row="2" Background="#333" Height="1" HorizontalAlignment="Stretch" Margin="32,0"/>
+
+        <!-- Completed Jobs -->
+        <Grid Grid.Row="3" Margin="32,16,32,16" RowDefinitions="Auto,*">
+            <TextBlock Grid.Row="0" Text="RECENTLY COMPLETED" FontSize="12" FontWeight="Bold" Foreground="#1DB954" Margin="0,0,0,8"/>
+            <DataGrid Grid.Row="1" ItemsSource="{Binding CompletedJobs}" AutoGenerateColumns="False" CanUserResizeColumns="True" Background="#252526" BorderThickness="0" CornerRadius="8">
+                <DataGrid.Columns>
+                    <DataGridTextColumn Header="File" Binding="{Binding FileName}" Width="*"/>
+                    <DataGridTextColumn Header="Status" Binding="{Binding Status}" Width="120"/>
+                    <DataGridTextColumn Header="Time" Binding="{Binding Age}" Width="100"/>
+                    <DataGridTemplateColumn Header="Actions" Width="120">
+                         <DataGridTemplateColumn.CellTemplate>
+                            <DataTemplate>
+                                <Button Content="Inspect" 
+                                        Command="{Binding $parent[UserControl].DataContext.InspectTrackCommand}" 
+                                        CommandParameter="{Binding}"
+                                        FontSize="11" Padding="12,4" Margin="4"
+                                        Classes="accent"/>
+                            </DataTemplate>
+                         </DataGridTemplateColumn.CellTemplate>
+                    </DataGridTemplateColumn>
+                </DataGrid.Columns>
+            </DataGrid>
+        </Grid>
+        
+        <!-- Splitter -->
+        <GridSplitter Grid.Row="4" Background="#333" Height="1" HorizontalAlignment="Stretch" Margin="32,0"/>
+
+        <!-- Failed Jobs -->
+        <Grid Grid.Row="5" Margin="32,16,32,32" RowDefinitions="Auto,*">
+             <TextBlock Grid.Row="0" Text="FAILED / ERRORS" FontSize="12" FontWeight="Bold" Foreground="#F44336" Margin="0,0,0,8"/>
+             <DataGrid Grid.Row="1" ItemsSource="{Binding FailedJobs}" AutoGenerateColumns="False" CanUserResizeColumns="True" Background="#252526" BorderThickness="0" CornerRadius="8">
+                <DataGrid.Columns>
+                    <DataGridTextColumn Header="File" Binding="{Binding FileName}" Width="*"/>
+                    <DataGridTextColumn Header="Error" Binding="{Binding Error}" Width="2*"/>
+                    <DataGridTextColumn Header="Time" Binding="{Binding Age}" Width="100"/>
+                </DataGrid.Columns>
+            </DataGrid>
+        </Grid>
+    </Grid>
+</UserControl>
