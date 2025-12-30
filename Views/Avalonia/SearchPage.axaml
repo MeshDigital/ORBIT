@@ -70,12 +70,12 @@
                     <!-- Search Box -->
                     <Border Grid.Column="0" Background="#1E1E1E" CornerRadius="14" BorderBrush="#333" BorderThickness="1" Height="56" MaxWidth="800" HorizontalAlignment="Stretch">
                         <Grid ColumnDefinitions="Auto,*,Auto">
-                            <TextBlock Text="🔍" VerticalAlignment="Center" Margin="20,0,8,0" Foreground="#888" FontSize="18"/>
-                            <TextBox Text="{Binding SearchQuery, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                            <TextBlock Grid.Column="0" Text="🔍" VerticalAlignment="Center" Margin="20,0,8,0" Foreground="#888" FontSize="18"/>
+                            <TextBox Grid.Column="1" Text="{Binding SearchQuery, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
                                      Watermark="Search for tracks, artists..."
                                      Background="Transparent" BorderThickness="0"
                                      FontSize="16" VerticalContentAlignment="Center" Margin="4,0" Padding="12,0"/>
-                            <Button Command="{Binding ClearSearchCommand}" Background="Transparent" BorderThickness="0" 
+                            <Button Grid.Column="2" Command="{Binding ClearSearchCommand}" Background="Transparent" BorderThickness="0" 
                                     IsVisible="{Binding CanSearch}" Margin="0,0,12,0" Padding="8">
                                 <TextBlock Text="✕" Foreground="#888" VerticalAlignment="Center" FontSize="16"/>
                             </Button>
