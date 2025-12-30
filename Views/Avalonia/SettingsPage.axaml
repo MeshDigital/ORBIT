@@ -60,23 +60,7 @@
                         </Button>
                     </Grid>
                     
-                    <!-- Max Concurrent Downloads -->
-                    <Grid ColumnDefinitions="180,120,*">
-                        <TextBlock Grid.Column="0" Text="Max Concurrent Downloads:" VerticalAlignment="Center" Foreground="#DDD"/>
-                        <NumericUpDown Grid.Column="1" 
-                                       Value="{Binding MaxConcurrentDownloads, Mode=TwoWay}"
-                                       Minimum="1"
-                                       Maximum="10"
-                                       Increment="1"
-                                       Background="#1E1E1E"
-                                       Foreground="White"/>
-                        <TextBlock Grid.Column="2" 
-                                   Text="Limit active downloads to share bandwidth" 
-                                   VerticalAlignment="Center" 
-                                   Foreground="#666" 
-                                   FontSize="11"
-                                   Margin="12,0,0,0"/>
-                    </Grid>
+
                     
                     <!-- File Name Format -->
                     <Grid ColumnDefinitions="180,*">

@@ -74,6 +74,13 @@ public class DownloadCenterViewModel : ReactiveObject, IDisposable
         set => this.RaiseAndSetIfChanged(ref _completedTodayCount, value);
     }
     
+    private int _failedCount;
+    public int FailedCount
+    {
+        get => _failedCount;
+        set => this.RaiseAndSetIfChanged(ref _failedCount, value);
+    }
+    
     private string _globalSpeed = "0 MB/s";
     public string GlobalSpeed
     {
@@ -138,7 +145,7 @@ public class DownloadCenterViewModel : ReactiveObject, IDisposable
                     item.RetryCommand.Execute(null);
                 }
             }
-        }, this.WhenAnyValue(x => x.FailedDownloads.Count, count => count > 0));
+        }, this.WhenAnyValue(x => x.FailedCount, count => count > 0));
         
         // Initialize DynamicData Pipelines
         
@@ -188,7 +195,7 @@ public class DownloadCenterViewModel : ReactiveObject, IDisposable
             .SortAndBind(out _completedDownloads, SortExpressionComparer<UnifiedTrackViewModel>.Descending(x => x.Model.AddedAt))
             .Subscribe();
 
-         _completedDownloads.ToObservableChangeSet()
+        _completedDownloads.ToObservableChangeSet()
             .ObserveOn(RxApp.MainThreadScheduler)
             .Subscribe(_ => CompletedTodayCount = _completedDownloads.Count)
             .DisposeWith(_subscriptions);
@@ -198,6 +205,12 @@ public class DownloadCenterViewModel : ReactiveObject, IDisposable
             .Filter(x => x.State == PlaylistTrackState.Failed || x.State == PlaylistTrackState.Cancelled)
             .Bind(out _failedDownloads)
             .Subscribe();
+
+        _failedDownloads.ToObservableChangeSet()
+            .ObserveOn(RxApp.MainThreadScheduler)
+            .Subscribe(_ => FailedCount = _failedDownloads.Count)
+            .DisposeWith(_subscriptions);
+
 
         // 2. Swimlane Pipelines (Derived from sharedSource filtered to Active)
         // Express: Priority 0

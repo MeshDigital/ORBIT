@@ -3,7 +3,7 @@
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              xmlns:views="clr-namespace:SLSKDONET.Views.Avalonia"
-             xmlns:models="clr-namespace:SLSKDONET.Models;assembly=SLSKDONET"
+             xmlns:models="clr-namespace:SLSKDONET.Models"
              mc:Ignorable="d" d:DesignWidth="280" d:DesignHeight="60"
              x:Class="SLSKDONET.Views.Avalonia.Controls.CompactPlaylistTemplate"
              x:DataType="models:PlaylistJob">

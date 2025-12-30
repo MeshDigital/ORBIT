@@ -19,6 +19,7 @@
         <conv:BitmapValueConverter x:Key="BitmapValueConverter"/>
         <conv:RankColorConverter x:Key="RankColorConverter"/>
         <rootConv:BoolOpacityConverter x:Key="BoolOpacityConverter"/>
+        <conv:BoolBlurConverter x:Key="BoolBlurConverter"/>
         <x:Double x:Key="NonDownloadedOpacity">0.3</x:Double>
     </UserControl.Resources>
 
@@ -162,7 +163,7 @@
                                                 </MenuItem>
                                             </ContextMenu>
                                         </Border.ContextMenu>
-                                        <controls:CompactPlaylistTemplate DataContext="{Binding}"/>
+                                        <controls:CompactPlaylistTemplate/>
                                     </Border>
                                 </DataTemplate>
                             </ListBox.ItemTemplate>
@@ -466,7 +467,8 @@
                                                 CornerRadius="4" 
                                                 Margin="0,0,12,0"
                                                 Background="#222"
-                                                Opacity="{Binding IsDownloaded, Converter={StaticResource BoolOpacityConverter}, ConverterParameter=0.3}">
+                                                Opacity="{Binding IsDownloaded, Converter={StaticResource BoolOpacityConverter}, ConverterParameter=0.3}"
+                                                Effect="{Binding IsDownloaded, Converter={StaticResource BoolBlurConverter}}">
                                             <Image Source="{Binding AlbumArtUrl, Converter={StaticResource BitmapValueConverter}}" Stretch="UniformToFill"/>
                                         </Border>
 
@@ -484,7 +486,9 @@
                                         </StackPanel>
 
                                         <!-- Line 2: Technical Metadata -->
-                                        <StackPanel Grid.Row="1" Grid.Column="1" Orientation="Horizontal" Spacing="12" Margin="0,4,0,0" Opacity="{Binding IsDownloaded, Converter={StaticResource BoolOpacityConverter}, ConverterParameter=0.3}">
+                                        <StackPanel Grid.Row="1" Grid.Column="1" Orientation="Horizontal" Spacing="12" Margin="0,4,0,0" 
+                                                    Opacity="{Binding IsDownloaded, Converter={StaticResource BoolOpacityConverter}, ConverterParameter=0.3}"
+                                                    Effect="{Binding IsDownloaded, Converter={StaticResource BoolBlurConverter}}">
                                             <StackPanel Orientation="Horizontal" Spacing="4">
                                                 <TextBlock Text="⏱" FontSize="11" Foreground="#666"/>
                                                 <TextBlock Text="{Binding Bpm, StringFormat='{}{0:F0}'}" FontFamily="Consolas, Monospace" FontSize="11" Foreground="#888"/>

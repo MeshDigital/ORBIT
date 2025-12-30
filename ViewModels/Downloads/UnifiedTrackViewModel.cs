@@ -187,7 +187,8 @@ public class UnifiedTrackViewModel : ReactiveObject, IDisplayableTrack, IDisposa
     public bool IsIndeterminate => State == PlaylistTrackState.Searching || State == PlaylistTrackState.Queued;
     public bool IsFailed => State == PlaylistTrackState.Failed || State == PlaylistTrackState.Cancelled;
     public bool IsPaused => State == PlaylistTrackState.Paused;
-    public bool IsActive => State == PlaylistTrackState.Downloading || State == PlaylistTrackState.Searching;
+    // Fix: Include Pending and Queued in IsActive so they appear in the Active tab
+    public bool IsActive => State == PlaylistTrackState.Downloading || State == PlaylistTrackState.Searching || State == PlaylistTrackState.Queued || State == PlaylistTrackState.Pending;
     public bool IsCompleted => State == PlaylistTrackState.Completed;
 
     private string? _failureReason;

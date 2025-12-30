@@ -64,19 +64,7 @@ public class SettingsViewModel : INotifyPropertyChanged
         }
     }
 
-    public int MaxConcurrentDownloads
-    {
-        get => _config.MaxConcurrentDownloads;
-        set
-        {
-            if (_config.MaxConcurrentDownloads != value)
-            {
-                _config.MaxConcurrentDownloads = value;
-                OnPropertyChanged();
-                SaveSettings();
-            }
-        }
-    }
+
 
     public string FileNameFormat
     {

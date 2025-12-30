@@ -70,7 +70,7 @@ public class ConfigManager
                 // [Download]
                 DownloadDirectory = config["Download:Directory"],
                 SharedFolderPath = config["Download:SharedFolder"],
-                MaxConcurrentDownloads = int.TryParse(config["Download:MaxConcurrent"], out var mcd) ? mcd : 2,
+                MaxConcurrentDownloads = int.TryParse(config["Download:MaxConcurrentDownloads"], out var mcd) ? mcd : 2,
                 NameFormat = config["Download:NameFormat"] ?? "{artist} - {title}",
                 CheckForDuplicates = !bool.TryParse(config["Download:CheckForDuplicates"], out var check) || check, // Default to true
                 SearchLengthToleranceSeconds = int.TryParse(config["Download:SearchLengthToleranceSeconds"], out var tol) ? tol : 3,
@@ -214,4 +214,9 @@ public class ConfigManager
     }
 
     public AppConfig GetCurrent() => _config;
+
+    public async Task SaveAsync(AppConfig config)
+    {
+        await Task.Run(() => Save(config));
+    }
 }

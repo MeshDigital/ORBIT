@@ -33,6 +33,7 @@ public class DownloadManager : INotifyPropertyChanged, IDisposable
 {
     private readonly ILogger<DownloadManager> _logger;
     private readonly AppConfig _config;
+    private readonly ConfigManager _configManager; // Persistence
     private readonly SoulseekAdapter _soulseek;
     private readonly FileNameFormatter _fileNameFormatter;
     // Removed ITaggerService dependency (moved to Enricher)
@@ -76,6 +77,7 @@ public class DownloadManager : INotifyPropertyChanged, IDisposable
     public DownloadManager(
         ILogger<DownloadManager> logger,
         AppConfig config,
+        ConfigManager configManager, // Injected
         SoulseekAdapter soulseek,
         FileNameFormatter fileNameFormatter,
         DatabaseService databaseService,
@@ -93,6 +95,7 @@ public class DownloadManager : INotifyPropertyChanged, IDisposable
     {
         _logger = logger;
         _config = config;
+        _configManager = configManager;
         _soulseek = soulseek;
         _fileNameFormatter = fileNameFormatter;
         _databaseService = databaseService;
@@ -238,6 +241,13 @@ public class DownloadManager : INotifyPropertyChanged, IDisposable
             
             int diff = value - _maxActiveDownloads;
             _maxActiveDownloads = value;
+            
+            // Persist
+            if (_config.MaxConcurrentDownloads != value)
+            {
+                _config.MaxConcurrentDownloads = value;
+                _ = _configManager.SaveAsync(_config); // Fire and forget save
+            }
             
             // Adjust semaphore count dynamically
             if (diff > 0)
@@ -884,6 +894,10 @@ public class DownloadManager : INotifyPropertyChanged, IDisposable
         ctx.State = PlaylistTrackState.Pending;
         ctx.Progress = 0;
         ctx.ErrorMessage = null;
+        ctx.RetryCount = 0;
+        ctx.NextRetryTime = null; // Ensure immediate pickup
+        ctx.SearchAttempts.Clear();
+        ctx.BlacklistedUsers.Clear(); // Clear blacklist to allow fresh search
         ctx.CancellationTokenSource = new CancellationTokenSource(); // Reset CTS
         
         // Publish reset event (handled by StateChanged to Pending usually, but verify UI clears error)
