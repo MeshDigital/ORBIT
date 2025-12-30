@@ -219,7 +219,7 @@
                                           Margin="0,0,8,0"
                                           Foreground="#888"/>
                                 <TextBox Grid.Column="1"
-                                        Text="{Binding SearchText, Mode=TwoWay}" 
+                                        Text="{Binding Tracks.SearchText, Mode=TwoWay}" 
                                         Watermark="Search tracks..." 
                                         Background="Transparent"
                                         BorderThickness="0"
