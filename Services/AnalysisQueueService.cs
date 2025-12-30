@@ -1,4 +1,6 @@
 using System;
+using System.Collections.Concurrent;
+using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
 using System.Threading;
@@ -25,6 +27,10 @@ public class AnalysisQueueService : INotifyPropertyChanged
     private int _processedCount = 0;
     private string? _currentTrackHash = null;
     private bool _isPaused = false;
+    
+    // Thread tracking for Mission Control dashboard
+    private readonly ConcurrentDictionary<int, ActiveThreadInfo> _activeThreads = new();
+    public ObservableCollection<ActiveThreadInfo> ActiveThreads { get; } = new();
 
     public event PropertyChangedEventHandler? PropertyChanged;
 
@@ -160,6 +166,42 @@ public class AnalysisQueueService : INotifyPropertyChanged
             Dispatcher.UIThread.Post(() => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName)));
         }
     }
+    
+    /// <summary>
+    /// Update the status of a specific analysis thread for Mission Control dashboard.
+    /// </summary>
+    public void UpdateThreadStatus(int threadId, string trackName, string status, double progress = 0)
+    {
+        var info = new ActiveThreadInfo
+        {
+            ThreadId = threadId,
+            CurrentTrack = string.IsNullOrEmpty(trackName) ? "-" : System.IO.Path.GetFileName(trackName),
+            Status = status,
+            Progress = progress,
+            StartTime = status == "Idle" ? null : (DateTime?)DateTime.Now
+        };
+        
+        _activeThreads.AddOrUpdate(threadId, info, (id, old) => info);
+        
+        // Update UI collection on UI thread
+        Dispatcher.UIThread.Post(() =>
+        {
+            var existing = ActiveThreads.FirstOrDefault(t => t.ThreadId == threadId);
+            if (existing != null)
+            {
+                // Update existing item
+                existing.CurrentTrack = info.CurrentTrack;
+                existing.Status = info.Status;
+                existing.Progress = info.Progress;
+                existing.StartTime = info.StartTime;
+            }
+            else
+            {
+                // Add new thread
+                ActiveThreads.Add(info);
+            }
+        });
+    }
 
     public ChannelReader<AnalysisRequest> Reader => _channel.Reader;
 }
@@ -274,13 +316,21 @@ public class AnalysisWorker : BackgroundService
             }
 
             // 3. Process batch in parallel
-            var processingTasks = batch.Select(async request =>
+            var processingTasks = batch.Select(async (request, index) =>
             {
+                var threadId = index; // Use index as thread ID for this batch
+                
                 await _concurrencyLimiter.WaitAsync(stoppingToken);
                 try
                 {
+                    // Update thread status: Processing
+                    _queue.UpdateThreadStatus(threadId, request.FilePath, "Processing", 0);
+                    
                     await ProcessRequestAsync(request, stoppingToken);
                     Interlocked.Increment(ref processedInBatch);
+                    
+                    // Update thread status: Complete
+                    _queue.UpdateThreadStatus(threadId, request.FilePath, "Complete", 100);
                     
                     // Log progress every 10 tracks
                     if (processedInBatch % 10 == 0)
@@ -288,8 +338,15 @@ public class AnalysisWorker : BackgroundService
                         LogBatchProgress(processedInBatch, batchStartTime);
                     }
                 }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Thread {ThreadId} failed processing track", threadId);
+                    _queue.UpdateThreadStatus(threadId, request.FilePath, "Error", 0);
+                }
                 finally
                 {
+                    // Return thread to idle
+                    _queue.UpdateThreadStatus(threadId, string.Empty, "Idle", 0);
                     _concurrencyLimiter.Release();
                 }
             }).ToList();
