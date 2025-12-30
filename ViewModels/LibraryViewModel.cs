@@ -162,6 +162,20 @@ public class LibraryViewModel : INotifyPropertyChanged
         set { _deletedProjects = value; OnPropertyChanged(); }
     }
 
+    private bool _isInspectorOpen;
+    public bool IsInspectorOpen
+    {
+        get => _isInspectorOpen;
+        set 
+        {
+            if (_isInspectorOpen != value)
+            {
+                _isInspectorOpen = value;
+                OnPropertyChanged();
+            }
+        }
+    }
+
     public LibraryViewModel(
         ILogger<LibraryViewModel> logger,
         Library.ProjectListViewModel projects,
