@@ -56,7 +56,10 @@
                     <TextBlock Text="Status" FontWeight="SemiBold" Foreground="#888"/>
                     <TextBlock Text="{Binding StatusText}" TextWrapping="Wrap" Foreground="White"/>
                     <TextBlock Text="{Binding SearchResults.Count, StringFormat='Visible: {0}'}" Foreground="#888"/>
-                    <TextBlock Text="{Binding HiddenResultsCount, StringFormat='Hidden: {0}'}" Foreground="#666" FontSize="11"/>
+                    
+                    <StackPanel Orientation="Horizontal" Spacing="8" IsVisible="{Binding HiddenResultsCount}">
+                         <TextBlock Text="{Binding HiddenResultsCount, StringFormat='Hidden: {0}'}" Foreground="#666" FontSize="11" VerticalAlignment="Center"/>
+                    </StackPanel>
                 </StackPanel>
                 
             </StackPanel>
@@ -203,6 +206,22 @@
                          </DataGridTemplateColumn.CellTemplate>
                     </DataGridTemplateColumn>
                     
+                    <!-- Action -->
+                    <DataGridTemplateColumn Header="Action" Width="100">
+                        <DataGridTemplateColumn.CellTemplate>
+                            <DataTemplate>
+                                <Button Command="{Binding $parent[DataGrid].DataContext.DownloadSelectedCommand}" 
+                                        CommandParameter="{Binding}"
+                                        Content="Download" 
+                                        Classes="pill" 
+                                        FontSize="11" 
+                                        Padding="8,4"
+                                        HorizontalAlignment="Center"
+                                        IsVisible="{Binding !IsDownloaded}"/>
+                            </DataTemplate>
+                        </DataGridTemplateColumn.CellTemplate>
+                    </DataGridTemplateColumn>
+
                     <!-- Status -->
                     <DataGridTextColumn Header="Status" Binding="{Binding StatusIcon}" Width="50"/>
                     

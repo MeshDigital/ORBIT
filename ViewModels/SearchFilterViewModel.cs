@@ -13,7 +13,7 @@ namespace SLSKDONET.ViewModels;
 public class SearchFilterViewModel : ReactiveObject
 {
     // Throttled Bitrate
-    private int _minBitrate = 320;
+    private int _minBitrate = 128;
     public int MinBitrate 
     { 
         get => _minBitrate; 

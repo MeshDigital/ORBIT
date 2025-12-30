@@ -189,7 +189,7 @@ public partial class SearchViewModel : ReactiveObject
     public ICommand PasteTracklistCommand { get; }
     public ICommand CancelSearchCommand { get; }
     public ICommand AddToDownloadsCommand { get; }
-    public ICommand DownloadSelectedCommand { get; }
+    public ReactiveCommand<object?, System.Reactive.Unit> DownloadSelectedCommand { get; }
     public ICommand ApplyPresetCommand { get; } // Phase 5: Search Presets
 
     public SearchViewModel(
@@ -237,11 +237,12 @@ public partial class SearchViewModel : ReactiveObject
             .ObserveOn(RxApp.MainThreadScheduler)
             .Bind(out _publicSearchResults)
             .DisposeMany() // Ensure items are disposed if needed
-            .Subscribe(set => 
+            .Subscribe(_ => 
             {
                 // Update Hidden Count
-                // Note: Count retrieval needs to be thread safe
+                // Use the counts from the collections directly
                 HiddenResultsCount = _searchResults.Count - _publicSearchResults.Count;
+                this.RaisePropertyChanged(nameof(SearchResults)); // Force UI refresh for count bindings
             });
 
         // Commands
@@ -253,7 +254,7 @@ public partial class SearchViewModel : ReactiveObject
         PasteTracklistCommand = ReactiveCommand.CreateFromTask(ExecutePasteTracklistAsync);
         CancelSearchCommand = ReactiveCommand.Create(ExecuteCancelSearch);
         AddToDownloadsCommand = ReactiveCommand.CreateFromTask(ExecuteAddToDownloadsAsync);
-        DownloadSelectedCommand = ReactiveCommand.CreateFromTask(ExecuteDownloadSelectedAsync);
+        DownloadSelectedCommand = ReactiveCommand.CreateFromTask<object?>(ExecuteDownloadSelectedAsync);
         ApplyPresetCommand = ReactiveCommand.Create<string>(ExecuteApplyPreset);
         
         // Phase 12.6: Bi-directional filter sync - wire callback
@@ -360,6 +361,7 @@ public partial class SearchViewModel : ReactiveObject
         StatusText = "Searching...";
         _searchResults.Clear(); // Clear reactive list
         AlbumResults.Clear();
+        HiddenResultsCount = 0; // Reset hidden count
 
         try
         {
@@ -534,29 +536,37 @@ public partial class SearchViewModel : ReactiveObject
     {
          // Legacy "Add All Visible/Selected" fallback? 
          // Prefer DownloadSelectedCommand for explicit batch
-         await ExecuteDownloadSelectedAsync();
+         await ExecuteDownloadSelectedAsync(null);
     }
 
-    private async Task ExecuteDownloadSelectedAsync()
+    private async Task ExecuteDownloadSelectedAsync(object? parameter)
     {
-        var selected = SelectedResults.ToList();
-        if (!selected.Any()) return;
+        var toDownload = new List<SearchResult>();
+        
+        if (parameter is SearchResult single)
+        {
+            toDownload.Add(single);
+        }
+        else
+        {
+            toDownload.AddRange(SelectedResults);
+        }
+
+        if (!toDownload.Any()) return;
 
         // Safety Gate
-        if (selected.Count > 20)
+        if (toDownload.Count > 20)
         {
-            // TODO: In a real app we'd show a Dialog here. 
-            // For now, we'll log a warning and proceed, or we could just clamp it?
             _logger.LogWarning("Batch download > 20 items requested.");
         }
 
-        foreach (var track in selected)
+        foreach (var track in toDownload)
         {
              // Immediate Feedback (Polish)
              track.Status = TrackStatus.Pending;
              _downloadManager.EnqueueTrack(track.Model);
         }
-        StatusText = $"Queued {selected.Count} downloads";
+        StatusText = $"Queued {toDownload.Count} downloads";
     }
 
     public void ResetState()
@@ -680,11 +690,25 @@ public partial class SearchViewModel : ReactiveObject
     {
         if (_searchResults.Count == 0 || string.IsNullOrWhiteSpace(SearchQuery)) return;
 
-        // Parse query for context (Simplified)
-        // Ideally handled by ScoringContext logic
-        var searchTrack = new Models.Track { Title = SearchQuery, Artist = "" }; 
+        // Parse query for context (Smarter parsing for "Artist - Title")
+        var artist = "";
+        var title = SearchQuery;
+        
+        if (SearchQuery.Contains(" - "))
+        {
+            var parts = SearchQuery.Split(new[] { " - " }, 2, StringSplitOptions.RemoveEmptyEntries);
+            artist = parts[0].Trim();
+            title = parts[1].Trim();
+        }
+        else if (SearchQuery.Contains(" – ")) // En dash
+        {
+            var parts = SearchQuery.Split(new[] { " – " }, 2, StringSplitOptions.RemoveEmptyEntries);
+            artist = parts[0].Trim();
+            title = parts[1].Trim();
+        }
+
+        var searchTrack = new Models.Track { Artist = artist, Title = title }; 
         // Note: Full parsing requires more robust logic, but this suffices for relative re-ranking
-        // if user types "Artist - Title", string similarity will handle it.
 
         var evaluator = new Models.FileConditionEvaluator();
         
