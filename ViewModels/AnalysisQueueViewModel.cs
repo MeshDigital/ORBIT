@@ -63,6 +63,7 @@ public class AnalysisQueueViewModel : ReactiveObject
     private readonly INavigationService _navigationService;
     private readonly LibraryViewModel _libraryViewModel;
     private readonly AnalysisQueueService _queueService;
+    private readonly MusicalBrainTestService _testService;
 
     public ObservableCollection<AnalysisJobViewModel> ActiveJobs { get; } = new();
     public ObservableCollection<AnalysisJobViewModel> CompletedJobs { get; } = new();
@@ -99,23 +100,42 @@ public class AnalysisQueueViewModel : ReactiveObject
     
     // We keep a history limit?
     private const int MaxHistory = 50;
+    
+    // Musical Brain Test Mode
+    private bool _isTestRunning;
+    public bool IsTestRunning
+    {
+        get => _isTestRunning;
+        set => this.RaiseAndSetIfChanged(ref _isTestRunning, value);
+    }
+    
+    private string _testStatus = "Ready to test";
+    public string TestStatus
+    {
+        get => _testStatus;
+        set => this.RaiseAndSetIfChanged(ref _testStatus, value);
+    }
 
     public ReactiveCommand<AnalysisJobViewModel, Unit> InspectTrackCommand { get; }
+    public ReactiveCommand<Unit, Unit> RunBrainTestCommand { get; }
 
     public AnalysisQueueViewModel(
         ILogger<AnalysisQueueViewModel> logger,
         IEventBus eventBus,
         INavigationService navigationService,
         LibraryViewModel libraryViewModel,
-        AnalysisQueueService queueService)
+        AnalysisQueueService queueService,
+        MusicalBrainTestService testService)
     {
         _logger = logger;
         _eventBus = eventBus;
         _navigationService = navigationService;
         _libraryViewModel = libraryViewModel;
         _queueService = queueService;
+        _testService = testService;
 
         InspectTrackCommand = ReactiveCommand.Create<AnalysisJobViewModel>(InspectTrack);
+        RunBrainTestCommand = ReactiveCommand.CreateFromTask(RunBrainTestAsync);
 
         // Subscriptions
         _eventBus.GetEvent<TrackAnalysisStartedEvent>()
@@ -242,6 +262,63 @@ public class AnalysisQueueViewModel : ReactiveObject
         else
         {
             EstimatedCompletion = "N/A";
+        }
+    }
+    
+    /// <summary>
+    /// Run Musical Brain diagnostic test.
+    /// </summary>
+    private async Task RunBrainTestAsync()
+    {
+        IsTestRunning = true;
+        TestStatus = "Running pre-flight checks...";
+        
+        try
+        {
+            // Pre-flight validation
+            var preFlightResult = await _testService.RunPreFlightChecksAsync();
+            
+            if (!preFlightResult.AllChecksPassed)
+            {
+                TestStatus = "❌ Pre-flight checks failed";
+                _logger.LogError("Musical Brain test failed pre-flight checks");
+                foreach (var check in preFlightResult.Checks)
+                {
+                    _logger.LogInformation(check);
+                }
+                return;
+            }
+            
+            TestStatus = "✅ Pre-flight passed. Selecting test tracks...";
+            _logger.LogInformation("Musical Brain pre-flight checks passed");
+            
+            // Select test tracks
+            var testTracks = await _testService.SelectTestTracksAsync(10);
+            
+            if (!testTracks.Any())
+            {
+                TestStatus = "⚠️ No tracks found in library for testing";
+                _logger.LogWarning("No tracks available for Musical Brain test");
+                return;
+            }
+            
+            TestStatus = $"Queuing {testTracks.Count} test tracks...";
+            _logger.LogInformation("Selected {Count} test tracks", testTracks.Count);
+            
+            // Queue for analysis
+            _testService.QueueTestTracks(testTracks);
+            
+            TestStatus = $"🧠 Testing {testTracks.Count} tracks - Watch Mission Control dashboard above!";
+            _logger.LogInformation("Musical Brain test started with {Count} tracks", testTracks.Count);
+        }
+        catch (Exception ex)
+        {
+            TestStatus = $"❌ Test failed: {ex.Message}";
+            _logger.LogError(ex, "Musical Brain test encountered an error");
+        }
+        finally
+        {
+            IsTestRunning = false;
         }
     }
 

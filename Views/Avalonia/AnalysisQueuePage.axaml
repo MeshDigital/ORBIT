@@ -16,10 +16,19 @@
         
         <!-- Header -->
         <Border Grid.Row="0" Margin="32,32,32,16">
-            <StackPanel Spacing="8">
-                <TextBlock Text="Analysis Queue - Mission Control" FontSize="28" FontWeight="Bold"/>
-                <TextBlock Text="Real-time monitoring of parallel audio analysis processing" Foreground="#888"/>
-            </StackPanel>
+            <Grid ColumnDefinitions="*,Auto">
+                <StackPanel Grid.Column="0" Spacing="8">
+                    <TextBlock Text="Analysis Queue - Mission Control" FontSize="28" FontWeight="Bold"/>
+                    <TextBlock Text="Real-time monitoring of parallel audio analysis processing" Foreground="#888"/>
+                    <TextBlock Text="{Binding TestStatus}" Foreground="#00D9FF" FontSize="12" Margin="0,4,0,0"/>
+                </StackPanel>
+                <Button Grid.Column="1" Content="🧠 Test Brain" 
+                        Command="{Binding RunBrainTestCommand}"
+                        FontSize="14" Padding="20,12" 
+                        Background="#252526" BorderBrush="#00D9FF" BorderThickness="2"
+                        Foreground="White" FontWeight="Bold" CornerRadius="8"
+                        VerticalAlignment="Top"/>
+            </Grid>
         </Border>
 
         <!-- Mission Control: Thread Activity Grid -->

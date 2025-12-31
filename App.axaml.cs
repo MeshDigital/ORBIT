@@ -572,6 +572,7 @@ public partial class App : Application
         // Phase 4: Musical Intelligence (The Brain)
         services.AddSingleton<IAudioIntelligenceService, EssentiaAnalyzerService>();
         services.AddSingleton<AnalysisQueueService>();
+        services.AddSingleton<MusicalBrainTestService>();
         services.AddHostedService<AnalysisWorker>();
         services.AddSingleton<AnalysisQueueViewModel>();
         
