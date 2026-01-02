@@ -10,6 +10,11 @@ namespace SLSKDONET.Models;
 public class LibraryEntry
 {
     /// <summary>
+    /// Unique identifier from the database.
+    /// </summary>
+    public Guid Id { get; set; }
+
+    /// <summary>
     /// Unique hash of the track (Artist-Title, case-insensitive).
     /// Acts as the primary key for the global library index.
     /// </summary>

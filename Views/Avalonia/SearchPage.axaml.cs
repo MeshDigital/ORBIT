@@ -35,13 +35,13 @@ namespace SLSKDONET.Views.Avalonia
                 
                 // Optimized approach: 
                 // 1. Remove items that were unselected
-                foreach (var item in e.RemovedItems.OfType<SearchResult>())
+                foreach (var item in e.RemovedItems.OfType<AnalyzedSearchResultViewModel>())
                 {
                     vm.SelectedResults.Remove(item);
                 }
 
                 // 2. Add items that were selected
-                foreach (var item in e.AddedItems.OfType<SearchResult>())
+                foreach (var item in e.AddedItems.OfType<AnalyzedSearchResultViewModel>())
                 {
                     if (!vm.SelectedResults.Contains(item))
                         vm.SelectedResults.Add(item);

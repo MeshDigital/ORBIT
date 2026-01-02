@@ -5,6 +5,7 @@
              xmlns:views="clr-namespace:SLSKDONET.Views.Avalonia"
              xmlns:controls="clr-namespace:SLSKDONET.Views.Avalonia.Controls"
              xmlns:models="clr-namespace:SLSKDONET.Models"
+             xmlns:vm="clr-namespace:SLSKDONET.ViewModels"
              mc:Ignorable="d" d:DesignWidth="1200" d:DesignHeight="800"
              x:Class="SLSKDONET.Views.Avalonia.SearchPage"
              Background="#1E1E1E" Foreground="White">
@@ -14,8 +15,35 @@
         <!-- ZONE B: The Brain (Sidebar) -->
         <Border DockPanel.Dock="Left" Width="280" Background="#222" BorderBrush="#3E3E3E" BorderThickness="0,0,1,0" Padding="16">
             <StackPanel Spacing="24">
-                <TextBlock Text="Ranking Logic" FontSize="18" FontWeight="Bold" Foreground="#DDD"/>
+                <TextBlock Text="Curation Assistant" FontSize="18" FontWeight="Bold" Foreground="#DDD"/>
                 
+                <!-- Expanded Selection Details (The "Brain Panel") -->
+                 <Border Background="#2D2D30" CornerRadius="8" Padding="16" IsVisible="{Binding !!SelectedResults.Count}">
+                    <StackPanel Spacing="12">
+                         <TextBlock Text="Selection Intelligence" FontSize="12" FontWeight="SemiBold" Foreground="#AAA"/>
+                         <ItemsControl ItemsSource="{Binding SelectedResults}">
+                             <ItemsControl.ItemTemplate>
+                                 <DataTemplate>
+                                     <StackPanel Spacing="8" Margin="0,0,0,12">
+                                         <TextBlock Text="{Binding Filename}" TextTrimming="CharacterEllipsis" FontWeight="Bold"/>
+                                         
+                                         <!-- Trust Score Bar -->
+                                         <Grid ColumnDefinitions="*,Auto">
+                                             <ProgressBar Value="{Binding TrustScore}" Maximum="100" Height="6" Background="#444" Foreground="{Binding TrustColor}" VerticalAlignment="Center" Margin="0,0,12,0"/>
+                                             <TextBlock Grid.Column="1" Text="{Binding TrustScore, StringFormat='{}{0}%'}" FontSize="12" Foreground="{Binding TrustColor}" FontWeight="Bold"/>
+                                         </Grid>
+                                         
+                                         <!-- Assessment -->
+                                         <TextBlock Text="{Binding ForensicAssessment}" FontSize="11" Foreground="#CCC" TextWrapping="Wrap"/>
+                                     </StackPanel>
+                                 </DataTemplate>
+                             </ItemsControl.ItemTemplate>
+                         </ItemsControl>
+                    </StackPanel>
+                </Border>
+
+                <TextBlock Text="Ranking Logic" FontSize="18" FontWeight="Bold" Foreground="#DDD" Margin="0,12,0,0"/>
+
                 <!-- Bitrate Weight -->
                 <StackPanel Spacing="12">
                      <Grid ColumnDefinitions="*,Auto">
@@ -140,10 +168,10 @@
                          <ToggleSwitch IsChecked="{Binding FilterViewModel.HideSuspects}" OnContent="Safety On" OffContent="Safety Off" ToolTip.Tip="Filter out potential fake/upscaled files"/>
                          
                          <!-- Add to Downloads Button -->
-                         <Button Command="{Binding AddToDownloadsCommand}" IsEnabled="{Binding !!SelectedTrackCount}" Classes="primary" Padding="16,6">
+                         <Button Command="{Binding AddToDownloadsCommand}" IsEnabled="{Binding !!SelectedResults.Count}" Classes="primary" Padding="16,6">
                              <StackPanel Orientation="Horizontal" Spacing="6">
                                  <TextBlock Text="⬇️"/>
-                                 <TextBlock Text="{Binding SelectedTrackCount, StringFormat='Download ({0})'}" />
+                                 <TextBlock Text="{Binding SelectedResults.Count, StringFormat='Download ({0})'}" />
                              </StackPanel>
                          </Button>
                     </StackPanel>
@@ -153,53 +181,47 @@
             <!-- Results DataGrid -->
             <DataGrid Grid.Row="1" ItemsSource="{Binding SearchResults}"
                       AutoGenerateColumns="False" SelectionMode="Extended"
-                      GridLinesVisibility="Horizontal" Background="Transparent" RowBackground="Transparent"
+                      GridLinesVisibility="Horizontal" Background="Transparent"
                       CanUserSortColumns="True" HeadersVisibility="Column"
                       Margin="16,0">
                 
                 <DataGrid.Styles>
-                     <Style Selector="DataGridRow.golden">
-                        <Setter Property="Background" Value="#1AFFD700"/>
-                        <Setter Property="BorderBrush" Value="#FFD700"/>
-                        <Setter Property="BorderThickness" Value="0,0,0,1"/>
+                    <!-- Golden Match Highlight -->
+                    <Style Selector="DataGridRow.golden">
+                         <!-- TODO: Bind to IsGoldenMatch using styles in AV11? For now, we use row template logic or just rely on text colors -->
                     </Style>
                 </DataGrid.Styles>
                 
                 <DataGrid.Columns>
-                    <!-- Integrity -->
-                    <DataGridTemplateColumn Header=" " Width="30">
+                    <!-- Trust Score -->
+                    <DataGridTemplateColumn Header="Trust" Width="60" SortMemberPath="TrustScore">
                         <DataGridTemplateColumn.CellTemplate>
                             <DataTemplate>
-                                <TextBlock Text="{Binding IntegrityBadge}" ToolTip.Tip="{Binding IntegrityTooltip}" HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                            </DataTemplate>
-                        </DataGridTemplateColumn.CellTemplate>
-                    </DataGridTemplateColumn>
-                    
-                    <!-- Rank -->
-                    <DataGridTemplateColumn Header="Rank" Width="60" SortMemberPath="CurrentRank">
-                        <DataGridTemplateColumn.CellTemplate>
-                            <DataTemplate>
-                                <Border Background="{Binding RowBackground}" CornerRadius="4" Padding="4,2" HorizontalAlignment="Center" ToolTip.Tip="{Binding ScoreBreakdown}">
-                                    <TextBlock Text="{Binding CurrentRank, StringFormat='{}{0:F1}'}" FontWeight="Bold"/>
+                                 <Border Background="Transparent" VerticalAlignment="Center" HorizontalAlignment="Center" ToolTip.Tip="{Binding ForensicAssessment}">
+                                    <TextBlock Text="{Binding TrustScore}" FontWeight="Bold" Foreground="{Binding TrustColor}"/>
                                 </Border>
                             </DataTemplate>
                         </DataGridTemplateColumn.CellTemplate>
                     </DataGridTemplateColumn>
                     
-                    <!-- Track Details (Multi-line) -->
-                    <DataGridTemplateColumn Header="Track Details" Width="*" SortMemberPath="Title">
+                    <!-- File Info (Multi-line) -->
+                    <DataGridTemplateColumn Header="Track Details" Width="*" SortMemberPath="Filename">
                          <DataGridTemplateColumn.CellTemplate>
-                            <DataTemplate>
-                                <StackPanel Margin="4" Opacity="{Binding HeatMapOpacity}">
-                                    <TextBlock Text="{Binding PrimaryDisplay}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis"/>
-                                    <StackPanel Orientation="Horizontal" Spacing="6">
-                                         <TextBlock Text="{Binding FileFormat}" Foreground="#4EC9B0" FontSize="11"/>
-                                         <TextBlock Text="{Binding Bitrate, StringFormat='{}{0}kbps'}" Foreground="#AAA" FontSize="11"/>
+                            <DataTemplate DataType="vm:AnalyzedSearchResultViewModel">
+                                <StackPanel Margin="8,6" Background="{Binding ItemBackground}">
+                                    <TextBlock Text="{Binding Filename}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" Foreground="{Binding ForegroundColor}"/>
+                                    <StackPanel Orientation="Horizontal" Spacing="6" Margin="0,2,0,0">
+                                         <Border Background="#333" CornerRadius="3" Padding="3,0">
+                                            <TextBlock Text="{Binding RawResult.Extension}" Foreground="#CCC" FontSize="10"/>
+                                         </Border>
+                                         <TextBlock Text="{Binding BitRate, StringFormat='{}{0}kbps'}" Foreground="#AAA" FontSize="11"/>
                                          <TextBlock Text="•" Foreground="#444"/>
-                                         <TextBlock Text="{Binding Size, Converter={x:Static models:SizeConverter.Instance}}" Foreground="#888" FontSize="11"/>
+                                         <TextBlock Text="{Binding DisplaySize}" Foreground="#888" FontSize="11"/>
                                          <TextBlock Text="•" Foreground="#444"/>
-                                         <TextBlock Text="{Binding Username}" Foreground="#007ACC" FontSize="11"/>
-                                         <TextBlock Text="✓" Foreground="Green" IsVisible="{Binding HasFreeUploadSlot}" FontSize="11"/>
+                                         <TextBlock Text="{Binding DisplayLength}" Foreground="#888" FontSize="11"/>
+                                         <TextBlock Text="•" Foreground="#444"/>
+                                         <TextBlock Text="{Binding User}" Foreground="#007ACC" FontSize="11"/>
+                                         <TextBlock Text="⚡ Instant" Foreground="#1DB954" IsVisible="{Binding SlotFree}" FontSize="11" FontWeight="Bold"/>
                                     </StackPanel>
                                 </StackPanel>
                             </DataTemplate>
@@ -216,15 +238,11 @@
                                         Classes="pill" 
                                         FontSize="11" 
                                         Padding="8,4"
-                                        HorizontalAlignment="Center"
-                                        IsVisible="{Binding !IsDownloaded}"/>
+                                        HorizontalAlignment="Center"/>
                             </DataTemplate>
                         </DataGridTemplateColumn.CellTemplate>
                     </DataGridTemplateColumn>
 
-                    <!-- Status -->
-                    <DataGridTextColumn Header="Status" Binding="{Binding StatusIcon}" Width="50"/>
-                    
                 </DataGrid.Columns>
                 
                  <DataGrid.ContextMenu>

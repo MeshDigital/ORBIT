@@ -13,6 +13,7 @@ using Microsoft.Extensions.Logging;
 
 using Avalonia.Media.Imaging;
 using System.IO;
+using SLSKDONET.Services;
 
 namespace SLSKDONET.ViewModels
 {
@@ -609,7 +610,7 @@ namespace SLSKDONET.ViewModels
             get
             {
                 if (EssentiaBpm.HasValue) return $"{EssentiaBpm.Value:F1} BPM";
-                return Track?.Bpm > 0 ? $"{Track.Bpm} BPM" : "--";
+                return Track?.BPM > 0 ? $"{Track.BPM} BPM" : "--";
             }
         }
         public float? BpmConfidence => _audioFeatures?.BpmConfidence;

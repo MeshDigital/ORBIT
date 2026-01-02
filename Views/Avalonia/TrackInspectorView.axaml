@@ -347,16 +347,16 @@
                                     <TextBlock Text="Vibe Radar" FontSize="14" FontWeight="SemiBold" Foreground="#AAA"/>
                                 </StackPanel>
                                 
-                                <Grid RowDefinitions="Auto,Auto,Auto" ColumnDefinitions="60,*,40" RowSpacing="12">
+                                <Grid RowDefinitions="Auto,Auto,Auto" ColumnDefinitions="60,*,40">
                                     <!-- Energy -->
-                                    <TextBlock Text="Energy" Foreground="#AAA" VerticalAlignment="Center" FontSize="12"/>
-                                    <ProgressBar Grid.Column="1" Value="{Binding VibeEnergy}" Maximum="100" Height="8" Margin="12,0" Foreground="#FF5252" Background="#111" CornerRadius="4"/>
-                                    <TextBlock Grid.Column="2" Text="{Binding VibeEnergy, StringFormat='{}{0:F0}'}" Foreground="White" FontSize="12" FontWeight="SemiBold" TextAlignment="Right"/>
+                                    <TextBlock Text="Energy" Foreground="#AAA" VerticalAlignment="Center" FontSize="12" Margin="0,0,0,12"/>
+                                    <ProgressBar Grid.Column="1" Value="{Binding VibeEnergy}" Maximum="100" Height="8" Margin="12,0,0,12" Foreground="#FF5252" Background="#111" CornerRadius="4"/>
+                                    <TextBlock Grid.Column="2" Text="{Binding VibeEnergy, StringFormat='{}{0:F0}'}" Foreground="White" FontSize="12" FontWeight="SemiBold" TextAlignment="Right" Margin="0,0,0,12"/>
 
                                     <!-- Dance -->
-                                    <TextBlock Grid.Row="1" Text="Dance" Foreground="#AAA" VerticalAlignment="Center" FontSize="12"/>
-                                    <ProgressBar Grid.Row="1" Grid.Column="1" Value="{Binding VibeDance}" Maximum="100" Height="8" Margin="12,0" Foreground="#448AFF" Background="#111" CornerRadius="4"/>
-                                    <TextBlock Grid.Row="1" Grid.Column="2" Text="{Binding VibeDance, StringFormat='{}{0:F0}'}" Foreground="White" FontSize="12" FontWeight="SemiBold" TextAlignment="Right"/>
+                                    <TextBlock Grid.Row="1" Text="Dance" Foreground="#AAA" VerticalAlignment="Center" FontSize="12" Margin="0,0,0,12"/>
+                                    <ProgressBar Grid.Row="1" Grid.Column="1" Value="{Binding VibeDance}" Maximum="100" Height="8" Margin="12,0,0,12" Foreground="#448AFF" Background="#111" CornerRadius="4"/>
+                                    <TextBlock Grid.Row="1" Grid.Column="2" Text="{Binding VibeDance, StringFormat='{}{0:F0}'}" Foreground="White" FontSize="12" FontWeight="SemiBold" TextAlignment="Right" Margin="0,0,0,12"/>
 
                                     <!-- Mood -->
                                     <TextBlock Grid.Row="2" Text="Mood" Foreground="#AAA" VerticalAlignment="Center" FontSize="12"/>

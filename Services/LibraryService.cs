@@ -827,6 +827,7 @@ public class LibraryService : ILibraryService
     {
         return new LibraryEntry
         {
+            Id = entity.Id,
             UniqueHash = entity.UniqueHash,
             Artist = entity.Artist,
             Title = entity.Title,

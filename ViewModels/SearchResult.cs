@@ -22,6 +22,14 @@ public class SearchResult : INotifyPropertyChanged
     public string Title => Model.Title ?? "Unknown Track";
     public string Album => Model.Album ?? "Unknown Album";
     public int Bitrate => Model.Bitrate;
+    // Alias for compatibility if needed, but better to fix consumers.
+    // public int BitRate => Bitrate; 
+    
+    public string Filename => Model.Filename ?? "";
+    public int? Length => Model.Length;
+    public int UploadSpeed => Model.UploadSpeed;
+    public bool SlotFree => Model.HasFreeUploadSlot;
+
     public long Size => Model.Size ?? 0;
     public string Username => Model.Username ?? "Unknown";
     public bool HasFreeUploadSlot => Model.HasFreeUploadSlot;

@@ -33,6 +33,8 @@ public partial class SearchViewModel : ReactiveObject
     private readonly IFileInteractionService _fileInteractionService;
     private readonly IClipboardService _clipboardService;
     private readonly SearchOrchestrationService _searchOrchestration;
+    private readonly MetadataForensicService _forensicService;
+    private readonly FileNameFormatter _fileNameFormatter;
 
     public IEnumerable<string> PreferredFormats => new[] { "mp3", "flac", "m4a", "wav" }; // TODO: Load from config
 
@@ -49,7 +51,7 @@ public partial class SearchViewModel : ReactiveObject
     }
     
     // Selected items for Batch Actions
-    public ObservableCollection<SearchResult> SelectedResults { get; } = new();
+    public ObservableCollection<AnalyzedSearchResultViewModel> SelectedResults { get; } = new();
     private string _searchQuery = "";
     public string SearchQuery
     {
@@ -59,7 +61,6 @@ public partial class SearchViewModel : ReactiveObject
             if (SetProperty(ref _searchQuery, value))
             {
                 this.RaisePropertyChanged(nameof(CanSearch));
-                // UnifiedSearchCommand: ReactiveCommand handles CanExecute auto-magically
             }
         }
     }
@@ -96,15 +97,13 @@ public partial class SearchViewModel : ReactiveObject
     }
 
     // Reactive State
-    private readonly SourceList<SearchResult> _searchResults = new();
-    private readonly ReadOnlyObservableCollection<SearchResult> _publicSearchResults;
-    public ReadOnlyObservableCollection<SearchResult> SearchResults => _publicSearchResults;
+    private readonly SourceList<AnalyzedSearchResultViewModel> _searchResults = new();
+    private readonly ReadOnlyObservableCollection<AnalyzedSearchResultViewModel> _publicSearchResults;
+    public ReadOnlyObservableCollection<AnalyzedSearchResultViewModel> SearchResults => _publicSearchResults;
     
     // Album Results (Legacy/Separate collection for now)
     public ObservableCollection<AlbumResultViewModel> AlbumResults { get; } = new();
 
-    // Filter properties (Post-Search) - Managed by FilterViewModel now
-    
     // Search Parameters (Pre-Search)
     private int _minBitrate = 320;
     public int MinBitrate 
@@ -121,7 +120,6 @@ public partial class SearchViewModel : ReactiveObject
     }
 
     // Phase 5: Ranking Weights (Control Surface)
-    // Now backed by AppConfig for persistence
     public double BitrateWeight
     {
         get => _config.CustomWeights.QualityWeight;
@@ -148,10 +146,9 @@ public partial class SearchViewModel : ReactiveObject
 
     public double MatchWeight
     {
-        get => _config.CustomWeights.MusicalWeight; // Use Musical as the primary "Match" representative
+        get => _config.CustomWeights.MusicalWeight;
         set 
         { 
-            // Fan out to all "Match" related weights
             _config.CustomWeights.MusicalWeight = value;
             _config.CustomWeights.MetadataWeight = value;
             _config.CustomWeights.StringWeight = value;
@@ -205,6 +202,8 @@ public partial class SearchViewModel : ReactiveObject
         IFileInteractionService fileInteractionService,
         IClipboardService clipboardService,
         SearchOrchestrationService searchOrchestration,
+        MetadataForensicService forensicService,
+        FileNameFormatter fileNameFormatter,
         IEventBus eventBus)
     {
         _logger = logger;
@@ -219,30 +218,29 @@ public partial class SearchViewModel : ReactiveObject
         _fileInteractionService = fileInteractionService;
         _clipboardService = clipboardService;
         _searchOrchestration = searchOrchestration;
+        _forensicService = forensicService;
+        _fileNameFormatter = fileNameFormatter;
 
         // Reactive Status Updates
         eventBus.GetEvent<TrackStateChangedEvent>().Subscribe(OnTrackStateChanged);
         eventBus.GetEvent<TrackAddedEvent>().Subscribe(OnTrackAdded);
 
         // --- Reactive Pipeline Setup ---
-        // Connect SourceList -> Filter -> Sort -> Bind -> Public Collection
-        
-        // Observe filter changes from Child ViewModel
         var filterPredicate = FilterViewModel.FilterChanged;
 
         _searchResults.Connect()
-            .AutoRefresh(x => x.CurrentRank) // Phase 5: Re-sort when rank changes
-            .Filter(filterPredicate)
-            .Sort(SortExpressionComparer<SearchResult>.Descending(t => t.CurrentRank)) // Phase 5: Dynamic Sorting
+            //.AutoRefresh(x => x.RawResult.CurrentRank)
+            .Filter(x => FilterViewModel.IsMatch(x.RawResult)) // Helper adapter
+            //.Sort(SortExpressionComparer<AnalyzedSearchResultViewModel>.Descending(t => t.RawResult.CurrentRank))
+            .Sort(SortExpressionComparer<AnalyzedSearchResultViewModel>.Descending(t => t.TrustScore)) // Search 2.0: Sort by Trust Score by default? Or mix?
+                                                                                                        // Mixing: Let's stick to CurrentRank but boost it with TrustScore next
             .ObserveOn(RxApp.MainThreadScheduler)
             .Bind(out _publicSearchResults)
-            .DisposeMany() // Ensure items are disposed if needed
+            .DisposeMany() 
             .Subscribe(_ => 
             {
-                // Update Hidden Count
-                // Use the counts from the collections directly
                 HiddenResultsCount = _searchResults.Count - _publicSearchResults.Count;
-                this.RaisePropertyChanged(nameof(SearchResults)); // Force UI refresh for count bindings
+                this.RaisePropertyChanged(nameof(SearchResults)); 
             });
 
         // Commands
@@ -257,14 +255,9 @@ public partial class SearchViewModel : ReactiveObject
         DownloadSelectedCommand = ReactiveCommand.CreateFromTask<object?>(ExecuteDownloadSelectedAsync);
         ApplyPresetCommand = ReactiveCommand.Create<string>(ExecuteApplyPreset);
         
-        // Phase 12.6: Bi-directional filter sync - wire callback
         FilterViewModel.OnTokenSyncRequested = HandleTokenSync;
-        
-        // Note: Import overlay visibility is now handled by ImportOrchestrator via navigation
-        // Event handlers for AddedToLibrary and Cancelled are set up in ImportOrchestrator.SetupPreviewCallbacks()
     }
 
-    // Phase 12.6: Token sync methods for bi-directional filter
     private void HandleTokenSync(string token, bool shouldAdd)
     {
         if (shouldAdd)
@@ -275,13 +268,11 @@ public partial class SearchViewModel : ReactiveObject
 
     private void InjectToken(string token)
     {
-        // If it's a bitrate token (ends with +), remove any existing bitrate tokens first
         if (token.EndsWith("+") || token.StartsWith(">"))
         {
             RemoveBitrateTokens();
         }
         
-        // Don't duplicate - check with word boundary
         var pattern = $@"\b{System.Text.RegularExpressions.Regex.Escape(token)}\b";
         if (System.Text.RegularExpressions.Regex.IsMatch(SearchQuery ?? "", pattern, System.Text.RegularExpressions.RegexOptions.IgnoreCase))
             return;
@@ -291,50 +282,39 @@ public partial class SearchViewModel : ReactiveObject
 
     private void RemoveToken(string token)
     {
-        // Word-boundary removal
         var pattern = $@"\b{System.Text.RegularExpressions.Regex.Escape(token)}\b";
         var clean = System.Text.RegularExpressions.Regex.Replace(SearchQuery ?? "", pattern, "", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
-        // Collapse multiple spaces and trim
         SearchQuery = System.Text.RegularExpressions.Regex.Replace(clean, @"\s+", " ").Trim();
     }
 
     private void RemoveBitrateTokens()
     {
-        // Remove existing bitrate tokens like "320+", ">320", "256+"
         var pattern = @"\b(\d{2,4}\+?|>\d{2,4})\b";
         var clean = System.Text.RegularExpressions.Regex.Replace(SearchQuery ?? "", pattern, "", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
         SearchQuery = System.Text.RegularExpressions.Regex.Replace(clean, @"\s+", " ").Trim();
     }
 
-    // Removed BuildFilter - logic moved to SearchFilterViewModel
-
     private async Task ExecuteUnifiedSearchAsync()
     {
         if (string.IsNullOrWhiteSpace(SearchQuery)) return;
 
-        // Phase 12.6: Parse tokens without triggering reverse sync
         var processedQuery = new List<string>();
         bool filtersModified = false;
         
         FilterViewModel.SetFromQueryParsing(() =>
         {
-            // Reset Filters (Polish: Ensure clean state unless locked - naive reset for now)
             FilterViewModel.Reset();
 
-            // --- VIBE SEARCH: Natural Language Parsing ---
-            // Parse tokens like "flac", "wav", ">320", "kbps:320"
             var tokens = SearchQuery.Split(' ', StringSplitOptions.RemoveEmptyEntries).ToList();
 
             foreach (var token in tokens)
             {
                 var lower = token.ToLowerInvariant();
                 
-                // Format Tokens
                 if (lower == "flac") { FilterViewModel.FilterFlac = true; FilterViewModel.FilterMp3 = false; FilterViewModel.FilterWav = false; filtersModified = true; continue; }
                 if (lower == "wav") { FilterViewModel.FilterWav = true; FilterViewModel.FilterMp3 = false; FilterViewModel.FilterFlac = false; filtersModified = true; continue; }
                 if (lower == "mp3") { FilterViewModel.FilterMp3 = true; FilterViewModel.FilterFlac = false; FilterViewModel.FilterWav = false; filtersModified = true; continue; }
                 
-                // Quality Tokens (>320 or 320+)
                 if (lower.StartsWith(">") && int.TryParse(lower.TrimStart('>'), out int minQ))
                 {
                     FilterViewModel.MinBitrate = minQ; 
@@ -348,24 +328,21 @@ public partial class SearchViewModel : ReactiveObject
                     continue;
                 }
 
-                // Normal keyword
                 processedQuery.Add(token);
             }
         });
 
-        // Use parsed query if we extracted tokens, otherwise original
         string effectiveQuery = filtersModified ? string.Join(" ", processedQuery) : SearchQuery;
-        if (string.IsNullOrWhiteSpace(effectiveQuery)) effectiveQuery = SearchQuery; // Fallback if only tokens provided
+        if (string.IsNullOrWhiteSpace(effectiveQuery)) effectiveQuery = SearchQuery; 
 
         IsSearching = true;
         StatusText = "Searching...";
-        _searchResults.Clear(); // Clear reactive list
+        _searchResults.Clear(); 
         AlbumResults.Clear();
-        HiddenResultsCount = 0; // Reset hidden count
+        HiddenResultsCount = 0; 
 
         try
         {
-            // 1. Check Import Providers (using original query for URL detection)
             var provider = _importProviders.FirstOrDefault(p => p.CanHandle(SearchQuery));
             if (provider != null)
             {
@@ -376,19 +353,16 @@ public partial class SearchViewModel : ReactiveObject
                 return;
             }
 
-            // 2. Soulseek Streaming Search (Use Cleaned Query)
             StatusText = $"Listening for vibes: {effectiveQuery}...";
             
-            var cts = new CancellationTokenSource();
+            var cts = new System.Threading.CancellationTokenSource();
             
-            // "Active HUD" - Search Progress Visualization
-            var buffer = new List<SearchResult>();
+            var buffer = new List<AnalyzedSearchResultViewModel>();
             var lastUpdate = DateTime.UtcNow;
             int totalFound = 0;
 
             try 
             {
-                // Consume the IAsyncEnumerable stream
                 await foreach (var track in _searchOrchestration.SearchAsync(
                     SearchQuery,
                     string.Join(",", PreferredFormats),
@@ -399,21 +373,20 @@ public partial class SearchViewModel : ReactiveObject
                 {
                     var result = new SearchResult(track);
                     
-                    // Check initial status
                     var existing = _downloadManager.ActiveDownloads.FirstOrDefault(d => d.GlobalId == track.UniqueHash);
                     if (existing != null)
                     {
                         result.Status = (existing.State == PlaylistTrackState.Completed) ? TrackStatus.Downloaded :
                                         (existing.State == PlaylistTrackState.Failed) ? TrackStatus.Failed : 
                                         TrackStatus.Missing;
-                        // Deferred/Pending/Searching/Downloading all map to Missing in this simple 3-state enum
                     }
                     
-                    buffer.Add(result);
+                    // WRAP IN VIEWMODEL
+                    var vm = new AnalyzedSearchResultViewModel(result, _forensicService);
+                    
+                    buffer.Add(vm);
                     totalFound++;
 
-                    // Throttled Buffering (User Trick)
-                    // Batch UI updates every 250ms or 50 items to prevent stutter
                     if ((DateTime.UtcNow - lastUpdate).TotalMilliseconds > 250 || buffer.Count >= 50)
                     {
                         _searchResults.AddRange(buffer);
@@ -423,7 +396,6 @@ public partial class SearchViewModel : ReactiveObject
                     }
                 }
 
-                // Flush remaining
                 if (buffer.Any())
                 {
                     _searchResults.AddRange(buffer);
@@ -438,8 +410,7 @@ public partial class SearchViewModel : ReactiveObject
                 IsSearching = false;
                 if (totalFound > 0)
                 {
-                    // Phase 12.6: Apply percentile-based scoring for visual hierarchy
-                    ApplyPercentileScoring();
+                    ApplyPercentileScoring(); // Updated for AnalyzedSearchResultViewModel
                     StatusText = $"Found {totalFound} items";
                 }
                 else StatusText = "No results found";
@@ -453,22 +424,17 @@ public partial class SearchViewModel : ReactiveObject
         }
     }
 
-    /// <summary>
-    /// Phase 12.6: Calculate relative percentile scores for visual hierarchy.
-    /// Top results get golden highlighting regardless of absolute score.
-    /// </summary>
     private void ApplyPercentileScoring()
     {
         var results = _publicSearchResults.ToList();
         if (!results.Any()) return;
         
-        // Sort by rank (already calculated by ResultSorter)
-        var sorted = results.OrderByDescending(r => r.CurrentRank).ToList();
+        var sorted = results.OrderByDescending(r => r.RawResult.CurrentRank).ToList();
         
         for (int i = 0; i < sorted.Count; i++)
         {
             var percentile = (double)i / sorted.Count;
-            sorted[i].Percentile = percentile;
+            sorted[i].RawResult.Percentile = percentile;
         }
     }
 
@@ -506,7 +472,6 @@ public partial class SearchViewModel : ReactiveObject
                 return;
             }
 
-            // Check if any provider can handle this text
             var provider = _importProviders.FirstOrDefault(p => p.CanHandle(text));
             if (provider != null)
             {
@@ -529,21 +494,18 @@ public partial class SearchViewModel : ReactiveObject
     {
         IsSearching = false;
         StatusText = "Cancelled";
-        // _soulseek.CancelSearch(); // If/when supported by adapter
     }
 
     private async Task ExecuteAddToDownloadsAsync()
     {
-         // Legacy "Add All Visible/Selected" fallback? 
-         // Prefer DownloadSelectedCommand for explicit batch
          await ExecuteDownloadSelectedAsync(null);
     }
 
     private async Task ExecuteDownloadSelectedAsync(object? parameter)
     {
-        var toDownload = new List<SearchResult>();
+        var toDownload = new List<AnalyzedSearchResultViewModel>();
         
-        if (parameter is SearchResult single)
+        if (parameter is AnalyzedSearchResultViewModel single)
         {
             toDownload.Add(single);
         }
@@ -554,17 +516,15 @@ public partial class SearchViewModel : ReactiveObject
 
         if (!toDownload.Any()) return;
 
-        // Safety Gate
         if (toDownload.Count > 20)
         {
             _logger.LogWarning("Batch download > 20 items requested.");
         }
 
-        foreach (var track in toDownload)
+        foreach (var vm in toDownload)
         {
-             // Immediate Feedback (Polish)
-             track.Status = TrackStatus.Pending;
-             _downloadManager.EnqueueTrack(track.Model);
+             vm.RawResult.Status = TrackStatus.Pending;
+             _downloadManager.EnqueueTrack(vm.RawResult.Model);
         }
         StatusText = $"Queued {toDownload.Count} downloads";
     }
@@ -573,7 +533,6 @@ public partial class SearchViewModel : ReactiveObject
     {
         SearchQuery = "";
         IsSearching = false;
-        // Note: IsImportOverlayActive was removed - overlay handled by navigation
         _searchResults.Clear();
         AlbumResults.Clear();
         StatusText = "Ready";
@@ -587,7 +546,7 @@ public partial class SearchViewModel : ReactiveObject
                 BitrateWeight = 0.5;
                 ReliabilityWeight = 0.5;
                 MatchWeight = 2.0;
-                IsFlacEnabled = false; // reset filters
+                IsFlacEnabled = false; 
                 break;
             case "Quick Grab":
                 BitrateWeight = 1.5;
@@ -614,7 +573,6 @@ public partial class SearchViewModel : ReactiveObject
 
     private void OnTrackStateChanged(TrackStateChangedEvent evt)
     {
-        // Update any matching search results via UI thread
         if (_searchResults.Count == 0) return;
 
         Dispatcher.UIThread.InvokeAsync(() =>
@@ -629,17 +587,11 @@ public partial class SearchViewModel : ReactiveObject
                 _ => TrackStatus.Missing
             };
 
-            // Note: We use global ID (hash) to match.
-            // SourceList access is thread-safe for reading but we need to modify the ViewModel which is bound.
-            // Since SearchResult is an object, we can iterate and update property.
-            
-            // We need to efficiently find the item.
-            // _searchResults is a SourceList. We can just iterate the items we exposed.
             foreach (var result in _publicSearchResults)
             {
-                if (result.Model.UniqueHash == evt.TrackGlobalId)
+                if (result.RawResult.Model.UniqueHash == evt.TrackGlobalId)
                 {
-                    result.Status = status;
+                    result.RawResult.Status = status;
                 }
             }
         });
@@ -649,17 +601,7 @@ public partial class SearchViewModel : ReactiveObject
     {
          Dispatcher.UIThread.InvokeAsync(() =>
         {
-            foreach (var result in _publicSearchResults)
-            {
-                if (result.Model.UniqueHash == evt.TrackModel.TrackUniqueHash)
-                {
-                    // It was just added to queue
-                    // We might want a "Queued" status in SearchResult, but TrackStatus only has Missing/Downloaded/Failed
-                    // We can map Missing to "Queued" visually if we add a property, but for now let's leave it.
-                    // Actually, if it's added, it's effectively "Queued".
-                    // Let's assume TrackStateChanged checks will handle the granular states (Downloading etc)
-                }
-            }
+            // Placeholder for future use
         });
     }
 
@@ -670,19 +612,10 @@ public partial class SearchViewModel : ReactiveObject
         return true;
     }
 
-    // Phase 5: Real-time Ranking Update
     private void OnRankingWeightsChanged()
     {
-        // Update Static Weights
-        // NOTE: Now we read directly from _config which is already updated by setters
         var weights = _config.CustomWeights;
-        
-        // No need to recreate object if we are just setting properties on the shared instance
-        // But ResultSorter might need a fresh set call to trigger downstream logic
         ResultSorter.SetWeights(weights);
-
-        // FilterViewModel changes update reactive filter automatically, 
-        // but Sort needs Score updates.
         RecalculateScores();
     }
 
@@ -690,7 +623,6 @@ public partial class SearchViewModel : ReactiveObject
     {
         if (_searchResults.Count == 0 || string.IsNullOrWhiteSpace(SearchQuery)) return;
 
-        // Parse query for context (Smarter parsing for "Artist - Title")
         var artist = "";
         var title = SearchQuery;
         
@@ -700,7 +632,7 @@ public partial class SearchViewModel : ReactiveObject
             artist = parts[0].Trim();
             title = parts[1].Trim();
         }
-        else if (SearchQuery.Contains(" – ")) // En dash
+        else if (SearchQuery.Contains(" – ")) 
         {
             var parts = SearchQuery.Split(new[] { " – " }, 2, StringSplitOptions.RemoveEmptyEntries);
             artist = parts[0].Trim();
@@ -708,41 +640,26 @@ public partial class SearchViewModel : ReactiveObject
         }
 
         var searchTrack = new Models.Track { Artist = artist, Title = title }; 
-        // Note: Full parsing requires more robust logic, but this suffices for relative re-ranking
 
         var evaluator = new Models.FileConditionEvaluator();
         
-        // Add Bitrate condition as preferred (to rank higher)
         evaluator.AddPreferred(new Models.BitrateCondition 
         { 
             MinBitrate = MinBitrate, 
             MaxBitrate = MaxBitrate 
         });
 
-        // Add Format condition
         evaluator.AddPreferred(new Models.FormatCondition 
         { 
             AllowedFormats = GetActiveFormats() 
         });
 
-        // Batch update
         var items = _searchResults.Items.ToList();
         foreach (var item in items)
         {
-             // Use ResultSorter to update CurrentRank inside the Model
-             ResultSorter.CalculateRank(item.Model, searchTrack, evaluator);
-             // Trigger notification on wrapper if needed, or DynamicData Sort will pick up property change?
-             // DynamicData Sort usually requires a Refresh signal if property changes in-place.
-             // We can force it by simulating a reset or using a mutable property.
-             // However, SearchResult.CurrentRank defaults to Model.CurrentRank.
-             // We need to notify change.
-             item.RefreshRank(); 
+             ResultSorter.CalculateRank(item.RawResult.Model, searchTrack, evaluator);
+             item.RawResult.RefreshRank(); 
         }
-        
-        // Force re-sort in DynamicData (Trigger via Refresh if using Sort(IObservable<IComparer>))
-        // Since we use static Sort expression, we might need to Refresh() the source list or use auto-refresh.
-        // For simplicity: Clear and AddRange works but flickers.
-        // Better: Use .AutoRefresh(x => x.CurrentRank) in pipeline.
     }
     
     private List<string> GetActiveFormats()
@@ -751,8 +668,7 @@ public partial class SearchViewModel : ReactiveObject
         if (IsFlacEnabled) list.Add("flac");
         if (IsMp3Enabled) list.Add("mp3");
         if (IsWavEnabled) list.Add("wav");
-        if (list.Count == 0) list.AddRange(new[] { "mp3", "flac", "wav" }); // Default all if none
+        if (list.Count == 0) list.AddRange(new[] { "mp3", "flac", "wav" }); 
         return list;
     }
-    }
-
+}

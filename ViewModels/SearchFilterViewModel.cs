@@ -166,6 +166,33 @@ public class SearchFilterViewModel : ReactiveObject
         };
     }
 
+    public bool IsMatch(SearchResult result) 
+    {
+            if (result.Model == null) return false;
+
+            // 1. Bitrate Check
+            int effectiveMin = MinBitrate;
+            if (MinBitrate >= 320) effectiveMin = 240;      
+            else if (MinBitrate >= 256) effectiveMin = 220; 
+            else if (MinBitrate >= 192) effectiveMin = 180; 
+
+            if (result.Bitrate < effectiveMin) return false;
+
+            // 2. Format
+            var ext = System.IO.Path.GetExtension(result.Model.Filename)?.TrimStart('.')?.ToUpperInvariant() ?? "";
+            
+            // Note: SelectedFormats is ObservableCollection. For specific single check this is O(N) but N=3. Fine.
+            if (!SelectedFormats.Contains(ext)) return false; 
+
+            // 3. Reliability
+            if (UseHighReliability && result.QueueLength > 50) return false;
+
+            // Phase 12.6: Hide potential fakes/upscales
+            if (HideSuspects && result.IntegrityStatus == "Suspect") return false;
+
+            return true;
+    }
+
     public void Reset()
     {
         MinBitrate = 320;
