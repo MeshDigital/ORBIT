@@ -1,6 +1,6 @@
 outputFormat: json
 analysisSampleRate: 44100
-minDuration: 30 
+minDuration: 30
 
 lowlevel:
     frameSize: 2048
@@ -17,8 +17,8 @@ rhythm:
     minBpm: 40
     maxBpm: 250
     stats: ["mean", "var"]
-    computeBpmHistogram: true 
-    computeBeatPositions: true 
+    computeBpmHistogram: true
+    computeBeatPositions: true
 
 tonal:
     frameSize: 4096
