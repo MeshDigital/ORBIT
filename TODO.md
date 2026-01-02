@@ -144,6 +144,12 @@
   - ✅ **Database Schema**: Added `DetectedSubGenre` to `TrackEntity`, `PlaylistTrack`, and `AudioFeaturesEntity`.
   - ✅ **Build Resiliency**: Fixed namespace and binding errors across the stack.
 
+### Recent Updates (January 2, 2026) - RGB Waveforms, Stability & Enrichment
+- ✅ **RGB Frequency-Banded Waveforms**: Digital EMA filters in `WaveformAnalysisService` and RGB mixing in `WaveformControl`.
+- ✅ **Infrastructure Stability**: Database auto-schema recovery (missing tables) and concurrency semaphore fix in `DownloadManager`.
+- ✅ **Style Lab UX**: Fixed interactivity (Drag-Drop/Remove) and added workflow validation/auto-selection.
+- ✅ **Spotify Enrichment & Refresh**: Improved Refresh UX (loading status/notifications) and complete metadata persistence.
+
 ---
 
 ## 📊 CODE QUALITY REVIEW FINDINGS (December 30, 2025)
