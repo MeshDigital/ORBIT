@@ -1,0 +1,76 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:vm="using:SLSKDONET.ViewModels.Tools"
+        mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="600"
+        x:Class="SLSKDONET.Views.Avalonia.Controls.SortPreviewDialog"
+        x:DataType="vm:SortPreviewViewModel"
+        Title="Smart Sort Preview"
+        Width="900" Height="600"
+        WindowStartupLocation="CenterOwner"
+        Background="#121212"
+        ExtendClientAreaToDecorationsHint="True"
+        ExtendClientAreaChromeHints="NoChrome"
+        ExtendClientAreaTitleBarHeightHint="-1">
+
+	<Grid RowDefinitions="Auto, *, Auto">
+		<!-- Header -->
+		<Border Grid.Row="0" Background="#1E1E1E" Height="40" Padding="15,0">
+			<Grid ColumnDefinitions="*, Auto">
+				<StackPanel Orientation="Horizontal" VerticalAlignment="Center" Spacing="10">
+					<PathIcon Data="{StaticResource library_regular}" Foreground="#007ACC" />
+					<TextBlock Text="SMART SORT PREVIEW" FontWeight="Bold" Foreground="White" VerticalAlignment="Center"/>
+					<TextBlock Text="{Binding StatusText}" Foreground="#888" VerticalAlignment="Center" Margin="10,0,0,0"/>
+				</StackPanel>
+			</Grid>
+		</Border>
+
+		<!-- Content -->
+		<Border Grid.Row="1" Padding="20">
+			<ScrollViewer>
+				<ItemsControl ItemsSource="{Binding Operations}">
+					<ItemsControl.ItemTemplate>
+						<DataTemplate>
+							<Border Background="#1E1E1E" Margin="0,0,0,5" CornerRadius="4" Padding="10">
+								<Grid ColumnDefinitions="30, 2*, 3*, Auto">
+									<CheckBox Grid.Column="0" IsChecked="{Binding IsChecked}" VerticalAlignment="Center"/>
+									
+									<!-- Track Info -->
+									<StackPanel Grid.Column="1" VerticalAlignment="Center">
+										<TextBlock Text="{Binding DisplayName}" Foreground="White" FontWeight="SemiBold"/>
+										<StackPanel Orientation="Horizontal" Spacing="5">
+											<TextBlock Text="{Binding PredictedVibe}" Foreground="#007ACC" FontSize="11"/>
+											<TextBlock Text="{Binding Confidence, StringFormat={}{0:P0}}" Foreground="#666" FontSize="11"/>
+										</StackPanel>
+									</StackPanel>
+									
+									<!-- Move Info -->
+									<StackPanel Grid.Column="2" VerticalAlignment="Center" Margin="10,0">
+										<Grid ColumnDefinitions="*, Auto, *">
+											<TextBlock Grid.Column="0" Text="{Binding SourcePath}" Foreground="#888" FontSize="11" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding SourcePath}"/>
+											<PathIcon Grid.Column="1" Data="{StaticResource arrow_right_regular}" Foreground="#666" Margin="10,0"/>
+											<TextBlock Grid.Column="2" Text="{Binding DestinationPath}" Foreground="#4CAF50" FontSize="11" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding DestinationPath}"/>
+										</Grid>
+										<TextBlock Text="Collision Expected: Renaming" Foreground="#FFC107" FontSize="10" IsVisible="{Binding IsCollisionExpected}"/>
+									</StackPanel>
+
+									<!-- Status -->
+									<TextBlock Grid.Column="3" Text="{Binding Status}" Foreground="#888" VerticalAlignment="Center" Width="80" TextAlignment="Right"/>
+								</Grid>
+							</Border>
+						</DataTemplate>
+					</ItemsControl.ItemTemplate>
+				</ItemsControl>
+			</ScrollViewer>
+		</Border>
+
+		<!-- Footer -->
+		<Border Grid.Row="2" Background="#1E1E1E" Padding="20,15">
+			<StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Spacing="10">
+				<Button Content="Cancel" Command="{Binding CancelCommand}" Background="Transparent" Foreground="#AAA"/>
+				<Button Content="Confirm &amp; Move" Command="{Binding ConfirmCommand}" Background="#007ACC" Foreground="White" FontWeight="Bold" Padding="20,10"/>
+			</StackPanel>
+		</Border>
+	</Grid>
+</Window>

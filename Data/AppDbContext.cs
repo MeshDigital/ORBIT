@@ -21,6 +21,7 @@ public class AppDbContext : DbContext
     public DbSet<Entities.AudioFeaturesEntity> AudioFeatures { get; set; }
     public DbSet<Entities.ForensicLogEntry> ForensicLogs { get; set; } // Phase 4.7: Forensic Logging
     public DbSet<Entities.StyleDefinitionEntity> StyleDefinitions { get; set; } // Phase 15: Style Lab
+    public DbSet<Entities.LibraryActionLogEntity> LibraryActionLogs { get; set; } // Phase 16.1: Ledger
 
     protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
     {

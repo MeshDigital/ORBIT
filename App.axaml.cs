@@ -606,6 +606,10 @@ public partial class App : Application
         services.AddSingleton<Services.AI.PersonalClassifierService>();
         services.AddSingleton<Services.AI.IStyleClassifierService, Services.AI.StyleClassifierService>();
         services.AddTransient<ViewModels.StyleLabViewModel>();
+
+        // Phase 16: Applied Intelligence (Autonomy)
+        services.AddSingleton<Services.Library.SmartSorterService>();
+        services.AddTransient<ViewModels.Tools.SortPreviewViewModel>();
         
         // Phase 0: ViewModel Refactoring - Library child ViewModels
         services.AddTransient<ViewModels.Library.ProjectListViewModel>();

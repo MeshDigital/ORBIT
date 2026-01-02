@@ -78,6 +78,12 @@
     *   **Deep Learning**: TensorFlow models (`.pb`) for Vocal Detection and Mood.
     *   **Active Suggestions**: "Mixes Well With" panel and "Vibe Radar".
 
+### 🚧 Phase 16: Applied Intelligence (The Cognitive Librarian)
+**Goal**: Automate management using ML predictions.
+*   **Auto-Sorter**: Physical file organization based on `PredictedStyle`.
+*   **Smart Curation**: "Vibe Match" playlist generation via Cosine Similarity.
+*   **Imposter Detector**: Flagging metadata mismatches (Genre vs Vibe).
+
 ---
 
 ## 🔮 Future Phases

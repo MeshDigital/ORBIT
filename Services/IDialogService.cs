@@ -20,4 +20,9 @@ public interface IDialogService
     /// </summary>
     /// <returns>Selected file path or null if cancelled.</returns>
     Task<string?> SaveFileAsync(string title, string defaultFileName, string extension = "xml");
+
+    /// <summary>
+    /// Shows the Smart Sorter preview dialog.
+    /// </summary>
+    Task<bool> ShowSortPreviewAsync(ViewModels.Tools.SortPreviewViewModel vm);
 }

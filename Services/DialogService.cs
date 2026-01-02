@@ -84,4 +84,25 @@ public class DialogService : IDialogService
             return file?.Path.LocalPath;
         });
     }
+
+    public async Task<bool> ShowSortPreviewAsync(ViewModels.Tools.SortPreviewViewModel vm)
+    {
+        return await Dispatcher.UIThread.InvokeAsync(async () =>
+        {
+            var dialog = new SortPreviewDialog
+            {
+                DataContext = vm,
+                ViewModel = vm
+            };
+            
+            var owner = GetOwnerWindow();
+            if (owner != null)
+            {
+                var result = await dialog.ShowDialog<bool>(owner);
+                return result;
+            }
+            
+            return false;
+        });
+    }
 }

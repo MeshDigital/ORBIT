@@ -29,6 +29,8 @@ public class LibraryViewModel : INotifyPropertyChanged
     private readonly SpotifyEnrichmentService _spotifyEnrichmentService; // Phase 5: Cache-First
     private readonly HarmonicMatchService _harmonicMatchService; // Phase 8: DJ Features
     private readonly AnalysisQueueService _analysisQueueService; // Analysis queue control
+    private readonly Services.Library.SmartSorterService _smartSorterService; // Phase 16: Smart Sorter
+    private readonly IServiceProvider _serviceProvider;
     private System.Threading.Timer? _selectionDebounceTimer; // Debounce for harmonic matching
     private System.Threading.CancellationTokenSource? _matchLoadCancellation; // Phase 9B: Cancel overlapping operations
     private Views.MainViewModel? _mainViewModel; // Reference to parent
@@ -146,6 +148,7 @@ public class LibraryViewModel : INotifyPropertyChanged
     public System.Windows.Input.ICommand AnalyzeAlbumCommand { get; } // Queue album for analysis
     public System.Windows.Input.ICommand AnalyzeTrackCommand { get; } // Queue track for analysis
     public System.Windows.Input.ICommand ExportPlaylistCommand { get; } // Export to Rekordbox XML
+    public System.Windows.Input.ICommand AutoSortCommand { get; } // Phase 16.1: Smart Sort
     public System.Windows.Input.ICommand LoadDeletedProjectsCommand { get; } // NEW
     public System.Windows.Input.ICommand RestoreProjectCommand { get; } // NEW
 
@@ -195,7 +198,9 @@ public class LibraryViewModel : INotifyPropertyChanged
        INotificationService notificationService,
         SpotifyEnrichmentService spotifyEnrichmentService,
         HarmonicMatchService harmonicMatchService, // Phase 8: DJ Features
-        AnalysisQueueService analysisQueueService) // Analysis queue
+        AnalysisQueueService analysisQueueService, // Analysis queue
+        Services.Library.SmartSorterService smartSorterService, // Phase 16
+        IServiceProvider serviceProvider) // Factory for transient VMs
     {
         _logger = logger;
         _navigationService = navigationService;
@@ -208,6 +213,8 @@ public class LibraryViewModel : INotifyPropertyChanged
         _spotifyEnrichmentService = spotifyEnrichmentService;
         _harmonicMatchService = harmonicMatchService;
         _analysisQueueService = analysisQueueService;
+        _smartSorterService = smartSorterService;
+        _serviceProvider = serviceProvider;
         
         // Assign child ViewModels
         Projects = projects;
@@ -259,6 +266,7 @@ public class LibraryViewModel : INotifyPropertyChanged
         AnalyzeAlbumCommand = new AsyncRelayCommand<string>(ExecuteAnalyzeAlbumAsync);
         AnalyzeTrackCommand = new SLSKDONET.Views.RelayCommand<PlaylistTrackViewModel>(ExecuteAnalyzeTrack);
         ExportPlaylistCommand = new AsyncRelayCommand<PlaylistJob>(ExecuteExportPlaylistAsync);
+        AutoSortCommand = new AsyncRelayCommand(ExecuteAutoSortAsync);
         
         
         // Wire up events between child ViewModels
@@ -781,6 +789,73 @@ public class LibraryViewModel : INotifyPropertyChanged
     }
 
     /// <summary>
+    /// Phase 16.1: Auto-Sorts Library based on AI predictions.
+    /// </summary>
+    private async Task ExecuteAutoSortAsync()
+    {
+        try
+        {
+            _logger.LogInformation("Initiating Auto-Sort...");
+            IsLoading = true;
+
+            // 1. Gather Tracks (Use current project or selection, or all?)
+            // For safety, let's start with "Selected Tracks" if any, else "Current View"
+            var targetTracks = (Tracks.SelectedTracks.Count > 0 
+                ? Tracks.SelectedTracks.Select(vm => vm.Model) 
+                : Tracks.CurrentProjectTracks.Select(vm => vm.Model))
+                .Select(pt => new Models.LibraryEntry
+                {
+                    UniqueHash = pt.TrackUniqueHash,
+                    Artist = pt.Artist,
+                    Title = pt.Title,
+                    Album = pt.Album,
+                    FilePath = pt.ResolvedFilePath
+                })
+                .ToList();
+
+            if (!targetTracks.Any())
+            {
+                _notificationService.Show("No Tracks", "Select tracks or a playlist to organize.", NotificationType.Warning);
+                return;
+            }
+
+            // 2. Plan the Sort (Dry Run)
+            var ops = await _smartSorterService.PlanSortAsync(targetTracks);
+
+            if (!ops.Any())
+            {
+                _notificationService.Show("Nothing to Sort", "All tracks are already organized or lack high-confidence predictions.", NotificationType.Information);
+                return;
+            }
+
+            // 3. Show Preview Dialog
+            // Use Factory pattern via ServiceProvider
+            var vm = _serviceProvider.GetService(typeof(ViewModels.Tools.SortPreviewViewModel)) as ViewModels.Tools.SortPreviewViewModel;
+            if (vm == null) throw new InvalidOperationException("Could not create SortPreviewViewModel");
+            
+            vm.LoadOperations(ops);
+
+            var confirmed = await _dialogService.ShowSortPreviewAsync(vm);
+            
+            if (confirmed)
+            {
+                _notificationService.Show("Organization Complete", $"Sorted {ops.Count(o => o.Status == "Success")} tracks.", NotificationType.Success);
+                // Refresh list if needed (Files moved, paths changed in DB, but ViewModels might need refresh)
+                await Tracks.LoadProjectTracksAsync(SelectedProject); 
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Auto-Sort failed");
+            _notificationService.Show("Error", $"Sort failed: {ex.Message}", NotificationType.Error);
+        }
+        finally
+        {
+            IsLoading = false;
+        }
+    }
+
+    /// <summary>
     /// Phase 8: Finds harmonically compatible tracks using Camelot Wheel theory.
     /// </summary>
     private async Task ExecuteFindHarmonicMatchesAsync(PlaylistTrackViewModel? seedTrack)
@@ -793,6 +868,8 @@ public class LibraryViewModel : INotifyPropertyChanged
 
         try
         {
+             // ... existing harmonic implementation ...
+
             _logger.LogInformation("Finding harmonic matches for track: {TrackTitle}", seedTrack.Title);
 
             // Find matches using HarmonicMatchService
