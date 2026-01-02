@@ -9,8 +9,10 @@
 
 ## 2. The "Firehose" Strategy (Data Expansion)
 We are currently under-utilizing the `Essentia` engine. The upgrade moves from basic extraction to a full "Firehose" of data.
+> **See Also**: [The Cortex: ML.NET Architecture](ML_ENGINE_ARCHITECTURE.md) for deep dive into the classification engine.
 
 | Feature | Old (Garden Hose) | New (Firehose) | Benefit |
+| :--- | :--- | :--- | :--- |
 | :--- | :--- | :--- | :--- |
 | **Loudness** | `0` (Hardcoded) | `EBU R128 Integrated` | Enables Auto-Gain / Volume Normalization |
 | **Energy** | `0.5` (Fake) | `RMS` + `Onset Rate` | Accurate "Vibe" sorting |
@@ -42,16 +44,21 @@ A visual representation of the track's feel using a radar chart or bar indicator
 ### C. Other Versions
 Automatically detects duplicates or alternate versions (Radio Edit vs. Extended Mix) using strict and fuzzy title matching.
 
-## 5. The AI Layer (Deep Learning)
-We will enable Essentia's TensorFlow models to unlock human-level understanding of music.
+## 5. The AI Layer (Implementation Status)
 
-### Required Models (.pb files)
+**Phase 15.5 Upgrade**: We have successfully integrated **ML.NET** and **LightGBM** to power the "Personal Classifier".
+
+### Capabilities
+- **Personalized Vibe Detection**: Learns *your* specific definitions of genres (e.g., "Dark Techno" vs "Peak Time").
+- **Local Training**: Models are trained on-device in the "Style Lab".
+- **Reliability**: Uses a "Confidence Cliff" to avoid bad guesses.
+
+### Future Deep Learning Models (Essentia TensorFlow)
+While ML.NET handles classification, we still plan to actuate Essentia's .pb models for specific feature extraction:
 1.  **Vocal Detection**: `voice_instrumental-musicnn-msd.pb`
     - *Utility*: Warns about "Vocal Clashes" if mixing two vocal tracks.
 2.  **Danceability**: `danceability-musicnn-msd.pb`
-    - *Utility*: Distinguishes between "Lounge" (low) and "Club" (high) far better than math formulas.
-3.  **Mood Classifiers**: `mood_happy`, `mood_aggressive`
-    - *Utility*: "Smart Crates" (e.g., "Warm Up" vs. "Peak Time").
+    - *Utility*: Distinguishes between "Lounge" (low) and "Club" (high).
 
 ## 6. The Forensic Librarian (Phase 4.5)
 Moving beyond basic checks, we become a "Mastering Engineer" analyzer.

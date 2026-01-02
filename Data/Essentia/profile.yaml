@@ -49,3 +49,5 @@ highlevel:
         - "Tools/Models/danceability-msd-musicnn-1.pb"       # Vibe Radar
         - "Tools/Models/mood_happy-msd-musicnn-1.pb"         # Mood
         - "Tools/Models/mood_aggressive-msd-musicnn-1.pb"    # Energy/Mood
+        - "Tools/Models/discogs-effnet-bs64-1.pb"            # Texture/Style Embedding
+

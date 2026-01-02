@@ -66,6 +66,20 @@
 
 ---
 
+## 🧪 The Style Lab (Sonic Taxonomy)
+*Phase 15.5 Feature*
+
+### Personalized AI
+- **Trainable Styles**: Define a genre (e.g., "Liquid DnB") by dragging example tracks into a bucket.
+- **Local Learning**: The AI trains on *your* computer using ML.NET/LightGBM. No cloud data.
+- **Auto-Classification**: New tracks are automatically scanned and assigned a style if they match high confidence.
+
+### Visualizations
+- **Spectrogram Stack**: Visual breakdown of frequency content.
+- **Prediction Radar**: See exactly how "sure" the AI is about a track's style (e.g., "80% Techno, 20% House").
+
+---
+
 ## ⬇️ Download Management
 
 ### Queue System

@@ -41,10 +41,18 @@ public class StyleLabViewModel : ReactiveObject
         get => _newStyleName;
         set => this.RaiseAndSetIfChanged(ref _newStyleName, value);
     }
+    
+    private bool _isModelOutdated;
+    public bool IsModelOutdated
+    {
+        get => _isModelOutdated;
+        set => this.RaiseAndSetIfChanged(ref _isModelOutdated, value);
+    }
 
     public ReactiveCommand<Unit, Unit> CreateStyleCommand { get; }
     public ReactiveCommand<StyleDefinitionEntity, Unit> DeleteStyleCommand { get; }
     public ReactiveCommand<StyleDefinitionEntity, Unit> TrainStyleCommand { get; }
+    public ReactiveCommand<Unit, Unit> TrainGlobalModelCommand { get; }
     public ReactiveCommand<Unit, Unit> ScanLibraryCommand { get; }
     public ReactiveCommand<string, Unit> AddTrackToStyleCommand { get; }
     public ReactiveCommand<string, Unit> RemoveTrackFromStyleCommand { get; }
@@ -63,6 +71,7 @@ public class StyleLabViewModel : ReactiveObject
         CreateStyleCommand = ReactiveCommand.CreateFromTask(CreateStyleAsync);
         DeleteStyleCommand = ReactiveCommand.CreateFromTask<StyleDefinitionEntity>(DeleteStyleAsync);
         TrainStyleCommand = ReactiveCommand.CreateFromTask<StyleDefinitionEntity>(TrainStyleAsync);
+        TrainGlobalModelCommand = ReactiveCommand.CreateFromTask(TrainGlobalModelAsync);
         ScanLibraryCommand = ReactiveCommand.CreateFromTask(ScanLibraryAsync);
         
         AddTrackToStyleCommand = ReactiveCommand.CreateFromTask<string>(AddTrackToStyleAsync);
@@ -112,19 +121,17 @@ public class StyleLabViewModel : ReactiveObject
 
     private async Task TrainStyleAsync(StyleDefinitionEntity style)
     {
-        if (style == null) return;
-        
-        // Save referencing hash updates first if any?
-        // Use classifier to recalc centroid
-        await _classifier.TrainStyleAsync(style.Id);
-        
-        // Reload to update Centroid in UI if we show it
-        using var context = await _dbFactory.CreateDbContextAsync();
-        var updated = await context.StyleDefinitions.FindAsync(style.Id);
-        if (updated != null)
-        {
-             // Force update properties if needed, or just notify
-        }
+        // For backwards compatibility or single-style focus.
+        // In ML.NET model, we usually train all.
+        await TrainGlobalModelAsync();
+    }
+    
+    private async Task TrainGlobalModelAsync()
+    {
+        // Trigger global training via service (using Guid.Empty to signal global if needed, 
+        // but our upgraded implementation ignores ID anyway)
+        await _classifier.TrainStyleAsync(Guid.Empty);
+        IsModelOutdated = false;
     }
 
     private async Task ScanLibraryAsync()
@@ -145,10 +152,6 @@ public class StyleLabViewModel : ReactiveObject
             .Where(t => hashes.Contains(t.GlobalId))
             .ToListAsync();
             
-        // Map to ViewModel (Simplified for now, just wrapping entity)
-        // Ideally we'd reuse PlaylistTrackViewModel but we need PlaylistTrack model...
-        // For Lab, maybe we just need basic info.
-        // Let's create proper PlaylistTrack from TrackEntity to satisfy ViewModel
         foreach (var t in tracks)
         {
              var pt = new PlaylistTrack
@@ -157,11 +160,11 @@ public class StyleLabViewModel : ReactiveObject
                  TrackUniqueHash = t.GlobalId,
                  Artist = t.Artist,
                  Title = t.Title,
-                 Album = string.Empty, // TrackEntity does not have Album property
+                 Album = string.Empty, 
                  Bitrate = t.Bitrate,
-                 CanonicalDuration = t.CanonicalDuration
+                 CanonicalDuration = t.CanonicalDuration,
+                 DetectedSubGenre = SelectedStyle.Name // Assuming these are teaching examples
              };
-             // Null EventBus is risky but for display only it might work
              ReferenceTracks.Add(new PlaylistTrackViewModel(pt, null));
         }
     }
@@ -174,13 +177,14 @@ public class StyleLabViewModel : ReactiveObject
         if (!current.Contains(trackHash))
         {
             current.Add(trackHash);
-            SelectedStyle.ReferenceTrackHashes = current; // Trigger setter for JSON serialization
+            SelectedStyle.ReferenceTrackHashes = current; 
             
             using var context = await _dbFactory.CreateDbContextAsync();
             context.StyleDefinitions.Update(SelectedStyle);
             await context.SaveChangesAsync();
             
             await LoadReferenceTracksAsync();
+            IsModelOutdated = true;
         }
     }
 
@@ -199,12 +203,12 @@ public class StyleLabViewModel : ReactiveObject
             await context.SaveChangesAsync();
             
             await LoadReferenceTracksAsync();
+            IsModelOutdated = true;
         }
     }
 
     private string GenerateRandomColor()
     {
-        // Simple random pastel color
         var rnd = new Random();
         return $"#{rnd.Next(100, 255):X2}{rnd.Next(100, 255):X2}{rnd.Next(100, 255):X2}";
     }

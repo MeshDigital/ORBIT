@@ -30,6 +30,7 @@
 - **[DOCS/PHASE8_TECHNICAL.md](DOCS/PHASE8_TECHNICAL.md)** - Phase 8 sonic integrity & automation (Dec 2025) ✨
 - **[DOCS/HIGH_FIDELITY_AUDIO.md](DOCS/HIGH_FIDELITY_AUDIO.md)** - NAudio engine, VU meters, & waveforms (Dec 2025) ✨ NEW
 - **[DOCS/SPOTIFY_ENRICHMENT_PIPELINE.md](DOCS/SPOTIFY_ENRICHMENT_PIPELINE.md)** - Deep musical intelligence worker ✨ NEW
+- **[DOCS/ML_ENGINE_ARCHITECTURE.md](DOCS/ML_ENGINE_ARCHITECTURE.md)** - ML.NET/LightGBM classification engine (Jan 2026) ✨ NEW
 
 #### Phase 3C: Multi-Lane Priority Orchestration ⭐ NEW (Wave 1)
 - **[DOCS/MULTI_LANE_ORCHESTRATION.md](DOCS/MULTI_LANE_ORCHESTRATION.md)** - Complete Phase 3C technical deep-dive (Dec 25, 2025) 🚀
@@ -77,6 +78,13 @@
   - Health aggregation and throttled event publishing
   - Zombie download detection
   - Performance optimization strategies
+
+#### Phase 15.5: The Cortex (ML.NET Upgrade) ⭐ NEW (Jan 2, 2026)
+- **[DOCS/ML_ENGINE_ARCHITECTURE.md](DOCS/ML_ENGINE_ARCHITECTURE.md)** - Complete ML.NET architecture guide 🚀
+  - LightGBM integration
+  - Embedding storage (JSON)
+  - "Confidence Cliff" reliability logic
+  - Style Lab workflow
 
 #### Phase 3-4: Musical Intelligence & System Health ⭐ NEW (Dec 28, 2025)
 - **[DOCS/DOWNLOAD_HEALTH_MONITORING.md](DOCS/DOWNLOAD_HEALTH_MONITORING.md)** - Download stall detection and auto-retry 🚀

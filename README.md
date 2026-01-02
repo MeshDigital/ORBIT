@@ -27,7 +27,9 @@ Where traditional P2P clients download the first available file, ORBIT analyzes 
 
 ## ✨ Core Features
 
-### 📌 Latest Highlights (Dec 28, 2025)
+### 📌 Latest Highlights (Jan 2, 2026)
+- **ML.NET Engine**: Upgraded recommendation engine to use **LightGBM** (Machine Learning) instead of simple vector math.
+- **The Style Lab**: Train your own personalized genre classifiers by simply dragging and dropping track examples.
 - **Audio Analysis Pipeline**: FFmpeg + Essentia sidecar with 45s watchdog, atomic DB updates, and Track Inspector auto-refresh.
 - **Library Track Display**: Rich duration/size badges (⏱, 💾) with smart KB/MB formatting and dual-source loading.
 - **Glass Box Queue Visibility**: Observable AnalysisQueueService with pause/resume, smart ETA, and animated status bar pulse.
@@ -305,6 +307,7 @@ Contributions are welcome! Whether you're fixing bugs, adding features, or impro
 
 ## 🔧 Built With
 
+- [Microsoft ML.NET](https://dotnet.microsoft.com/en-us/apps/machinelearning-ai/ml-dotnet) - On-device machine learning
 - [Avalonia UI](https://avaloniaui.net/) - Cross-platform XAML framework
 - [Entity Framework Core](https://docs.microsoft.com/ef/) - Object-relational mapping
 - [Soulseek.NET](https://github.com/jpdillingham/Soulseek.NET) - P2P networking

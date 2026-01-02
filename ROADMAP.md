@@ -48,8 +48,8 @@
 ### ✅ Phase 15: Style Lab (Sonic Taxonomy)
 **Goal**: User-defined musical classification.
 *   **Style Buckets**: Users define "Neo-Trance" or "Liquid" by example tracks.
-*   **Centroid Learning**: AI calculates the "sonic center" of a style bucket.
-*   **Auto-Tagging**: Library tracks are automatically assigned a `DetectedSubGenre`.
+*   **Personal Classifier**: ML.NET + LightGBM engine trains *locally* on your examples.
+*   **Auto-Tagging**: Library tracks are automatically assigned a `DetectedSubGenre` with confidence scores.
 *   **Dynamic Filtering**: Instant style chips in the Library UI.
 
 ---

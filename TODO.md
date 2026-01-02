@@ -137,8 +137,8 @@
   - ✅ **Thread Safety**: Integrated `RxApp.MainThreadScheduler` for safe UI updates from background threads.
 
 ### Recent Updates (January 2, 2026) - The Style Lab (Sonic Taxonomy)
-- ✅ **Phase 15: Style Lab Complete**:
-  - ✅ **Core Infrastructure**: `StyleDefinitionEntity`, `StyleClassifierService` (Centroid training & prediction).
+- ✅ **Phase 15: Style Lab Complete (ML.NET Upgrade)**:
+  - ✅ **Core Infrastructure**: `PersonalClassifierService` (ML.NET/LightGBM).
   - ✅ **Style Lab UI**: Dedicated management view with Drag & Drop training bucket logic.
   - ✅ **Library Integration**: Dynamic filter chips in Library headers for instant style-based filtering.
   - ✅ **Database Schema**: Added `DetectedSubGenre` to `TrackEntity`, `PlaylistTrack`, and `AudioFeaturesEntity`.

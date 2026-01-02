@@ -28,6 +28,7 @@
         │  EssentiaAnalyzerService 🎛️     │
         │  CrashRecoveryService 🛡️        │
         │  SonicIntegrityService ✨       │
+        │  PersonalClassifierService (ML) 🧠|
         │  SearchOrchestrator 🧠          │
         │  LibraryService                 │
         │  RekordboxService 📀           │
@@ -68,6 +69,20 @@ Total Score = (BitrateScore * Weight)
 *   **Tier 1 (Quality)**: Prioritizes 320kbps/FLAC.
 *   **Tier 2 (Intelligence)**: Boosts matches for BPM/Key (if Spotify enrichment active).
 *   **Tier 3 (Gating)**: Hides "Fake" files (VBR detected) or duration mismatches.
+
+---
+
+## 🧠 The Cortex: ML.NET Engine (Phase 15.5)
+
+Phase 15.5 introduced a local machine learning layer that runs parallel to the rule-based ranking system.
+
+*   **Engine**: Microsoft ML.NET (v3.0) + LightGBM.
+*   **Input**: 128-dimensional EffNet-b0 embeddings from Essentia.
+*   **Function**: Predicts "Style/Vibe" based on user-trained buckets (Style Lab).
+*   **Service**: `PersonalClassifierService` acts as the inference engine.
+*   **Data**: Stores embeddings in `AudioFeaturesEntity.AiEmbeddingJson` to allow instant retraining without re-analyzing audio.
+
+> **Deep Dive**: See [ML_ENGINE_ARCHITECTURE.md](DOCS/ML_ENGINE_ARCHITECTURE.md) for the full breakdown.
 
 ---
 

@@ -29,89 +29,113 @@ public class StyleClassifierService : IStyleClassifierService
 {
     private readonly IDbContextFactory<AppDbContext> _dbFactory;
     private readonly ILogger<StyleClassifierService> _logger;
+    private readonly PersonalClassifierService _personalClassifier;
 
-    public StyleClassifierService(IDbContextFactory<AppDbContext> dbFactory, ILogger<StyleClassifierService> logger)
+    public StyleClassifierService(
+        IDbContextFactory<AppDbContext> dbFactory, 
+        ILogger<StyleClassifierService> logger,
+        PersonalClassifierService personalClassifier)
     {
         _dbFactory = dbFactory;
         _logger = logger;
+        _personalClassifier = personalClassifier;
     }
 
     /// <summary>
-    /// Recalculates the centroid for a specific style based on its reference tracks.
+    /// Triggers a global retraining of the ML model using all defined styles as ground truth.
+    /// Note: 'styleId' is ignored in this implementation as LightGBM trains globally.
     /// </summary>
     public async Task TrainStyleAsync(Guid styleId)
     {
         using var context = await _dbFactory.CreateDbContextAsync();
-        var style = await context.StyleDefinitions.FindAsync(styleId);
-        if (style == null) return;
-
-        var referenceHashes = style.ReferenceTrackHashes;
-        if (!referenceHashes.Any()) return;
-
-        // Fetch features for reference tracks
-        var features = await context.AudioFeatures
-            .Where(f => referenceHashes.Contains(f.TrackUniqueHash))
-            .ToListAsync();
-
-        if (!features.Any()) return;
-
-        // Calculate Centroid
-        var vectors = features.Select(ExtractFeatureVector).ToList();
-        var centroid = CalculateCentroid(vectors);
-
-        style.Centroid = centroid;
-        await context.SaveChangesAsync();
-        
-        _logger.LogInformation("Trained style '{StyleName}' with {Count} tracks", style.Name, features.Count);
-    }
-
-    /// <summary>
-    /// Predicts the style of a track based on its audio features.
-    /// </summary>
-    public async Task<StylePrediction> PredictAsync(AudioFeaturesEntity features)
-    {
-        using var context = await _dbFactory.CreateDbContextAsync();
         var styles = await context.StyleDefinitions.ToListAsync();
         
-        if (!styles.Any()) 
-            return new StylePrediction { StyleName = "Unknown", Confidence = 0f };
-
-        var trackVector = ExtractFeatureVector(features);
-        var distances = new Dictionary<StyleDefinitionEntity, double>();
+        var trainingData = new Dictionary<string, List<float[]>>();
+        int totalTracks = 0;
 
         foreach (var style in styles)
         {
-            if (style.Centroid == null || !style.Centroid.Any()) continue;
-            var dist = EuclideanDistance(trackVector, style.Centroid);
-            distances[style] = dist;
+            if (!style.ReferenceTrackHashes.Any()) continue;
+            
+            var features = await context.AudioFeatures
+                .Where(f => style.ReferenceTrackHashes.Contains(f.TrackUniqueHash))
+                .Select(f => f.AiEmbeddingJson)
+                .ToListAsync();
+
+            var embeddings = new List<float[]>();
+            foreach (var json in features)
+            {
+                if (string.IsNullOrWhiteSpace(json)) continue;
+                try
+                {
+                    // Assuming raw JSON array: [0.1, 0.2, ...]
+                    // Basic parsing for speed or use JsonSerializer
+                    var vec = System.Text.Json.JsonSerializer.Deserialize<float[]>(json);
+                    if (vec != null && vec.Length == 128)
+                    {
+                        embeddings.Add(vec);
+                    }
+                }
+                catch 
+                { 
+                    // Ignore bad data 
+                }
+            }
+
+            if (embeddings.Any())
+            {
+                trainingData[style.Name] = embeddings;
+                totalTracks += embeddings.Count;
+            }
         }
 
-        if (!distances.Any())
-            return new StylePrediction { StyleName = "Unknown", Confidence = 0f };
-
-        // Find nearest neighbor
-        var sorted = distances.OrderBy(x => x.Value).ToList();
-        var bestMatch = sorted.First();
-        
-        // Simple confidence calculation (inverse of distance, normalized)
-        // This is a naive heuristic - can be improved later
-        // Assuming max meaningful distance is ~2.0 after normalization
-        float confidence = (float)Math.Max(0, 1.0 - (bestMatch.Value / 2.0));
-
-        // Build distribution
-        var distribution = new Dictionary<string, float>();
-        double totalInverseDist = sorted.Take(3).Sum(x => 1.0 / (x.Value + 0.001)); // Top 3
-        foreach(var match in sorted.Take(3))
+        if (totalTracks >= 5)
         {
-            distribution[match.Key.Name] = (float)((1.0 / (match.Value + 0.001)) / totalInverseDist);
+            await Task.Run(() => _personalClassifier.Train("UserStyleModel", trainingData));
+            _logger.LogInformation("Trained PersonalClassifier with {Count} tracks across {Styles} styles", totalTracks, trainingData.Count);
+        }
+        else
+        {
+            _logger.LogWarning("Insufficient training data. Need at least 5 tracks with embeddings.");
+        }
+    }
+
+    /// <summary>
+    /// Predicts the style of a track based on its audio features (Specifically AiEmbedding).
+    /// </summary>
+    public async Task<StylePrediction> PredictAsync(AudioFeaturesEntity features)
+    {
+        // Must have embedding
+        if (string.IsNullOrEmpty(features.AiEmbeddingJson))
+            return new StylePrediction { StyleName = "Unknown (No Embedding)", Confidence = 0f };
+
+        float[]? embedding = null;
+        try
+        {
+            embedding = System.Text.Json.JsonSerializer.Deserialize<float[]>(features.AiEmbeddingJson);
+        }
+        catch { }
+
+        if (embedding == null || embedding.Length != 128)
+            return new StylePrediction { StyleName = "Unknown (Bad Embedding)", Confidence = 0f };
+
+        // Use ML.NET Service
+        var (vibe, confidence) = _personalClassifier.Predict(embedding);
+
+        // Fetch Color from DB (Optimization: Cache styles in memory)
+        string color = "#888888";
+        using (var context = await _dbFactory.CreateDbContextAsync())
+        {
+            var style = await context.StyleDefinitions.FirstOrDefaultAsync(s => s.Name == vibe);
+            if (style != null) color = style.ColorHex;
         }
 
         return new StylePrediction
         {
-            StyleName = bestMatch.Key.Name,
-            ColorHex = bestMatch.Key.ColorHex,
+            StyleName = vibe,
             Confidence = confidence,
-            Distribution = distribution
+            ColorHex = color,
+            Distribution = new Dictionary<string, float> { { vibe, confidence } } // TODO: Get full probabilities from LightGBM if needed
         };
     }
 
@@ -128,6 +152,8 @@ public class StyleClassifierService : IStyleClassifierService
             // Update entity
             feature.DetectedSubGenre = prediction.StyleName;
             feature.SubGenreConfidence = prediction.Confidence;
+            feature.PredictedVibe = prediction.StyleName; // Keep synced
+            feature.PredictionConfidence = prediction.Confidence;
             feature.GenreDistributionJson = System.Text.Json.JsonSerializer.Serialize(prediction.Distribution);
         }
 

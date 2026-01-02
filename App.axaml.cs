@@ -603,6 +603,7 @@ public partial class App : Application
         services.AddSingleton<Services.Musical.ManualCueGenerationService>(); // User-triggered batch cue processing
         
         // Phase 15: Style Lab (Sonic Taxonomy)
+        services.AddSingleton<Services.AI.PersonalClassifierService>();
         services.AddSingleton<Services.AI.IStyleClassifierService, Services.AI.StyleClassifierService>();
         services.AddSingleton<ViewModels.StyleLabViewModel>();
         
