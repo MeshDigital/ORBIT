@@ -78,3 +78,23 @@ Replacing tooltips with a structured detail view (Side Panel or Expandable Row).
 
 ### Phase 12.3: The Assistant UI
 - Add "Filter & Sort" sidebar with "Smart Filter" toggles.
+
+---
+
+# 🛡️ Phase 14: Operation "Forensic Core" (Rank Integration)
+
+*Added Post-Implementation*
+
+## 🚨 The Architectural Pivot
+We identified that checking files *only* in the UI left the automatic downloaders (Spotify/CSV) vulnerable to fake files. We pivoted to "Operation Forensic Core" to unify the logic.
+
+### 1. Unified Intelligence
+- `MetadataForensicService` was promoted to a **Static Utility**.
+- It is now the "Single Source of Truth" for both the UI "Brain Panel" and the background "Ranking Engine".
+
+### 2. Automation Protection
+- **Trash Tier**: `TieredTrackComparer` (the sorting engine) now performs the "Compression Mismatch" check. If checking fails, the track is demoted to `TrackTier.Trash` regardless of its claimed bitrate.
+- **The Seeker**: `DownloadDiscoveryService` prevents `TrackTier.Trash` files from even being considered during the high-quality search phase.
+
+### 3. Analytics
+- Added `RejectedByForensics` counter to `SearchAttemptLog` to track how many fake files ORBIT saves you from downloading.
