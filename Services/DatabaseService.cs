@@ -179,6 +179,12 @@ public class DatabaseService
                 columnsToAdd.Add(("WaveformData", "WaveformData BLOB NULL"));
             if (!existingColumns.Contains("RmsData"))
                 columnsToAdd.Add(("RmsData", "RmsData BLOB NULL"));
+            if (!existingColumns.Contains("LowData"))
+                columnsToAdd.Add(("LowData", "LowData BLOB NULL"));
+            if (!existingColumns.Contains("MidData"))
+                columnsToAdd.Add(("MidData", "MidData BLOB NULL"));
+            if (!existingColumns.Contains("HighData"))
+                columnsToAdd.Add(("HighData", "HighData BLOB NULL"));
             if (!existingColumns.Contains("SpectralHash"))
                 columnsToAdd.Add(("SpectralHash", "SpectralHash TEXT NULL"));
             if (!existingColumns.Contains("QualityConfidence"))
@@ -290,6 +296,21 @@ public class DatabaseService
             {
                 _logger.LogWarning("Schema Patch: Adding missing column 'RmsData' to LibraryEntries");
                 await context.Database.ExecuteSqlRawAsync("ALTER TABLE LibraryEntries ADD COLUMN RmsData BLOB NULL");
+            }
+            if (!existingColumns.Contains("LowData"))
+            {
+                _logger.LogWarning("Schema Patch: Adding missing column 'LowData' to LibraryEntries");
+                await context.Database.ExecuteSqlRawAsync("ALTER TABLE LibraryEntries ADD COLUMN LowData BLOB NULL");
+            }
+            if (!existingColumns.Contains("MidData"))
+            {
+                _logger.LogWarning("Schema Patch: Adding missing column 'MidData' to LibraryEntries");
+                await context.Database.ExecuteSqlRawAsync("ALTER TABLE LibraryEntries ADD COLUMN MidData BLOB NULL");
+            }
+            if (!existingColumns.Contains("HighData"))
+            {
+                _logger.LogWarning("Schema Patch: Adding missing column 'HighData' to LibraryEntries");
+                await context.Database.ExecuteSqlRawAsync("ALTER TABLE LibraryEntries ADD COLUMN HighData BLOB NULL");
             }
             if (!existingColumns.Contains("SpectralHash"))
             {
@@ -788,8 +809,10 @@ public class DatabaseService
                     if (!tracksColumns.Contains("IsTrustworthy")) newCols.Add(("IsTrustworthy", "INTEGER NULL"));
                     if (!tracksColumns.Contains("QualityDetails")) newCols.Add(("QualityDetails", "TEXT NULL"));
                     
-                    // New Flag
                     if (!tracksColumns.Contains("IsEnriched")) newCols.Add(("IsEnriched", "INTEGER DEFAULT 0"));
+                    if (!tracksColumns.Contains("LowData")) newCols.Add(("LowData", "BLOB NULL"));
+                    if (!tracksColumns.Contains("MidData")) newCols.Add(("MidData", "BLOB NULL"));
+                    if (!tracksColumns.Contains("HighData")) newCols.Add(("HighData", "BLOB NULL"));
 
                     foreach (var (col, def) in newCols)
                     {
