@@ -240,7 +240,7 @@ public class MainViewModel : INotifyPropertyChanged
         _navigationService.RegisterPage("UpgradeScout", typeof(Avalonia.UpgradeScoutView));
         _navigationService.RegisterPage("Inspector", typeof(Avalonia.InspectorPage));
         _navigationService.RegisterPage("AnalysisQueue", typeof(Avalonia.AnalysisQueuePage));
-        _navigationService.RegisterPage("StyleLab", typeof(Avalonia.StyleLabView));
+        _navigationService.RegisterPage("StyleLab", typeof(Avalonia.StyleLabPage));
         
         // Subscribe to navigation events
         _navigationService.Navigated += OnNavigated;
@@ -552,7 +552,7 @@ public class MainViewModel : INotifyPropertyChanged
                 "UpgradeScoutView" => PageType.UpgradeScout,
                 "InspectorPage" => PageType.Inspector,
                 "AnalysisQueuePage" => PageType.AnalysisQueue,
-                "StyleLabView" => PageType.StyleLab,
+                "StyleLabPage" => PageType.StyleLab,
                 _ => CurrentPageType
             };
             

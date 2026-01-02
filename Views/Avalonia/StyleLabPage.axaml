@@ -1,63 +1,151 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-             xmlns:vm="using:SLSKDONET.ViewModels"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:vm="clr-namespace:SLSKDONET.ViewModels"
+             mc:Ignorable="d" d:DesignWidth="1100" d:DesignHeight="700"
              x:Class="SLSKDONET.Views.Avalonia.StyleLabPage"
-             x:DataType="vm:StyleLabViewModel">
+             x:DataType="vm:StyleLabViewModel"
+             Background="#1E1E1E" Foreground="White">
 
-    <Grid ColumnDefinitions="300, *" Background="#121212">
-        
-        <Border Grid.Column="0" Background="#1E1E1E" BorderBrush="#333" BorderThickness="0,0,1,0">
-            <Grid RowDefinitions="Auto, *">
-                <TextBlock Text="STYLE BUCKETS" Foreground="#888" Margin="15" FontWeight="Bold"/>
+    <Grid ColumnDefinitions="300,*">
+        <!-- Sidebar: Style List -->
+        <Border Grid.Column="0" BorderBrush="#333" BorderThickness="0,0,1,0" Background="#252526">
+            <Grid RowDefinitions="Auto,*,Auto">
+                <TextBlock Grid.Row="0" Text="Style Lab" FontSize="18" FontWeight="Bold" Margin="16"/>
                 
-                <!-- Binding to Styles (each item is StyleDefinitionEntity) -->
-                <!-- We used StyleDefinitionEntity which has Name and ColorHex properties -->
-                <ItemsControl Grid.Row="1" ItemsSource="{Binding Styles}">
-                    <ItemsControl.ItemTemplate>
+                <ListBox Grid.Row="1" ItemsSource="{Binding Styles}" SelectedItem="{Binding SelectedStyle}" Background="Transparent">
+                    <ListBox.ItemTemplate>
                         <DataTemplate>
-                            <Border Background="#252525" Margin="10,5" CornerRadius="4" Padding="10">
-                                <StackPanel>
-                                    <Grid ColumnDefinitions="*, Auto">
-                                        <TextBlock Text="{Binding Name}" Foreground="{Binding ColorHex}" FontWeight="Bold"/>
-                                        <Border Background="{Binding ColorHex}" Width="8" Height="8" CornerRadius="4"/>
-                                    </Grid>
-                                    <TextBlock Text="Drop tracks here to train" FontSize="10" Foreground="#666" Margin="0,5,0,0"/>
-                                </StackPanel>
-                            </Border>
+                            <StackPanel Orientation="Horizontal" Spacing="10" Margin="4">
+                                <Ellipse Width="12" Height="12" Fill="{Binding ColorHex}"/>
+                                <TextBlock Text="{Binding Name}" VerticalAlignment="Center" FontSize="14"/>
+                            </StackPanel>
                         </DataTemplate>
-                    </ItemsControl.ItemTemplate>
-                </ItemsControl>
+                    </ListBox.ItemTemplate>
+                </ListBox>
+
+                <StackPanel Grid.Row="2" Margin="12" Spacing="8">
+                    <TextBox Text="{Binding NewStyleName}" Watermark="New Style Name..."/>
+                    <Button Content="Create New Bucket" Command="{Binding CreateStyleCommand}" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center"/>
+                </StackPanel>
             </Grid>
         </Border>
 
-        <Grid Grid.Column="1" RowDefinitions="Auto, *, Auto">
-            <StackPanel Margin="20">
-                <TextBlock Text="🧪 SONIC INTELLIGENCE LAB" FontSize="20" FontWeight="Bold"/>
-                <TextBlock Text="Drag tracks to buckets to teach the AI your taste." Foreground="#AAA"/>
+        <!-- Main Content: Inspector & Training -->
+        <Grid Grid.Column="1" Margin="24">
+            <!-- Empty State -->
+            <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center" Spacing="16" IsVisible="{Binding SelectedStyle, Converter={x:Static ObjectConverters.IsNull}}">
+                <TextBlock Text="Select or Create a Style Bucket" FontSize="20" Foreground="#666"/>
+                <TextBlock Text="Drag tracks into the bucket to train ORBIT's brain." FontSize="14" Foreground="#444"/>
             </StackPanel>
 
-            <Border Grid.Row="1" Margin="20" Background="#181818" CornerRadius="8" BorderBrush="#333" BorderThickness="1">
-                <Grid>
-                    <TextBlock Text="[ SPECTROGRAM STACK VISUALIZATION ]" VerticalAlignment="Center" HorizontalAlignment="Center" Foreground="#444"/>
-                    <!-- Placeholder for the actual spectrogram control -->
+            <!-- Active Inspector -->
+            <Grid RowDefinitions="Auto,Auto,*,Auto" IsVisible="{Binding SelectedStyle, Converter={x:Static ObjectConverters.IsNotNull}}">
+                
+                <!-- Header -->
+                <Grid Grid.Row="0" ColumnDefinitions="*,Auto">
+                    <StackPanel Grid.Column="0" Spacing="4">
+                        <StackPanel Orientation="Horizontal" Spacing="12">
+                            <Ellipse Width="24" Height="24" Fill="{Binding SelectedStyle.ColorHex}"/>
+                            <TextBlock Text="{Binding SelectedStyle.Name}" FontSize="28" FontWeight="Bold"/>
+                        </StackPanel>
+                        <TextBlock Text="Drag 'Gold Standard' tracks here to define this style." Foreground="#888" Margin="36,0,0,0"/>
+                    </StackPanel>
+                    
+                    <!-- Outdated Model Indicator -->
+                    <Border Grid.Column="1" Background="#66FF0000" CornerRadius="4" Padding="12,6" IsVisible="{Binding IsModelOutdated}">
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                            <TextBlock Text="⚠️ Model Outdated (Changes Pending)" FontWeight="Bold" VerticalAlignment="Center"/>
+                            <Button Content="Save &amp; Train" Command="{Binding TrainGlobalModelCommand}" Classes="accent" VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </Border>
                 </Grid>
-            </Border>
 
-            <Border Grid.Row="2" Padding="20" Background="#1E1E1E">
-                <StackPanel Orientation="Horizontal" Spacing="20" HorizontalAlignment="Right">
-                    <StackPanel Orientation="Horizontal" IsVisible="{Binding IsTraining}" Spacing="10" VerticalAlignment="Center">
+                <Separator Grid.Row="1" Background="#333" Margin="0,16"/>
+
+                <!-- Content Zone: Visuals + Reference Tracks -->
+                <Grid Grid.Row="2" ColumnDefinitions="2*,1*" Margin="0,0,0,16">
+                    
+                    <!-- Left: Reference Tracks -->
+                    <Grid Grid.Column="0" RowDefinitions="Auto,*" Margin="0,0,16,0">
+                        <TextBlock Grid.Row="0" Text="Reference Tracks" FontSize="16" FontWeight="SemiBold" Margin="0,0,0,8"/>
+                        
+                        <!-- Drop Zone List -->
+                        <Border Grid.Row="1" 
+                                BorderBrush="#444" 
+                                BorderThickness="2" 
+                                CornerRadius="8" 
+                                Background="#1E1E1E"
+                                DragDrop.AllowDrop="True">
+                            <ListBox ItemsSource="{Binding ReferenceTracks}" Background="Transparent" Margin="4">
+                                <ListBox.ItemTemplate>
+                                    <DataTemplate>
+                                        <Grid ColumnDefinitions="*,Auto,Auto">
+                                            <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                                                <TextBlock Text="{Binding Artist}" FontWeight="Bold"/>
+                                                <TextBlock Text="-" Foreground="#666"/>
+                                                <TextBlock Text="{Binding Title}"/>
+                                            </StackPanel>
+                                            
+                                            <!-- Remove Button -->
+                                            <Button Grid.Column="2" Content="✕" 
+                                                    Command="{Binding #Root.DataContext.RemoveTrackFromStyleCommand}" 
+                                                    CommandParameter="{Binding TrackUniqueHash}"
+                                                    Background="Transparent" Foreground="#666" Padding="4"/>
+                                        </Grid>
+                                    </DataTemplate>
+                                </ListBox.ItemTemplate>
+                            </ListBox>
+                        </Border>
+                    </Grid>
+
+                    <!-- Right: Visualizations (Spectrogram Stack / Radar) -->
+                    <Grid Grid.Column="1" RowDefinitions="*,*">
+                        <!-- Spectrogram Stack Placeholder -->
+                        <Border Grid.Row="0" BorderBrush="#333" BorderThickness="1" Background="#2A2A2A" CornerRadius="6" Margin="0,0,0,8">
+                            <Grid>
+                                <TextBlock Text="Spectrogram Stack" Foreground="#666" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                <!-- Visual approximation -->
+                                <StackPanel VerticalAlignment="Bottom" Opacity="0.3">
+                                    <Border Height="4" Background="{Binding SelectedStyle.ColorHex}" Margin="2,1"/>
+                                    <Border Height="8" Background="{Binding SelectedStyle.ColorHex}" Margin="2,1" Opacity="0.8"/>
+                                    <Border Height="12" Background="{Binding SelectedStyle.ColorHex}" Margin="2,1" Opacity="0.6"/>
+                                    <Border Height="6" Background="{Binding SelectedStyle.ColorHex}" Margin="2,1" Opacity="0.9"/>
+                                </StackPanel>
+                            </Grid>
+                        </Border>
+
+                        <!-- Prediction Radar Placeholder -->
+                        <Border Grid.Row="1" BorderBrush="#333" BorderThickness="1" Background="#2A2A2A" CornerRadius="6" Margin="0,8,0,0">
+                             <Grid>
+                                <TextBlock Text="Prediction Radar" Foreground="#666" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                <!-- Visual approximation -->
+                                <Path Fill="{Binding SelectedStyle.ColorHex}" Opacity="0.2" Stroke="{Binding SelectedStyle.ColorHex}" StrokeThickness="2"
+                                      Data="M 50,10 L 90,50 L 50,90 L 10,50 Z" HorizontalAlignment="Center" VerticalAlignment="Center" Stretch="Uniform" Width="100" Height="100"/>
+                            </Grid>
+                        </Border>
+                    </Grid>
+                </Grid>
+
+                <!-- Action Bar -->
+                <StackPanel Grid.Row="3" Orientation="Horizontal" Spacing="16" Margin="0,8,0,0">
+                    <Button Content="Scan Library (Apply All)" 
+                            Command="{Binding ScanLibraryCommand}"
+                            FontSize="14" Padding="16,8"/>
+
+                    <Button Content="Delete Bucket" 
+                            Command="{Binding DeleteStyleCommand}"
+                            CommandParameter="{Binding SelectedStyle}"
+                            Background="#400000" Foreground="Red"
+                            Margin="20,0,0,0"/>
+
+                    <StackPanel Orientation="Horizontal" IsVisible="{Binding IsTraining}" Spacing="10" VerticalAlignment="Center" Margin="20,0,0,0">
                         <TextBlock Text="Training..." Foreground="#3498DB"/>
                         <ProgressBar IsIndeterminate="True" Width="100"/>
                     </StackPanel>
-                    
-                    <TextBlock Text="{Binding TestTrackPrediction}" VerticalAlignment="Center" Foreground="Cyan"/>
-                    
-                    <Button Content="TRAIN MODEL" 
-                            Command="{Binding TrainGlobalModelCommand}" 
-                            IsEnabled="{Binding !IsTraining}"
-                            Background="#3498DB" Foreground="White" FontWeight="Bold" Padding="15,8"/>
                 </StackPanel>
-            </Border>
+            </Grid>
         </Grid>
     </Grid>
 </UserControl>
