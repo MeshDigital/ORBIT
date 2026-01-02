@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using SLSKDONET.Models;
 using SLSKDONET.Configuration;
+using SLSKDONET.Services;
 
 namespace SLSKDONET.Services.Ranking;
 
@@ -82,6 +83,16 @@ public class TieredTrackComparer : IComparer<Track>
 
     private TrackTier CalculateTier(Track track)
     {
+        // 0. FORENSIC GATEKEEPING (New in Phase 14)
+        var config = ResultSorter.GetCurrentConfig();
+        if (config?.EnableVbrFraudDetection ?? true)
+        {
+            if (MetadataForensicService.IsFake(track))
+            {
+                return TrackTier.Trash; // Immediate demotion for mathematical fakes
+            }
+        }
+
         // 1. Availability Check (Dead End?)
         if (track.HasFreeUploadSlot == false && track.QueueLength > 500)
             return TrackTier.Bronze; // Effectively unavailable
@@ -97,7 +108,7 @@ public class TieredTrackComparer : IComparer<Track>
 
         // --- POLICY EVALUATION ---
 
-        // 0. Integrity/Duration Check (Demote suspicious files)
+        // 4. Integrity/Duration Check (Demote suspicious files)
         if (_policy.EnforceDurationMatch && _searchTrack.Length.HasValue && track.Length.HasValue)
         {
              if (Math.Abs(_searchTrack.Length.Value - track.Length.Value) > _policy.DurationToleranceSeconds)

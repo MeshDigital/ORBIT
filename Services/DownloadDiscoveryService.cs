@@ -124,6 +124,15 @@ public class DownloadDiscoveryService
                     continue;
                 }
 
+                // Phase 14: Forensic Gatekeeping (Operation Forensic Core)
+                // If it's a mathematical fake, we skip it entirely for the initial "High Quality" pass.
+                // It might be reconsidered in Relaxation Tier 2 if we are desperate.
+                if (MetadataForensicService.IsFake(searchTrack))
+                {
+                    log.RejectedByForensics++;
+                    continue; 
+                }
+
                 // Phase 3C.4: Threshold Trigger (Race & Replace)
                 // Real-time evaluation of incoming results
                 var matchResult = _matcher.CalculateMatchResult(track, searchTrack);
@@ -191,6 +200,7 @@ public class DownloadDiscoveryService
             // Merge diagnostics: use the comprehensive log from Matcher but keep our discovery counts
             diagResult.Log.ResultsCount = log.ResultsCount;
             diagResult.Log.RejectedByBlacklist = log.RejectedByBlacklist;
+            diagResult.Log.RejectedByForensics = log.RejectedByForensics;
             log = diagResult.Log;
 
             if (bestMatch != null)

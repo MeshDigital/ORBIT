@@ -33,7 +33,7 @@ public partial class SearchViewModel : ReactiveObject
     private readonly IFileInteractionService _fileInteractionService;
     private readonly IClipboardService _clipboardService;
     private readonly SearchOrchestrationService _searchOrchestration;
-    private readonly MetadataForensicService _forensicService;
+
     private readonly FileNameFormatter _fileNameFormatter;
 
     public IEnumerable<string> PreferredFormats => new[] { "mp3", "flac", "m4a", "wav" }; // TODO: Load from config
@@ -202,7 +202,6 @@ public partial class SearchViewModel : ReactiveObject
         IFileInteractionService fileInteractionService,
         IClipboardService clipboardService,
         SearchOrchestrationService searchOrchestration,
-        MetadataForensicService forensicService,
         FileNameFormatter fileNameFormatter,
         IEventBus eventBus)
     {
@@ -218,7 +217,6 @@ public partial class SearchViewModel : ReactiveObject
         _fileInteractionService = fileInteractionService;
         _clipboardService = clipboardService;
         _searchOrchestration = searchOrchestration;
-        _forensicService = forensicService;
         _fileNameFormatter = fileNameFormatter;
 
         // Reactive Status Updates
@@ -382,7 +380,7 @@ public partial class SearchViewModel : ReactiveObject
                     }
                     
                     // WRAP IN VIEWMODEL
-                    var vm = new AnalyzedSearchResultViewModel(result, _forensicService);
+                    var vm = new AnalyzedSearchResultViewModel(result);
                     
                     buffer.Add(vm);
                     totalFound++;

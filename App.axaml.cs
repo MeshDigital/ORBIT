@@ -583,7 +583,7 @@ public partial class App : Application
         services.AddSingleton<SearchResultMatcher>(); // Phase 3.1
         services.AddSingleton<MetadataEnrichmentOrchestrator>(); // Phase 3.1
         services.AddSingleton<SonicIntegrityService>(); // Phase 8: Sonic Integrity
-        services.AddSingleton<MetadataForensicService>(); // Phase 12: Search 2.0 (Metadata Intelligence)
+
         services.AddSingleton<IAudioAnalysisService, AudioAnalysisService>(); // Phase 3: Local Audio Analysis
         services.AddSingleton<WaveformAnalysisService>(); // Phase 8.1: High-Fidelity Waveforms
         services.AddSingleton<LibraryUpgradeScout>(); // Phase 8: Self-Healing Library

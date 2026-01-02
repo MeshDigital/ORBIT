@@ -11,7 +11,7 @@ namespace SLSKDONET.Services
         private static readonly Regex LosslessRegex = new Regex(@"\.(flac|wav|aiff|alac)$", RegexOptions.IgnoreCase | RegexOptions.Compiled);
         private static readonly Regex SuspiciousExtensions = new Regex(@"\.(wma|ogg|wmv)$", RegexOptions.IgnoreCase | RegexOptions.Compiled);
 
-        public int CalculateTrustScore(Track result)
+        public static int CalculateTrustScore(Track result)
         {
             int score = 50; // Base score
 
@@ -85,7 +85,7 @@ namespace SLSKDONET.Services
             return Math.Clamp(score, 0, 100);
         }
 
-        public string GetForensicAssessment(Track result)
+        public static string GetForensicAssessment(Track result)
         {
             var notes = new System.Collections.Generic.List<string>();
             if (string.IsNullOrEmpty(result.Filename)) return "Unknown";
@@ -120,12 +120,12 @@ namespace SLSKDONET.Services
             return string.Join(" | ", notes);
         }
 
-        public bool IsGoldenMatch(Track result)
+        public static bool IsGoldenMatch(Track result)
         {
             return CalculateTrustScore(result) >= 85;
         }
 
-        public bool IsFake(Track result)
+        public static bool IsFake(Track result)
         {
             return CalculateTrustScore(result) < 40;
         }

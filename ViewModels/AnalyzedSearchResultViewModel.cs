@@ -10,7 +10,7 @@ namespace SLSKDONET.ViewModels
     public class AnalyzedSearchResultViewModel : ReactiveObject
     {
         private readonly SearchResult _result;
-        private readonly MetadataForensicService _forensicService;
+
 
 
         public SearchResult RawResult => _result;
@@ -71,16 +71,15 @@ namespace SLSKDONET.ViewModels
         // Trust Bar Visualization (Width 0-100)
         public double TrustBarWidth => TrustScore;
 
-        public AnalyzedSearchResultViewModel(SearchResult result, MetadataForensicService forensicService)
+        public AnalyzedSearchResultViewModel(SearchResult result)
         {
             _result = result;
-            _forensicService = forensicService;
 
             // Calculate Metrics
-            TrustScore = _forensicService.CalculateTrustScore(result.Model);
-            ForensicAssessment = _forensicService.GetForensicAssessment(result.Model);
-            IsGoldenMatch = _forensicService.IsGoldenMatch(result.Model);
-            IsFake = _forensicService.IsFake(result.Model);
+            TrustScore = MetadataForensicService.CalculateTrustScore(result.Model);
+            ForensicAssessment = MetadataForensicService.GetForensicAssessment(result.Model);
+            IsGoldenMatch = MetadataForensicService.IsGoldenMatch(result.Model);
+            IsFake = MetadataForensicService.IsFake(result.Model);
         }
     }
 }

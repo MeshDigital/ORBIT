@@ -11,6 +11,7 @@ public class SearchAttemptLog
     public int RejectedByQuality { get; set; }
     public int RejectedByFormat { get; set; }
     public int RejectedByBlacklist { get; set; }
+    public int RejectedByForensics { get; set; } // Phase 14: Operation Forensic Core
     
     // Fix: Added SearchScore to resolve build error in DownloadDiscoveryService
     public double SearchScore { get; set; }
