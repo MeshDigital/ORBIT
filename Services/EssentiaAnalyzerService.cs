@@ -2,6 +2,7 @@ using System;
 using System.Diagnostics;
 using System.IO;
 using System.Text.Json;
+using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using SLSKDONET.Data.Entities;
@@ -273,6 +274,20 @@ public class EssentiaAnalyzerService : IAudioIntelligenceService, IDisposable
                     DynamicComplexity = data.LowLevel?.DynamicComplexity ?? 0,
                     OnsetRate = data.Rhythm?.OnsetRate ?? 0,
                     
+                    // Phase 13A: Forensic Librarian (BPM Stability & Dynamic Compression)
+                    BpmStability = CalculateBpmStability(data.Rhythm?.BpmHistogram),
+                    IsDynamicCompressed = DetectDynamicCompression(
+                        data.LowLevel?.DynamicComplexity ?? 0, 
+                        data.LowLevel?.AverageLoudness ?? 0),
+
+                    // Phase 13C: AI Layer (Vocals & Mood)
+                    InstrumentalProbability = data.HighLevel?.VoiceInstrumental?.All?.Instrumental ?? 0,
+                    MoodTag = DetermineMoodTag(data.HighLevel),
+                    MoodConfidence = CalculateMoodConfidence(data.HighLevel),
+
+                    // Advanced Harmonic Mixing
+                    ChordProgression = FormatChordProgression(data.Tonal?.ChordsKey),
+                    
                     // Metadata
                     AnalysisVersion = ANALYSIS_VERSION,
                     AnalyzedAt = DateTime.UtcNow
@@ -354,6 +369,80 @@ public class EssentiaAnalyzerService : IAudioIntelligenceService, IDisposable
                 catch { /* Ignore cleanup errors */ }
             }
         }
+    }
+
+    // ============================================
+    // Phase 13: Helper Methods
+    // ============================================
+
+    private static float CalculateBpmStability(float[]? bpmHistogram)
+    {
+        if (bpmHistogram == null || bpmHistogram.Length == 0)
+            return 1.0f; // No data, assume stable
+
+        // Calculate variance in histogram
+        // A stable BPM will have a single sharp peak (low variance)
+        // A drifting BPM will have multiple peaks (high variance)
+        float max = bpmHistogram.Max();
+        int peakCount = bpmHistogram.Count(v => v > max * 0.5f);
+
+        // If only one dominant peak, very stable
+        if (peakCount <= 2) return 1.0f;
+        
+        // If wide distribution, low stability
+        if (peakCount > 10) return 0.3f;
+
+        // Gradual stability based on peak spread
+        return Math.Clamp(1.0f - (peakCount / 20.0f), 0.3f, 1.0f);
+    }
+
+    private static bool DetectDynamicCompression(float dynamicComplexity, float loudnessLUFS)
+    {
+        // "Sausage Master" Detection:
+        // Triggered if dynamic range is crushed (very low complexity)
+        // AND loudness is pushed very hot (above -7 LUFS)
+        return dynamicComplexity < 2.0f && loudnessLUFS > -7.0f;
+    }
+
+    private static string DetermineMoodTag(HighLevelData? highLevel)
+    {
+        if (highLevel == null) return string.Empty;
+
+        // Aggregate mood model outputs to determine primary mood
+        var moods = new Dictionary<string, float>
+        {
+            ["Happy"] = highLevel.MoodHappy?.All?.Happy ?? 0,
+            ["Aggressive"] = highLevel.MoodAggressive?.All?.Aggressive ?? 0,
+            ["Calm"] = highLevel.MoodHappy?.All?.NotHappy ?? 0, // Inverse of happy = calm
+            ["Intense"] = highLevel.MoodAggressive?.All?.NotAggressive ?? 0 // Inverse
+        };
+
+        // Return highest confidence mood
+        var topMood = moods.OrderByDescending(m => m.Value).FirstOrDefault();
+        return topMood.Value > 0.5f ? topMood.Key : "Neutral";
+    }
+
+    private static float CalculateMoodConfidence(HighLevelData? highLevel)
+    {
+        if (highLevel == null) return 0f;
+
+        // Return the highest probability among all mood predictions
+        return new[]
+        {
+            highLevel.MoodHappy?.Probability ?? 0,
+            highLevel.MoodAggressive?.Probability ?? 0
+        }.Max();
+    }
+
+    private static string FormatChordProgression(string[]? chordsKey)
+    {
+        if (chordsKey == null || chordsKey.Length == 0)
+            return string.Empty;
+
+        // Take first 8 chords and format as progression
+        // Example: ["Am", "G", "F", "E"] -> "Am | G | F | E"
+        var chords = chordsKey.Take(8).Where(c => !string.IsNullOrEmpty(c));
+        return string.Join(" | ", chords);
     }
 
     public void Dispose()

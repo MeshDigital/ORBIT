@@ -13,6 +13,9 @@ public class EssentiaOutput
 
     [JsonPropertyName("lowlevel")]
     public LowLevelData? LowLevel { get; set; }
+
+    [JsonPropertyName("highlevel")]
+    public HighLevelData? HighLevel { get; set; } // Phase 13C: AI Layer
 }
 
 public class RhythmData
@@ -25,6 +28,10 @@ public class RhythmData
 
     [JsonPropertyName("onset_rate")]
     public float OnsetRate { get; set; }
+
+    // Phase 13A: BPM Drift Detection
+    [JsonPropertyName("bpm_histogram")]
+    public float[]? BpmHistogram { get; set; }
 }
 
 public class TonalData
@@ -34,6 +41,10 @@ public class TonalData
     
     [JsonPropertyName("key_krumhansl")]
     public KeyData? KeyKrumhansl { get; set; }
+
+    // Phase 13C: Chord Extraction
+    [JsonPropertyName("chords_key")]
+    public string[]? ChordsKey { get; set; }
 }
 
 public class KeyData
@@ -67,4 +78,59 @@ public class StatsData
 {
     [JsonPropertyName("mean")]
     public float Mean { get; set; }
+}
+
+// Phase 13C: AI Layer - TensorFlow Model Outputs
+public class HighLevelData
+{
+    [JsonPropertyName("voice_instrumental")]
+    public ModelPrediction? VoiceInstrumental { get; set; }
+
+    [JsonPropertyName("danceability")]
+    public ModelPrediction? Danceability { get; set; }
+
+    [JsonPropertyName("mood_happy")]
+    public ModelPrediction? MoodHappy { get; set; }
+
+    [JsonPropertyName("mood_aggressive")]
+    public ModelPrediction? MoodAggressive { get; set; }
+}
+
+public class ModelPrediction
+{
+    [JsonPropertyName("all")]
+    public ModelClasses? All { get; set; }
+
+    [JsonPropertyName("value")]
+    public string Value { get; set; } = string.Empty;
+
+    [JsonPropertyName("probability")]
+    public float Probability { get; set; }
+}
+
+public class ModelClasses
+{
+    [JsonPropertyName("instrumental")]
+    public float Instrumental { get; set; }
+
+    [JsonPropertyName("voice")]
+    public float Voice { get; set; }
+
+    [JsonPropertyName("danceable")]
+    public float Danceable { get; set; }
+
+    [JsonPropertyName("not_danceable")]
+    public float NotDanceable { get; set; }
+
+    [JsonPropertyName("happy")]
+    public float Happy { get; set; }
+
+    [JsonPropertyName("not_happy")]
+    public float NotHappy { get; set; }
+
+    [JsonPropertyName("aggressive")]
+    public float Aggressive { get; set; }
+
+    [JsonPropertyName("not_aggressive")]
+    public float NotAggressive { get; set; }
 }
