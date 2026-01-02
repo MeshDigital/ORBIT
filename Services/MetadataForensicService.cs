@@ -5,6 +5,7 @@ using SLSKDONET.Models;
 
 namespace SLSKDONET.Services
 {
+    // [AUDIT FIX: Enforce Static Utility]
     public static class MetadataForensicService
     {
         private static readonly Regex VbrRegex = new Regex(@"V\d+|VBR", RegexOptions.IgnoreCase | RegexOptions.Compiled);
