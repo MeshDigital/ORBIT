@@ -265,6 +265,18 @@
                             </StackPanel>
                         </Grid>
                     </Button>
+                    
+                    <Button Classes="nav" 
+                            Command="{Binding NavigateStyleLabCommand}"
+                            Classes.selected="{Binding CurrentPageType, Converter={StaticResource EqualityConverter}, ConverterParameter={x:Static models:PageType.StyleLab}}">
+                        <Grid ColumnDefinitions="Auto,*">
+                            <Border Grid.ColumnSpan="2" CornerRadius="4" IsVisible="False"/>
+                            <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="12">
+                                <TextBlock Text="🧪" FontSize="16"/>
+                                <TextBlock Text="Style Lab" FontSize="14"/>
+                            </StackPanel>
+                        </Grid>
+                    </Button>
                 </StackPanel>
             </Border>
 

@@ -602,6 +602,10 @@ public partial class App : Application
         services.AddSingleton<Services.Musical.CueGenerationEngine>();
         services.AddSingleton<Services.Musical.ManualCueGenerationService>(); // User-triggered batch cue processing
         
+        // Phase 15: Style Lab (Sonic Taxonomy)
+        services.AddSingleton<Services.AI.IStyleClassifierService, Services.AI.StyleClassifierService>();
+        services.AddSingleton<ViewModels.StyleLabViewModel>();
+        
         // Phase 0: ViewModel Refactoring - Library child ViewModels
         services.AddTransient<ViewModels.Library.ProjectListViewModel>();
         services.AddTransient<ViewModels.Library.TrackListViewModel>(sp => 

@@ -199,5 +199,25 @@ public class AudioFeaturesEntity
     /// Timestamp when this analysis was performed.
     /// </summary>
     public DateTime AnalyzedAt { get; set; } = DateTime.UtcNow;
+
+    // ============================================
+    // Phase 15: Sonic Taxonomy (Style Lab)
+    // ============================================
+
+    /// <summary>
+    /// The specific sub-genre detected by the Style Classifier (e.g., "Neurofunk").
+    /// </summary>
+    public string DetectedSubGenre { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Confidence score of the classification (0.0 - 1.0).
+    /// </summary>
+    public float SubGenreConfidence { get; set; }
+    
+    /// <summary>
+    /// JSON dictionary of style probabilities for hybrid detection.
+    /// e.g., {"Neurofunk": 0.6, "Jump Up": 0.4}
+    /// </summary>
+    public string GenreDistributionJson { get; set; } = "{}";
 }
 

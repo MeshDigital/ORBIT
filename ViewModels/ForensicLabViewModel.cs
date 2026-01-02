@@ -328,7 +328,20 @@ public class ForensicLabViewModel : INotifyPropertyChanged, IDisposable
             FilePath = libraryEntry.FilePath;
             ClaimedBitrate = libraryEntry.Bitrate;
 
+
             LoadingStatus = "Loading Phase 13 AI data...";
+
+            // Use libraryEntry for waveform data (Phase 0 stored)
+            if (libraryEntry.WaveformData != null && libraryEntry.RmsData != null)
+            {
+                WaveformData = new WaveformAnalysisData
+                {
+                    PeakData = libraryEntry.WaveformData,
+                    RmsData = libraryEntry.RmsData,
+                    DurationSeconds = libraryEntry.DurationSeconds ?? 0
+                };
+                Duration = TimeSpan.FromSeconds(libraryEntry.DurationSeconds ?? 0);
+            }
 
             // 2. AudioFeaturesEntity (Phase 13: Essentia/AI data)
             var audioFeatures = await db.AudioFeatures
@@ -368,7 +381,7 @@ public class ForensicLabViewModel : INotifyPropertyChanged, IDisposable
             if (audioAnalysis != null)
             {
                 TrueBitrate = audioAnalysis.Bitrate;
-                FrequencyCutoff = audioAnalysis.FrequencyCutoff ?? 0;
+                FrequencyCutoff = audioAnalysis.FrequencyCutoff;
                 
                 // Check if fake using MetadataForensicService
                 var track = new Track 
@@ -380,16 +393,14 @@ public class ForensicLabViewModel : INotifyPropertyChanged, IDisposable
                 };
                 IsFake = MetadataForensicService.IsFake(track);
 
-                // Waveform data
-                if (audioAnalysis.WaveformPeakData != null && audioAnalysis.WaveformRmsData != null)
+                // Waveform data is now loaded from LibraryEntry
+                if (WaveformData == null) 
                 {
-                    WaveformData = new WaveformAnalysisData
+                    // Fallback to approximate duration from audio analysis if not set
+                    if (audioAnalysis.DurationMs > 0 && Duration == TimeSpan.Zero)
                     {
-                        PeakData = audioAnalysis.WaveformPeakData,
-                        RmsData = audioAnalysis.WaveformRmsData,
-                        DurationSeconds = audioAnalysis.DurationMs != null ? audioAnalysis.DurationMs.Value / 1000.0 : 0.0
-                    };
-                    Duration = TimeSpan.FromMilliseconds((audioAnalysis.DurationMs ?? (long?)0).Value);
+                        Duration = TimeSpan.FromMilliseconds(audioAnalysis.DurationMs);
+                    }
                 }
             }
 

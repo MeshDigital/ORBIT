@@ -200,6 +200,9 @@ public class PlaylistTrackEntity
     public string? SourcePlaylistName { get; set; }
     
     public bool IsEnriched { get; set; } = false;
+    
+    // Phase 15
+    public string? DetectedSubGenre { get; set; }
 
     // Filter Overrides
     public string? PreferredFormats { get; set; }

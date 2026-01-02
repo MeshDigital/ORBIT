@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Threading.Tasks;
+using SLSKDONET.Data.Entities;
 using SLSKDONET.Models;
 
 namespace SLSKDONET.Services;
@@ -104,7 +105,10 @@ public interface ILibraryService
     /// </summary>
     Task DeletePlaylistJobAsync(Guid playlistId);
     Task<List<PlaylistJob>> LoadDeletedPlaylistJobsAsync();
-    Task RestorePlaylistJobAsync(Guid playlistId);
+    Task RestorePlaylistJobAsync(Guid jobId);
+    
+    // Phase 15
+    Task<List<StyleDefinitionEntity>> GetStyleDefinitionsAsync();
     Task DeletePlaylistTracksAsync(Guid jobId);
     Task DeletePlaylistTrackAsync(Guid playlistTrackId);
 

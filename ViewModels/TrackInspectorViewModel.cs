@@ -88,6 +88,7 @@ namespace SLSKDONET.ViewModels
         public System.Windows.Input.ICommand ExportLogsCommand { get; }
         public System.Windows.Input.ICommand ReFetchUpgradeCommand { get; }
         public System.Windows.Input.ICommand GenerateSpectrogramCommand { get; }
+        public System.Windows.Input.ICommand OpenInLabCommand { get; }
 
         public TrackInspectorViewModel(
             Services.IAudioAnalysisService audioAnalysisService, 
@@ -261,6 +262,14 @@ namespace SLSKDONET.ViewModels
                 finally
                 {
                     IsGeneratingSpectrogram = false;
+                }
+            });
+
+            OpenInLabCommand = ReactiveCommand.Create(() =>
+            {
+                if (Track != null && !string.IsNullOrEmpty(Track.TrackUniqueHash))
+                {
+                    _eventBus.Publish(new RequestForensicAnalysisEvent(Track.TrackUniqueHash));
                 }
             });
         }

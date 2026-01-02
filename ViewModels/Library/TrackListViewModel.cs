@@ -173,6 +173,47 @@ public class TrackListViewModel : ReactiveObject
     // ListBox Selection Binding
     public ObservableCollection<PlaylistTrackViewModel> SelectedTracks { get; } = new();
 
+    // Phase 15: Style Filters
+    public ObservableCollection<StyleFilterItem> StyleFilters { get; } = new();
+
+    private void OnStyleFilterChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName == nameof(StyleFilterItem.IsSelected))
+        {
+            RefreshFilteredTracks();
+        }
+    }
+
+    public async Task LoadStyleFiltersAsync()
+    {
+        try 
+        {
+            var styles = await _libraryService.GetStyleDefinitionsAsync();
+            
+            // Updates on UI Thread
+            Dispatcher.UIThread.Post(() =>
+            {
+                // Preserve selection state if possible? 
+                // For simplicity, reset or match by ID. 
+                // Given this happens rarely (create/delete style), full reload is fine.
+                
+                foreach (var item in StyleFilters) item.PropertyChanged -= OnStyleFilterChanged;
+                StyleFilters.Clear();
+
+                foreach (var style in styles)
+                {
+                    var item = new StyleFilterItem(style);
+                    item.PropertyChanged += OnStyleFilterChanged;
+                    StyleFilters.Add(item);
+                }
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to load style filters");
+        }
+    }
+
     public System.Windows.Input.ICommand SelectAllTracksCommand { get; }
     public System.Windows.Input.ICommand DeselectAllTracksCommand { get; }
     public System.Windows.Input.ICommand BulkDownloadCommand { get; }
@@ -241,6 +282,12 @@ public class TrackListViewModel : ReactiveObject
 
         // Phase 6D: Local UI sync for track moves
         eventBus.GetEvent<TrackMovedEvent>().Subscribe(evt => OnTrackMoved(evt));
+
+        // Phase 15: Refresh filters when definitions change
+        eventBus.GetEvent<StyleDefinitionsUpdatedEvent>().Subscribe(evt => { _ = LoadStyleFiltersAsync(); });
+        
+        // Initial Load
+        _ = LoadStyleFiltersAsync();
     }
 
     private void OnTrackMoved(TrackMovedEvent evt)
@@ -430,6 +477,27 @@ public class TrackListViewModel : ReactiveObject
 
             if (IsFilterPending && track.State == PlaylistTrackState.Completed)
                 return false;
+        }
+
+        // Phase 15: Style Filtering
+        // If NO styles are selected, show ALL (ignore this filter level).
+        // If ANY styles are selected, track must match ONE of them.
+        var selectedStyles = StyleFilters.Where(s => s.IsSelected).ToList();
+        if (selectedStyles.Any())
+        {
+            var trackStyle = track.Model.DetectedSubGenre;
+            if (string.IsNullOrEmpty(trackStyle)) return false; // No style = filtered out if filter active
+
+            bool match = false;
+            foreach (var style in selectedStyles)
+            {
+                 if (string.Equals(trackStyle, style.Style.Name, StringComparison.OrdinalIgnoreCase))
+                 {
+                     match = true;
+                     break;
+                 }
+            }
+            if (!match) return false;
         }
 
         // Apply search filter

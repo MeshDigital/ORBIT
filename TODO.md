@@ -136,6 +136,14 @@
   - ✅ **Real-Time Logs**: Implemented `ObservableCollection` log stream in `AnalysisQueueViewModel`.
   - ✅ **Thread Safety**: Integrated `RxApp.MainThreadScheduler` for safe UI updates from background threads.
 
+### Recent Updates (January 2, 2026) - The Style Lab (Sonic Taxonomy)
+- ✅ **Phase 15: Style Lab Complete**:
+  - ✅ **Core Infrastructure**: `StyleDefinitionEntity`, `StyleClassifierService` (Centroid training & prediction).
+  - ✅ **Style Lab UI**: Dedicated management view with Drag & Drop training bucket logic.
+  - ✅ **Library Integration**: Dynamic filter chips in Library headers for instant style-based filtering.
+  - ✅ **Database Schema**: Added `DetectedSubGenre` to `TrackEntity`, `PlaylistTrack`, and `AudioFeaturesEntity`.
+  - ✅ **Build Resiliency**: Fixed namespace and binding errors across the stack.
+
 ---
 
 ## 📊 CODE QUALITY REVIEW FINDINGS (December 30, 2025)

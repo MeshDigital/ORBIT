@@ -1,0 +1,108 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:vm="clr-namespace:SLSKDONET.ViewModels"
+             mc:Ignorable="d" d:DesignWidth="1000" d:DesignHeight="600"
+             x:Class="SLSKDONET.Views.Avalonia.StyleLabView"
+             x:DataType="vm:StyleLabViewModel"
+             Background="#1E1E1E" Foreground="White">
+
+    <Grid ColumnDefinitions="300,*">
+        <!-- Sidebar: Style List -->
+        <Border Grid.Column="0" BorderBrush="#333" BorderThickness="0,0,1,0" Background="#252526">
+            <Grid RowDefinitions="Auto,*,Auto">
+                <TextBlock Grid.Row="0" Text="Style Lab" FontSize="18" FontWeight="Bold" Margin="16"/>
+                
+                <ListBox Grid.Row="1" ItemsSource="{Binding Styles}" SelectedItem="{Binding SelectedStyle}" Background="Transparent">
+                    <ListBox.ItemTemplate>
+                        <DataTemplate>
+                            <StackPanel Orientation="Horizontal" Spacing="10" Margin="4">
+                                <Ellipse Width="12" Height="12" Fill="{Binding ColorHex}"/>
+                                <TextBlock Text="{Binding Name}" VerticalAlignment="Center" FontSize="14"/>
+                            </StackPanel>
+                        </DataTemplate>
+                    </ListBox.ItemTemplate>
+                </ListBox>
+
+                <StackPanel Grid.Row="2" Margin="12" Spacing="8">
+                    <TextBox Text="{Binding NewStyleName}" Watermark="New Style Name..."/>
+                    <Button Content="Create New Bucket" Command="{Binding CreateStyleCommand}" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center"/>
+                </StackPanel>
+            </Grid>
+        </Border>
+
+        <!-- Main Content: Inspector & Training -->
+        <Grid Grid.Column="1" Margin="24">
+            <!-- Emtpy State -->
+            <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center" Spacing="16" IsVisible="{Binding SelectedStyle, Converter={x:Static ObjectConverters.IsNull}}">
+                <TextBlock Text="Select or Create a Style Bucket" FontSize="20" Foreground="#666"/>
+                <TextBlock Text="Drag tracks into the bucket to train ORBIT's brain." FontSize="14" Foreground="#444"/>
+            </StackPanel>
+
+            <!-- Active Inspector -->
+            <Grid RowDefinitions="Auto,Auto,*,Auto" IsVisible="{Binding SelectedStyle, Converter={x:Static ObjectConverters.IsNotNull}}">
+                
+                <!-- Header -->
+                <StackPanel Grid.Row="0" Spacing="4">
+                    <StackPanel Orientation="Horizontal" Spacing="12">
+                        <Ellipse Width="24" Height="24" Fill="{Binding SelectedStyle.ColorHex}"/>
+                        <TextBlock Text="{Binding SelectedStyle.Name}" FontSize="28" FontWeight="Bold"/>
+                    </StackPanel>
+                    <TextBlock Text="Drag 'Gold Standard' tracks here to define this style." Foreground="#888" Margin="36,0,0,0"/>
+                </StackPanel>
+
+                <Separator Grid.Row="1" Background="#333" Margin="0,16"/>
+
+                <!-- Training Zone -->
+                <Grid Grid.Row="2" RowDefinitions="Auto,*">
+                    <TextBlock Grid.Row="0" Text="Reference Tracks" FontSize="16" FontWeight="SemiBold" Margin="0,0,0,8"/>
+                    
+                    <!-- Drop Zone List -->
+                    <Border Grid.Row="1" 
+                            BorderBrush="#444" 
+                            BorderThickness="2" 
+                            CornerRadius="8" 
+                            Background="#1E1E1E"
+                            DragDrop.AllowDrop="True">
+                        <ListBox ItemsSource="{Binding ReferenceTracks}" Background="Transparent" Margin="4">
+                            <ListBox.ItemTemplate>
+                                <DataTemplate>
+                                    <Grid ColumnDefinitions="*,Auto">
+                                        <StackPanel Orientation="Horizontal" Spacing="8">
+                                            <TextBlock Text="{Binding Artist}" FontWeight="Bold"/>
+                                            <TextBlock Text="-" Foreground="#666"/>
+                                            <TextBlock Text="{Binding Title}"/>
+                                        </StackPanel>
+                                        <Button Grid.Column="1" Content="X" 
+                                                Command="{Binding #Root.DataContext.RemoveTrackFromStyleCommand}" 
+                                                CommandParameter="{Binding TrackUniqueHash}"
+                                                Background="Transparent" Foreground="#666"/>
+                                    </Grid>
+                                </DataTemplate>
+                            </ListBox.ItemTemplate>
+                        </ListBox>
+                    </Border>
+                </Grid>
+
+                <!-- Action Bar -->
+                <StackPanel Grid.Row="3" Orientation="Horizontal" Spacing="16" Margin="0,24,0,0">
+                    <Button Classes="primary" Content="Train Model" 
+                            Command="{Binding TrainStyleCommand}" 
+                            CommandParameter="{Binding SelectedStyle}"
+                            FontSize="16" Padding="24,8"/>
+                    
+                    <Button Content="Scan Library (Apply All)" 
+                            Command="{Binding ScanLibraryCommand}"
+                            FontSize="14" Padding="16,8"/>
+
+                    <Button Content="Delete Bucket" 
+                            Command="{Binding DeleteStyleCommand}"
+                            CommandParameter="{Binding SelectedStyle}"
+                            Background="#400000" Foreground="Red"
+                            Margin="20,0,0,0"/>
+                </StackPanel>
+            </Grid>
+        </Grid>
+    </Grid>
+</UserControl>

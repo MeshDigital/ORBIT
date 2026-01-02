@@ -333,7 +333,7 @@
                         <!-- Bitrate Verification -->
                         <StackPanel Spacing="8">
                             <TextBlock Text="BITRATE VERIFICATION" FontSize="10" Foreground="#666"/>
-                            <Border Background="#252526"
+                            <Border Background="{Binding IsFake, Converter={StaticResource BoolToColorConverter}, ConverterParameter='#FF5252;#4EC9B0'}"
                                     CornerRadius="4" 
                                     Padding="12">
                                 <TextBlock Text="{Binding BitrateVerificationLabel}" 
@@ -378,7 +378,7 @@
                                 <StackPanel Spacing="8">
                                     <TextBlock Text="{Binding DynamicRangeLabel}" 
                                                FontSize="12" 
-                                               Foreground="#AAA"
+                                               Foreground="{Binding IsDynamicCompressed, Converter={StaticResource BoolToColorConverter}, ConverterParameter='#FF9800;#4EC9B0'}"
                                                FontWeight="SemiBold"
                                                TextWrapping="Wrap"/>
                                     <Grid ColumnDefinitions="*,Auto">

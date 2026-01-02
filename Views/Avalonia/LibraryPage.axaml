@@ -244,6 +244,25 @@
                                          IsChecked="{Binding Tracks.IsFilterPending, Mode=TwoWay}"
                                          Classes="chip"
                                          Padding="16,8"/>
+                            
+                            <!-- Phase 15: Dynamic Style Filters -->
+                            <ItemsControl ItemsSource="{Binding Tracks.StyleFilters}">
+                                <ItemsControl.ItemsPanel>
+                                    <ItemsPanelTemplate>
+                                        <StackPanel Orientation="Horizontal" Spacing="8"/>
+                                    </ItemsPanelTemplate>
+                                </ItemsControl.ItemsPanel>
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <ToggleButton Content="{Binding Style.Name}" 
+                                                      IsChecked="{Binding IsSelected, Mode=TwoWay}"
+                                                      Classes="chip"
+                                                      Padding="16,8"
+                                                      BorderBrush="{Binding ColorBrush}"
+                                                      BorderThickness="0,0,0,2"/>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
                         </StackPanel>
                     </Grid>
                     

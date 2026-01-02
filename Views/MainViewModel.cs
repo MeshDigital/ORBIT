@@ -120,6 +120,7 @@ public class MainViewModel : INotifyPropertyChanged
         NavigateSettingsCommand = new RelayCommand(NavigateToSettings);
         NavigateUpgradeScoutCommand = new RelayCommand(NavigateUpgradeScout);
         NavigateInspectorCommand = new RelayCommand(NavigateAnalysisQueue);
+        NavigateStyleLabCommand = new RelayCommand(() => _navigationService.NavigateTo("StyleLab"));
         NavigateImportCommand = new RelayCommand(NavigateToImport); // Phase 6D
         ToggleNavigationCommand = new RelayCommand(() => IsNavigationCollapsed = !IsNavigationCollapsed);
         TogglePlayerCommand = new RelayCommand(() => IsPlayerSidebarVisible = !IsPlayerSidebarVisible);
@@ -165,6 +166,19 @@ public class MainViewModel : INotifyPropertyChanged
                 AnalysisQueueCount = evt.QueuedCount;
                 AnalysisProcessedCount = evt.ProcessedCount;
                 IsAnalysisPaused = evt.IsPaused;
+            });
+        });
+
+        // Phase 14: Forensic Lab Navigation
+        _eventBus.GetEvent<RequestForensicAnalysisEvent>().Subscribe(evt =>
+        {
+            Dispatcher.UIThread.Post(() =>
+            {
+                // 1. Switch to Analysis Queue page
+                NavigateAnalysisQueue();
+                
+                // 2. Open the specific track in Lab Mode
+                AnalysisQueueViewModel.OpenTrackInLab(evt.TrackHash);
             });
         });
         
@@ -226,6 +240,7 @@ public class MainViewModel : INotifyPropertyChanged
         _navigationService.RegisterPage("UpgradeScout", typeof(Avalonia.UpgradeScoutView));
         _navigationService.RegisterPage("Inspector", typeof(Avalonia.InspectorPage));
         _navigationService.RegisterPage("AnalysisQueue", typeof(Avalonia.AnalysisQueuePage));
+        _navigationService.RegisterPage("StyleLab", typeof(Avalonia.StyleLabView));
         
         // Subscribe to navigation events
         _navigationService.Navigated += OnNavigated;
@@ -495,6 +510,8 @@ public class MainViewModel : INotifyPropertyChanged
     public ICommand NavigateSettingsCommand { get; }
     public ICommand NavigateUpgradeScoutCommand { get; }
     public ICommand NavigateInspectorCommand { get; }
+    public ICommand NavigateStyleLabCommand { get; }
+
     public ICommand NavigateImportCommand { get; } // Phase 6D
     public ICommand ToggleNavigationCommand { get; }
     public ICommand TogglePlayerCommand { get; }
@@ -535,6 +552,7 @@ public class MainViewModel : INotifyPropertyChanged
                 "UpgradeScoutView" => PageType.UpgradeScout,
                 "InspectorPage" => PageType.Inspector,
                 "AnalysisQueuePage" => PageType.AnalysisQueue,
+                "StyleLabView" => PageType.StyleLab,
                 _ => CurrentPageType
             };
             

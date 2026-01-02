@@ -10,6 +10,7 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using System.IO; // Added for Path
+using SLSKDONET.Data.Entities;
 
 namespace SLSKDONET.Services;
 
@@ -192,6 +193,10 @@ public class DatabaseService
             if (!existingColumns.Contains("CompletedAt"))
                 columnsToAdd.Add(("CompletedAt", "CompletedAt TEXT NULL"));
             
+            // Phase 15: Style Lab
+            if (!existingColumns.Contains("DetectedSubGenre"))
+                columnsToAdd.Add(("DetectedSubGenre", "DetectedSubGenre TEXT NULL"));
+
             foreach (var (name, definition) in columnsToAdd)
             {
                 _logger.LogWarning("Schema Patch: Adding missing column '{Column}' to PlaylistTracks", name);
@@ -2495,6 +2500,12 @@ public class DatabaseService
         {
             _writeSemaphore.Release();
         }
+    }
+    // Phase 15: Style Lab
+    public async Task<List<StyleDefinitionEntity>> LoadAllStyleDefinitionsAsync()
+    {
+        using var context = new AppDbContext();
+        return await context.StyleDefinitions.AsNoTracking().ToListAsync();
     }
 }
 

@@ -45,6 +45,13 @@
 *   **Atomic Swaps**: Checkpointed 8-step swap process (Lock -> Search -> Download -> Clone -> Swap).
 *   **Metadata Cloning**: Preserving ratings and play counts during upgrades.
 
+### ✅ Phase 15: Style Lab (Sonic Taxonomy)
+**Goal**: User-defined musical classification.
+*   **Style Buckets**: Users define "Neo-Trance" or "Liquid" by example tracks.
+*   **Centroid Learning**: AI calculates the "sonic center" of a style bucket.
+*   **Auto-Tagging**: Library tracks are automatically assigned a `DetectedSubGenre`.
+*   **Dynamic Filtering**: Instant style chips in the Library UI.
+
 ---
 
 ## 🚧 Active Development

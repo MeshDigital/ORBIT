@@ -10,5 +10,6 @@ public enum PageType
     Import,
     UpgradeScout,
     Inspector,
-    AnalysisQueue
+    AnalysisQueue,
+    StyleLab
 }

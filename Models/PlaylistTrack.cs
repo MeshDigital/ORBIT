@@ -79,6 +79,8 @@ public class PlaylistTrack
     /// <summary>
     /// Timestamp when this track was added to the playlist.
     /// </summary>
+    public string? DetectedSubGenre { get; set; }
+
     public DateTime AddedAt { get; set; } = DateTime.UtcNow;
 
     /// <summary>

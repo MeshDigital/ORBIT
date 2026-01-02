@@ -7,6 +7,7 @@ using Microsoft.Extensions.Logging;
 using SLSKDONET.Configuration;
 using SLSKDONET.Data;
 using SLSKDONET.Models;
+using SLSKDONET.Data.Entities;
 using SLSKDONET.Utils;
 using Avalonia.Threading;
 
@@ -755,7 +756,10 @@ public class LibraryService : ILibraryService
             IsTrustworthy = entity.IsTrustworthy,
             QualityConfidence = entity.QualityConfidence,
             FrequencyCutoff = entity.FrequencyCutoff,
-            QualityDetails = entity.QualityDetails
+            QualityDetails = entity.QualityDetails,
+            
+            // Phase 15
+            DetectedSubGenre = entity.DetectedSubGenre
         };
     }
 
@@ -798,6 +802,7 @@ public class LibraryService : ILibraryService
             MusicalKey = track.MusicalKey,
             BPM = track.BPM,
             Energy = track.Energy,
+            DetectedSubGenre = track.DetectedSubGenre,
             Danceability = track.Danceability,
             Valence = track.Valence,
             AnalysisOffset = track.AnalysisOffset,
@@ -911,6 +916,19 @@ public class LibraryService : ILibraryService
         {
             _logger.LogError(ex, "Failed to update library entry path");
             throw;
+        }
+    }
+    // Phase 15
+    public async Task<List<StyleDefinitionEntity>> GetStyleDefinitionsAsync()
+    {
+        try
+        {
+            return await _databaseService.LoadAllStyleDefinitionsAsync().ConfigureAwait(false);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to load style definitions");
+            return new List<StyleDefinitionEntity>();
         }
     }
 }
