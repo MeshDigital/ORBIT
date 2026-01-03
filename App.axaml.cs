@@ -256,6 +256,18 @@ public partial class App : Application
                             Serilog.Log.Warning(spotifyEx, "Spotify connection verification failed (non-critical)");
                         }
 
+                        // Phase 3: Startup Health Check (Professionalization)
+                        // Validates FFmpeg and other dependencies, shows dialog if missing
+                        try 
+                        {
+                            var healthCheck = Services.GetRequiredService<StartupHealthCheckService>();
+                            await healthCheck.RunHealthCheckAsync();
+                        }
+                        catch (Exception healthEx)
+                        {
+                            Serilog.Log.Error(healthEx, "Startup health check failed");
+                        }
+
                         // Phase 8: Validate FFmpeg availability (Moved from startup)
                         try
                         {
@@ -639,6 +651,7 @@ public partial class App : Application
         
         // Gatekeeper Service
         services.AddSingleton<ISafetyFilterService, SafetyFilterService>();
+        services.AddSingleton<StartupHealthCheckService>();
         
         // Views - Register all page controls for NavigationService
         services.AddTransient<Views.Avalonia.HomePage>();

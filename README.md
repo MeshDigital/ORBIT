@@ -11,6 +11,11 @@
 [![License](https://img.shields.io/badge/license-GPL--3.0-green)](LICENSE)
 [![Status](https://img.shields.io/badge/status-Active%20Development-brightgreen)](https://github.com/MeshDigital/ORBIT)
 
+> [!WARNING]
+> **LEGAL & PRIVACY NOTICE**
+> *   **Privacy Risk:** ORBIT connects to the Soulseek P2P network. Your IP address **will be visible to other peers**. We strongly recommend using a reputable **VPN** to protect your identity.
+> *   **Copyright:** This software is provided for educational purposes and for managing legally acquired content. The developers do not condone copyright infringement. You are solely responsible for compliance with your local laws.
+
 ---
 
 ## 💡 Why ORBIT Exists

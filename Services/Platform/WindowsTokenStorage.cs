@@ -88,8 +88,15 @@ public class WindowsTokenStorage : ISecureTokenStorage
             try
             {
                 using var fs = new FileStream(_tokenFilePath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
-                encryptedBytes = new byte[fs.Length];
-                await fs.ReadAsync(encryptedBytes, 0, (int)fs.Length);
+                int length = (int)fs.Length;
+                encryptedBytes = new byte[length];
+                int totalRead = 0;
+                while (totalRead < length)
+                {
+                    int read = await fs.ReadAsync(encryptedBytes, totalRead, length - totalRead);
+                    if (read == 0) throw new EndOfStreamException("End of stream reached before reading all bytes.");
+                    totalRead += read;
+                }
             }
             finally
             {
