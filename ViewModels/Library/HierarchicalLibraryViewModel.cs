@@ -77,7 +77,7 @@ public class HierarchicalLibraryViewModel
             ("Popularity", new TextColumn<ILibraryNode, int>("🔥", x => x.Popularity, width: new GridLength(40))),
             ("Bitrate", new TextColumn<ILibraryNode, string>("Bitrate", x => x.Bitrate ?? string.Empty, width: new GridLength(60))),
             ("Genres", new TextColumn<ILibraryNode, string>("Genres", x => x.Genres ?? string.Empty, width: new GridLength(100))),
-            ("Added", new TextColumn<ILibraryNode, string>("Added", x => x.AddedAt.ToShortDateString(), width: new GridLength(90))),
+            ("Added", new TextColumn<ILibraryNode, DateTime>("Added", x => x.AddedAt, width: new GridLength(90), options: new TextColumnOptions<ILibraryNode> { StringFormat = "d" })),
             ("Actions", new TemplateColumn<ILibraryNode>("Actions", CreateActionsTemplate(), width: new GridLength(120)))
         };
 

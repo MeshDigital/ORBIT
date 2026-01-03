@@ -47,10 +47,12 @@ public class AppDbContext : DbContext
     /// Phase 1B: Configures SQLite connection with WAL mode and optimal settings.
     /// Called by DatabaseService.InitAsync during startup.
     /// </summary>
-    public void ConfigureSqliteOptimizations(SqliteConnection connection)
+    public void ConfigureSqliteOptimizations(System.Data.Common.DbConnection connection)
     {
-        if (connection.State != System.Data.ConnectionState.Open)
-            connection.Open();
+        if (connection is not SqliteConnection sqliteConnection) return;
+
+        if (sqliteConnection.State != System.Data.ConnectionState.Open)
+            sqliteConnection.Open();
 
         using var command = connection.CreateCommand();
         

@@ -36,7 +36,7 @@ public class DatabaseService
         _logger.LogInformation("[{Ms}ms] Database Init: EnsureCreated completed", sw.ElapsedMilliseconds);
 
         // Phase 1B: Configure WAL mode for better concurrency
-        SqliteConnection? connection = context.Database.GetDbConnection() as SqliteConnection;
+        var connection = context.Database.GetDbConnection();
         if (connection != null)
         {
             context.ConfigureSqliteOptimizations(connection);

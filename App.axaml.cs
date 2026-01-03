@@ -3,7 +3,9 @@ using Avalonia.Controls;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Markup.Xaml;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using Serilog;
 using Serilog.Extensions.Logging;
 using SLSKDONET.Configuration;
 using SLSKDONET.Services;
@@ -248,8 +250,8 @@ public partial class App : Application
                         // This prevents the "zombie token" bug where tokens are invalid but UI shows "Connected"
                         try
                         {
-                            var spotifyAuthService = Services.GetRequiredService<SpotifyAuthService>();
-                            await spotifyAuthService.VerifyConnectionAsync();
+                            // var spotifyAuthService = Services.GetRequiredService<SpotifyAuthService>();
+                            // await spotifyAuthService.VerifyConnectionAsync();
                         }
                         catch (Exception spotifyEx)
                         {
@@ -262,10 +264,35 @@ public partial class App : Application
                         {
                             var healthCheck = Services.GetRequiredService<StartupHealthCheckService>();
                             await healthCheck.RunHealthCheckAsync();
+
+                            // Verification Step - COMPLETED 2026-01-03
+                            // var verifier = Services.GetRequiredService<StyleLabPersistenceVerifier>();
+                            // await verifier.VerifyPersistenceAsync();
                         }
                         catch (Exception healthEx)
                         {
                             Serilog.Log.Error(healthEx, "Startup health check failed");
+                        }
+
+                        // Phase 8.1: Verify Spotify connection on startup
+                        // This prevents the "zombie token" bug where tokens are invalid but UI shows "Connected"
+                        try
+                        {
+                            var spotifyAuthService = Services.GetRequiredService<SpotifyAuthService>();
+                            await spotifyAuthService.VerifyConnectionAsync();
+                        }
+                        catch (Exception spotifyEx)
+                        {
+                            Serilog.Log.Warning(spotifyEx, "Spotify connection verification failed (non-critical)");
+                        }
+
+                        // Phase 8: Start all Hosted Services (including AnalysisWorker)
+                        // Since we are not using the Generic Host fully, we must manually start them
+                        var hostedServices = Services.GetServices<IHostedService>();
+                        foreach (var hostedService in hostedServices)
+                        {
+                            _ = hostedService.StartAsync(CancellationToken.None);
+                            Serilog.Log.Information("🚀 Started Hosted Service: {Service}", hostedService.GetType().Name);
                         }
 
                         // Phase 8: Validate FFmpeg availability (Moved from startup)
@@ -652,6 +679,7 @@ public partial class App : Application
         // Gatekeeper Service
         services.AddSingleton<ISafetyFilterService, SafetyFilterService>();
         services.AddSingleton<StartupHealthCheckService>();
+        services.AddSingleton<StyleLabPersistenceVerifier>();
         
         // Views - Register all page controls for NavigationService
         services.AddTransient<Views.Avalonia.HomePage>();
