@@ -239,9 +239,9 @@ public class SearchOrchestrationService
                      Artist = entry.Artist,
                      Title = entry.Title,
                      Album = entry.Album,
-                     Size = entry.FileSizeBytes,
+                     Size = 0, // LibraryEntry model currently lacks size property, using default 0 for now.
                      Bitrate = entry.Bitrate,
-                     Length = (int)(entry.DurationMs / 1000),
+                     Length = entry.DurationSeconds ?? (int)((entry.CanonicalDuration ?? 0) / 1000),
                      Format = System.IO.Path.GetExtension(entry.FilePath)?.TrimStart('.'),
                      FilePath = entry.FilePath,
                      LocalPath = entry.FilePath,

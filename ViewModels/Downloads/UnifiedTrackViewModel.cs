@@ -116,7 +116,7 @@ public class UnifiedTrackViewModel : ReactiveObject, IDisplayableTrack, IDisposa
          // Phase 0: Load artwork via Proxy
          _artwork = new ArtworkProxy(_artworkCache, Model.AlbumArtUrl);
          
-         FindSimilarCommand = new RelayCommand(FindSimilar);
+         FindSimilarCommand = ReactiveCommand.Create(FindSimilar);
     }
     
     private void FindSimilar()

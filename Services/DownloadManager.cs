@@ -1067,7 +1067,7 @@ public class DownloadManager : INotifyPropertyChanged, IDisposable
         {
             try 
             {
-                await RecoverJournaledDownloadsAsync();
+                await HydrateFromCrashAsync();
             }
             catch (Exception ex)
             {

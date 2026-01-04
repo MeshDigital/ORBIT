@@ -1073,7 +1073,7 @@ public class LibraryViewModel : INotifyPropertyChanged, IDisposable
 
                 combined.Add(new HarmonicMatchViewModel
                 {
-                    Track = MapEntityToLibraryEntry(sonic.Entity),
+                    Track = sonic.Entity,
                     CompatibilityScore = sonic.Similarity * 100,
                     Relationship = KeyRelationship.SonicTwin,
                     BpmDifference = seedTrack.Model.BPM.HasValue && sonic.Entity.BPM.HasValue 
@@ -1104,7 +1104,7 @@ public class LibraryViewModel : INotifyPropertyChanged, IDisposable
     }
 
     // Helper struct for internal usage
-    private record SonicMatch(Guid Id, string TrackHash, float Similarity, Data.LibraryEntryEntity Entity);
+    private record SonicMatch(Guid Id, string TrackHash, float Similarity, Models.LibraryEntry Entity);
 
     private async Task<List<SonicMatch>> GetSonicMatchesInternalAsync(PlaylistTrackViewModel seedTrack, System.Threading.CancellationToken token)
     {

@@ -648,8 +648,8 @@ public partial class SearchViewModel : ReactiveObject, IDisposable
                         var sr = new SearchResult(t); 
                         sr.Status = TrackStatus.Downloaded; // They are library tracks
                         
-                        // Map ranking score
-                        sr.CurrentRank = t.CurrentRank;
+                        // Rank is already synced with Model in SearchResult constructor/wrapper
+                        // sr.CurrentRank = t.CurrentRank; 
                         
                         return new AnalyzedSearchResultViewModel(sr);
                     }).ToList();
