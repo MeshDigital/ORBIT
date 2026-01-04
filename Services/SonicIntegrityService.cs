@@ -290,7 +290,8 @@ public class SonicIntegrityService : IDisposable
         var startInfo = new ProcessStartInfo
         {
             FileName = _ffmpegPath,
-            Arguments = $"-i \"{filePath}\" -af \"highpass=f={freq},volumedetect\" -f null -",
+            // Phase 4: Hardware Acceleration
+            Arguments = $"{SystemInfoHelper.GetFfmpegHwAccelArgs()} -i \"{filePath}\" -af \"highpass=f={freq},volumedetect\" -f null -",
             RedirectStandardError = true,
             UseShellExecute = false,
             CreateNoWindow = true

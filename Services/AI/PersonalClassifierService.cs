@@ -6,9 +6,9 @@ using Microsoft.ML;
 using Microsoft.ML.Data;
 using Microsoft.ML.Trainers.LightGbm;
 
-namespace SLSKDONET.Services.AI;
+using Microsoft.ML.Trainers.LightGbm;
 
-public class PersonalClassifierService
+namespace SLSKDONET.Services.AI;public class PersonalClassifierService
 {
     private readonly MLContext _mlContext;
     private ITransformer? _trainedModel;
@@ -224,5 +224,28 @@ public class PersonalClassifierService
         });
 
         return results.OrderByDescending(x => x.Item2).Take(limit).ToList();
+    }
+
+    /// <summary>
+    /// Phase 4: Future-proofing for ONNX GPU inference.
+    /// Provides session options for DirectML (cross-vendor GPU acceleration).
+    /// </summary>
+    public static Microsoft.ML.OnnxRuntime.SessionOptions GetOnnxOptions()
+    {
+        var options = new Microsoft.ML.OnnxRuntime.SessionOptions();
+        
+        try 
+        {
+            // DirectML is the best cross-platform option for Windows (AMD/NVIDIA/Intel)
+            // It translates ONNX ops to DirectX 12 commands.
+            options.AppendExecutionProvider_DML(0); // Device 0 = Primary GPU
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[GPU] DirectML not available, falling back to CPU: {ex.Message}");
+            options.AppendExecutionProvider_CPU();
+        }
+        
+        return options;
     }
 }

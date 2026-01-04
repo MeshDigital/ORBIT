@@ -48,7 +48,15 @@ public class DownloadManager : INotifyPropertyChanged, IDisposable
     private readonly MetadataEnrichmentOrchestrator _enrichmentOrchestrator;
     private readonly PathProviderService _pathProvider;
     private readonly IFileWriteService _fileWriteService; // Phase 1A
-    private readonly CrashRecoveryJournal _crashJournal; // Phase 2A
+    // The following two lines are duplicates from above, keeping the first set.
+    // private readonly ILogger<DownloadManager> _logger;
+    // private readonly SoulseekAdapter _soulseek;
+    // private readonly ILibraryService _libraryService;
+    // private readonly IEventBus _eventBus;
+    // private readonly AppConfig _config;
+    // private readonly ConfigManager _configManager;
+    private readonly CrashRecoveryJournal _crashJournal;
+    private readonly SafeWriteService _safeWrite; // Phase 2A
     private readonly IEnrichmentTaskRepository _enrichmentTaskRepository; // [NEW]
     private readonly IAudioAnalysisService _audioAnalysisService; // Phase 3: Local Audio Analysis
     private readonly AnalysisQueueService _analysisQueue; // Phase 4: Musical Brain Queue
@@ -99,6 +107,7 @@ public class DownloadManager : INotifyPropertyChanged, IDisposable
         PathProviderService pathProvider,
         IFileWriteService fileWriteService,
         CrashRecoveryJournal crashJournal,
+        SafeWriteService safeWrite, // Phase 2A
         IEnrichmentTaskRepository enrichmentTaskRepository,
         IAudioAnalysisService audioAnalysisService,
         AnalysisQueueService analysisQueue,
@@ -117,6 +126,7 @@ public class DownloadManager : INotifyPropertyChanged, IDisposable
         _pathProvider = pathProvider;
         _fileWriteService = fileWriteService;
         _crashJournal = crashJournal; // FIX: Missing assignment causing NullReferenceException
+        _safeWrite = safeWrite; // Phase 2A
         _enrichmentTaskRepository = enrichmentTaskRepository;
         _audioAnalysisService = audioAnalysisService;
         _analysisQueue = analysisQueue;
@@ -1773,8 +1783,8 @@ public class DownloadManager : INotifyPropertyChanged, IDisposable
             ctx.Progress = p * 100;
             ctx.BytesReceived = (long)((bestMatch.Size ?? 0) * p);
 
-            // Throttle to 10 updates/sec to prevent UI stuttering
-            if ((DateTime.Now - lastNotificationTime).TotalMilliseconds > 100)
+            // Throttle to 2 updates/sec (500ms) to prevent UI stuttering under heavy load
+            if ((DateTime.Now - lastNotificationTime).TotalMilliseconds > 500)
             {
                 _eventBus.Publish(new TrackProgressChangedEvent(
                     ctx.GlobalId, 

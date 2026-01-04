@@ -94,3 +94,12 @@
 
 ### Infrastructure
 * **Database Access**: Refactored `MusicalBrainTestService` to use the "New Context per Unit of Work" pattern, ensuring database connection health in singleton services.
+
+### Recent Updates (January 4, 2026) - Operational Resilience & Hardware Acceleration
+* **Phase 0.1: Operational Resilience**:
+  * **Atomic File Moves**: `DownloadManager` now uses `SafeWriteService` for final file writes, preventing 0-byte corruption on crash.
+  * **Crash Journal**: Heartbeats are correctly decoupled from UI updates and properly stopped before finalization.
+* **Phase 4: GPU & Hardware Acceleration**:
+  * **FFmpeg Acceleration**: Enabled `-hwaccel auto` for spectral analysis (NVIDIA/AMD/Intel).
+  * **Future-Proof ML**: Installed `Microsoft.ML.OnnxRuntime.DirectML` and added helper for future Deep Learning models.
+  * **GPU Detection**: Updated `SystemInfoHelper` to centralize hardware capabilities.

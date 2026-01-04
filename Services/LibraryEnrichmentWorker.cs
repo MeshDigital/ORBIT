@@ -117,32 +117,42 @@ public class LibraryEnrichmentWorker : IDisposable
         bool didWork = false;
         int enrichedCount = 0;
 
+        // Determine dynamic parallelism
+        int maxDegree = SystemInfoHelper.GetOptimalParallelism();
+        _logger.LogDebug("Enrichment Worker utilizing {Cores} concurrent workers", maxDegree);
+        
+        var parallelOptions = new ParallelOptions 
+        { 
+            MaxDegreeOfParallelism = maxDegree, 
+            CancellationToken = ct 
+        };
+
         // --- STAGE 0: Active Project Identification (High Priority) ---
-        // Find tracks in playlists that are missing identifiers
-        var unidentifiedPlaylist = await _databaseService.GetPlaylistTracksNeedingEnrichmentAsync(BatchSize);
+        // Increased batch size to allow parallel processing
+        var unidentifiedPlaylist = await _databaseService.GetPlaylistTracksNeedingEnrichmentAsync(BatchSize * 4); // Fetch 20 by default
         
         if (unidentifiedPlaylist.Any())
         {
             _logger.LogInformation("Enrichment Stage 0: Identification for {Count} PlaylistTracks", unidentifiedPlaylist.Count);
-            foreach (var track in unidentifiedPlaylist)
+            
+            // Thread-safe counter
+            int localEnriched = 0;
+
+            await Parallel.ForEachAsync(unidentifiedPlaylist, parallelOptions, async (track, token) =>
             {
-                if (ct.IsCancellationRequested) break;
-                
-                // Cache-First Check
+                // Cache-First Check (Fast, no API)
                 var cached = await _enrichmentService.GetCachedMetadataAsync(track.Artist, track.Title);
                 if (cached != null)
                 {
                      await _databaseService.UpdatePlaylistTrackEnrichmentAsync(track.Id, cached);
                      _logger.LogDebug("Cache Hit (PlaylistTrack): {Artist} - {Title}", track.Artist, track.Title);
-                     enrichedCount++;
-                     
-                     // Notify UI
+                     Interlocked.Increment(ref localEnriched);
                      _eventBus.Publish(new TrackMetadataUpdatedEvent(track.TrackUniqueHash));
-                     
-                     continue; // Skip API call
+                     return;
                 }
 
-                await Task.Delay(RateLimitDelayMs, ct); 
+                // Rate Limit Delay (Throttle per thread)
+                await Task.Delay(RateLimitDelayMs, token);
 
                 try 
                 {
@@ -152,44 +162,42 @@ public class LibraryEnrichmentWorker : IDisposable
                     if (result.Success)
                     {
                          _logger.LogDebug("Identified PlaylistTrack: {Artist} - {Title}", track.Artist, track.Title);
-                         enrichedCount++;
-                         
-                         // Notify UI
+                         Interlocked.Increment(ref localEnriched);
                          _eventBus.Publish(new TrackMetadataUpdatedEvent(track.TrackUniqueHash));
                     }
                 }
-                catch (Exception ex) { _logger.LogError(ex, "Stage 0 failed for track {Id}", track.Id); }
-            }
+                catch (Exception ex) 
+                { 
+                    _logger.LogError(ex, "Stage 0 failed for track {Id}", track.Id); 
+                }
+            });
+            
+            enrichedCount += localEnriched;
             didWork = true;
         }
 
         // --- STAGE 1: Global Library Identification ---
-        // Find tracks with NO Spotify ID (Global Library)
-        var unidentified = await _databaseService.GetLibraryEntriesNeedingEnrichmentAsync(BatchSize);
+        // Increased batch size
+        var unidentified = await _databaseService.GetLibraryEntriesNeedingEnrichmentAsync(BatchSize * 4);
         
         if (unidentified.Any())
         {
             _logger.LogInformation("Enrichment Stage 1: Identification for {Count} Library Entries", unidentified.Count);
-            
-            foreach (var track in unidentified)
+            int localEnriched = 0;
+
+            await Parallel.ForEachAsync(unidentified, parallelOptions, async (track, token) =>
             {
-                if (ct.IsCancellationRequested) break;
-                
-                // Cache-First Check
                 var cached = await _enrichmentService.GetCachedMetadataAsync(track.Artist, track.Title);
                 if (cached != null)
                 {
                      await _databaseService.UpdateLibraryEntryEnrichmentAsync(track.UniqueHash, cached);
                      _logger.LogDebug("Cache Hit (LibraryEntry): {Artist} - {Title}", track.Artist, track.Title);
-                     enrichedCount++;
-                     
-                     // Notify UI
+                     Interlocked.Increment(ref localEnriched);
                      _eventBus.Publish(new TrackMetadataUpdatedEvent(track.UniqueHash));
-                     
-                     continue; // Skip API call
+                     return;
                 }
 
-                await Task.Delay(RateLimitDelayMs, ct); 
+                await Task.Delay(RateLimitDelayMs, token); 
 
                 try 
                 {
@@ -199,14 +207,17 @@ public class LibraryEnrichmentWorker : IDisposable
                     if (result.Success)
                     {
                          _logger.LogDebug("Identified LibraryEntry: {Artist} - {Title}", track.Artist, track.Title);
-                         enrichedCount++;
-                         
-                         // Notify UI
+                         Interlocked.Increment(ref localEnriched);
                          _eventBus.Publish(new TrackMetadataUpdatedEvent(track.UniqueHash));
                     }
                 }
-                catch (Exception ex) { _logger.LogError(ex, "Stage 1 failed for track {Hash}", track.UniqueHash); }
-            }
+                catch (Exception ex) 
+                { 
+                    _logger.LogError(ex, "Stage 1 failed for track {Hash}", track.UniqueHash); 
+                }
+            });
+            
+            enrichedCount += localEnriched;
             didWork = true;
         }
 

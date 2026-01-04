@@ -18,9 +18,11 @@ using ReactiveUI;
 using System.Reactive.Linq;
 using SLSKDONET.Configuration;
 
+using System.Reactive.Disposables;
+
 namespace SLSKDONET.ViewModels;
 
-public partial class SearchViewModel : ReactiveObject
+public partial class SearchViewModel : ReactiveObject, IDisposable
 {
     private readonly ILogger<SearchViewModel> _logger;
     private readonly SoulseekAdapter _soulseek;
@@ -35,6 +37,10 @@ public partial class SearchViewModel : ReactiveObject
     private readonly SearchOrchestrationService _searchOrchestration;
 
     private readonly FileNameFormatter _fileNameFormatter;
+    
+    // Cleanup
+    private readonly CompositeDisposable _disposables = new();
+    private bool _isDisposed;
 
     public IEnumerable<string> PreferredFormats => new[] { "mp3", "flac", "m4a", "wav" }; // TODO: Load from config
 
@@ -220,8 +226,13 @@ public partial class SearchViewModel : ReactiveObject
         _fileNameFormatter = fileNameFormatter;
 
         // Reactive Status Updates
-        eventBus.GetEvent<TrackStateChangedEvent>().Subscribe(OnTrackStateChanged);
-        eventBus.GetEvent<TrackAddedEvent>().Subscribe(OnTrackAdded);
+        eventBus.GetEvent<TrackStateChangedEvent>()
+            .Subscribe(OnTrackStateChanged)
+            .DisposeWith(_disposables);
+            
+        eventBus.GetEvent<TrackAddedEvent>()
+            .Subscribe(OnTrackAdded)
+            .DisposeWith(_disposables);
 
         // --- Reactive Pipeline Setup ---
         var filterPredicate = FilterViewModel.FilterChanged;
@@ -601,6 +612,30 @@ public partial class SearchViewModel : ReactiveObject
         {
             // Placeholder for future use
         });
+    }
+
+    public void Dispose()
+    {
+        Dispose(true);
+        GC.SuppressFinalize(this);
+    }
+
+    protected virtual void Dispose(bool disposing)
+    {
+        if (_isDisposed) return;
+
+        if (disposing)
+        {
+            _disposables.Dispose();
+            _searchResults.Dispose();
+            // Cancel any active search
+            if (IsSearching)
+            {
+                ExecuteCancelSearch();
+            }
+        }
+
+        _isDisposed = true;
     }
 
     protected bool SetProperty<T>(ref T field, T value, [CallerMemberName] string? propertyName = null)
