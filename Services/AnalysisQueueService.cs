@@ -310,15 +310,17 @@ public class AnalysisWorker : BackgroundService
                 await FlushBatchAsync(stoppingToken);
             }
 
-            // 2. Collect batch of requests (up to parallelism limit)
+            // 2. Collect batch of requests (Dynamic Parallelism)
+            int currentMaxThreads = SystemInfoHelper.GetOptimalParallelism();
+            
             var batch = new List<AnalysisRequest>();
             try
             {
-                // Try to read up to _maxConcurrentAnalyses items without blocking too long
+                // Try to read up to currentMaxThreads items without blocking too long
                 using var cts = CancellationTokenSource.CreateLinkedTokenSource(stoppingToken);
                 cts.CancelAfter(1000); // 1 second timeout
                 
-                while (batch.Count < _maxConcurrentAnalyses && _queue.Reader.TryRead(out var request))
+                while (batch.Count < currentMaxThreads && _queue.Reader.TryRead(out var request))
                 {
                     batch.Add(request);
                 }
@@ -523,6 +525,7 @@ public class AnalysisWorker : BackgroundService
 
                 // Update PlaylistTracks
                  var playlistTracks = await dbContext.PlaylistTracks
+                    .Include(t => t.TechnicalDetails)
                     .Where(t => t.TrackUniqueHash == trackHash)
                     .ToListAsync(token);
 
@@ -574,11 +577,16 @@ public class AnalysisWorker : BackgroundService
 
         if (result.WaveformData != null)
         {
-            track.WaveformData = result.WaveformData.PeakData;
-            track.RmsData = result.WaveformData.RmsData;
-            track.LowData = result.WaveformData.LowData;
-            track.MidData = result.WaveformData.MidData;
-            track.HighData = result.WaveformData.HighData;
+            if (track.TechnicalDetails == null)
+            {
+                track.TechnicalDetails = new TrackTechnicalEntity { Id = track.Id };
+            }
+            
+            track.TechnicalDetails.WaveformData = result.WaveformData.PeakData;
+            track.TechnicalDetails.RmsData = result.WaveformData.RmsData;
+            track.TechnicalDetails.LowData = result.WaveformData.LowData;
+            track.TechnicalDetails.MidData = result.WaveformData.MidData;
+            track.TechnicalDetails.HighData = result.WaveformData.HighData;
         }
 
 

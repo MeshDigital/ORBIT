@@ -16,7 +16,7 @@ namespace SLSKDONET.ViewModels;
 /// Coordinator ViewModel for the Library page.
 /// Delegates responsibilities to child ViewModels following Single Responsibility Principle.
 /// </summary>
-public class LibraryViewModel : INotifyPropertyChanged
+public class LibraryViewModel : INotifyPropertyChanged, IDisposable
 {
     private readonly ILogger<LibraryViewModel> _logger;
     private readonly INavigationService _navigationService;
@@ -288,12 +288,52 @@ public class LibraryViewModel : INotifyPropertyChanged
         // Subscribe to UpgradeScout close event
         
         // Phase 3: Post-Import Navigation - Auto-navigate to Library and select imported album
-        _eventBus.GetEvent<ProjectAddedEvent>().Subscribe(OnProjectAdded);
+        _projectAddedSubscription = _eventBus.GetEvent<ProjectAddedEvent>().Subscribe(OnProjectAdded);
         
         // Phase 6: Sync "All Tracks" LibraryEntry index on startup
         // This fixes the issue where the "All Tracks" view is empty because LibraryEntry wasn't populated.
         // It runs in the background and is safe to call repeatedly (idempotent).
         Task.Run(() => _libraryService.SyncLibraryEntriesFromTracksAsync()).ConfigureAwait(false);
+    }
+    
+    private readonly IDisposable _projectAddedSubscription;
+    private bool _isDisposed;
+
+    public void Dispose()
+    {
+        Dispose(true);
+        GC.SuppressFinalize(this);
+    }
+
+    protected virtual void Dispose(bool disposing)
+    {
+        if (_isDisposed) return;
+        
+        if (disposing)
+        {
+            _projectAddedSubscription?.Dispose();
+            
+            // Unsubscribe from events
+            if (Tracks != null && Tracks.SelectedTracks != null)
+            {
+                Tracks.SelectedTracks.CollectionChanged -= OnTrackSelectionChanged;
+            }
+            
+            if (Projects != null)
+            {
+                Projects.ProjectSelected -= OnProjectSelected;
+            }
+
+            if (SmartPlaylists != null)
+            {
+               SmartPlaylists.SmartPlaylistSelected -= OnSmartPlaylistSelected;
+            }
+
+            _selectionDebounceTimer?.Dispose();
+            _matchLoadCancellation?.Dispose();
+        }
+        
+        _isDisposed = true;
     }
     
     private async void OnProjectAdded(ProjectAddedEvent evt)

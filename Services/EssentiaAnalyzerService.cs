@@ -213,15 +213,8 @@ public class EssentiaAnalyzerService : IAudioIntelligenceService, IDisposable
                 }
                 
                 // Phase 4.1: Set BelowNormal priority to prevent UI stutter
-                try
-                {
-                    process.PriorityClass = ProcessPriorityClass.BelowNormal;
-                    process.PriorityBoostEnabled = false;
-                }
-                catch (Exception ex)
-                {
-                    _logger.LogWarning(ex, "Failed to set process priority (non-fatal)");
-                }
+                // Phase 4.1: Set BelowNormal priority to prevent UI stutter
+                SystemInfoHelper.ConfigureProcessPriority(process, ProcessPriorityClass.BelowNormal);
 
                 // Register cancellation to kill process
                 await using var ctr = cancellationToken.Register(() => 

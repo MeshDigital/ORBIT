@@ -33,10 +33,17 @@ public static class SystemInfoHelper
         
         // Special cases for common configurations
         if (cores >= 16 && ramGB >= 32)
-            return Math.Min(optimal, 12); // Cap high-end at 12 to leave headroom
+            optimal = Math.Min(optimal, 12); // Cap high-end at 12 to leave headroom
         else if (cores <= 4 || ramGB < 8)
-            return Math.Min(optimal, 2); // Conservative for entry-level PCs
+            optimal = Math.Min(optimal, 2); // Conservative for entry-level PCs
             
+        // Phase 3: Power Sensitivity
+        // Halve threads if on battery to save energy
+        if (GetCurrentPowerMode() == PowerEfficiencyMode.Efficiency)
+        {
+            optimal = Math.Max(1, optimal / 2);
+        }
+
         return optimal;
     }
     
@@ -65,5 +72,64 @@ public static class SystemInfoHelper
         var cores = Environment.ProcessorCount;
         var ramGB = GetTotalRamGB();
         return $"{cores} cores, {ramGB:F1}GB RAM";
+    }
+
+    /// <summary>
+    /// Safely configures the process priority (e.g., to "BelowNormal" for background tasks).
+    /// </summary>
+    public static void ConfigureProcessPriority(System.Diagnostics.Process process, System.Diagnostics.ProcessPriorityClass priority)
+    {
+        try
+        {
+            process.PriorityClass = priority;
+        }
+        catch (Exception ex)
+        {
+            // Ignore errors (e.g. access denied on some systems). 
+            // Better to run at normal priority than crash.
+            System.Diagnostics.Debug.WriteLine($"Failed to set process priority: {ex.Message}");
+        }
+    }
+
+    // ==========================================
+    // Phase 3: Power Sensitivity (Win32 P/Invoke)
+    // ==========================================
+    
+    [System.Runtime.InteropServices.DllImport("kernel32.dll")]
+    private static extern bool GetSystemPowerStatus(out SystemPowerStatus lpSystemPowerStatus);
+
+    private struct SystemPowerStatus
+    {
+        public byte ACLineStatus;
+        public byte BatteryFlag;
+        public byte BatteryLifePercent;
+        public byte SystemStatusFlag;
+        public int BatteryLifeTime;
+        public int BatteryFullLifeTime;
+    }
+
+    public enum PowerEfficiencyMode
+    {
+        Performance, // Plugged In
+        Efficiency   // On Battery
+    }
+
+    /// <summary>
+    /// Detects if the system is running on battery power to throttle background tasks.
+    /// </summary>
+    public static PowerEfficiencyMode GetCurrentPowerMode()
+    {
+        if (Environment.OSVersion.Platform == PlatformID.Win32NT)
+        {
+            if (GetSystemPowerStatus(out var status))
+            {
+                // ACLineStatus: 0 = Offline (Battery), 1 = Online (Plugged In), 255 = Unknown
+                if (status.ACLineStatus == 0) 
+                    return PowerEfficiencyMode.Efficiency;
+            }
+        }
+        
+        // Default to Performance if unknown or plugged in
+        return PowerEfficiencyMode.Performance;
     }
 }

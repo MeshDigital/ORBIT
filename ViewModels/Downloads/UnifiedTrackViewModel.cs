@@ -420,12 +420,7 @@ public class UnifiedTrackViewModel : ReactiveObject, IDisplayableTrack, IDisposa
 
         try
         {
-            var localPath = await _artworkCache.GetArtworkPathAsync(Model.AlbumArtUrl, Model.SpotifyAlbumId);
-            if (System.IO.File.Exists(localPath))
-            {
-                using var stream = System.IO.File.OpenRead(localPath);
-                ArtworkBitmap = new Avalonia.Media.Imaging.Bitmap(stream);
-            }
+            ArtworkBitmap = await _artworkCache.GetBitmapAsync(Model.AlbumArtUrl);
         }
         catch (Exception ex)
         {

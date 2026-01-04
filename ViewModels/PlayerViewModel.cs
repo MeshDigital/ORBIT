@@ -582,10 +582,8 @@ namespace SLSKDONET.ViewModels
                 IsCurrentTrackLiked = track.Model?.IsLiked ?? false;
                 
                 // Ensure bitmap is loaded for UI
-                if (track.ArtworkBitmap == null)
-                {
-                    await track.LoadAlbumArtworkAsync();
-                }
+                // Phase 0: Artwork loaded via Proxy
+                // if (track.ArtworkBitmap == null) await track.LoadAlbumArtworkAsync();
             });
 
             if (!string.IsNullOrEmpty(filePath))

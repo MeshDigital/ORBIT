@@ -179,6 +179,10 @@ public interface ILibraryService
     /// Adds a track to the library with optional source playlist reference (legacy).
     /// </summary>
     Task AddTrackAsync(Track track, string actualFilePath, Guid sourcePlaylistId);
+
+    // Phase 1: Heavy Data Lazy Loading
+    Task<TrackTechnicalEntity?> GetTechnicalDetailsAsync(Guid playlistTrackId);
+    Task SaveTechnicalDetailsAsync(TrackTechnicalEntity details);
     
 
 }

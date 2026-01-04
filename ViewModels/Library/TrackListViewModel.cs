@@ -415,8 +415,7 @@ public class TrackListViewModel : ReactiveObject
 
                     tracks.Add(vm);
 
-                    // Phase 0: Load album artwork asynchronously
-                    _ = vm.LoadAlbumArtworkAsync();
+                    // Phase 0: Load album artwork handled by ArtworkProxy
                 }
             }
 

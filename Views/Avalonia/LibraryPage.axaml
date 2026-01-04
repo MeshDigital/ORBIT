@@ -395,6 +395,7 @@
                             <VirtualizingStackPanel/>
                         </ItemsPanelTemplate>
                     </ListBox.ItemsPanel>
+
                     <ListBox.Styles>
                         <Style Selector="ListBoxItem">
                             <Setter Property="Padding" Value="4"/>
@@ -504,7 +505,7 @@
                                                 Background="#222"
                                                 Opacity="{Binding IsDownloaded, Converter={StaticResource BoolOpacityConverter}, ConverterParameter=0.3}"
                                                 Effect="{Binding IsDownloaded, Converter={StaticResource BoolBlurConverter}}">
-                                            <Image Source="{Binding ArtworkBitmap}" Stretch="UniformToFill"/>
+                                            <Image Source="{Binding Artwork.Image}" Stretch="UniformToFill"/>
                                         </Border>
 
                                         <!-- Line 1: Artist - Title + Integrity -->
@@ -595,7 +596,7 @@
                                         <Grid ColumnDefinitions="Auto,*,400">
                                             <!-- High Res Art -->
                                             <Border Grid.Column="0" Width="140" Height="140" CornerRadius="8" Background="#111" Margin="0,0,24,0" BoxShadow="0 4 12 0 #80000000">
-                                                <Image Source="{Binding ArtworkBitmap}" Stretch="UniformToFill"/>
+                                                <Image Source="{Binding Artwork.Image}" Stretch="UniformToFill"/>
                                             </Border>
                                             
                                             <!-- Detailed Stats -->

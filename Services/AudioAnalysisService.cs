@@ -212,6 +212,9 @@ public class AudioAnalysisService : IAudioAnalysisService
 
         process.Start();
         process.BeginErrorReadLine();
+        
+        // Phase 3: Run analysis at lower priority to prevent UI lags
+        SystemInfoHelper.ConfigureProcessPriority(process, ProcessPriorityClass.BelowNormal);
 
         // Register cancellation to kill process
         await using var ctr = cancellationToken.Register(() => 

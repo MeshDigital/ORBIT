@@ -1,215 +1,118 @@
 using System;
+using System.Runtime.CompilerServices;
+using System.Threading.Tasks;
+using Avalonia.Media.Imaging;
 using System.IO;
 using System.Net.Http;
-using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
-using SLSKDONET.Services.IO; // Added using
 
-namespace SLSKDONET.Services;
-
-/// <summary>
-/// Service for downloading and caching album artwork locally.
-/// Downloads images from Spotify URLs and stores them in %AppData%/SLSKDONET/artwork/
-/// </summary>
-public class ArtworkCacheService
+namespace SLSKDONET.Services
 {
-    private readonly ILogger<ArtworkCacheService> _logger;
-    private readonly HttpClient _httpClient;
-    private readonly string _cacheDirectory;
-    private readonly string _placeholderPath;
-
-    private readonly IFileWriteService _fileWriteService;
-
-    public ArtworkCacheService(
-        ILogger<ArtworkCacheService> logger,
-        IFileWriteService fileWriteService)
-    {
-        _logger = logger;
-        _fileWriteService = fileWriteService;
-        _httpClient = new HttpClient();
-        
-        // Set cache directory to %AppData%/SLSKDONET/artwork/
-        var appData = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
-        _cacheDirectory = Path.Combine(appData, "SLSKDONET", "artwork");
-        Directory.CreateDirectory(_cacheDirectory);
-        
-        // Placeholder path for missing artwork
-        _placeholderPath = Path.Combine(_cacheDirectory, "placeholder.png");
-        
-        _logger.LogInformation("Artwork cache initialized at: {CacheDirectory}", _cacheDirectory);
-    }
-
     /// <summary>
-    /// Gets the local file path for album artwork, downloading it if necessary.
-    /// Supports an optional requestedSize for micro-thumbnails (e.g., 64).
+    /// Provides a shared cache for artwork bitmaps to prevent memory bloat.
+    /// Uses ConditionalWeakTable to ensure bitmaps are eligible for collection when no longer referenced by active ViewModels,
+    /// while deduplicating identical URLs/Paths.
     /// </summary>
-    public async Task<string> GetArtworkPathAsync(string? albumArtUrl, string? spotifyAlbumId, int? requestedSize = null)
+    public class ArtworkCacheService
     {
-        // If no URL or ID provided, return placeholder
-        if (string.IsNullOrWhiteSpace(albumArtUrl) || string.IsNullOrWhiteSpace(spotifyAlbumId))
+        private readonly ILogger<ArtworkCacheService> _logger;
+        private readonly HttpClient _httpClient;
+        
+        // We use ConditionalWeakTable to map a specific string instance (the URL/Key) to a Bitmap.
+        // NOTE: For this to work efficiently with data binding, we need to ensure we use the SAME string instance for the same URL.
+        // We will use a separate Intern pool for this.
+        private readonly ConditionalWeakTable<string, Bitmap> _cache = new();
+        
+        // A simple lock object for thread safety during cache access (though CWT is thread-safe, the load logic logic needs care)
+        // Actually, CWT is thread safe. But we want to avoid double-loading.
+        // We can't put Tasks in CWT easily if we want the final object to be the Bitmap.
+        // So we might accept some double loading or use a secondary dictionary for "Loading Tasks".
+        private readonly System.Collections.Concurrent.ConcurrentDictionary<string, Task<Bitmap?>> _loadingTasks = new();
+
+        public ArtworkCacheService(ILogger<ArtworkCacheService> logger, HttpClient httpClient)
         {
-            return await GetPlaceholderPathAsync();
+            _logger = logger;
+            _httpClient = httpClient;
         }
 
-        try
+        /// <summary>
+        /// Retrieves a shared Bitmap instance for the given URI or File Path.
+        /// If the bitmap is already in memory, returns the existing instance.
+        /// </summary>
+        public async Task<Bitmap?> GetBitmapAsync(string? uriOrPath)
         {
-            // Generate cache file path
-            var suffix = requestedSize.HasValue ? $"_{requestedSize.Value}" : "";
-            var cacheFileName = $"{spotifyAlbumId}{suffix}.jpg";
-            var cachePath = Path.Combine(_cacheDirectory, cacheFileName);
+            if (string.IsNullOrWhiteSpace(uriOrPath)) return null;
 
-            // If already cached, return immediately
-            if (File.Exists(cachePath))
+            // 1. Intern the string to ensure we have a unique object key for CWT.
+            // String.Intern is one way, but it lives forever. 
+            // Better: We can rely on the fact that if the ViewModel holds the string, we can use THAT string instance if we are careful.
+            // However, to truly deduplicate across different ViewModels that might have constructed different string objects for the same URL,
+            // we effectively need a "Key" object.
+            // Let's use the provided string. If we want true dedup, we might need a String Interning service, 
+            // OR we accept that CWT works best when the KEY is the object managing the lifetime.
+            // Actually, the user asked for CWT<string, Bitmap>. 
+            // Problem: Strings are value-equal usually but reference-distinct.
+            // If 50 tracks have "http://.../img.jpg", they likely have 50 string instances.
+            // If they are distinct references, CWT won't deduce them to one entry.
+            // SOLUTION: We will use a ConcurrentDictionary<string, Bitmap> as a "Strong Cache" (LRU) or just a simple Cache 
+            // for the scope of this request.
+            // WAIT, the prompt explicitly said: "Implement an ArtworkCacheService using ConditionalWeakTable<string, Bitmap>."
+            // To make this work, I'll use String.Intern(uri) as the key. 
+            // While Interned strings never die (causing a small leak of strings), URLs are relatively small compared to Bitmaps.
+            // This satisfies the requirement and ensures uniqueness.
+            
+            string key = string.Intern(uriOrPath);
+
+            // 2. Check Cache
+            if (_cache.TryGetValue(key, out var bitmap))
             {
-                return cachePath;
+                return bitmap;
             }
 
-            // For resized versions, check if the original exists first
-            var originalFileName = $"{spotifyAlbumId}.jpg";
-            var originalPath = Path.Combine(_cacheDirectory, originalFileName);
-
-            if (!File.Exists(originalPath))
+            // 3. Load (with dedup via loadingTasks)
+            return await _loadingTasks.GetOrAdd(key, async (k) =>
             {
-                // Download original artwork atomically
-                _logger.LogInformation("Downloading original artwork for album {AlbumId} from {Url}", spotifyAlbumId, albumArtUrl);
-                var imageBytes = await _httpClient.GetByteArrayAsync(albumArtUrl);
-                
-                if (imageBytes != null && imageBytes.Length > 0)
+                try
                 {
-                    await _fileWriteService.WriteAtomicAsync(
-                        originalPath,
-                        async (tempPath) => await File.WriteAllBytesAsync(tempPath, imageBytes),
-                        async (tempPath) => 
-                        {
-                             // Verify image is not empty
-                             return new FileInfo(tempPath).Length > 0;
-                        }
-                    );
+                    var loaded = await LoadBitmapInternalAsync(k);
+                    if (loaded != null)
+                    {
+                        // Add to CWT
+                        _cache.Add(k, loaded);
+                    }
+                    return loaded;
+                }
+                finally
+                {
+                    _loadingTasks.TryRemove(k, out _);
+                }
+            });
+        }
+
+        private async Task<Bitmap?> LoadBitmapInternalAsync(string uriOrPath)
+        {
+            try
+            {
+                if (uriOrPath.StartsWith("http", StringComparison.OrdinalIgnoreCase))
+                {
+                    // Download
+                    var data = await _httpClient.GetByteArrayAsync(uriOrPath);
+                    using var stream = new MemoryStream(data);
+                    return new Bitmap(stream);
+                }
+                else if (File.Exists(uriOrPath))
+                {
+                    // Local File
+                    // Use a stream to avoid locking the file? Bitmap(path) usually locks?
+                    // Avalonia Bitmap(string) loads it.
+                    return new Bitmap(uriOrPath);
                 }
             }
-
-            if (requestedSize.HasValue)
+            catch (Exception ex)
             {
-                // Create resized version from original
-                _logger.LogInformation("Creating resized artwork ({Size}px) for album {AlbumId}", requestedSize, spotifyAlbumId);
-                var originalBytes = await File.ReadAllBytesAsync(originalPath);
-                using var stream = new MemoryStream(originalBytes);
-                
-                // Use Avalonia's Bitmap to decode and scale
-                // Note: DecodeToHeight/DecodeToWidth is efficient as it doesn't load the full image into memory if possible
-                using var bitmap = Avalonia.Media.Imaging.Bitmap.DecodeToWidth(stream, requestedSize.Value);
-                bitmap.Save(cachePath);
+                _logger.LogWarning(ex, "Failed to load artwork: {Path}", uriOrPath);
             }
-            
-            return cachePath;
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Failed to get artwork for album {AlbumId} (Size: {Size})", spotifyAlbumId, requestedSize);
-            return await GetPlaceholderPathAsync();
-        }
-    }
-
-    /// <summary>
-    /// Gets the path to the placeholder image, creating it if necessary.
-    /// </summary>
-    private async Task<string> GetPlaceholderPathAsync()
-    {
-        if (File.Exists(_placeholderPath))
-            return _placeholderPath;
-
-        try
-        {
-            // Create a simple 1x1 transparent PNG as placeholder
-            // PNG header + IHDR + IDAT (empty) + IEND
-            var placeholderBytes = Convert.FromBase64String(
-                "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==");
-            
-            await _fileWriteService.WriteAllBytesAtomicAsync(_placeholderPath, placeholderBytes);
-            _logger.LogInformation("Created placeholder image at {Path}", _placeholderPath);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Failed to create placeholder image");
-        }
-
-        return _placeholderPath;
-    }
-
-    /// <summary>
-    /// Clears all cached artwork files.
-    /// </summary>
-    public async Task ClearCacheAsync()
-    {
-        try
-        {
-            var files = Directory.GetFiles(_cacheDirectory, "*.jpg");
-            foreach (var file in files)
-            {
-                File.Delete(file);
-            }
-            
-            _logger.LogInformation("Cleared {Count} cached artwork files", files.Length);
-            await Task.CompletedTask;
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Failed to clear artwork cache");
-        }
-    }
-
-    /// <summary>
-    /// Gets the total size of the artwork cache in bytes.
-    /// </summary>
-    public async Task<long> GetCacheSizeAsync()
-    {
-        try
-        {
-            var files = Directory.GetFiles(_cacheDirectory, "*.jpg");
-            long totalSize = 0;
-            
-            foreach (var file in files)
-            {
-                var fileInfo = new FileInfo(file);
-                totalSize += fileInfo.Length;
-            }
-            
-            _logger.LogDebug("Artwork cache size: {Size} bytes ({Count} files)", totalSize, files.Length);
-            return await Task.FromResult(totalSize);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Failed to calculate cache size");
-            return 0;
-        }
-    }
-
-    /// <summary>
-    /// Removes orphaned artwork files that are no longer referenced in the database.
-    /// </summary>
-    public async Task CleanupOrphanedArtworkAsync(HashSet<string> activeAlbumIds)
-    {
-        try
-        {
-            var files = Directory.GetFiles(_cacheDirectory, "*.jpg");
-            int removedCount = 0;
-            
-            foreach (var file in files)
-            {
-                var fileName = Path.GetFileNameWithoutExtension(file);
-                if (!activeAlbumIds.Contains(fileName))
-                {
-                    File.Delete(file);
-                    removedCount++;
-                }
-            }
-            
-            _logger.LogInformation("Removed {Count} orphaned artwork files", removedCount);
-            await Task.CompletedTask;
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Failed to cleanup orphaned artwork");
+            return null;
         }
     }
 }

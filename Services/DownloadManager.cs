@@ -1974,6 +1974,7 @@ public class DownloadManager : INotifyPropertyChanged, IDisposable
 
                                 // C2. Update ALL PlaylistTrack instances with waveform & metrics
                                 var trackInstances = await db.PlaylistTracks
+                                    .Include(t => t.TechnicalDetails)
                                     .Where(t => t.TrackUniqueHash == analysisParams.Hash)
                                     .ToListAsync();
 
@@ -1982,7 +1983,14 @@ public class DownloadManager : INotifyPropertyChanged, IDisposable
                                     // Waveform data for UI
                                     if (waveform != null && waveform.PeakData.Length > 0)
                                     {
-                                        track.WaveformData = waveform.PeakData;
+                                        if (track.TechnicalDetails == null)
+                                            track.TechnicalDetails = new global::SLSKDONET.Data.Entities.TrackTechnicalEntity { Id = track.Id, PlaylistTrackId = track.Id };
+                                            
+                                        track.TechnicalDetails.WaveformData = waveform.PeakData;
+                                        track.TechnicalDetails.RmsData = waveform.RmsData;
+                                        track.TechnicalDetails.LowData = waveform.LowData;
+                                        track.TechnicalDetails.MidData = waveform.MidData;
+                                        track.TechnicalDetails.HighData = waveform.HighData;
                                     }
                                 }
 

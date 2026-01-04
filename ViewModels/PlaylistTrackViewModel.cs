@@ -25,7 +25,7 @@ public class PlaylistTrackViewModel : INotifyPropertyChanged, Library.ILibraryNo
     private string _currentSpeed = string.Empty;
     private string? _errorMessage;
     private string? _coverArtUrl;
-    private Avalonia.Media.Imaging.Bitmap? _artworkBitmap;
+    private ArtworkProxy _artwork; // Replaces _artworkBitmap
     private bool _isAnalyzing; // New field for analysis feedback
 
     private int _sortOrder;
@@ -52,10 +52,21 @@ public class PlaylistTrackViewModel : INotifyPropertyChanged, Library.ILibraryNo
     public Guid SourceId { get; set; } // Project ID (PlaylistJob.Id)
     public Guid Id => Model.Id;
     private bool _isExpanded;
+    private bool _technicalDataLoaded = false;
+    private Data.Entities.TrackTechnicalEntity? _technicalEntity;
     public bool IsExpanded
     {
         get => _isExpanded;
-        set => SetProperty(ref _isExpanded, value);
+        set
+        {
+            if (SetProperty(ref _isExpanded, value))
+            {
+                if (_isExpanded && !_technicalDataLoaded)
+                {
+                    _ = LoadTechnicalDataAsync();
+                }
+            }
+        }
     }
 
     // Integrity Level
@@ -180,15 +191,30 @@ public class PlaylistTrackViewModel : INotifyPropertyChanged, Library.ILibraryNo
     public string? Bitrate => Model.Bitrate?.ToString() ?? Model.BitrateScore?.ToString() ?? "—";
     public string? Status => StatusText;
 
-    public WaveformAnalysisData WaveformData => new WaveformAnalysisData 
-    { 
-        PeakData = Model.WaveformData ?? Array.Empty<byte>(), 
-        RmsData = Model.RmsData ?? Array.Empty<byte>(),
-        LowData = Model.LowData ?? Array.Empty<byte>(),
-        MidData = Model.MidData ?? Array.Empty<byte>(),
-        HighData = Model.HighData ?? Array.Empty<byte>(),
-        DurationSeconds = (Model.CanonicalDuration ?? 0) / 1000.0
-    };
+    public ArtworkProxy Artwork => _artwork;
+    
+    // Legacy property for compatibility (if XAML binds to ArtworkBitmap directly, we can redirect or just update XAML)
+    // We will update XAML to bind to Artwork.Image
+    public Avalonia.Media.Imaging.Bitmap? ArtworkBitmap => _artwork?.Image;
+
+    public WaveformAnalysisData WaveformData
+    {
+        get
+        {
+             // Use lazy loaded entity if available, checking cached array logic
+             var waveData = _technicalEntity?.WaveformData ?? Array.Empty<byte>();
+             
+             return new WaveformAnalysisData 
+             { 
+                 PeakData = waveData, 
+                 RmsData = _technicalEntity?.RmsData ?? Array.Empty<byte>(),
+                 LowData = _technicalEntity?.LowData ?? Array.Empty<byte>(),
+                 MidData = _technicalEntity?.MidData ?? Array.Empty<byte>(),
+                 HighData = _technicalEntity?.HighData ?? Array.Empty<byte>(),
+                 DurationSeconds = (Model.CanonicalDuration ?? 0) / 1000.0
+             };
+        }
+    }
     
     // Technical Stats
     public int SampleRate => Model.BitrateScore ?? 0; // Or add SampleRate to Model
@@ -295,8 +321,8 @@ public class PlaylistTrackViewModel : INotifyPropertyChanged, Library.ILibraryNo
                 _disposables.Add(_eventBus.GetEvent<Models.TrackAnalysisFailedEvent>().Subscribe(OnAnalysisFailed));
             }
 
-            // Fire-and-forget artwork load
-            _ = LoadAlbumArtworkAsync();
+            // Initialize ArtworkProxy
+            _artwork = new ArtworkProxy(_artworkCacheService!, track.AlbumArtUrl);
         }
 
     public void Dispose()
@@ -315,9 +341,9 @@ public class PlaylistTrackViewModel : INotifyPropertyChanged, Library.ILibraryNo
             CancellationTokenSource?.Cancel();
             CancellationTokenSource?.Dispose();
             
-            // Dispose of bitmap to free unmanaged memory
-            _artworkBitmap?.Dispose();
-            _artworkBitmap = null;
+            // Shared Bitmap: Do NOT dispose. 
+            // _artwork is a proxy, does not own the bitmap resource (cache does).
+            // _artworkBitmap = null;
         }
 
         _isDisposed = true;
@@ -376,11 +402,14 @@ public class PlaylistTrackViewModel : INotifyPropertyChanged, Library.ILibraryNo
                      Model.TruePeak = updatedTrack.TruePeak;
                      Model.DynamicRange = updatedTrack.DynamicRange;
                      
-                     // Load artwork if URL is available
-                     if (!string.IsNullOrWhiteSpace(updatedTrack.AlbumArtUrl))
-                     {
-                         await LoadAlbumArtworkAsync();
-                     }
+                      // Load artwork if URL is available
+                      if (!string.IsNullOrWhiteSpace(updatedTrack.AlbumArtUrl))
+                      {
+                          // Refresh proxy
+                          _artwork = new ArtworkProxy(_artworkCacheService!, updatedTrack.AlbumArtUrl);
+                          OnPropertyChanged(nameof(Artwork));
+                          OnPropertyChanged(nameof(ArtworkBitmap));
+                      }
                  }
              }
              
@@ -845,51 +874,30 @@ public class PlaylistTrackViewModel : INotifyPropertyChanged, Library.ILibraryNo
         ErrorMessage = null;
     }
 
-    /// <summary>
-    /// Bitmap image loaded from artwork cache (for direct UI binding).
-    /// </summary>
-    public Avalonia.Media.Imaging.Bitmap? ArtworkBitmap
-    {
-        get => _artworkBitmap;
-        private set
-        {
-            if (_artworkBitmap != value)
-            {
-                // CRITICAL: Dispose of the previous bitmap to free unmanaged memory
-                _artworkBitmap?.Dispose();
-                _artworkBitmap = value;
-                OnPropertyChanged();
-            }
-        }
-    }
+    // ArtworkBitmap and LoadAlbumArtworkAsync removed. 
+    // Replaced by ArtworkProxy logic (see Artwork property).
 
     /// <summary>
-    /// Loads album artwork from cache into Bitmap for UI display.
+    /// Lazy loads heavy technical data (Waveforms, etc.) from the database.
+    /// Triggered when the track is expanded or viewed in Inspector.
     /// </summary>
-    public async Task LoadAlbumArtworkAsync()
+    public async Task LoadTechnicalDataAsync()
     {
-        if (_artworkCacheService == null) return;
-        if (string.IsNullOrWhiteSpace(Model.AlbumArtUrl)) return;
-        if (string.IsNullOrWhiteSpace(Model.SpotifyAlbumId)) return;
-
+        if (_technicalDataLoaded || _libraryService == null) return;
+        
         try
         {
-            // Get local path (downloads artwork if not cached)
-            var localPath = await _artworkCacheService.GetArtworkPathAsync(
-                Model.AlbumArtUrl,
-                Model.SpotifyAlbumId);
-
-            if (System.IO.File.Exists(localPath))
-            {
-                // Load bitmap from local file
-                using var stream = System.IO.File.OpenRead(localPath);
-                ArtworkBitmap = new Avalonia.Media.Imaging.Bitmap(stream);
-            }
+            // Fetch from LibraryService (which calls DB)
+             _technicalEntity = await _libraryService.GetTechnicalDetailsAsync(this.Id);
+             
+             _technicalDataLoaded = true;
+             
+             // Notify UI that waveform data is ready
+             OnPropertyChanged(nameof(WaveformData));
         }
-        catch (Exception)
+        catch (Exception ex)
         {
-            // Log error silently - artwork loading is non-critical
-            System.Diagnostics.Debug.WriteLine($"Failed to load artwork for {GlobalId}");
+            System.Diagnostics.Debug.WriteLine($"Failed to load technical data: {ex.Message}");
         }
     }
 

@@ -642,6 +642,34 @@ public class LibraryService : ILibraryService
             throw;
         }
     }
+    
+    // ===== Phase 1: Heavy Data Lazy Loading =====
+
+    public async Task<TrackTechnicalEntity?> GetTechnicalDetailsAsync(Guid playlistTrackId)
+    {
+        try
+        {
+            var entity = await _databaseService.GetTrackTechnicalDetailsAsync(playlistTrackId).ConfigureAwait(false);
+            return entity;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to load technical details for track {Id}", playlistTrackId);
+            return null;
+        }
+    }
+    
+    public async Task SaveTechnicalDetailsAsync(TrackTechnicalEntity details)
+    {
+        try
+        {
+             await _databaseService.SaveTechnicalDetailsAsync(details).ConfigureAwait(false);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to save technical details for track {Id}", details.PlaylistTrackId);
+        }
+    }
 
     // ===== Legacy / Compatibility Methods =====
 
@@ -747,11 +775,12 @@ public class LibraryService : ILibraryService
             SpotifyAlbumId = entity.SpotifyAlbumId,
             SpotifyArtistId = entity.SpotifyArtistId,
             AlbumArtUrl = entity.AlbumArtUrl,
-            WaveformData = entity.WaveformData ?? Array.Empty<byte>(),
-            RmsData = entity.RmsData ?? Array.Empty<byte>(),
-            LowData = entity.LowData ?? Array.Empty<byte>(),
-            MidData = entity.MidData ?? Array.Empty<byte>(),
-            HighData = entity.HighData ?? Array.Empty<byte>(),
+            // HEAVY DATA REFACTOR: Lazy loaded via TechnicalDetails
+            WaveformData = Array.Empty<byte>(), 
+            RmsData = Array.Empty<byte>(),
+            LowData = Array.Empty<byte>(),
+            MidData = Array.Empty<byte>(),
+            HighData = Array.Empty<byte>(),
             ArtistImageUrl = entity.ArtistImageUrl,
             Genres = entity.Genres,
             Popularity = entity.Popularity,
@@ -821,11 +850,7 @@ public class LibraryService : ILibraryService
             SpotifyAlbumId = track.SpotifyAlbumId,
             SpotifyArtistId = track.SpotifyArtistId,
             AlbumArtUrl = track.AlbumArtUrl,
-            WaveformData = track.WaveformData,
-            RmsData = track.RmsData,
-            LowData = track.LowData,
-            MidData = track.MidData,
-            HighData = track.HighData,
+            // HEAVY DATA REFACTOR: Managed via TechnicalDetails
             ArtistImageUrl = track.ArtistImageUrl,
             Genres = track.Genres,
             Popularity = track.Popularity,

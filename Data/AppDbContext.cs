@@ -11,6 +11,7 @@ public class AppDbContext : DbContext
     public DbSet<LibraryEntryEntity> LibraryEntries { get; set; }
     public DbSet<PlaylistJobEntity> Projects { get; set; }
     public DbSet<PlaylistTrackEntity> PlaylistTracks { get; set; }
+    public DbSet<Entities.TrackTechnicalEntity> TrackTechnicalDetails { get; set; } // Phase 1: Heavy Data Split
     public DbSet<PlaylistActivityLogEntity> ActivityLogs { get; set; }
     public DbSet<QueueItemEntity> QueueItems { get; set; }
     public DbSet<Entities.SpotifyMetadataCacheEntity> SpotifyMetadataCache { get; set; }
@@ -130,5 +131,12 @@ public class AppDbContext : DbContext
         modelBuilder.Entity<Entities.EnrichmentTaskEntity>()
             .HasIndex(e => new { e.Status, e.CreatedAt })
             .HasDatabaseName("IX_EnrichmentTasks_Status_CreatedAt");
+
+        // Phase 1: Track Technical Details 1:1 Relationship
+        modelBuilder.Entity<Entities.TrackTechnicalEntity>()
+            .HasOne(t => t.PlaylistTrack)
+            .WithOne(p => p.TechnicalDetails)
+            .HasForeignKey<Entities.TrackTechnicalEntity>(t => t.PlaylistTrackId)
+            .OnDelete(DeleteBehavior.Cascade);
     }
 }

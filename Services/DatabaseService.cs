@@ -210,6 +210,35 @@ public class DatabaseService
                 }
             }
             
+            // Phase 1: Ensure TrackTechnicalDetails table exists (Heavy Data Split)
+             try 
+             {
+                 await context.Database.ExecuteSqlRawAsync("SELECT Id FROM TrackTechnicalDetails LIMIT 1");
+             }
+             catch 
+             {
+                 _logger.LogWarning("Schema Patch: Creating missing table 'TrackTechnicalDetails'");
+                 var createTechTableSql = @"
+                     CREATE TABLE IF NOT EXISTS TrackTechnicalDetails (
+                         Id TEXT NOT NULL CONSTRAINT PK_TrackTechnicalDetails PRIMARY KEY,
+                         PlaylistTrackId TEXT NOT NULL,
+                         WaveformData BLOB NULL,
+                         RmsData BLOB NULL,
+                         LowData BLOB NULL,
+                         MidData BLOB NULL,
+                         HighData BLOB NULL,
+                         AiEmbeddingJson TEXT NULL,
+                         CuePointsJson TEXT NULL,
+                         AudioFingerprint TEXT NULL,
+                         SpectralHash TEXT NULL,
+                         LastUpdated TEXT NOT NULL,
+                         CONSTRAINT FK_TrackTechnicalDetails_PlaylistTracks_PlaylistTrackId FOREIGN KEY (PlaylistTrackId) REFERENCES PlaylistTracks (Id) ON DELETE CASCADE
+                     );
+                     CREATE UNIQUE INDEX IF NOT EXISTS IX_TrackTechnicalDetails_PlaylistTrackId ON TrackTechnicalDetails (PlaylistTrackId);
+                 ";
+                 await context.Database.ExecuteSqlRawAsync(createTechTableSql);
+             }
+
             // Add missing columns to PlaylistTracks
             var columnsToAdd = new List<(string Name, string Definition)>();
             
@@ -2450,6 +2479,78 @@ public class DatabaseService
         catch (Exception ex)
         {
             _logger.LogWarning(ex, "Failed to update library health cache during track update");
+        }
+    }
+    
+    // ===== Phase 1: Track Technical Details (Lazy Loading) =====
+
+    public async Task<TrackTechnicalEntity?> GetTrackTechnicalDetailsAsync(Guid playlistTrackId)
+    {
+        await _writeSemaphore.WaitAsync();
+        try
+        {
+            using var context = new AppDbContext();
+            
+            // Optimization: Only select what we need (though here we need almost everything)
+            return await context.TrackTechnicalDetails
+                .AsNoTracking()
+                .FirstOrDefaultAsync(t => t.PlaylistTrackId == playlistTrackId)
+                .ConfigureAwait(false);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to load technical details from DB for track {Id}", playlistTrackId);
+            return null;
+        }
+        finally
+        {
+            _writeSemaphore.Release();
+        }
+    }
+
+    public async Task SaveTechnicalDetailsAsync(TrackTechnicalEntity details)
+    {
+        await _writeSemaphore.WaitAsync();
+        try
+        {
+            using var context = new AppDbContext();
+            
+            var existing = await context.TrackTechnicalDetails
+                .FirstOrDefaultAsync(t => t.PlaylistTrackId == details.PlaylistTrackId);
+                
+            if (existing != null)
+            {
+                // Update
+                existing.WaveformData = details.WaveformData;
+                existing.RmsData = details.RmsData;
+                existing.LowData = details.LowData;
+                existing.MidData = details.MidData;
+                existing.HighData = details.HighData;
+                existing.AiEmbeddingJson = details.AiEmbeddingJson;
+                existing.CuePointsJson = details.CuePointsJson;
+                existing.AudioFingerprint = details.AudioFingerprint;
+                existing.SpectralHash = details.SpectralHash;
+                existing.LastUpdated = DateTime.UtcNow;
+                
+                context.TrackTechnicalDetails.Update(existing);
+            }
+            else
+            {
+                // Insert
+                details.LastUpdated = DateTime.UtcNow;
+                await context.TrackTechnicalDetails.AddAsync(details);
+            }
+            
+            await context.SaveChangesAsync().ConfigureAwait(false);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to save technical details to DB");
+            throw;
+        }
+        finally
+        {
+            _writeSemaphore.Release();
         }
     }
 
