@@ -210,34 +210,34 @@ public class DatabaseService
                 }
             }
             
-            // Phase 1: Ensure TrackTechnicalDetails table exists (Heavy Data Split)
-             try 
-             {
-                 await context.Database.ExecuteSqlRawAsync("SELECT Id FROM TrackTechnicalDetails LIMIT 1");
-             }
-             catch 
-             {
-                 _logger.LogWarning("Schema Patch: Creating missing table 'TrackTechnicalDetails'");
-                 var createTechTableSql = @"
-                     CREATE TABLE IF NOT EXISTS TrackTechnicalDetails (
-                         Id TEXT NOT NULL CONSTRAINT PK_TrackTechnicalDetails PRIMARY KEY,
-                         PlaylistTrackId TEXT NOT NULL,
-                         WaveformData BLOB NULL,
-                         RmsData BLOB NULL,
-                         LowData BLOB NULL,
-                         MidData BLOB NULL,
-                         HighData BLOB NULL,
-                         AiEmbeddingJson TEXT NULL,
-                         CuePointsJson TEXT NULL,
-                         AudioFingerprint TEXT NULL,
-                         SpectralHash TEXT NULL,
-                         LastUpdated TEXT NOT NULL,
-                         CONSTRAINT FK_TrackTechnicalDetails_PlaylistTracks_PlaylistTrackId FOREIGN KEY (PlaylistTrackId) REFERENCES PlaylistTracks (Id) ON DELETE CASCADE
-                     );
-                     CREATE UNIQUE INDEX IF NOT EXISTS IX_TrackTechnicalDetails_PlaylistTrackId ON TrackTechnicalDetails (PlaylistTrackId);
-                 ";
-                 await context.Database.ExecuteSqlRawAsync(createTechTableSql);
-             }
+             // Phase 1: Ensure TechnicalDetails table exists (Heavy Data Split)
+              try 
+              {
+                  await context.Database.ExecuteSqlRawAsync("SELECT Id FROM TechnicalDetails LIMIT 1");
+              }
+              catch 
+              {
+                  _logger.LogWarning("Schema Patch: Creating missing table 'TechnicalDetails'");
+                  var createTechTableSql = @"
+                      CREATE TABLE IF NOT EXISTS TechnicalDetails (
+                          Id TEXT NOT NULL CONSTRAINT PK_TechnicalDetails PRIMARY KEY,
+                          PlaylistTrackId TEXT NOT NULL,
+                          WaveformData BLOB NULL,
+                          RmsData BLOB NULL,
+                          LowData BLOB NULL,
+                          MidData BLOB NULL,
+                          HighData BLOB NULL,
+                          AiEmbeddingJson TEXT NULL,
+                          CuePointsJson TEXT NULL,
+                          AudioFingerprint TEXT NULL,
+                          SpectralHash TEXT NULL,
+                          LastUpdated TEXT NOT NULL,
+                          CONSTRAINT FK_TechnicalDetails_PlaylistTracks_PlaylistTrackId FOREIGN KEY (PlaylistTrackId) REFERENCES PlaylistTracks (Id) ON DELETE CASCADE
+                      );
+                      CREATE UNIQUE INDEX IF NOT EXISTS IX_TechnicalDetails_PlaylistTrackId ON TechnicalDetails (PlaylistTrackId);
+                  ";
+                  await context.Database.ExecuteSqlRawAsync(createTechTableSql);
+              }
 
             // Add missing columns to PlaylistTracks
             var columnsToAdd = new List<(string Name, string Definition)>();
@@ -2492,7 +2492,7 @@ public class DatabaseService
             using var context = new AppDbContext();
             
             // Optimization: Only select what we need (though here we need almost everything)
-            return await context.TrackTechnicalDetails
+            return await context.TechnicalDetails
                 .AsNoTracking()
                 .FirstOrDefaultAsync(t => t.PlaylistTrackId == playlistTrackId)
                 .ConfigureAwait(false);
@@ -2515,7 +2515,7 @@ public class DatabaseService
         {
             using var context = new AppDbContext();
             
-            var existing = await context.TrackTechnicalDetails
+            var existing = await context.TechnicalDetails
                 .FirstOrDefaultAsync(t => t.PlaylistTrackId == details.PlaylistTrackId);
                 
             if (existing != null)
@@ -2532,13 +2532,13 @@ public class DatabaseService
                 existing.SpectralHash = details.SpectralHash;
                 existing.LastUpdated = DateTime.UtcNow;
                 
-                context.TrackTechnicalDetails.Update(existing);
+                context.TechnicalDetails.Update(existing);
             }
             else
             {
                 // Insert
                 details.LastUpdated = DateTime.UtcNow;
-                await context.TrackTechnicalDetails.AddAsync(details);
+                await context.TechnicalDetails.AddAsync(details);
             }
             
             await context.SaveChangesAsync().ConfigureAwait(false);

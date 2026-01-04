@@ -76,17 +76,92 @@ namespace SLSKDONET.Views.Avalonia.Controls
             AffectsRender<WaveformControl>(WaveformDataProperty, ProgressProperty, LowBandProperty, MidBandProperty, HighBandProperty, CuesProperty);
         }
         
+        public static readonly StyledProperty<System.Windows.Input.ICommand?> CueUpdatedCommandProperty =
+            AvaloniaProperty.Register<WaveformControl, System.Windows.Input.ICommand?>(nameof(CueUpdatedCommand));
+
+        public System.Windows.Input.ICommand? CueUpdatedCommand
+        {
+            get => GetValue(CueUpdatedCommandProperty);
+            set => SetValue(CueUpdatedCommandProperty, value);
+        }
+
+        private OrbitCue? _draggedCue;
+        private bool _isDraggingCue;
+        private const double CueHitThreshold = 10.0;
+
         protected override void OnPointerPressed(global::Avalonia.Input.PointerPressedEventArgs e)
         {
+            var point = e.GetPosition(this);
+            var data = WaveformData;
+            var cues = Cues;
+
+            // 1. Hit Test for Cues
+            if (cues != null && data != null && data.DurationSeconds > 0)
+            {
+                foreach (var cue in cues)
+                {
+                    double x = (cue.Timestamp / data.DurationSeconds) * Bounds.Width;
+                    if (Math.Abs(point.X - x) <= CueHitThreshold)
+                    {
+                        _draggedCue = cue;
+                        _isDraggingCue = true;
+                        e.Pointer.Capture(this);
+                        e.Handled = true; // Prevent Seek
+                        return;
+                    }
+                }
+            }
+
+            // 2. Base Seek Logic (if no cue hit)
             base.OnPointerPressed(e);
             
-            var point = e.GetPosition(this);
             var progress = (float)(point.X / Bounds.Width);
             progress = Math.Clamp(progress, 0f, 1f);
             
             if (SeekCommand != null && SeekCommand.CanExecute(progress))
             {
                 SeekCommand.Execute(progress);
+            }
+        }
+
+        protected override void OnPointerMoved(global::Avalonia.Input.PointerEventArgs e)
+        {
+            base.OnPointerMoved(e);
+
+            if (_isDraggingCue && _draggedCue != null)
+            {
+                var point = e.GetPosition(this);
+                var data = WaveformData;
+                
+                if (data != null && data.DurationSeconds > 0)
+                {
+                    // Calculate new timestamp
+                    // Clamp X to bounds
+                    double x = Math.Clamp(point.X, 0, Bounds.Width);
+                    double newTimestamp = (x / Bounds.Width) * data.DurationSeconds;
+                    
+                    _draggedCue.Timestamp = newTimestamp;
+                    InvalidateVisual(); // Redraw immediately
+                }
+            }
+        }
+
+        protected override void OnPointerReleased(global::Avalonia.Input.PointerReleasedEventArgs e)
+        {
+            base.OnPointerReleased(e);
+
+            if (_isDraggingCue && _draggedCue != null)
+            {
+                _isDraggingCue = false;
+                e.Pointer.Capture(null);
+                
+                // Notify ViewModel of update
+                if (CueUpdatedCommand != null && CueUpdatedCommand.CanExecute(_draggedCue))
+                {
+                    CueUpdatedCommand.Execute(_draggedCue);
+                }
+                
+                _draggedCue = null;
             }
         }
 

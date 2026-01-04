@@ -11,7 +11,6 @@ public class AppDbContext : DbContext
     public DbSet<LibraryEntryEntity> LibraryEntries { get; set; }
     public DbSet<PlaylistJobEntity> Projects { get; set; }
     public DbSet<PlaylistTrackEntity> PlaylistTracks { get; set; }
-    public DbSet<Entities.TrackTechnicalEntity> TrackTechnicalDetails { get; set; } // Phase 1: Heavy Data Split
     public DbSet<Entities.TrackTechnicalEntity> TechnicalDetails { get; set; } // Phase 10 Infrastructure
     public DbSet<PlaylistActivityLogEntity> ActivityLogs { get; set; }
     public DbSet<QueueItemEntity> QueueItems { get; set; }
