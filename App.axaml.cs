@@ -644,6 +644,15 @@ public partial class App : Application
         services.AddSingleton<Services.Musical.CueGenerationEngine>();
         services.AddSingleton<Services.Musical.ManualCueGenerationService>(); // User-triggered batch cue processing
         
+        // Phase 9: Forensic & Style Services
+        services.AddSingleton<SLSKDONET.Services.Forensic.ISonicIntegrityService, SLSKDONET.Services.Forensic.SonicIntegrityService>();
+        services.AddSingleton<SLSKDONET.Services.StyleLab.PersonalClassifierService>();
+
+        // Phase 10: Tagging & Mobility
+        services.AddSingleton<SLSKDONET.Services.IO.SafeWriteService>();
+        services.AddSingleton<SLSKDONET.Services.Tagging.ISeratoMarkerService, SLSKDONET.Services.Tagging.SeratoMarkerService>();
+        services.AddSingleton<SLSKDONET.Services.Tagging.IUniversalCueService, SLSKDONET.Services.Tagging.UniversalCueService>();
+
         // Phase 15: Style Lab (Sonic Taxonomy)
         services.AddSingleton<Services.AI.PersonalClassifierService>();
         services.AddSingleton<Services.AI.IStyleClassifierService, Services.AI.StyleClassifierService>();

@@ -148,40 +148,36 @@ public class CueGenerationEngine
     /// <summary>
     /// Phase 10: Industrial Prep Workflow (Synchronous Fallback)
     /// </summary>
-    public List<OrbitCue> GenerateCues(Data.Entities.TrackTechnicalEntity technicalData, string? genre = null)
+    /// <summary>
+    /// Phase 10: Industrial Prep Workflow (Async)
+    /// </summary>
+    public async Task<List<OrbitCue>> GenerateCuesAsync(SLSKDONET.Data.Entities.TrackTechnicalEntity technicalData, string? genre = null)
     {
-        var cues = new List<OrbitCue>();
-        if (technicalData == null) return cues;
+         if (technicalData == null) return new List<OrbitCue>();
+         
+         // Reconstruct analysis data
+         var data = new WaveformAnalysisData
+         {
+             RmsData = technicalData.RmsData,
+             LowData = technicalData.LowData,
+             MidData = technicalData.MidData, // Mid is often Green
+             HighData = technicalData.HighData,
+             PeakData = technicalData.WaveformData // Assuming WaveformData is Peaks
+         };
+         
+         // Estimate duration from RMS length (assuming 100 points/sec)
+         double duration = (technicalData.RmsData?.Length ?? 0) / 100.0;
+         if (duration < 30) duration = 180.0; // Fallback
+         
+         return await GenerateCuesAsync(data, duration, genre);
+    }
 
-        // 1. First Beat (Intro)
-        cues.Add(new OrbitCue 
-        { 
-            Timestamp = 0, 
-            Name = "Intro", 
-            Role = CueRole.Intro,
-            Color = "#0000FF" 
-        });
-
-        // 2. Drop Detection (Red Marker)
-        // Note: technicalData.HighLevel isn't standard in our current entity, might be from Essentia output
-        // We'll use a placeholder or basic check
-        if (technicalData.CuePointsJson != null && technicalData.CuePointsJson.Contains("Drop"))
-        {
-             // Already has cues?
-        }
-        
-        // 3. Outro detection (Green Marker)
-        // Assume default duration if not set
-        double duration = 180.0; // Placeholder
-        cues.Add(new OrbitCue 
-        { 
-            Timestamp = duration - 30, 
-            Name = "Outro", 
-            Role = CueRole.Outro,
-            Color = "#00FF00" 
-        });
-
-        return cues;
+    /// <summary>
+    /// Phase 10: Industrial Prep Workflow (Synchronous Wrapper)
+    /// </summary>
+    public List<OrbitCue> GenerateCues(SLSKDONET.Data.Entities.TrackTechnicalEntity technicalData, string? genre = null)
+    {
+        return GenerateCuesAsync(technicalData, genre).GetAwaiter().GetResult();
     }
 
     /// <summary>

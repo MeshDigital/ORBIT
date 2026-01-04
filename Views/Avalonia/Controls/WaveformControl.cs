@@ -298,7 +298,7 @@ namespace SLSKDONET.Views.Avalonia.Controls
                 context.DrawLine(pen, new Point(x, 0), new Point(x, height));
 
                 // Draw label at the top
-                var typeface = new Typeface(global::Avalonia.Media.FontFamily.Default, FontStyle.Normal, FontWeight.Bold);
+                var typeface = new Typeface(FontFamily.Default, FontStyle.Normal, FontWeight.Bold);
                 var formattedText = new FormattedText(
                     cue.Name ?? cue.Role.ToString(),
                     System.Globalization.CultureInfo.InvariantCulture,

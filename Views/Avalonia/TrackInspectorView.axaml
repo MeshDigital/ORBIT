@@ -423,10 +423,13 @@
                                     </StackPanel>
                                     <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8">
                                         <Button Command="{Binding AddCueCommand}" Classes="accent" Padding="8,4" CornerRadius="4">
-                                            <TextBlock Text="+ Add Cue" FontSize="11" FontWeight="Bold"/>
+                                            <TextBlock Text="+ Add Reference" FontSize="11" FontWeight="Bold"/>
                                         </Button>
                                         <Button Command="{Binding SaveCuesCommand}" Classes="success" Padding="8,4" CornerRadius="4">
-                                            <TextBlock Text="💾 Save All" FontSize="11" FontWeight="Bold"/>
+                                            <TextBlock Text="💾 Save" FontSize="11" FontWeight="Bold"/>
+                                        </Button>
+                                        <Button Command="{Binding SyncTagsCommand}" Background="#333" Padding="8,4" CornerRadius="4" ToolTip.Tip="Inject cues into file tags (Serato/Traktor)">
+                                            <TextBlock Text="🏷️ Sync Tags" FontSize="11" FontWeight="Bold"/>
                                         </Button>
                                     </StackPanel>
                                 </Grid>

@@ -112,6 +112,7 @@ namespace SLSKDONET.ViewModels
             Services.SonicIntegrityService sonicIntegrityService,
             Services.HarmonicMatchService harmonicMatchService,
             Services.ILibraryService libraryService,
+            Services.Tagging.IUniversalCueService cueService,
             ILogger<TrackInspectorViewModel> logger)
         {
             _audioAnalysisService = audioAnalysisService;
@@ -121,6 +122,7 @@ namespace SLSKDONET.ViewModels
             _sonicIntegrityService = sonicIntegrityService;
             _harmonicMatchService = harmonicMatchService;
             _libraryService = libraryService;
+            _cueService = cueService;
             _logger = logger;
 
             // Phase 12.6: Listen for global track selection
@@ -830,6 +832,22 @@ namespace SLSKDONET.ViewModels
         }
 
         public bool HasCues => Cues.Count > 0;
+
+        private async Task SyncTagsAsync()
+        {
+            if (Track == null || string.IsNullOrEmpty(Track.ResolvedFilePath)) return;
+            if (!HasCues) return;
+
+            try
+            {
+                await _cueService.SyncToTagsAsync(Track.ResolvedFilePath, Cues.ToList());
+                _logger.LogInformation("Synced cues to file tags for {Track}", Track.Title);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to sync tags");
+            }
+        }
 
         public void Dispose()
         {

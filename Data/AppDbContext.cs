@@ -2,16 +2,17 @@ using Microsoft.EntityFrameworkCore;
 using System.IO;
 using SLSKDONET.Models;
 using Microsoft.Data.Sqlite; // Phase 1B
+using SLSKDONET.Models.Entities; // Added for TrackTechnicalEntity
 
 namespace SLSKDONET.Data;
 
 public class AppDbContext : DbContext
 {
+    public DbSet<TrackTechnicalEntity> TechnicalDetails { get; set; }
     public DbSet<TrackEntity> Tracks { get; set; }
     public DbSet<LibraryEntryEntity> LibraryEntries { get; set; }
     public DbSet<PlaylistJobEntity> Projects { get; set; }
     public DbSet<PlaylistTrackEntity> PlaylistTracks { get; set; }
-    public DbSet<Entities.TrackTechnicalEntity> TechnicalDetails { get; set; } // Phase 10 Infrastructure
     public DbSet<PlaylistActivityLogEntity> ActivityLogs { get; set; }
     public DbSet<QueueItemEntity> QueueItems { get; set; }
     public DbSet<Entities.SpotifyMetadataCacheEntity> SpotifyMetadataCache { get; set; }
