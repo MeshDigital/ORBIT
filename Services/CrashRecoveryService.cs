@@ -8,6 +8,7 @@ using System.Linq;
 using System.Text.Json;
 using System.Threading.Tasks;
 using SLSKDONET.Services.IO;
+using SLSKDONET.Services.Repositories;
 
 namespace SLSKDONET.Services;
 
@@ -29,18 +30,20 @@ public class CrashRecoveryService
     private readonly CrashRecoveryJournal _journal;
     private readonly DatabaseService _databaseService;
     private readonly IEventBus _eventBus; // Phase 2A
-    // Note: DownloadManager will be added later to avoid circular dependency
+    private readonly IEnrichmentTaskRepository _enrichmentTaskRepository; // Phase 0.2
 
     public CrashRecoveryService(
         ILogger<CrashRecoveryService> logger,
         CrashRecoveryJournal journal,
         DatabaseService databaseService,
-        IEventBus eventBus) // Phase 2A
+        IEventBus eventBus,
+        IEnrichmentTaskRepository enrichmentTaskRepository)
     {
         _logger = logger;
         _journal = journal;
         _databaseService = databaseService;
-        _eventBus = eventBus; // Phase 2A
+        _eventBus = eventBus;
+        _enrichmentTaskRepository = enrichmentTaskRepository;
     }
 
     /// <summary>
@@ -96,7 +99,10 @@ public class CrashRecoveryService
                         switch (checkpoint.OperationType)
                         {
                             case OperationType.Download:
-                                await RecoverDownloadAsync(checkpoint, stats);
+                                // Handled by DownloadManager.HydrateFromCrashAsync() during its initialization
+                                // We skip it here to avoid double-processing or race conditions.
+                                // If DownloadManager runs successfully, it will delete these checkpoints.
+                                _logger.LogDebug("Skipping download checkpoint {Id} (handled by DownloadManager)", checkpoint.Id);
                                 break;
 
                             case OperationType.TagWrite:
@@ -148,98 +154,7 @@ public class CrashRecoveryService
         });
     }
 
-    private async Task RecoverDownloadAsync(RecoveryCheckpoint checkpoint, RecoveryStats stats)
-    {
-        var state = JsonSerializer.Deserialize<DownloadCheckpointState>(checkpoint.StateJson);
-        if (state == null)
-        {
-            _logger.LogWarning("Invalid checkpoint state for {Id}", checkpoint.Id);
-            await _journal.CompleteCheckpointAsync(checkpoint.Id);
-            return;
-        }
 
-        _logger.LogInformation("Recovering download: {Artist} - {Title}", state.Artist, state.Title);
-
-        // SECURITY: Path sanitization
-        try
-        {
-            var partPath = Path.GetFullPath(state.PartFilePath);
-            var finalPath = Path.GetFullPath(state.FinalPath);
-            
-            // Verify paths are safe (not absolute paths outside download directory)
-            // For now, just check they don't contain ".." or system directories
-            if (partPath.Contains("..") || finalPath.Contains(".."))
-            {
-                _logger.LogWarning("⚠️ Suspicious path detected in checkpoint: {Path}", partPath);
-                await _journal.CompleteCheckpointAsync(checkpoint.Id);
-                return;
-            }
-
-            if (File.Exists(state.PartFilePath))
-            {
-                var partSize = new FileInfo(state.PartFilePath).Length;
-                
-                // Check if download appears complete (95% threshold to account for metadata)
-                if (partSize >= state.ExpectedSize * 0.95)
-                {
-                    // Nearly complete - verify and finalize
-                    _logger.LogInformation("Download appears complete ({Size}/{Expected}), verifying...", 
-                        partSize, state.ExpectedSize);
-                    
-                    var isValid = await FileVerificationHelper.VerifyAudioFormatAsync(state.PartFilePath);
-                    
-                    if (isValid)
-                    {
-                        // Atomic rename
-                        if (File.Exists(state.FinalPath))
-                        {
-                            File.Delete(state.FinalPath);
-                        }
-                        File.Move(state.PartFilePath, state.FinalPath);
-                        
-                        _logger.LogInformation("✅ Recovered and finalized download: {Path}", state.FinalPath);
-                        
-                        await _journal.CompleteCheckpointAsync(checkpoint.Id);
-                        stats.Resumed++;
-                        return;
-                    }
-                    else
-                    {
-                        _logger.LogWarning("Downloaded file failed verification, deleting: {Path}", state.PartFilePath);
-                        File.Delete(state.PartFilePath);
-                        await _journal.CompleteCheckpointAsync(checkpoint.Id);
-                        stats.Cleaned++;
-                        return;
-                    }
-                }
-                
-                // Partial download - log for manual re-queue
-                _logger.LogInformation("📥 Partial download found: {Path} ({Percent}%)",
-                    state.PartFilePath, (partSize * 100.0 / state.ExpectedSize));
-                
-                // TODO: Re-queue download (requires DownloadManager injection)
-                // For now, keep checkpoint for next startup
-                _logger.LogInformation("Keeping checkpoint for future resume attempt");
-            }
-            else
-            {
-                // EXTERNAL INTERFERENCE: No .part file
-                _logger.LogInformation("No .part file found, checking database state...");
-                
-                // Check if track is stuck in "Downloading" state
-                // TODO: Needs track lookup by GlobalId
-                
-                _logger.LogInformation("Cleaning up orphaned checkpoint (no .part file)");
-                await _journal.CompleteCheckpointAsync(checkpoint.Id);
-                stats.Cleaned++;
-            }
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Failed to recover download for {Title}", state.Title);
-            throw;
-        }
-    }
 
     private async Task RecoverTagWriteAsync(RecoveryCheckpoint checkpoint, RecoveryStats stats)
     {
@@ -329,12 +244,31 @@ public class CrashRecoveryService
         _logger.LogInformation("Recovering metadata hydration: Track {Id}, Step {Step}", 
             state.TrackGlobalId, state.Step);
 
-        // TODO: Re-queue for enrichment
-        // For now, just log and clear
-        _logger.LogInformation("Metadata hydration recovery not yet implemented");
-        
-        await _journal.CompleteCheckpointAsync(checkpoint.Id);
-        stats.Cleaned++;
+        try
+        {
+            // Re-queue for enrichment
+            // Note: We use Guid.Empty for PlaylistId as the enrichment worker will resolve context from the track itself 
+            // or the repository handles generic queuing.
+            if (Guid.TryParse(state.TrackGlobalId, out _))
+            {
+                await _enrichmentTaskRepository.QueueTaskAsync(state.TrackGlobalId, Guid.Empty);
+                _logger.LogInformation("✅ Re-queued enrichment for track {Id}", state.TrackGlobalId);
+                stats.Resumed++;
+            }
+            else
+            {
+                 _logger.LogWarning("Invalid TrackGlobalId in hydration checkpoint: {Id}", state.TrackGlobalId);
+                 stats.Cleaned++;
+            }
+            
+            // Mark checkpoint as complete since we handed it off to the persistent queue
+            await _journal.CompleteCheckpointAsync(checkpoint.Id);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to recover hydration task");
+            throw; // Will trigger retry logic
+        }
     }
 
     private async Task LogDeadLetterAsync(RecoveryCheckpoint checkpoint)

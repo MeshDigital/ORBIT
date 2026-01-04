@@ -1158,7 +1158,7 @@ public class DownloadManager : INotifyPropertyChanged, IDisposable
     /// 2. Ghost/Zombie Cleanup (removing stale checkpoints)
     /// 3. Priority Resumption (jumping queue for interrupted downloads)
     /// </summary>
-    private async Task RecoverJournaledDownloadsAsync()
+    private async Task HydrateFromCrashAsync()
     {
         try
         {
