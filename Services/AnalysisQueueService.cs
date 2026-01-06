@@ -543,6 +543,12 @@ public class AnalysisWorker : BackgroundService
                 foreach (var track in playlistTracks)
                 {
                     ApplyResultsToTrack(track, result);
+                    
+                    // CRITICAL: If we just created a new TechnicalDetails, explicitly mark it as Added
+                    if (track.TechnicalDetails != null && dbContext.Entry(track.TechnicalDetails).State == Microsoft.EntityFrameworkCore.EntityState.Detached)
+                    {
+                        dbContext.TechnicalDetails.Add(track.TechnicalDetails);
+                    }
                 }
                 
                 // Update LibraryEntries
