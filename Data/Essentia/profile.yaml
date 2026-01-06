@@ -1,39 +1,11 @@
 outputFormat: json
-analysisSampleRate: 44100
-minDuration: 30
 
-lowlevel:
-    frameSize: 2048
-    hopSize: 1024
-    zeroPadding: 0
-    windowType: blackmanharris62
-    silentFrames: noise
-    computeDynamicComplexity: true
-    computeLoudnessEBUR128: true
-
-rhythm:
-    method: degara
-    minBpm: 40
-    maxBpm: 250
-    stats: ["mean", "var"]
-    computeBpmHistogram: true
-    computeBeatPositions: true
-
-tonal:
-    frameSize: 4096
-    hopSize: 2048
-    zeroPadding: 0
-    windowType: blackmanharris62
-    stats: ["mean", "var"]
-    computeChords: true
-    computeKey: true
-
-# Phase 15.5: The AI Layer
+# Phase 15.5: The AI Layer - ONLY specify models, let Essentia use defaults for everything else
 highlevel:
     compute: true
     svm_models: []
     tensorflow_models:
-        - "Tools/Essentia/models/discogs-effnet-bs64-1.pb" # REQUIRED for Style Lab
+        - "Tools/Essentia/models/discogs-effnet-bs64-1.pb"
         - "Tools/Essentia/models/voice_instrumental-msd-musicnn-1.pb"
         - "Tools/Essentia/models/danceability-msd-musicnn-1.pb"
         - "Tools/Essentia/models/mood_happy-msd-musicnn-1.pb"
