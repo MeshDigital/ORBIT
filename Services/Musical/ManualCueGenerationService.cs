@@ -30,6 +30,7 @@ public class ManualCueGenerationService
     private readonly DatabaseService _databaseService;
     private readonly ILibraryService _libraryService;
     private readonly WaveformAnalysisService _waveformService;
+    private readonly IEventBus _eventBus;
 
     public ManualCueGenerationService(
         ILogger<ManualCueGenerationService> logger,
@@ -40,7 +41,8 @@ public class ManualCueGenerationService
         AppConfig appConfig,
         DatabaseService databaseService,
         ILibraryService libraryService,
-        WaveformAnalysisService waveformService)
+        WaveformAnalysisService waveformService,
+        IEventBus eventBus)
     {
         _logger = logger;
         _essentiaService = essentiaService;
@@ -51,6 +53,7 @@ public class ManualCueGenerationService
         _databaseService = databaseService;
         _libraryService = libraryService;
         _waveformService = waveformService;
+        _eventBus = eventBus;
     }
 
     /// <summary>
@@ -177,6 +180,9 @@ public class ManualCueGenerationService
 
             // 7. Save to Database 
             await SaveTrackDataAsync(track, features, cues, waveformData);
+
+            // 8. Publish event to trigger UI refresh
+            _eventBus.Publish(new SLSKDONET.Models.TrackMetadataUpdatedEvent(track.TrackUniqueHash));
 
             return true;
         }
