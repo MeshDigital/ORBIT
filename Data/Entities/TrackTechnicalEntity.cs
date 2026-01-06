@@ -36,6 +36,10 @@ namespace SLSKDONET.Data.Entities
         public bool IsPrepared { get; set; } = false; // Phase 10
         public string? PrimaryGenre { get; set; } // Phase 10
         
+        // Phase 10.5: Provenance
+        public CurationConfidence CurationConfidence { get; set; } = CurationConfidence.None;
+        public string? ProvenanceJson { get; set; }
+        
         public DateTime LastUpdated { get; set; } = DateTime.UtcNow;
     }
 }

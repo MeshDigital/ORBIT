@@ -172,7 +172,11 @@ public class DatabaseService
                     ""AiEmbeddingJson"" TEXT NULL,
                     ""PredictedVibe"" TEXT NULL,
                     ""PredictionConfidence"" REAL NOT NULL,
-                    ""EmbeddingMagnitude"" REAL NOT NULL
+                    ""PredictedVibe"" TEXT NULL,
+                    ""PredictionConfidence"" REAL NOT NULL,
+                    ""EmbeddingMagnitude"" REAL NOT NULL,
+                    ""CurationConfidence"" INTEGER NOT NULL DEFAULT 0,
+                    ""ProvenanceJson"" TEXT NULL
                 )"),
                 ("ForensicLogs", @"CREATE TABLE ""ForensicLogs"" (
                     ""Id"" INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
@@ -232,6 +236,8 @@ public class DatabaseService
                           CuePointsJson TEXT NULL,
                           AudioFingerprint TEXT NULL,
                           SpectralHash TEXT NULL,
+                          CurationConfidence INTEGER NOT NULL DEFAULT 0,
+                          ProvenanceJson TEXT NULL,
                           LastUpdated TEXT NOT NULL,
                           CONSTRAINT FK_TechnicalDetails_PlaylistTracks_PlaylistTrackId FOREIGN KEY (PlaylistTrackId) REFERENCES PlaylistTracks (Id) ON DELETE CASCADE
                       );
@@ -602,6 +608,8 @@ public class DatabaseService
                     existingColumns.Add(reader.GetString(1));
                 }
             }
+            if (!existingColumns.Contains("GoldCount"))
+            {
                 _logger.LogWarning("Schema Patch: Adding missing column 'GoldCount' to LibraryHealth");
                 await context.Database.ExecuteSqlRawAsync("ALTER TABLE LibraryHealth ADD COLUMN GoldCount INTEGER DEFAULT 0");
             }
@@ -630,6 +638,37 @@ public class DatabaseService
             {
                  _logger.LogWarning("Schema Patch: Adding missing column 'DropConfidence' to audio_features");
                  await context.Database.ExecuteSqlRawAsync("ALTER TABLE audio_features ADD COLUMN DropConfidence REAL DEFAULT 0");
+            }
+            if (!existingColumns.Contains("CurationConfidence"))
+            {
+                 _logger.LogWarning("Schema Patch: Adding missing column 'CurationConfidence' to audio_features");
+                 await context.Database.ExecuteSqlRawAsync("ALTER TABLE audio_features ADD COLUMN CurationConfidence INTEGER DEFAULT 0");
+            }
+            if (!existingColumns.Contains("ProvenanceJson"))
+            {
+                 _logger.LogWarning("Schema Patch: Adding missing column 'ProvenanceJson' to audio_features");
+                 await context.Database.ExecuteSqlRawAsync("ALTER TABLE audio_features ADD COLUMN ProvenanceJson TEXT NULL");
+            }
+
+            // Check TechnicalDetails table
+            cmdSchema.CommandText = "PRAGMA table_info(TechnicalDetails)";
+            existingColumns.Clear();
+            using (var reader = await cmdSchema.ExecuteReaderAsync())
+            {
+                while (await reader.ReadAsync())
+                {
+                    existingColumns.Add(reader.GetString(1));
+                }
+            }
+            if (!existingColumns.Contains("CurationConfidence"))
+            {
+                 _logger.LogWarning("Schema Patch: Adding missing column 'CurationConfidence' to TechnicalDetails");
+                 await context.Database.ExecuteSqlRawAsync("ALTER TABLE TechnicalDetails ADD COLUMN CurationConfidence INTEGER DEFAULT 0");
+            }
+            if (!existingColumns.Contains("ProvenanceJson"))
+            {
+                 _logger.LogWarning("Schema Patch: Adding missing column 'ProvenanceJson' to TechnicalDetails");
+                 await context.Database.ExecuteSqlRawAsync("ALTER TABLE TechnicalDetails ADD COLUMN ProvenanceJson TEXT NULL");
             }
             
             _logger.LogInformation("[{Ms}ms] Database Init: Schema patches completed", sw.ElapsedMilliseconds);
@@ -666,6 +705,11 @@ public class DatabaseService
                     -- Index on Integrity for filtering Failed/Unknown tracks
                     CREATE INDEX IF NOT EXISTS idx_library_entries_integrity 
                     ON LibraryEntries(Integrity);
+
+                    -- Phase 10.5: Industrial Prep Filters
+                    CREATE INDEX IF NOT EXISTS idx_audio_features_bpm ON audio_features(Bpm);
+                    CREATE INDEX IF NOT EXISTS idx_audio_features_key ON audio_features(Key);
+                    CREATE INDEX IF NOT EXISTS idx_audio_features_curation ON audio_features(CurationConfidence);
                 ");
                 _logger.LogInformation("[{Ms}ms] Database Init: Performance indexes created", sw.ElapsedMilliseconds);
             }

@@ -23,6 +23,8 @@ public enum CueRole
     Vocals,
     Outro,
     Bridge,
+    Build,
+    PhraseStart,
     Custom
 }
 

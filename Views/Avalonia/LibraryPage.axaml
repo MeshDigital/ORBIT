@@ -485,13 +485,6 @@
                                             </MenuItem.Icon>
                                         </MenuItem>
 
-                                        <MenuItem Header="Analyze Track" 
-                                                  Command="{Binding $parent[UserControl].DataContext.AnalyzeTrackCommand}" 
-                                                  CommandParameter="{Binding}">
-                                             <MenuItem.Icon>
-                                                <TextBlock Text="🔬"/>
-                                            </MenuItem.Icon>
-                                        </MenuItem>
 
                                         <MenuItem Header="Analyze Album" 
                                                   Command="{Binding $parent[UserControl].DataContext.AnalyzeAlbumCommand}" 
@@ -564,7 +557,7 @@
                                                     CornerRadius="4" 
                                                     Padding="8,2"
                                                     IsVisible="{Binding IsReviewNeeded}"
-                                                    ToolTip.Tip="Low confidence drop detection (< 70%)">
+                                                    ToolTip.Tip="Low confidence drop detection (&lt; 70%)">
                                                 <StackPanel Orientation="Horizontal" Spacing="6">
                                                     <TextBlock Text="⚠️" VerticalAlignment="Center" FontSize="10"/>
                                                     <TextBlock Text="REVIEW" 

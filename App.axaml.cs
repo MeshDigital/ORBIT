@@ -274,6 +274,22 @@ public partial class App : Application
                             Serilog.Log.Error(healthEx, "Startup health check failed");
                         }
 
+                        // Phase 10.5: Native Dependency Health Check
+                        try
+                        {
+                            var depHealth = Services.GetRequiredService<INativeDependencyHealthService>();
+                            var status = await depHealth.CheckHealthAsync();
+                            if (!status.IsHealthy)
+                            {
+                                Serilog.Log.Warning("⚠️ NATIVE DEPENDENCIES MISSING: FFmpeg={Ffmpeg}, Essentia={Essentia}", 
+                                    status.IsFfmpegReady, status.IsEssentiaReady);
+                            }
+                        }
+                        catch (Exception ex)
+                        {
+                            Serilog.Log.Warning(ex, "Native dependency health check failed");
+                        }
+
                         // Phase 8.1: Verify Spotify connection on startup
                         // This prevents the "zombie token" bug where tokens are invalid but UI shows "Connected"
                         try
@@ -619,9 +635,8 @@ public partial class App : Application
         // Orchestration Services
         services.AddSingleton<SearchOrchestrationService>();
         services.AddSingleton<DownloadOrchestrationService>();
+        services.AddSingleton<IBulkOperationCoordinator, BulkOperationCoordinator>(); // Phase 10.5: Refined Workflow
         services.AddSingleton<DownloadDiscoveryService>();
-        services.AddSingleton<SearchResultMatcher>(); // Phase 3.1
-        services.AddSingleton<MetadataEnrichmentOrchestrator>(); // Phase 3.1
         services.AddSingleton<SearchResultMatcher>(); // Phase 3.1
         services.AddSingleton<MetadataEnrichmentOrchestrator>(); // Phase 3.1
         services.AddSingleton<SonicIntegrityService>(); // Phase 8: Sonic Integrity
@@ -645,8 +660,8 @@ public partial class App : Application
         services.AddSingleton<Services.Musical.ManualCueGenerationService>(); // User-triggered batch cue processing
         
         // Phase 9: Forensic & Style Services
-        services.AddSingleton<SLSKDONET.Services.Forensic.ISonicIntegrityService, SLSKDONET.Services.Forensic.SonicIntegrityService>();
-        services.AddSingleton<SLSKDONET.Services.StyleLab.PersonalClassifierService>();
+        services.AddSingleton<SonicIntegrityService>();
+        services.AddSingleton<SLSKDONET.Services.AI.PersonalClassifierService>();
 
         // Phase 10: Tagging & Mobility
         services.AddSingleton<SLSKDONET.Services.IO.SafeWriteService>();
@@ -654,7 +669,6 @@ public partial class App : Application
         services.AddSingleton<SLSKDONET.Services.Tagging.IUniversalCueService, SLSKDONET.Services.Tagging.UniversalCueService>();
 
         // Phase 15: Style Lab (Sonic Taxonomy)
-        services.AddSingleton<Services.AI.PersonalClassifierService>();
         services.AddSingleton<Services.AI.IStyleClassifierService, Services.AI.StyleClassifierService>();
         services.AddTransient<ViewModels.StyleLabViewModel>();
 
@@ -692,6 +706,9 @@ public partial class App : Application
         services.AddSingleton<ISafetyFilterService, SafetyFilterService>();
         services.AddSingleton<StartupHealthCheckService>();
         services.AddSingleton<StyleLabPersistenceVerifier>();
+
+        // Phase 10.5: Native Dependency Health (Reliability)
+        services.AddSingleton<INativeDependencyHealthService, NativeDependencyHealthService>();
         
         // Views - Register all page controls for NavigationService
         services.AddTransient<Views.Avalonia.HomePage>();
@@ -717,32 +734,7 @@ public partial class App : Application
     /// </summary>
     private async Task RunMaintenanceTasksAsync()
     {
-        try
-        {
-            // Wait 5 minutes after app startup before running first maintenance
-            await Task.Delay(TimeSpan.FromMinutes(5));
-            
-            while (true)
-            {
-                try
-                {
-                    await PerformMaintenanceAsync();
-                }
-                catch (Exception ex)
-                {
-                    // Don't crash app on maintenance errors
-                    Serilog.Log.Warning(ex, "Maintenance task failed (non-critical)");
-                }
-                
-                // Run maintenance daily
-                await Task.Delay(TimeSpan.FromHours(24));
-            }
-        }
-        catch (TaskCanceledException)
-        {
-            // App is shutting down
-            Serilog.Log.Debug("Maintenance task canceled (app shutdown)");
-        }
+        await PerformMaintenanceAsync();
     }
 
     private async Task PerformMaintenanceAsync()

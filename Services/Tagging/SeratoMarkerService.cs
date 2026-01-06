@@ -70,14 +70,9 @@ namespace SLSKDONET.Services.Tagging
                             // IF the standard text encoding is used, OR raw binary if handled differently.
                             // Most reverse engineering shows "Serato Markers2" content is a BASE64 encoded string of the structs.
                             
-                            var frame = new GeneralEncapsulatedObjectFrame("Serato Markers2");
-                            frame.Content = "application/octet-stream";
-                            frame.FileName = "";
-                            frame.Description = "Serato Markers2";
-                            // For Serato Markers2, the data is actually the raw binary structure, 
-                            // BUT some tools see it as text. 
-                            // Let's stick to the binary payload directly.
-                            frame.Data = payload;
+                            var frame = GeneralEncapsulatedObjectFrame.Get(id3v2, "Serato Markers2", true);
+                            frame.MimeType = "application/octet-stream";
+                            frame.Data = new ByteVector(payload);
 
                             id3v2.AddFrame(frame);
                             file.Save();

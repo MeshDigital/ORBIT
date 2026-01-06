@@ -15,6 +15,8 @@ public class StatusBarViewModel : ReactiveObject, IDisposable
     private int _processedCount;
     private string? _currentTrack;
     private bool _isPaused;
+    private bool _isHealthy = true; // Phase 10.5
+    private readonly INativeDependencyHealthService _dependencyHealthService; // Phase 10.5
     
     public int QueuedCount
     {
@@ -52,12 +54,58 @@ public class StatusBarViewModel : ReactiveObject, IDisposable
             this.RaisePropertyChanged(nameof(StatusText));
         }
     }
+
+    public bool IsHealthy
+    {
+        get => _isHealthy;
+        set
+        {
+            this.RaiseAndSetIfChanged(ref _isHealthy, value);
+            this.RaisePropertyChanged(nameof(StatusText));
+        }
+    }
     
+    private bool _isBulkOperationRunning;
+    private string _bulkOperationTitle = string.Empty;
+    private int _bulkOperationProgress;
+
+    public bool IsBulkOperationRunning
+    {
+        get => _isBulkOperationRunning;
+        set
+        {
+            this.RaiseAndSetIfChanged(ref _isBulkOperationRunning, value);
+            this.RaisePropertyChanged(nameof(StatusText));
+        }
+    }
+
+    public string BulkOperationTitle
+    {
+        get => _bulkOperationTitle;
+        set
+        {
+            this.RaiseAndSetIfChanged(ref _bulkOperationTitle, value);
+            this.RaisePropertyChanged(nameof(StatusText));
+        }
+    }
+
+    public int BulkOperationProgress
+    {
+        get => _bulkOperationProgress;
+        set
+        {
+            this.RaiseAndSetIfChanged(ref _bulkOperationProgress, value);
+            this.RaisePropertyChanged(nameof(StatusText));
+        }
+    }
+
     // Computed properties
     public string StatusText
     {
         get
         {
+            if (IsBulkOperationRunning) return $"⚙️ {BulkOperationTitle} ({BulkOperationProgress}%)";
+            if (!IsHealthy) return "⚠️ Repair Required: Missing Analysis Tools";
             if (IsPaused) return "⏸️ Analysis Paused";
             if (QueuedCount > 0) return $"🔬 Analyzing... {QueuedCount} pending";
             if (ProcessedCount > 0) return $"✓ All tracks analyzed ({ProcessedCount} total)";
@@ -65,10 +113,24 @@ public class StatusBarViewModel : ReactiveObject, IDisposable
         }
     }
     
-    public bool IsProcessing => QueuedCount > 0 || !string.IsNullOrEmpty(CurrentTrack);
+    public bool IsProcessing => QueuedCount > 0 || !string.IsNullOrEmpty(CurrentTrack) || IsBulkOperationRunning;
     
-    public StatusBarViewModel(IEventBus eventBus)
+    public StatusBarViewModel(
+        IEventBus eventBus,
+        INativeDependencyHealthService dependencyHealthService)
     {
+        _dependencyHealthService = dependencyHealthService;
+
+        // Phase 10.5: Native Health Polling (Every 10s)
+        Observable.Interval(TimeSpan.FromSeconds(10))
+            .ObserveOn(RxApp.MainThreadScheduler)
+            .SelectMany(async _ => await _dependencyHealthService.CheckHealthAsync())
+            .Subscribe(result => 
+            {
+                IsHealthy = result.IsHealthy;
+            })
+            .DisposeWith(_disposables);
+
         // Subscribe to queue status changes
         eventBus.GetEvent<AnalysisQueueStatusChangedEvent>()
             .ObserveOn(RxApp.MainThreadScheduler)
@@ -80,6 +142,37 @@ public class StatusBarViewModel : ReactiveObject, IDisposable
                 IsPaused = e.IsPaused;
             })
             .DisposeWith(_disposables);
+
+        // Phase 10.5: Bulk Operation Subscriptions
+        eventBus.GetEvent<SLSKDONET.Services.BulkOperationStartedEvent>()
+            .ObserveOn(RxApp.MainThreadScheduler)
+            .Subscribe(e =>
+            {
+                BulkOperationTitle = e.Title;
+                IsBulkOperationRunning = true;
+                BulkOperationProgress = 0;
+            })
+            .DisposeWith(_disposables);
+
+        eventBus.GetEvent<SLSKDONET.Services.BulkOperationProgressEvent>()
+            .ObserveOn(RxApp.MainThreadScheduler)
+            .Subscribe(e =>
+            {
+                BulkOperationProgress = e.Percentage;
+            })
+            .DisposeWith(_disposables);
+
+        eventBus.GetEvent<SLSKDONET.Services.BulkOperationCompletedEvent>()
+            .ObserveOn(RxApp.MainThreadScheduler)
+            .Subscribe(e =>
+            {
+                IsBulkOperationRunning = false;
+                // Optional: Show summary momentarily?
+            })
+            .DisposeWith(_disposables);
+            
+        // Initial Check
+        IsHealthy = _dependencyHealthService.IsFfmpegAvailable && _dependencyHealthService.IsEssentiaAvailable;
     }
     
     public void Dispose()

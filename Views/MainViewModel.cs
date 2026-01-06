@@ -34,6 +34,7 @@ public class MainViewModel : INotifyPropertyChanged
     private readonly SpotifyAuthService _spotifyAuth;
     private readonly IFileInteractionService _fileInteractionService;
     private readonly AnalysisQueueService _analysisQueue;
+    private readonly INativeDependencyHealthService _dependencyHealthService; // Phase 10.5
 
     // Child ViewModels
     public PlayerViewModel PlayerViewModel { get; }
@@ -85,7 +86,8 @@ public class MainViewModel : INotifyPropertyChanged
         IFileInteractionService fileInteractionService,
         IEventBus eventBus,
         AnalysisQueueService analysisQueue,
-        AnalysisQueueViewModel analysisQueueViewModel)
+        AnalysisQueueViewModel analysisQueueViewModel,
+        INativeDependencyHealthService dependencyHealthService)
     {
         _logger = logger;
         _config = config;
@@ -94,6 +96,7 @@ public class MainViewModel : INotifyPropertyChanged
         _credentialService = credentialService;
         _navigationService = navigationService;
         _fileInteractionService = fileInteractionService;
+        _dependencyHealthService = dependencyHealthService; // Phase 10.5
         
         // Assign missing fields
         _eventBus = eventBus;
@@ -108,7 +111,7 @@ public class MainViewModel : INotifyPropertyChanged
         ConnectionViewModel = connectionViewModel;
         SettingsViewModel = settingsViewModel;
         HomeViewModel = homeViewModel;
-        StatusBar = new StatusBarViewModel(eventBus);
+        StatusBar = new StatusBarViewModel(eventBus, _dependencyHealthService);
         
         AnalysisQueueViewModel = analysisQueueViewModel;
 
@@ -178,7 +181,7 @@ public class MainViewModel : INotifyPropertyChanged
                 NavigateAnalysisQueue();
                 
                 // 2. Open the specific track in Lab Mode
-                AnalysisQueueViewModel.OpenTrackInLab(evt.TrackHash);
+                this.AnalysisQueueViewModel.OpenTrackInLab(evt.TrackHash);
             });
         });
         

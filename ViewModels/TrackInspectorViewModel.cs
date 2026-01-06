@@ -28,6 +28,7 @@ namespace SLSKDONET.ViewModels
         private readonly Services.SonicIntegrityService _sonicIntegrityService;
         private readonly Services.HarmonicMatchService _harmonicMatchService;
         private readonly Services.ILibraryService _libraryService;
+        private readonly Services.Tagging.IUniversalCueService _cueService;
         private readonly ILogger<TrackInspectorViewModel> _logger;
         private readonly CompositeDisposable _disposables = new();
         private Data.Entities.AudioAnalysisEntity? _analysis;

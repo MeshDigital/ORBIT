@@ -22,6 +22,8 @@ public class TrackOperationsViewModel : INotifyPropertyChanged
     private readonly IFileInteractionService _fileInteractionService;
     private readonly ForensicLockdownService _forensicLockdownService; // Phase 7
     private readonly Services.Musical.ManualCueGenerationService _prepService; // Phase 10.4
+    private readonly INativeDependencyHealthService _dependencyHealthService; // Phase 10.5
+    private readonly IBulkOperationCoordinator _bulkCoordinator; // Phase 10.5
 
     public event PropertyChangedEventHandler? PropertyChanged;
     
@@ -38,13 +40,19 @@ public class TrackOperationsViewModel : INotifyPropertyChanged
     public System.Windows.Input.ICommand OpenFolderCommand { get; }
     public System.Windows.Input.ICommand IndustrialPrepCommand { get; } // Phase 10.4
 
+    // Phase 10.5: Dependency Warning Property
+    public bool AreDependenciesHealthy => _dependencyHealthService.IsFfmpegAvailable && _dependencyHealthService.IsEssentiaAvailable;
+    public string DependencyWarningMessage => AreDependenciesHealthy ? string.Empty : "⚠️ CORE TOOLS MISSING: Analysis Disabled";
+
     public TrackOperationsViewModel(
         ILogger<TrackOperationsViewModel> logger,
         DownloadManager downloadManager,
         PlayerViewModel playerViewModel,
         IFileInteractionService fileInteractionService,
         ForensicLockdownService forensicLockdownService,
-        Services.Musical.ManualCueGenerationService prepService)
+        Services.Musical.ManualCueGenerationService prepService,
+        INativeDependencyHealthService dependencyHealthService,
+        IBulkOperationCoordinator bulkCoordinator)
     {
         _logger = logger;
         _downloadManager = downloadManager;
@@ -52,6 +60,8 @@ public class TrackOperationsViewModel : INotifyPropertyChanged
         _fileInteractionService = fileInteractionService;
         _forensicLockdownService = forensicLockdownService;
         _prepService = prepService;
+        _dependencyHealthService = dependencyHealthService;
+        _bulkCoordinator = bulkCoordinator;
 
         // Initialize commands
         PlayTrackCommand = new RelayCommand<PlaylistTrackViewModel>(ExecutePlayTrack);
@@ -64,7 +74,9 @@ public class TrackOperationsViewModel : INotifyPropertyChanged
         DeleteAndBlacklistCommand = new AsyncRelayCommand<PlaylistTrackViewModel>(ExecuteDeleteAndBlacklist); // Phase 7
         RetryOfflineTracksCommand = new AsyncRelayCommand(ExecuteRetryOfflineTracks);
         OpenFolderCommand = new RelayCommand<PlaylistTrackViewModel>(ExecuteOpenFolder);
-        IndustrialPrepCommand = new AsyncRelayCommand<System.Collections.IList>(ExecuteIndustrialPrep);
+        
+        // Phase 10.5: Guard Industrial Prep
+        IndustrialPrepCommand = new AsyncRelayCommand<System.Collections.IList>(ExecuteIndustrialPrep, _ => AreDependenciesHealthy);
     }
 
     public void SetMainViewModel(MainViewModel mainViewModel)
@@ -257,6 +269,12 @@ public class TrackOperationsViewModel : INotifyPropertyChanged
     private async Task ExecuteIndustrialPrep(System.Collections.IList? selectedItems)
     {
         if (selectedItems == null || selectedItems.Count == 0) return;
+        
+        if (!AreDependenciesHealthy)
+        {
+            _logger.LogWarning("Cannot Execute Industrial Prep: {Message}", DependencyWarningMessage);
+            return;
+        }
 
         try
         {
@@ -273,21 +291,21 @@ public class TrackOperationsViewModel : INotifyPropertyChanged
 
             if (tracks.Count == 0) return;
 
-            // Run in background / show progress
-            // Ideally we should show a progress modal or status bar update. 
-            // For Phase 10.4 MVP, logging and maybe a toast is fine, but since it's blocking?
-            // ProcessTracksAsync is async.
-            
-            // TODO: Wire up progress to UI if possible.
-            var progress = new Progress<int>(p => 
+            // Phase 10.5: Use Bulk Coordinator
+            if (_bulkCoordinator.IsRunning)
             {
-                // Optionally update status bar
-            });
+                _logger.LogWarning("Bulk operation already running");
+                return;
+            }
 
-            var result = await _prepService.ProcessTracksAsync(tracks, progress);
+            var result = await _bulkCoordinator.RunOperationAsync(
+                tracks, 
+                (track, ct) => _prepService.ProcessSingleTrackAsync(track, ct),
+                "Industrial Prep Batch"
+            );
             
-            _logger.LogInformation("Industrial Prep Complete: {Success} prepared, {Skipped} skipped", 
-                result.Success, result.Skipped);
+            _logger.LogInformation("Industrial Prep Complete: {Success} success, {Failed} failed", 
+                result.SuccessCount, result.FailCount);
         }
         catch (Exception ex)
         {

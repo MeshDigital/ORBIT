@@ -255,5 +255,39 @@ public class AudioFeaturesEntity
     /// Used for O(1) retrieval during Cosine Similarity search.
     /// </summary>
     public float EmbeddingMagnitude { get; set; }
+
+    // ============================================
+    // Phase 10.5: Provenance & Reliability
+    // ============================================
+
+    /// <summary>
+    /// Tiered confidence level for the overall curation of this track.
+    /// Helps filter tracks that need human review.
+    /// </summary>
+    public CurationConfidence CurationConfidence { get; set; } = CurationConfidence.None;
+
+    /// <summary>
+    /// JSON blob containing the audit trail of metadata changes.
+    /// Tracks who changed what (BPM, Key) and when.
+    /// </summary>
+    public string ProvenanceJson { get; set; } = string.Empty;
+}
+
+public enum CurationConfidence
+{
+    None = 0,
+    Low = 1,    // Needs Review (High Variance / No Consensus)
+    Medium = 2, // Suggestive (Single Source / Minor Variance)
+    High = 3,   // Verified (Multi-Source Consensus / User Approved)
+    Manual = 4  // User Manually Overridden/Locked
+}
+
+public enum MetadataSource
+{
+    Unknown = 0,
+    Soulseek = 1,
+    Spotify = 2,
+    Essentia = 3,
+    Manual = 4 // Fixed typo "Maual" -> "Manual"
 }
 
