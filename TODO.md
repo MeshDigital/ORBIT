@@ -168,6 +168,16 @@
 - ✅ **Tagging Reliability**: Fixed `SeratoMarkerService` ID3v2 frame creation using robust `GeneralEncapsulatedObjectFrame.Get` patterns.
 - ✅ **Navigation Stability**: Disambiguated `MainViewModel` property calls to restore Forensic Lab navigation.
 
+### Recent Updates (January 8, 2026) - Reliability & Transparency Wave
+- ✅ **Phase 10.5: Native Dependency Health (Complete)**:
+  - ✅ **Proactive Service**: Created `NativeDependencyHealthService` to verify `ffmpeg` and `essentia` binaries on startup.
+  - ✅ **Startup Integration**: Automated checks during app launch with warning logs for missing tools.
+  - ✅ **Graceful Degradation**: `TrackOperationsViewModel` and `StatusBarViewModel` disable analysis features if dependencies are missing.
+  - ✅ **Reactive UI**: Status bar shows "⚠️ Repair Required" if tools are missing (Event-driven updates).
+- ✅ **Diff View Backend (Phase 10.5)**:
+  - ✅ **Data Model**: Added `CurationConfidence` and `Source` to `PlaylistTrack` and `AudioFeaturesEntity`.
+  - ✅ **Inspector Logic**: Implemented `HasBpmMismatch`, `HasKeyMismatch`, and `DiffBpmLabel` logic in `TrackInspectorViewModel`.
+
 ---
 
 ## 📊 CODE QUALITY REVIEW FINDINGS (December 30, 2025)

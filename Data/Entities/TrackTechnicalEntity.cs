@@ -39,6 +39,7 @@ namespace SLSKDONET.Data.Entities
         // Phase 10.5: Provenance
         public CurationConfidence CurationConfidence { get; set; } = CurationConfidence.None;
         public string? ProvenanceJson { get; set; }
+        public bool IsReviewNeeded { get; set; } = false;
         
         public DateTime LastUpdated { get; set; } = DateTime.UtcNow;
     }

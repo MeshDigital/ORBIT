@@ -588,6 +588,14 @@ namespace SLSKDONET.ViewModels
             OnPropertyChanged(nameof(VibeEnergy));
             OnPropertyChanged(nameof(VibeDance));
             OnPropertyChanged(nameof(VibeMood));
+
+            // Phase 10.5: Diff View Notifications
+            OnPropertyChanged(nameof(CurationConfidence));
+            OnPropertyChanged(nameof(AnalysisSource));
+            OnPropertyChanged(nameof(HasBpmMismatch));
+            OnPropertyChanged(nameof(HasKeyMismatch));
+            OnPropertyChanged(nameof(DiffBpmLabel));
+            OnPropertyChanged(nameof(DiffKeyLabel));
         }
 
         public double Energy => Track?.Energy ?? 0;
@@ -742,6 +750,40 @@ namespace SLSKDONET.ViewModels
         // Computed
         public bool HasMusicalIntelligence => EssentiaBpm.HasValue || !string.IsNullOrEmpty(EssentiaCamelotKey);
         public bool HasCuePoints => DropTime.HasValue || CueIntro.HasValue;
+
+        // Phase 10.5: Reliability & Transparency (Diff View)
+        public Data.Entities.CurationConfidence CurationConfidence => _audioFeatures?.CurationConfidence ?? Data.Entities.CurationConfidence.None;
+        public Data.Entities.DataSource AnalysisSource => _audioFeatures?.Source ?? Data.Entities.DataSource.Unknown;
+
+        public bool HasBpmMismatch 
+        {
+            get
+            {
+                if (!EssentiaBpm.HasValue || (Track?.BPM ?? 0) <= 0) return false;
+                return Math.Abs(EssentiaBpm.Value - Track.BPM) > 1.0; // Tolerance of 1 BPM
+            }
+        }
+
+        public string DiffBpmLabel
+        {
+            get
+            {
+                if (!HasBpmMismatch) return "✓ Match";
+                var diff = (EssentiaBpm ?? 0) - (Track?.BPM ?? 0);
+                return $"{diff:+0.0;-0.0} BPM";
+            }
+        }
+
+        public bool HasKeyMismatch
+        {
+            get
+            {
+                if (string.IsNullOrEmpty(EssentiaCamelotKey) || string.IsNullOrEmpty(CamelotKey)) return false;
+                return !EssentiaCamelotKey.Equals(CamelotKey, StringComparison.OrdinalIgnoreCase);
+            }
+        }
+
+        public string DiffKeyLabel => HasKeyMismatch ? $"Analysis: {EssentiaCamelotKey}" : "✓ Match";
 
         public event PropertyChangedEventHandler? PropertyChanged;
 

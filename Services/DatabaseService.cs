@@ -176,6 +176,7 @@ public class DatabaseService
                     ""PredictionConfidence"" REAL NOT NULL,
                     ""EmbeddingMagnitude"" REAL NOT NULL,
                     ""CurationConfidence"" INTEGER NOT NULL DEFAULT 0,
+                    ""Source"" INTEGER NOT NULL DEFAULT 0,
                     ""ProvenanceJson"" TEXT NULL
                 )"),
                 ("ForensicLogs", @"CREATE TABLE ""ForensicLogs"" (
@@ -235,10 +236,11 @@ public class DatabaseService
                           AiEmbeddingJson TEXT NULL,
                           CuePointsJson TEXT NULL,
                           AudioFingerprint TEXT NULL,
-                          SpectralHash TEXT NULL,
-                          CurationConfidence INTEGER NOT NULL DEFAULT 0,
-                          ProvenanceJson TEXT NULL,
-                          LastUpdated TEXT NOT NULL,
+                           SpectralHash TEXT NULL,
+                           CurationConfidence INTEGER NOT NULL DEFAULT 0,
+                           ProvenanceJson TEXT NULL,
+                           IsReviewNeeded INTEGER NOT NULL DEFAULT 0,
+                           LastUpdated TEXT NOT NULL,
                           CONSTRAINT FK_TechnicalDetails_PlaylistTracks_PlaylistTrackId FOREIGN KEY (PlaylistTrackId) REFERENCES PlaylistTracks (Id) ON DELETE CASCADE
                       );
                       CREATE UNIQUE INDEX IF NOT EXISTS IX_TechnicalDetails_PlaylistTrackId ON TechnicalDetails (PlaylistTrackId);
@@ -649,6 +651,11 @@ public class DatabaseService
                  _logger.LogWarning("Schema Patch: Adding missing column 'ProvenanceJson' to audio_features");
                  await context.Database.ExecuteSqlRawAsync("ALTER TABLE audio_features ADD COLUMN ProvenanceJson TEXT NULL");
             }
+            if (!existingColumns.Contains("Source"))
+            {
+                 _logger.LogWarning("Schema Patch: Adding missing column 'Source' to audio_features");
+                 await context.Database.ExecuteSqlRawAsync("ALTER TABLE audio_features ADD COLUMN Source INTEGER DEFAULT 0");
+            }
 
             // Check TechnicalDetails table
             cmdSchema.CommandText = "PRAGMA table_info(TechnicalDetails)";
@@ -670,8 +677,16 @@ public class DatabaseService
                  _logger.LogWarning("Schema Patch: Adding missing column 'ProvenanceJson' to TechnicalDetails");
                  await context.Database.ExecuteSqlRawAsync("ALTER TABLE TechnicalDetails ADD COLUMN ProvenanceJson TEXT NULL");
             }
+            if (!existingColumns.Contains("IsReviewNeeded"))
+            {
+                 _logger.LogWarning("Schema Patch: Adding missing column 'IsReviewNeeded' to TechnicalDetails");
+                 await context.Database.ExecuteSqlRawAsync("ALTER TABLE TechnicalDetails ADD COLUMN IsReviewNeeded INTEGER DEFAULT 0");
+            }
             
             _logger.LogInformation("[{Ms}ms] Database Init: Schema patches completed", sw.ElapsedMilliseconds);
+            
+            // Phase 10.5: Backfill curation confidence for existing tracks
+            await BackfillCurationConfidenceAsync(context);
             
             // Session 1: Performance Indexes (Phase 2 Performance Overhaul)
             // These indexes provide 50-100x speedup for common queries
@@ -2960,6 +2975,62 @@ public class DatabaseService
         finally
         {
             _writeSemaphore.Release();
+        }
+    }
+
+    /// <summary>
+    /// Phase 10.5: Automatically assigns confidence levels based on metadata consistency.
+    /// Run once during initialization if confidence is currently 'None'.
+    /// </summary>
+    private async Task BackfillCurationConfidenceAsync(AppDbContext context)
+    {
+        try
+        {
+            _logger.LogInformation("Database: Starting Curation Confidence backfill");
+            
+            // 1. Tracks with user-set BPM/Key (Manual)
+            var manualSql = @"
+                UPDATE audio_features 
+                SET CurationConfidence = 4, Source = 4
+                WHERE CurationConfidence = 0 
+                AND (Fingerprint = 'Manual' OR AnalysisVersion = 'Manual')";
+            await context.Database.ExecuteSqlRawAsync(manualSql);
+
+            // 2. High Confidence: Spotify and Essentia match (consensus)
+            var consensusSql = @"
+                UPDATE audio_features
+                SET CurationConfidence = 3
+                WHERE CurationConfidence = 0
+                AND TrackUniqueHash IN (
+                    SELECT f.TrackUniqueHash
+                    FROM audio_features f
+                    JOIN PlaylistTracks t ON f.TrackUniqueHash = t.TrackUniqueHash
+                    WHERE t.SpotifyBPM IS NOT NULL 
+                    AND ABS(f.Bpm - t.SpotifyBPM) < 1.0
+                )";
+            await context.Database.ExecuteSqlRawAsync(consensusSql);
+
+            // 3. Medium Confidence: Single source or minor variance
+            var mediumSql = @"
+                UPDATE audio_features
+                SET CurationConfidence = 2
+                WHERE CurationConfidence = 0
+                AND (BpmConfidence > 0.8 OR KeyConfidence > 0.7)";
+            await context.Database.ExecuteSqlRawAsync(mediumSql);
+
+            // 4. Low Confidence: Everything else that has some analysis
+            var lowSql = @"
+                UPDATE audio_features
+                SET CurationConfidence = 1
+                WHERE CurationConfidence = 0
+                AND Bpm > 0";
+            await context.Database.ExecuteSqlRawAsync(lowSql);
+
+            _logger.LogInformation("Database: Curation Confidence backfill completed");
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to backfill curation confidence");
         }
     }
 }

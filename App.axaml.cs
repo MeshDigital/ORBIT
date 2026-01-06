@@ -277,12 +277,14 @@ public partial class App : Application
                         // Phase 10.5: Native Dependency Health Check
                         try
                         {
-                            var depHealth = Services.GetRequiredService<INativeDependencyHealthService>();
-                            var status = await depHealth.CheckHealthAsync();
-                            if (!status.IsHealthy)
+                            var depHealth = Services.GetRequiredService<NativeDependencyHealthService>();
+                            await depHealth.CheckHealthAsync();
+                            
+                            if (!depHealth.IsHealthy)
                             {
                                 Serilog.Log.Warning("⚠️ NATIVE DEPENDENCIES MISSING: FFmpeg={Ffmpeg}, Essentia={Essentia}", 
-                                    status.IsFfmpegReady, status.IsEssentiaReady);
+                                    depHealth.FfmpegStatus?.IsAvailable ?? false, 
+                                    depHealth.EssentiaStatus?.IsAvailable ?? false);
                             }
                         }
                         catch (Exception ex)
@@ -708,7 +710,7 @@ public partial class App : Application
         services.AddSingleton<StyleLabPersistenceVerifier>();
 
         // Phase 10.5: Native Dependency Health (Reliability)
-        services.AddSingleton<INativeDependencyHealthService, NativeDependencyHealthService>();
+        services.AddSingleton<NativeDependencyHealthService>();
         
         // Views - Register all page controls for NavigationService
         services.AddTransient<Views.Avalonia.HomePage>();

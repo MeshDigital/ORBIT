@@ -34,7 +34,7 @@ public class MainViewModel : INotifyPropertyChanged
     private readonly SpotifyAuthService _spotifyAuth;
     private readonly IFileInteractionService _fileInteractionService;
     private readonly AnalysisQueueService _analysisQueue;
-    private readonly INativeDependencyHealthService _dependencyHealthService; // Phase 10.5
+    private readonly NativeDependencyHealthService _dependencyHealthService; // Phase 10.5
 
     // Child ViewModels
     public PlayerViewModel PlayerViewModel { get; }
@@ -87,7 +87,7 @@ public class MainViewModel : INotifyPropertyChanged
         IEventBus eventBus,
         AnalysisQueueService analysisQueue,
         AnalysisQueueViewModel analysisQueueViewModel,
-        INativeDependencyHealthService dependencyHealthService)
+        NativeDependencyHealthService dependencyHealthService)
     {
         _logger = logger;
         _config = config;

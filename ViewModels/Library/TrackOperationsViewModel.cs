@@ -22,7 +22,7 @@ public class TrackOperationsViewModel : INotifyPropertyChanged
     private readonly IFileInteractionService _fileInteractionService;
     private readonly ForensicLockdownService _forensicLockdownService; // Phase 7
     private readonly Services.Musical.ManualCueGenerationService _prepService; // Phase 10.4
-    private readonly INativeDependencyHealthService _dependencyHealthService; // Phase 10.5
+    private readonly NativeDependencyHealthService _dependencyHealthService; // Phase 10.5
     private readonly IBulkOperationCoordinator _bulkCoordinator; // Phase 10.5
 
     public event PropertyChangedEventHandler? PropertyChanged;
@@ -41,7 +41,7 @@ public class TrackOperationsViewModel : INotifyPropertyChanged
     public System.Windows.Input.ICommand IndustrialPrepCommand { get; } // Phase 10.4
 
     // Phase 10.5: Dependency Warning Property
-    public bool AreDependenciesHealthy => _dependencyHealthService.IsFfmpegAvailable && _dependencyHealthService.IsEssentiaAvailable;
+    public bool AreDependenciesHealthy => _dependencyHealthService.IsHealthy;
     public string DependencyWarningMessage => AreDependenciesHealthy ? string.Empty : "⚠️ CORE TOOLS MISSING: Analysis Disabled";
 
     public TrackOperationsViewModel(
@@ -51,7 +51,7 @@ public class TrackOperationsViewModel : INotifyPropertyChanged
         IFileInteractionService fileInteractionService,
         ForensicLockdownService forensicLockdownService,
         Services.Musical.ManualCueGenerationService prepService,
-        INativeDependencyHealthService dependencyHealthService,
+        NativeDependencyHealthService dependencyHealthService,
         IBulkOperationCoordinator bulkCoordinator)
     {
         _logger = logger;
@@ -62,6 +62,17 @@ public class TrackOperationsViewModel : INotifyPropertyChanged
         _prepService = prepService;
         _dependencyHealthService = dependencyHealthService;
         _bulkCoordinator = bulkCoordinator;
+
+        // Subscribe to dynamic health updates
+        _dependencyHealthService.HealthChanged += (s, healthy) =>
+        {
+             Avalonia.Threading.Dispatcher.UIThread.Post(() =>
+             {
+                 OnPropertyChanged(nameof(AreDependenciesHealthy));
+                 OnPropertyChanged(nameof(DependencyWarningMessage));
+                 (IndustrialPrepCommand as SLSKDONET.Services.AsyncRelayCommand<System.Collections.IList>)?.RaiseCanExecuteChanged();
+             });
+        };
 
         // Initialize commands
         PlayTrackCommand = new RelayCommand<PlaylistTrackViewModel>(ExecutePlayTrack);

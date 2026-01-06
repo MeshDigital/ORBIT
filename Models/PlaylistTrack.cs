@@ -165,6 +165,10 @@ public class PlaylistTrack
     public bool IsReviewNeeded { get; set; } = false; // Phase 10.4
     public string? PrimaryGenre { get; set; } // Phase 10
 
+    // Phase 10.5: Reliability & Transparency
+    public SLSKDONET.Data.Entities.CurationConfidence CurationConfidence { get; set; } = SLSKDONET.Data.Entities.CurationConfidence.None;
+    public SLSKDONET.Data.Entities.DataSource Source { get; set; } = SLSKDONET.Data.Entities.DataSource.Unknown;
+
     // Phase 13: Per-Track Filter Overrides
     public string? PreferredFormats { get; set; }
     public int? MinBitrateOverride { get; set; }

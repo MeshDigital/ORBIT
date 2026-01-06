@@ -16,7 +16,7 @@ public class StatusBarViewModel : ReactiveObject, IDisposable
     private string? _currentTrack;
     private bool _isPaused;
     private bool _isHealthy = true; // Phase 10.5
-    private readonly INativeDependencyHealthService _dependencyHealthService; // Phase 10.5
+    private readonly NativeDependencyHealthService _dependencyHealthService; // Phase 10.5
     
     public int QueuedCount
     {
@@ -65,6 +65,7 @@ public class StatusBarViewModel : ReactiveObject, IDisposable
         }
     }
     
+    // ... (keep existing properties) ...
     private bool _isBulkOperationRunning;
     private string _bulkOperationTitle = string.Empty;
     private int _bulkOperationProgress;
@@ -117,19 +118,15 @@ public class StatusBarViewModel : ReactiveObject, IDisposable
     
     public StatusBarViewModel(
         IEventBus eventBus,
-        INativeDependencyHealthService dependencyHealthService)
+        NativeDependencyHealthService dependencyHealthService)
     {
         _dependencyHealthService = dependencyHealthService;
 
-        // Phase 10.5: Native Health Polling (Every 10s)
-        Observable.Interval(TimeSpan.FromSeconds(10))
-            .ObserveOn(RxApp.MainThreadScheduler)
-            .SelectMany(async _ => await _dependencyHealthService.CheckHealthAsync())
-            .Subscribe(result => 
-            {
-                IsHealthy = result.IsHealthy;
-            })
-            .DisposeWith(_disposables);
+        // Phase 10.5: Subscribe to Health Events
+        _dependencyHealthService.HealthChanged += (s, healthy) =>
+        {
+             RxApp.MainThreadScheduler.Schedule(() => IsHealthy = healthy);
+        };
 
         // Subscribe to queue status changes
         eventBus.GetEvent<AnalysisQueueStatusChangedEvent>()
@@ -172,7 +169,7 @@ public class StatusBarViewModel : ReactiveObject, IDisposable
             .DisposeWith(_disposables);
             
         // Initial Check
-        IsHealthy = _dependencyHealthService.IsFfmpegAvailable && _dependencyHealthService.IsEssentiaAvailable;
+        IsHealthy = _dependencyHealthService.IsHealthy;
     }
     
     public void Dispose()

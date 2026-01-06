@@ -267,6 +267,11 @@ public class AudioFeaturesEntity
     public CurationConfidence CurationConfidence { get; set; } = CurationConfidence.None;
 
     /// <summary>
+    /// The primary source of the metadata (BPM, Key).
+    /// </summary>
+    public DataSource Source { get; set; } = DataSource.Unknown;
+
+    /// <summary>
     /// JSON blob containing the audit trail of metadata changes.
     /// Tracks who changed what (BPM, Key) and when.
     /// </summary>
@@ -282,12 +287,12 @@ public enum CurationConfidence
     Manual = 4  // User Manually Overridden/Locked
 }
 
-public enum MetadataSource
+public enum DataSource
 {
     Unknown = 0,
     Soulseek = 1,
     Spotify = 2,
     Essentia = 3,
-    Manual = 4 // Fixed typo "Maual" -> "Manual"
+    Manual = 4
 }
 
