@@ -8,7 +8,7 @@ lowlevel:
     zeroPadding: 0
     windowType: blackmanharris62
     silentFrames: noise
-    stats: ["mean", "var", "min", "max", "dmean", "dvar"]
+    stats: ["mean"]
     computeDynamicComplexity: true
     computeLoudnessEBUR128: true
 
