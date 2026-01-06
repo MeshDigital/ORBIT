@@ -12,14 +12,18 @@ using SLSKDONET.Configuration;
 using SLSKDONET.Models;
 using SLSKDONET.Services;
 using SLSKDONET.Views;
+using System.Reactive.Disposables;
 
 namespace SLSKDONET.ViewModels.Library;
 
 /// <summary>
 /// Manages track lists, filtering, and search functionality.
 /// Handles track display state and filtering logic.
-public class TrackListViewModel : ReactiveObject
+public class TrackListViewModel : ReactiveObject, IDisposable
 {
+    private readonly CompositeDisposable _disposables = new();
+    private bool _isDisposed;
+
     private readonly ILogger<TrackListViewModel> _logger;
     private readonly ILibraryService _libraryService;
     private readonly DownloadManager _downloadManager;
@@ -312,23 +316,57 @@ public class TrackListViewModel : ReactiveObject
             x => x.IsFilterNeedsReview)
             .Throttle(TimeSpan.FromMilliseconds(250))
             .ObserveOn(RxApp.MainThreadScheduler)
-            .Subscribe(_ => RefreshFilteredTracks());
+            .Subscribe(_ => RefreshFilteredTracks())
+            .DisposeWith(_disposables);
 
         // Subscribe to global track updates
-        eventBus.GetEvent<TrackUpdatedEvent>().Subscribe(evt => OnGlobalTrackUpdated(this, evt.Track));
+        _disposables.Add(eventBus.GetEvent<TrackUpdatedEvent>().Subscribe(evt => OnGlobalTrackUpdated(this, evt.Track)));
 
         // Phase 6D: Local UI sync for track moves
-        eventBus.GetEvent<TrackMovedEvent>().Subscribe(evt => OnTrackMoved(evt));
+        _disposables.Add(eventBus.GetEvent<TrackMovedEvent>().Subscribe(evt => OnTrackMoved(evt)));
 
         // Phase 15: Refresh filters when definitions change
-        eventBus.GetEvent<StyleDefinitionsUpdatedEvent>().Subscribe(evt => { _ = LoadStyleFiltersAsync(); });
+        _disposables.Add(eventBus.GetEvent<StyleDefinitionsUpdatedEvent>().Subscribe(evt => { _ = LoadStyleFiltersAsync(); }));
         
         // Phase 11.6: Refresh UI when track is added (cloned)
-        eventBus.GetEvent<TrackAddedEvent>().Subscribe(OnTrackAdded);
+        _disposables.Add(eventBus.GetEvent<TrackAddedEvent>().Subscribe(OnTrackAdded));
+
         
         // Initial Load
         _ = LoadStyleFiltersAsync();
     }
+
+    public void Dispose()
+    {
+        Dispose(true);
+        GC.SuppressFinalize(this);
+    }
+
+    protected virtual void Dispose(bool disposing)
+    {
+        if (_isDisposed) return;
+
+        if (disposing)
+        {
+            _disposables.Dispose();
+            
+            // Dispose tracks
+            foreach (var track in CurrentProjectTracks)
+            {
+                if (track is IDisposable d) d.Dispose();
+            }
+            CurrentProjectTracks.Clear();
+            
+            foreach (var style in StyleFilters)
+            {
+                style.PropertyChanged -= OnStyleFilterChanged;
+            }
+            StyleFilters.Clear();
+        }
+
+        _isDisposed = true;
+    }
+
 
     private void OnTrackAdded(TrackAddedEvent evt)
     {

@@ -13,6 +13,9 @@ using System.Collections.Generic; // Added this using directive
 using SLSKDONET.Models;
 using SpotifyAPI.Web; // For SimplePlaylist
 using SLSKDONET.Services.ImportProviders; // Added for SpotifyLikedSongsImportProvider
+using System.Reactive.Disposables;
+using System.Reactive.Linq;
+using ReactiveUI;
 
 namespace SLSKDONET.Views;
 
@@ -20,8 +23,11 @@ namespace SLSKDONET.Views;
 /// Main window ViewModel - coordinates navigation and global app state.
 /// Delegates responsibilities to specialized child ViewModels.
 /// </summary>
-public class MainViewModel : INotifyPropertyChanged
+public class MainViewModel : INotifyPropertyChanged, IDisposable
 {
+    private readonly System.Reactive.Disposables.CompositeDisposable _disposables = new();
+    private bool _isDisposed;
+
     private readonly ILogger<MainViewModel> _logger;
     private readonly AppConfig _config;
     private readonly ConfigManager _configManager;
@@ -147,24 +153,24 @@ public class MainViewModel : INotifyPropertyChanged
         
         // Subscribe to EventBus events
         // Subscribe to EventBus events
-        _eventBus.GetEvent<TrackUpdatedEvent>().Subscribe(evt => OnTrackUpdated(this, evt.Track));
-        _eventBus.GetEvent<SoulseekStateChangedEvent>().Subscribe(evt => HandleStateChange(evt.State));
-        _eventBus.GetEvent<TrackAddedEvent>().Subscribe(evt => OnTrackAdded(evt.TrackModel));
-        _eventBus.GetEvent<TrackRemovedEvent>().Subscribe(evt => OnTrackRemoved(evt.TrackGlobalId));
+        _disposables.Add(_eventBus.GetEvent<TrackUpdatedEvent>().Subscribe(evt => OnTrackUpdated(this, evt.Track)));
+        _disposables.Add(_eventBus.GetEvent<SoulseekStateChangedEvent>().Subscribe(evt => HandleStateChange(evt.State)));
+        _disposables.Add(_eventBus.GetEvent<TrackAddedEvent>().Subscribe(evt => OnTrackAdded(evt.TrackModel)));
+        _disposables.Add(_eventBus.GetEvent<TrackRemovedEvent>().Subscribe(evt => OnTrackRemoved(evt.TrackGlobalId)));
         
         // Phase 12.7: Context Menu Requests
-        _eventBus.GetEvent<RevealFileRequestEvent>().Subscribe(evt => 
-            _fileInteractionService.RevealFileInExplorer(evt.FilePath));
+        _disposables.Add(_eventBus.GetEvent<RevealFileRequestEvent>().Subscribe(evt => 
+            _fileInteractionService.RevealFileInExplorer(evt.FilePath)));
             
-        _eventBus.GetEvent<AddToProjectRequestEvent>().Subscribe(evt => 
+        _disposables.Add(_eventBus.GetEvent<AddToProjectRequestEvent>().Subscribe(evt => 
         {
              // TODO: Phase 6D - Show "Add to Project" Dialog
              // For now, we can log or show a toast
              StatusText = $"Request to add '{evt.Track.Title}' to project (Coming Soon)";
-        });
+        }));
         
         // Glass Box Architecture: Analysis Queue Visibility
-        _eventBus.GetEvent<AnalysisQueueStatusChangedEvent>().Subscribe(evt =>
+        _disposables.Add(_eventBus.GetEvent<AnalysisQueueStatusChangedEvent>().Subscribe(evt =>
         {
             // Marshal to UI thread
             Dispatcher.UIThread.Post(() =>
@@ -173,10 +179,10 @@ public class MainViewModel : INotifyPropertyChanged
                 AnalysisProcessedCount = evt.ProcessedCount;
                 IsAnalysisPaused = evt.IsPaused;
             });
-        });
+        }));
 
         // Phase 14: Forensic Lab Navigation
-        _eventBus.GetEvent<RequestForensicAnalysisEvent>().Subscribe(evt =>
+        _disposables.Add(_eventBus.GetEvent<RequestForensicAnalysisEvent>().Subscribe(evt =>
         {
             Dispatcher.UIThread.Post(() =>
             {
@@ -186,7 +192,8 @@ public class MainViewModel : INotifyPropertyChanged
                 // 2. Open the specific track in Lab Mode
                 this.AnalysisQueueViewModel.OpenTrackInLab(evt.TrackHash);
             });
-        });
+        }));
+
         
         // Fix #2: Startup State Sync - prevent "ghost queue" race condition
         // Sync initial state in case events fired before subscription
@@ -231,9 +238,7 @@ public class MainViewModel : INotifyPropertyChanged
 
         // Sync Spotify auth state
         IsSpotifyAuthenticated = _spotifyAuth.IsAuthenticated;
-        _spotifyAuth.AuthenticationChanged += (s, e) => {
-            IsSpotifyAuthenticated = e;
-        };
+        _spotifyAuth.AuthenticationChanged += OnSpotifyAuthChanged;
 
         // Register pages for navigation service
         _navigationService.RegisterPage("Home", typeof(Avalonia.HomePage));
@@ -259,6 +264,44 @@ public class MainViewModel : INotifyPropertyChanged
 
         // Phase 7: Spotify Silent Refresh
         _ = InitializeSpotifyAsync();
+    }
+
+    private void OnSpotifyAuthChanged(object? sender, bool authenticated)
+    {
+        IsSpotifyAuthenticated = authenticated;
+    }
+
+    public void Dispose()
+    {
+        Dispose(true);
+        GC.SuppressFinalize(this);
+    }
+
+    protected virtual void Dispose(bool disposing)
+    {
+        if (_isDisposed) return;
+        if (disposing)
+        {
+            _disposables.Dispose();
+            _spotifyAuth.AuthenticationChanged -= OnSpotifyAuthChanged;
+            _navigationService.Navigated -= OnNavigated;
+            
+            foreach (var track in AllGlobalTracks.ToList()) // ToList to avoid collection modified exception
+            {
+                track.Dispose();
+            }
+            AllGlobalTracks.Clear();
+
+            // Explicitly dispose injected ViewModels that implement IDisposable
+            PlayerViewModel?.Dispose();
+            LibraryViewModel?.Dispose();
+            SearchViewModel?.Dispose();
+            SettingsViewModel?.Dispose();
+            HomeViewModel?.Dispose();
+            AnalysisQueueViewModel?.Dispose();
+        }
+
+        _isDisposed = true;
     }
 
     private async Task InitializeSpotifyAsync()
@@ -703,8 +746,10 @@ public class MainViewModel : INotifyPropertyChanged
             if (toRemove != null)
             {
                 AllGlobalTracks.Remove(toRemove);
+                toRemove.Dispose(); // Fix Memory Leak: Dispose the removed track!
                 UpdateDownloadsFilter(); // Refresh filter
             }
+
         });
     }
 

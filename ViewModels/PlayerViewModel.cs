@@ -10,13 +10,20 @@ using SLSKDONET.Services;
 using SLSKDONET.Views;
 // using DraggingService; // TODO: Fix drag-drop library reference
 
+using System.Reactive.Linq;
+using System.Reactive.Disposables;
+using ReactiveUI;
+
 namespace SLSKDONET.ViewModels
 {
     using System.ComponentModel;
     using System.Runtime.CompilerServices;
 
-    public partial class PlayerViewModel : INotifyPropertyChanged
+    public partial class PlayerViewModel : INotifyPropertyChanged, IDisposable
     {
+        private readonly System.Reactive.Disposables.CompositeDisposable _disposables = new();
+        private bool _isDisposed;
+
         public event PropertyChangedEventHandler? PropertyChanged;
         protected void OnPropertyChanged([CallerMemberName] string? name = null)
             => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
@@ -253,7 +260,7 @@ namespace SLSKDONET.ViewModels
                 {
                     PlayTrack(evt.Track.Model.ResolvedFilePath, evt.Track.Title ?? "Unknown", evt.Track.Artist ?? "Unknown");
                 }
-            });
+            }).DisposeWith(_disposables);
 
             // Phase 6B: Play Album Request (Queue Management)
             eventBus.GetEvent<PlayAlbumRequestEvent>().Subscribe(evt =>
@@ -283,7 +290,7 @@ namespace SLSKDONET.ViewModels
                         PlayTrackAtIndex(0);
                     }
                 });
-            });
+            }).DisposeWith(_disposables);
             
             // Ensure IsPlaying is synced
             IsPlaying = _playerService.IsPlaying;
@@ -292,45 +299,42 @@ namespace SLSKDONET.ViewModels
             // AudioPlayerService initializes lazily, so this check was always failing on startup.
             // We now rely on Play() to trigger init and handle errors there.
             
-            _playerService.PausableChanged += (s, e) => 
-            {
-                Dispatcher.UIThread.Post(() => IsPlaying = _playerService.IsPlaying);
-            };
-            
-            _playerService.EndReached += (s, e) => 
-            {
-                Dispatcher.UIThread.Post(() => OnEndReached(s, e));
-            };
-            
-            _playerService.PositionChanged += (s, pos) => 
-            {
-                Dispatcher.UIThread.Post(() => Position = pos);
-            };
-            
-            _playerService.TimeChanged += (s, timeMs) => 
-            {
-                var now = DateTime.UtcNow;
-                if ((now - _lastTimeUpdate).TotalMilliseconds > 250) // Throttle to 4fps
+            // Player Service Events via Reactive patterns to ensure cleanup
+            Observable.FromEventPattern(h => _playerService.PausableChanged += h, h => _playerService.PausableChanged -= h)
+                .Subscribe(_ => Dispatcher.UIThread.Post(() => IsPlaying = _playerService.IsPlaying))
+                .DisposeWith(_disposables);
+
+            Observable.FromEventPattern(h => _playerService.EndReached += h, h => _playerService.EndReached -= h)
+                .Subscribe(e => Dispatcher.UIThread.Post(() => OnEndReached(e.Sender, EventArgs.Empty)))
+                .DisposeWith(_disposables);
+
+            Observable.FromEventPattern<float>(h => _playerService.PositionChanged += h, h => _playerService.PositionChanged -= h)
+                .Subscribe(e => Dispatcher.UIThread.Post(() => Position = e.EventArgs))
+                .DisposeWith(_disposables);
+
+            Observable.FromEventPattern<long>(h => _playerService.TimeChanged += h, h => _playerService.TimeChanged -= h)
+                .Subscribe(e => 
                 {
-                    Dispatcher.UIThread.Post(() => CurrentTimeStr = TimeSpan.FromMilliseconds(timeMs).ToString(@"m\:ss"));
-                    _lastTimeUpdate = now;
-                }
-            };
-            
-            _playerService.LengthChanged += (s, lenMs) => 
-            {
-                Dispatcher.UIThread.Post(() => TotalTimeStr = TimeSpan.FromMilliseconds(lenMs).ToString(@"m\:ss"));
-            };
-            
-            _playerService.AudioLevelsChanged += (s, e) =>
-            {
-                // VU meter updates are high frequency, but binding still needs UI thread
-                Dispatcher.UIThread.Post(() => 
+                    var now = DateTime.UtcNow;
+                    if ((now - _lastTimeUpdate).TotalMilliseconds > 250) // Throttle to 4fps
+                    {
+                        Dispatcher.UIThread.Post(() => CurrentTimeStr = TimeSpan.FromMilliseconds(e.EventArgs).ToString(@"m\:ss"));
+                        _lastTimeUpdate = now;
+                    }
+                })
+                .DisposeWith(_disposables);
+
+            Observable.FromEventPattern<long>(h => _playerService.LengthChanged += h, h => _playerService.LengthChanged -= h)
+                .Subscribe(e => Dispatcher.UIThread.Post(() => TotalTimeStr = TimeSpan.FromMilliseconds(e.EventArgs).ToString(@"m\:ss")))
+                .DisposeWith(_disposables);
+
+            Observable.FromEventPattern<AudioLevelsEventArgs>(h => _playerService.AudioLevelsChanged += h, h => _playerService.AudioLevelsChanged -= h)
+                .Subscribe(e => Dispatcher.UIThread.Post(() => 
                 {
-                    VuLeft = e.Left;
-                    VuRight = e.Right;
-                });
-            };
+                    VuLeft = e.EventArgs.Left;
+                    VuRight = e.EventArgs.Right;
+                }))
+                .DisposeWith(_disposables);
 
             TogglePlayPauseCommand = new RelayCommand(TogglePlayPause);
             StopCommand = new RelayCommand(Stop);
@@ -343,16 +347,44 @@ namespace SLSKDONET.ViewModels
             ToggleRepeatCommand = new RelayCommand(ToggleRepeat);
             TogglePlayerDockCommand = new RelayCommand(TogglePlayerDock);
             ToggleQueueCommand = new RelayCommand(ToggleQueue);
-            ToggleQueueCommand = new RelayCommand(ToggleQueue);
             ToggleLikeCommand = new AsyncRelayCommand(ToggleLikeAsync); // Phase 9.3
             SeekCommand = new RelayCommand<float>(Seek);
             
             // Phase 0: Queue persistence - auto-save on changes
-            Queue.CollectionChanged += async (s, e) => await SaveQueueAsync();
+            Queue.CollectionChanged += OnQueueCollectionChanged;
             
             // Load saved queue on startup
             _ = LoadQueueAsync();
         }
+
+        private async void OnQueueCollectionChanged(object? sender, System.Collections.Specialized.NotifyCollectionChangedEventArgs e)
+        {
+             await SaveQueueAsync();
+        }
+
+        public void Dispose()
+        {
+            Dispose(true);
+            GC.SuppressFinalize(this);
+        }
+
+        protected virtual void Dispose(bool disposing)
+        {
+            if (_isDisposed) return;
+            if (disposing)
+            {
+                _disposables.Dispose();
+                Queue.CollectionChanged -= OnQueueCollectionChanged;
+                
+                // Dispose items in queue if they are IDisposable
+                foreach (var item in Queue)
+                {
+                    item.Dispose();
+                }
+            }
+            _isDisposed = true;
+        }
+
         
         private void ToggleQueue()
         {

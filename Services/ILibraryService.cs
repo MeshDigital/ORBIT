@@ -183,6 +183,9 @@ public interface ILibraryService
     // Phase 1: Heavy Data Lazy Loading
     Task<TrackTechnicalEntity?> GetTechnicalDetailsAsync(Guid playlistTrackId);
     Task SaveTechnicalDetailsAsync(TrackTechnicalEntity details);
+
+    // Phase 11.5: Verification
+    Task MarkTrackAsVerifiedAsync(string trackHash);
     
 
 }

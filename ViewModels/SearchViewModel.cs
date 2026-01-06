@@ -6,6 +6,7 @@ using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Threading.Tasks;
 using System.Windows.Input;
+using Avalonia.Media;
 using Avalonia.Threading;
 using Microsoft.Extensions.Logging;
 using SLSKDONET.Models;
@@ -17,7 +18,6 @@ using DynamicData.Binding;
 using ReactiveUI;
 using System.Reactive.Linq;
 using SLSKDONET.Configuration;
-
 using System.Reactive.Disposables;
 
 namespace SLSKDONET.ViewModels;
@@ -243,11 +243,8 @@ public partial class SearchViewModel : ReactiveObject, IDisposable
         var filterPredicate = FilterViewModel.FilterChanged;
 
         _searchResults.Connect()
-            //.AutoRefresh(x => x.RawResult.CurrentRank)
-            .Filter(x => FilterViewModel.IsMatch(x.RawResult)) // Helper adapter
-            //.Sort(SortExpressionComparer<AnalyzedSearchResultViewModel>.Descending(t => t.RawResult.CurrentRank))
-            .Sort(SortExpressionComparer<AnalyzedSearchResultViewModel>.Descending(t => t.TrustScore)) // Search 2.0: Sort by Trust Score by default? Or mix?
-                                                                                                        // Mixing: Let's stick to CurrentRank but boost it with TrustScore next
+            .Filter(FilterViewModel.FilterChanged.Select(f => new Func<AnalyzedSearchResultViewModel, bool>(vm => f(vm.RawResult)))) 
+            .Sort(SortExpressionComparer<AnalyzedSearchResultViewModel>.Descending(t => t.TrustScore))
             .ObserveOn(RxApp.MainThreadScheduler)
             .Bind(out _publicSearchResults)
             .DisposeMany() 
@@ -255,7 +252,9 @@ public partial class SearchViewModel : ReactiveObject, IDisposable
             {
                 HiddenResultsCount = _searchResults.Count - _publicSearchResults.Count;
                 this.RaisePropertyChanged(nameof(SearchResults)); 
-            });
+            })
+            .DisposeWith(_disposables);
+
 
         // Commands
         var canSearch = this.WhenAnyValue(x => x.SearchQuery, query => !string.IsNullOrWhiteSpace(query));

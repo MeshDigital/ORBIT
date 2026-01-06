@@ -7,6 +7,7 @@ using SLSKDONET.Models;
 using SLSKDONET.Services;
 using SLSKDONET.Views;
 using Avalonia.Controls.Selection; // Added for ITreeDataGridSelectionInteraction
+using System.Reactive.Disposables;
 using System.Reactive.Linq;
 using Avalonia.Threading;
 
@@ -18,6 +19,9 @@ namespace SLSKDONET.ViewModels;
 /// </summary>
 public class LibraryViewModel : INotifyPropertyChanged, IDisposable
 {
+    private readonly CompositeDisposable _disposables = new();
+    private bool _isDisposed;
+
     private readonly ILogger<LibraryViewModel> _logger;
     private readonly INavigationService _navigationService;
     private readonly ImportHistoryViewModel _importHistoryViewModel;
@@ -148,6 +152,8 @@ public class LibraryViewModel : INotifyPropertyChanged, IDisposable
     public System.Windows.Input.ICommand ToggleInspectorCommand { get; } // Slide-in Inspector
     public System.Windows.Input.ICommand CloseInspectorCommand { get; } // NEW
     public System.Windows.Input.ICommand AnalyzeAlbumCommand { get; } // Queue album for analysis
+    public System.Windows.Input.ICommand HardwareExportCommand { get; } // Phase 9: USB Export
+
     public System.Windows.Input.ICommand AnalyzeTrackCommand { get; } // Queue track for analysis
     public System.Windows.Input.ICommand ExportPlaylistCommand { get; } // Export to Rekordbox XML
     public System.Windows.Input.ICommand AutoSortCommand { get; } // Phase 16.1: Smart Sort
@@ -204,7 +210,9 @@ public class LibraryViewModel : INotifyPropertyChanged, IDisposable
         AnalysisQueueService analysisQueueService, // Analysis queue
         Services.Library.SmartSorterService smartSorterService, // Phase 16
         LibraryCacheService libraryCacheService,
+        Services.Export.IHardwareExportService hardwareExportService, // Phase 9
         IServiceProvider serviceProvider) // Factory for transient VMs
+
     {
         _logger = logger;
         _navigationService = navigationService;
@@ -222,6 +230,8 @@ public class LibraryViewModel : INotifyPropertyChanged, IDisposable
                              ?? throw new InvalidOperationException("PersonalClassifierService not found");
         _serviceProvider = serviceProvider;
         _libraryCacheService = libraryCacheService;
+        _hardwareExportService = hardwareExportService;
+
         
         // Assign child ViewModels
         Projects = projects;
@@ -270,13 +280,21 @@ public class LibraryViewModel : INotifyPropertyChanged, IDisposable
         });
         CloseInspectorCommand = new RelayCommand<object>(_ => IsInspectorOpen = false); // NEW
         IsInspectorOpen = false; // NEW
-        AnalyzeAlbumCommand = new AsyncRelayCommand<string>(ExecuteAnalyzeAlbumAsync);
+        AnalyzeAlbumCommand = new AsyncRelayCommand<PlaylistJob>(ExecuteAnalyzeAlbumAsync);
         AnalyzeTrackCommand = new SLSKDONET.Views.RelayCommand<PlaylistTrackViewModel>(ExecuteAnalyzeTrack);
         ExportPlaylistCommand = new AsyncRelayCommand<PlaylistJob>(ExecuteExportPlaylistAsync);
         AutoSortCommand = new AsyncRelayCommand(ExecuteAutoSortAsync);
-        FindSonicTwinsCommand = new AsyncRelayCommand<PlaylistTrackViewModel>(ExecuteFindSonicTwinsAsync);
-        
+        FindSonicTwinsCommand = new AsyncRelayCommand<PlaylistTrackViewModel>(async t => await ExecuteFindSonicTwinsAsync(t));
+        HardwareExportCommand = new AsyncRelayCommand(ExecuteHardwareExportAsync, () => SelectedProject != null);
+
         // Wire up events between child ViewModels
+        Tracks.SetMainViewModel(this);
+        Projects.SetMainViewModel(this);
+        SmartPlaylists.SetMainViewModel(this);
+        
+        // Refresh drives for Hardware Export
+        RefreshAvailableDrives();
+
         Projects.ProjectSelected += OnProjectSelected;
         SmartPlaylists.SmartPlaylistSelected += OnSmartPlaylistSelected;
         
@@ -297,7 +315,8 @@ public class LibraryViewModel : INotifyPropertyChanged, IDisposable
     }
     
     private readonly IDisposable _projectAddedSubscription;
-    private bool _isDisposed;
+    private readonly Services.Export.IHardwareExportService _hardwareExportService;
+
 
     public void Dispose()
     {
@@ -311,23 +330,28 @@ public class LibraryViewModel : INotifyPropertyChanged, IDisposable
         
         if (disposing)
         {
+            _disposables.Dispose();
             _projectAddedSubscription?.Dispose();
-            
-            // Unsubscribe from events
-            if (Tracks != null && Tracks.SelectedTracks != null)
-            {
-                Tracks.SelectedTracks.CollectionChanged -= OnTrackSelectionChanged;
-            }
             
             if (Projects != null)
             {
                 Projects.ProjectSelected -= OnProjectSelected;
+                if (Projects is IDisposable d) d.Dispose();
+            }
+
+            if (Tracks != null)
+            {
+                Tracks.SelectedTracks.CollectionChanged -= OnTrackSelectionChanged;
+                if (Tracks is IDisposable d) d.Dispose();
             }
 
             if (SmartPlaylists != null)
             {
-               SmartPlaylists.SmartPlaylistSelected -= OnSmartPlaylistSelected;
+                SmartPlaylists.SmartPlaylistSelected -= OnSmartPlaylistSelected;
+                if (SmartPlaylists is IDisposable d) d.Dispose();
             }
+
+            if (Operations != null && Operations is IDisposable opD) opD.Dispose();
 
             _selectionDebounceTimer?.Dispose();
             _matchLoadCancellation?.Dispose();
@@ -335,6 +359,7 @@ public class LibraryViewModel : INotifyPropertyChanged, IDisposable
         
         _isDisposed = true;
     }
+
     
     private async void OnProjectAdded(ProjectAddedEvent evt)
     {
@@ -1360,5 +1385,104 @@ public class LibraryViewModel : INotifyPropertyChanged, IDisposable
         {
             IsLoadingMatches = false;
         }
+    }
+
+    // Phase 9: Hardware Export
+    private System.Collections.ObjectModel.ObservableCollection<Services.Export.ExportDriveInfo> _availableDrives = new();
+    public System.Collections.ObjectModel.ObservableCollection<Services.Export.ExportDriveInfo> AvailableDrives
+    {
+        get => _availableDrives;
+        set { _availableDrives = value; OnPropertyChanged(); }
+    }
+
+    private Services.Export.ExportDriveInfo? _selectedDrive;
+    public Services.Export.ExportDriveInfo? SelectedDrive
+    {
+        get => _selectedDrive;
+        set { _selectedDrive = value; OnPropertyChanged(); }
+    }
+
+    private Services.Export.HardwarePlatform _selectedPlatform = Services.Export.HardwarePlatform.Standard;
+    public Services.Export.HardwarePlatform SelectedPlatform
+    {
+        get => _selectedPlatform;
+        set { _selectedPlatform = value; OnPropertyChanged(); }
+    }
+
+    private bool _isExporting;
+    public bool IsExporting
+    {
+        get => _isExporting;
+        set { _isExporting = value; OnPropertyChanged(); }
+    }
+
+    private string _exportStatus = string.Empty;
+    public string ExportStatus
+    {
+        get => _exportStatus;
+        set { _exportStatus = value; OnPropertyChanged(); }
+    }
+
+    private void RefreshAvailableDrives()
+    {
+        AvailableDrives.Clear();
+        foreach (var drive in _hardwareExportService.GetAvailableDrives())
+        {
+            AvailableDrives.Add(drive);
+        }
+        if (AvailableDrives.Any()) 
+            SelectedDrive = AvailableDrives.First();
+    }
+
+    private async Task ExecuteHardwareExportAsync()
+    {
+        if (SelectedProject == null) return;
+        
+        RefreshAvailableDrives();
+        
+        if (!AvailableDrives.Any())
+        {
+            _notificationService.Show("Hardware Export", "No available drives detected. Please insert a USB drive.", NotificationType.Error);
+            return;
+        }
+
+        if (SelectedDrive == null)
+        {
+             _notificationService.Show("Hardware Export", "Please select a target drive.", NotificationType.Warning);
+             return;
+        }
+
+        try
+        {
+            IsExporting = true;
+            ExportStatus = "Preparing export...";
+            
+            _hardwareExportService.ProgressChanged += OnExportProgress;
+            
+            await _hardwareExportService.ExportProjectAsync(SelectedProject, SelectedDrive, SelectedPlatform);
+            
+            _notificationService.Show("Hardware Export", $"Exported '{SelectedProject.SourceTitle}' to {SelectedDrive.Name} ({SelectedPlatform})", NotificationType.Success);
+        }
+        catch (OperationCanceledException)
+        {
+            _notificationService.Show("Hardware Export", "Export cancelled.", NotificationType.Warning);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Hardware export failed");
+            _notificationService.Show("Hardware Export", $"Export failed: {ex.Message}", NotificationType.Error);
+        }
+
+        finally
+        {
+            _hardwareExportService.ProgressChanged -= OnExportProgress;
+            IsExporting = false;
+            ExportStatus = string.Empty;
+        }
+    }
+
+    private void OnExportProgress(object? sender, Services.Export.ExportProgressEventArgs e)
+    {
+        ExportStatus = $"{e.Status} ({e.CurrentTrack}/{e.TotalTracks})";
     }
 }

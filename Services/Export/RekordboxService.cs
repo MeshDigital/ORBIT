@@ -64,6 +64,14 @@ public class RekordboxService
     }
 
     /// <summary>
+    /// Exports a raw list of tracks to a Rekordbox XML file.
+    /// </summary>
+    public async Task<int> ExportPlaylistAsync(List<PlaylistTrack> tracks, string collectionName, string outputPath)
+    {
+        return await WriteXmlAsync(tracks, collectionName, outputPath);
+    }
+
+    /// <summary>
     /// Exports "Monthly Drop" - Tracks added in the last N days.
     /// </summary>
     public async Task<int> ExportMonthlyDropAsync(int days, string outputPath)

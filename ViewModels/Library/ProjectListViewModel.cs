@@ -16,8 +16,12 @@ namespace SLSKDONET.ViewModels.Library;
 /// Manages the list of projects/playlists in the library.
 /// Handles project selection, creation, deletion, and refresh.
 /// </summary>
-public class ProjectListViewModel : INotifyPropertyChanged
+public class ProjectListViewModel : INotifyPropertyChanged, IDisposable
 {
+    private readonly System.Reactive.Disposables.CompositeDisposable _disposables = new();
+    private bool _isDisposed;
+    private readonly EventHandler<bool> _authChangedHandler;
+
     private readonly ILogger<ProjectListViewModel> _logger;
     private readonly ILibraryService _libraryService;
     private readonly DownloadManager _downloadManager;
@@ -179,11 +183,13 @@ public class ProjectListViewModel : INotifyPropertyChanged
         GenerateCuesCommand = new AsyncRelayCommand<PlaylistJob>(ExecuteGenerateCuesAsync); // Phase 4.2
 
         // Subscribe to auth changes
-        _spotifyAuthService.AuthenticationChanged += (s, authenticated) => 
+        _authChangedHandler = (s, authenticated) => 
         {
              IsSpotifyAuthenticated = authenticated;
              ((AsyncRelayCommand)ImportLikedSongsCommand).RaiseCanExecuteChanged();
         };
+        _spotifyAuthService.AuthenticationChanged += _authChangedHandler;
+
 
         // Initial auth check
         _ = Task.Run(async () => 
@@ -192,18 +198,40 @@ public class ProjectListViewModel : INotifyPropertyChanged
         });
 
         // Subscribe to events
-        // Subscribe to events
-        eventBus.GetEvent<ProjectAddedEvent>().Subscribe(async evt => 
+        _disposables.Add(eventBus.GetEvent<ProjectAddedEvent>().Subscribe(async evt => 
         {
             var job = await _libraryService.FindPlaylistJobAsync(evt.ProjectId);
             if (job != null) OnPlaylistAdded(this, job);
-        });
-        eventBus.GetEvent<ProjectUpdatedEvent>().Subscribe(evt => OnProjectUpdated(this, evt.ProjectId));
-        eventBus.GetEvent<ProjectDeletedEvent>().Subscribe(evt => OnProjectDeleted(this, evt.ProjectId));
+        }));
+        _disposables.Add(eventBus.GetEvent<ProjectUpdatedEvent>().Subscribe(evt => OnProjectUpdated(this, evt.ProjectId)));
+        _disposables.Add(eventBus.GetEvent<ProjectDeletedEvent>().Subscribe(evt => OnProjectDeleted(this, evt.ProjectId)));
         
         // Subscribe to track state changes to update active download counts in real-time
-        eventBus.GetEvent<TrackStateChangedEvent>().Subscribe(OnTrackStateChanged);
+        _disposables.Add(eventBus.GetEvent<TrackStateChangedEvent>().Subscribe(OnTrackStateChanged));
     }
+
+    public void Dispose()
+    {
+        Dispose(true);
+        GC.SuppressFinalize(this);
+    }
+
+    protected virtual void Dispose(bool disposing)
+    {
+        if (_isDisposed) return;
+
+        if (disposing)
+        {
+            _disposables.Dispose();
+            if (_spotifyAuthService != null)
+            {
+                _spotifyAuthService.AuthenticationChanged -= _authChangedHandler;
+            }
+        }
+
+        _isDisposed = true;
+    }
+
     
     private void OnTrackStateChanged(TrackStateChangedEvent evt)
     {

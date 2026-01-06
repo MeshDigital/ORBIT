@@ -647,14 +647,17 @@ public partial class App : Application
         services.AddSingleton<MetadataEnrichmentOrchestrator>(); // Phase 3.1
         services.AddSingleton<SonicIntegrityService>(); // Phase 8: Sonic Integrity
 
-        services.AddSingleton<IAudioAnalysisService, AudioAnalysisService>(); // Phase 3: Local Audio Analysis
-        services.AddSingleton<WaveformAnalysisService>(); // Phase 8.1: High-Fidelity Waveforms
+        services.AddTransient<IAudioAnalysisService, AudioAnalysisService>(); // Phase 3: Local Audio Analysis
+        services.AddTransient<WaveformAnalysisService>(); // Phase 8.1: High-Fidelity Waveforms
+
         services.AddSingleton<LibraryUpgradeScout>(); // Phase 8: Self-Healing Library
         services.AddSingleton<UpgradeScoutViewModel>();
         services.AddSingleton<Services.Export.RekordboxService>(); // Phase 4: DJ Export
+        services.AddSingleton<Services.Export.IHardwareExportService, Services.Export.HardwareExportService>(); // Phase 9: Hardware Export
         
         // Phase 4: Musical Intelligence (The Brain)
-        services.AddSingleton<IAudioIntelligenceService, EssentiaAnalyzerService>();
+        services.AddTransient<IAudioIntelligenceService, EssentiaAnalyzerService>();
+
         services.AddSingleton<AnalysisQueueService>();
         services.AddSingleton<MusicalBrainTestService>();
         services.AddHostedService<AnalysisWorker>();

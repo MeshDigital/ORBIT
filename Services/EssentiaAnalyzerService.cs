@@ -39,8 +39,8 @@ public class EssentiaAnalyzerService : IAudioIntelligenceService, IDisposable
     // - Prevents hung processes from blocking queue indefinitely
     private const int ANALYSIS_TIMEOUT_SECONDS = 45;
     
-    private string? _essentiaPath;
-    private bool _binaryValidated = false;
+    private static string? _essentiaPath;
+    private static bool _binaryValidated = false;
     private volatile bool _isDisposing = false;
     
     // WHY: Track running processes for cleanup:

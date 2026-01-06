@@ -23,8 +23,10 @@ public enum SpotifyAuthStatus
     Connected
 }
 
-public class SettingsViewModel : INotifyPropertyChanged
+public class SettingsViewModel : INotifyPropertyChanged, IDisposable
 {
+    private bool _isDisposed;
+
     private readonly ILogger<SettingsViewModel> _logger;
     private readonly AppConfig _config;
     private readonly ConfigManager _configManager;
@@ -1031,10 +1033,28 @@ public class SettingsViewModel : INotifyPropertyChanged
         }
     }
 
+    public void Dispose()
+    {
+        if (_isDisposed) return;
+
+        _spotifyAuthService.AuthenticationChanged -= OnSpotifyAuthenticationChanged;
+        
+        _authWatchdogCts?.Cancel();
+        _authWatchdogCts?.Dispose();
+        _authWatchdogCts = null;
+
+        _connectCts?.Cancel();
+        _connectCts?.Dispose();
+        _connectCts = null;
+
+        _isDisposed = true;
+    }
+
     protected void OnPropertyChanged([CallerMemberName] string? propertyName = null)
     {
         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
     }
+
 
     protected bool SetProperty<T>(ref T field, T value, [CallerMemberName] string? propertyName = null)
     {

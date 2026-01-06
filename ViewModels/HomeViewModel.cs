@@ -34,6 +34,9 @@ public class HomeViewModel : INotifyPropertyChanged, IDisposable
     private readonly INotificationService _notificationService;
     private readonly IEventBus _eventBus;
     private IDisposable? _eventSubscription;
+    private PropertyChangedEventHandler? _connectionChangedHandler;
+    private bool _isDisposed;
+
 
     public event PropertyChangedEventHandler? PropertyChanged;
 
@@ -194,7 +197,7 @@ public class HomeViewModel : INotifyPropertyChanged, IDisposable
         QuickSearchCommand = new AsyncRelayCommand<SpotifyTrackViewModel>(ExecuteQuickSearchAsync);
         ClearDeadLettersCommand = new AsyncRelayCommand(ClearDeadLettersAsync);
 
-        _connectionViewModel.PropertyChanged += (s, e) =>
+        _connectionChangedHandler = (s, e) =>
         {
             if (e.PropertyName == nameof(ConnectionViewModel.StatusText) || 
                 e.PropertyName == nameof(ConnectionViewModel.IsConnected))
@@ -203,6 +206,8 @@ public class HomeViewModel : INotifyPropertyChanged, IDisposable
                 OnPropertyChanged(nameof(IsSoulseekConnected));
             }
         };
+        _connectionViewModel.PropertyChanged += _connectionChangedHandler;
+
 
         // Trigger initial load
         _ = RefreshDashboardAsync();
@@ -389,8 +394,18 @@ public class HomeViewModel : INotifyPropertyChanged, IDisposable
 
     public void Dispose()
     {
+        if (_isDisposed) return;
+        
         _eventSubscription?.Dispose();
+        
+        if (_connectionChangedHandler != null)
+        {
+            _connectionViewModel.PropertyChanged -= _connectionChangedHandler;
+        }
+
+        _isDisposed = true;
     }
+
 
     protected void OnPropertyChanged([CallerMemberName] string? propertyName = null)
     {

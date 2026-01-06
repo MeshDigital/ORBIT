@@ -13,8 +13,11 @@ namespace SLSKDONET.ViewModels.Library;
 /// Manages track-level operations like play, pause, resume, cancel, retry, etc.
 /// Handles download operations and playback integration.
 /// </summary>
-public class TrackOperationsViewModel : INotifyPropertyChanged
+public class TrackOperationsViewModel : INotifyPropertyChanged, IDisposable
 {
+    private bool _isDisposed;
+    private EventHandler<bool>? _healthChangedHandler;
+
     private readonly ILogger<TrackOperationsViewModel> _logger;
     private readonly DownloadManager _downloadManager;
     private MainViewModel? _mainViewModel; // Injected post-construction
@@ -74,7 +77,7 @@ public class TrackOperationsViewModel : INotifyPropertyChanged
         _eventBus = eventBus;
 
         // Subscribe to dynamic health updates
-        _dependencyHealthService.HealthChanged += (s, healthy) =>
+        _healthChangedHandler = (s, healthy) =>
         {
              Avalonia.Threading.Dispatcher.UIThread.Post(() =>
              {
@@ -83,6 +86,8 @@ public class TrackOperationsViewModel : INotifyPropertyChanged
                  (IndustrialPrepCommand as SLSKDONET.Views.AsyncRelayCommand<System.Collections.IList>)?.RaiseCanExecuteChanged();
              });
         };
+        _dependencyHealthService.HealthChanged += _healthChangedHandler;
+
 
         // Initialize commands
         PlayTrackCommand = new RelayCommand<PlaylistTrackViewModel>(ExecutePlayTrack);
@@ -376,8 +381,19 @@ public class TrackOperationsViewModel : INotifyPropertyChanged
         }
     }
 
+    public void Dispose()
+    {
+        if (_isDisposed) return;
+        if (_healthChangedHandler != null)
+        {
+            _dependencyHealthService.HealthChanged -= _healthChangedHandler;
+        }
+        _isDisposed = true;
+    }
+
     protected void OnPropertyChanged([CallerMemberName] string? propertyName = null)
     {
         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
     }
+
 }

@@ -9,6 +9,7 @@ using SLSKDONET.Models;
 using SLSKDONET.Services;
 using SLSKDONET.Data.Entities;
 using Avalonia.Media;
+using System.Reactive.Disposables;
 
 namespace SLSKDONET.ViewModels;
 
@@ -83,8 +84,11 @@ public class LiveLogViewModel
     }
 }
 
-public class AnalysisQueueViewModel : ReactiveObject
+public class AnalysisQueueViewModel : ReactiveObject, IDisposable
 {
+    private readonly CompositeDisposable _disposables = new();
+    private bool _isDisposed;
+
     private readonly ILogger<AnalysisQueueViewModel> _logger;
     private readonly IEventBus _eventBus;
     private readonly INavigationService _navigationService;
@@ -236,36 +240,55 @@ public class AnalysisQueueViewModel : ReactiveObject
                 {
                     await PerformSearchAsync(q);
                 }
-            });
+            })
+            .DisposeWith(_disposables);
 
         // Subscriptions
-        _eventBus.GetEvent<TrackAnalysisStartedEvent>()
+        _disposables.Add(_eventBus.GetEvent<TrackAnalysisStartedEvent>()
             .ObserveOn(RxApp.MainThreadScheduler)
-            .Subscribe(OnAnalysisStarted);
+            .Subscribe(OnAnalysisStarted));
 
-        _eventBus.GetEvent<AnalysisProgressEvent>()
+        _disposables.Add(_eventBus.GetEvent<AnalysisProgressEvent>()
             .ObserveOn(RxApp.MainThreadScheduler)
-            .Subscribe(OnAnalysisProgress);
+            .Subscribe(OnAnalysisProgress));
 
-        _eventBus.GetEvent<TrackAnalysisCompletedEvent>()
+        _disposables.Add(_eventBus.GetEvent<TrackAnalysisCompletedEvent>()
             .ObserveOn(RxApp.MainThreadScheduler)
-            .Subscribe(OnAnalysisCompleted);
+            .Subscribe(OnAnalysisCompleted));
 
-        _eventBus.GetEvent<TrackAnalysisFailedEvent>()
+        _disposables.Add(_eventBus.GetEvent<TrackAnalysisFailedEvent>()
             .ObserveOn(RxApp.MainThreadScheduler)
-            .Subscribe(OnAnalysisFailed);
+            .Subscribe(OnAnalysisFailed));
 
         // Subscribe to live logs
         if (_forensicLogger is Services.TrackForensicLogger concreteLogger)
         {
-            Observable.FromEventPattern<EventHandler<ForensicLogEntry>, ForensicLogEntry>(
+            _disposables.Add(Observable.FromEventPattern<EventHandler<ForensicLogEntry>, ForensicLogEntry>(
                 h => concreteLogger.LogGenerated += h,
                 h => concreteLogger.LogGenerated -= h)
                 .Select(x => x.EventArgs)
                 .ObserveOn(RxApp.MainThreadScheduler)
-                .Subscribe(OnNewForensicLog);
+                .Subscribe(OnNewForensicLog));
         }
     }
+
+    public void Dispose()
+    {
+        Dispose(true);
+        GC.SuppressFinalize(this);
+    }
+
+    protected virtual void Dispose(bool disposing)
+    {
+        if (_isDisposed) return;
+        if (disposing)
+        {
+            _disposables.Dispose();
+            LabViewModel?.Dispose();
+        }
+        _isDisposed = true;
+    }
+
 
     private void OnNewForensicLog(ForensicLogEntry log)
     {

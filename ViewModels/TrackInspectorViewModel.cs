@@ -12,6 +12,7 @@ using SLSKDONET.Models;
 using System.Linq;
 using System.Collections.Generic;
 using Microsoft.Extensions.Logging;
+using SLSKDONET.ViewModels.Library;
 
 using Avalonia.Media.Imaging;
 using System.IO;
