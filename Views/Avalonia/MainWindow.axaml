@@ -4,6 +4,7 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:vm="clr-namespace:SLSKDONET.Views"
         xmlns:views="clr-namespace:SLSKDONET.Views.Avalonia"
+        xmlns:controls="clr-namespace:SLSKDONET.Views.Avalonia.Controls"
         xmlns:models="clr-namespace:SLSKDONET.Models"
         mc:Ignorable="d" d:DesignWidth="1400" d:DesignHeight="900"
         x:Class="SLSKDONET.Views.Avalonia.MainWindow"
@@ -394,5 +395,10 @@
                  <views:HorizontalPlayerControl DataContext="{Binding PlayerViewModel}"/>
              </Grid>
         </Border>
+
+        <!-- Global Bulk Operation Progress Overlay -->
+        <controls:BulkOperationProgressModal Grid.RowSpan="3"
+                                            DataContext="{Binding BulkOperationViewModel}"
+                                            ZIndex="2000"/>
     </Grid>
 </Window>

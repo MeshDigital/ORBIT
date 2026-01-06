@@ -3,11 +3,13 @@ using Avalonia.Controls;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Markup.Xaml;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Serilog;
 using Serilog.Extensions.Logging;
 using SLSKDONET.Configuration;
+using SLSKDONET.Data;
 using SLSKDONET.Services;
 using SLSKDONET.Services.InputParsers;
 using SLSKDONET.Services.Ranking;
@@ -612,6 +614,7 @@ public partial class App : Application
         services.AddSingleton<ViewModels.Downloads.DownloadCenterViewModel>();
 
         // Database
+        services.AddDbContextFactory<AppDbContext>();
         services.AddSingleton<DatabaseService>();
         services.AddSingleton<DashboardService>(); // [NEW] HomePage Intelligence
         services.AddSingleton<IMetadataService, MetadataService>();
@@ -633,6 +636,7 @@ public partial class App : Application
         services.AddSingleton<ConnectionViewModel>();
         services.AddSingleton<SettingsViewModel>();
         services.AddSingleton<HomeViewModel>(); // [NEW] Command Center ViewModel
+        services.AddSingleton<BulkOperationViewModel>();
         
         // Orchestration Services
         services.AddSingleton<SearchOrchestrationService>();
@@ -667,6 +671,8 @@ public partial class App : Application
 
         // Phase 10: Tagging & Mobility
         services.AddSingleton<SLSKDONET.Services.IO.SafeWriteService>();
+        services.AddSingleton<SLSKDONET.Services.IO.IFileWriteService>(sp => sp.GetRequiredService<SLSKDONET.Services.IO.SafeWriteService>());
+
         services.AddSingleton<SLSKDONET.Services.Tagging.ISeratoMarkerService, SLSKDONET.Services.Tagging.SeratoMarkerService>();
         services.AddSingleton<SLSKDONET.Services.Tagging.IUniversalCueService, SLSKDONET.Services.Tagging.UniversalCueService>();
 

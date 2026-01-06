@@ -88,12 +88,11 @@ namespace SLSKDONET.Services
                     double expectedBytes = (result.Bitrate * 1000.0 / 8.0) * result.Length.Value;
                     double actualBytes = result.Size.Value;
 
-                    // WHY: 70% threshold catches fakes while allowing CBR/VBR variance
-                    // - Real 320kbps: 90-110% of expected (VBR peak efficiency)
+                    // WHY: ±15% variance + 10% buffer = 25% allowance
+                    // - Real 320kbps: 75-125% of expected
                     // - Fake (64kbps upscaled): ~20% of expected = BUSTED
-                    if (actualBytes < (expectedBytes * 0.70)) score -= 50; // HEAVY PENALTY (Fake)
-                    // WHY: >130% might be metadata bloat or WAV-in-MP3 wrapper (rare but suspicious)
-                    else if (actualBytes > (expectedBytes * 1.3)) score -= 5;
+                    if (actualBytes < (expectedBytes * 0.75)) score -= 50; // HEAVY PENALTY (Fake)
+                    else if (actualBytes > (expectedBytes * 1.25)) score -= 10; // Possibly mislabeled WAV/Bloat
                     // WHY: Perfect size match = high confidence in authenticity
                     else score += 10;
                 }
@@ -119,9 +118,9 @@ namespace SLSKDONET.Services
             if (result.Bitrate >= 320 && result.Length.HasValue && (ext == ".mp3") && result.Size.HasValue)
             {
                 double expectedBytes = (result.Bitrate * 1000.0 / 8.0) * result.Length.Value;
-                if (result.Size.Value < (expectedBytes * 0.70))
+                if (result.Size.Value < (expectedBytes * 0.75))
                     notes.Add("⚠️ SIZE MISMATCH: Use caution. File is too small for 320kbps.");
-                else if (result.Size.Value > (expectedBytes * 0.95) && result.Size.Value < (expectedBytes * 1.05))
+                else if (result.Size.Value > (expectedBytes * 0.90) && result.Size.Value < (expectedBytes * 1.10))
                     notes.Add("✅ VERIFIED: Size matches bitrate perfectly.");
             }
 

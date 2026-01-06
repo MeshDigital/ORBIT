@@ -40,6 +40,9 @@ public class DatabaseService
         if (connection != null)
         {
             context.ConfigureSqliteOptimizations(connection);
+            
+            // Phase 10: Manual Schema Patch (Fix for missing migrations in EnsureCreated DBs)
+            await ApplySchemaPatchesAsync(context, connection);
         }
 
         // Phase 1B: Run index audit (DEBUG builds only)
@@ -3033,6 +3036,151 @@ public class DatabaseService
             _logger.LogError(ex, "Failed to backfill curation confidence");
         }
     }
+
+    /// <summary>
+    /// Phase 11.5: Marks a track as verified:
+    /// 1. Updates IsReviewNeeded = false
+    /// 2. Updates CurationConfidence to High (Verified)
+    /// 3. Sets Source to Manual
+    /// </summary>
+    public async Task MarkTrackAsVerifiedAsync(string trackHash)
+    {
+        using var context = new AppDbContext();
+        
+        // Update Technical Details (for all instances of this track in playlists)
+        var tracks = await context.PlaylistTracks
+            .Include(pt => pt.TechnicalDetails)
+            .Where(pt => pt.TrackUniqueHash == trackHash)
+            .ToListAsync();
+            
+        foreach (var track in tracks)
+        {
+            if (track.TechnicalDetails != null)
+            {
+                track.TechnicalDetails.IsReviewNeeded = false;
+            }
+        }
+
+        // Update Audio Features
+        var features = await context.AudioFeatures
+            .FirstOrDefaultAsync(f => f.TrackUniqueHash == trackHash);
+            
+        if (features != null)
+        {
+            features.CurationConfidence = CurationConfidence.High;
+            features.Source = DataSource.Manual;
+            
+            var provenance = new 
+            {
+                 Action = "Verified",
+                 By = "User",
+                 Timestamp = DateTime.UtcNow
+            };
+            features.ProvenanceJson = System.Text.Json.JsonSerializer.Serialize(provenance);
+        }
+
+        await context.SaveChangesAsync();
+    }
+
+    /// <summary>
+    /// Applies critical schema updates that might be missed by EnsureCreatedAsync
+    /// </summary>
+    private async Task ApplySchemaPatchesAsync(AppDbContext context, System.Data.Common.DbConnection connection)
+    {
+        try
+        {
+            if (connection.State != System.Data.ConnectionState.Open)
+                await connection.OpenAsync();
+
+            using var command = connection.CreateCommand();
+
+            // Helper to check if column exists
+            bool ColumnExists(string tableName, string columnName)
+            {
+                using var checkCmd = connection.CreateCommand();
+                checkCmd.CommandText = $"SELECT COUNT(*) FROM pragma_table_info('{tableName}') WHERE name='{columnName}'";
+                var result = checkCmd.ExecuteScalar();
+                return Convert.ToInt32(result) > 0;
+            }
+
+            // Helper to check if table exists
+            bool TableExists(string tableName)
+            {
+                using var checkCmd = connection.CreateCommand();
+                checkCmd.CommandText = $"SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='{tableName}'";
+                var result = checkCmd.ExecuteScalar();
+                return Convert.ToInt32(result) > 0;
+            }
+
+            // 1. TechnicalDetails Table
+            if (!TableExists("TechnicalDetails"))
+            {
+                _logger.LogInformation("Patching Schema: Creating TechnicalDetails table...");
+                command.CommandText = @"
+                    CREATE TABLE ""TechnicalDetails"" (
+                        ""Id"" TEXT NOT NULL CONSTRAINT ""PK_TechnicalDetails"" PRIMARY KEY,
+                        ""PlaylistTrackId"" TEXT NOT NULL,
+                        ""WaveformData"" BLOB NULL,
+                        ""RmsData"" BLOB NULL,
+                        ""LowData"" BLOB NULL,
+                        ""MidData"" BLOB NULL,
+                        ""HighData"" BLOB NULL,
+                        ""AiEmbeddingJson"" TEXT NULL,
+                        ""CuePointsJson"" TEXT NULL,
+                        ""AudioFingerprint"" TEXT NULL,
+                        ""SpectralHash"" TEXT NULL,
+                        ""LastUpdated"" TEXT NOT NULL,
+                        ""IsPrepared"" INTEGER NOT NULL DEFAULT 0,
+                        ""PrimaryGenre"" TEXT NULL,
+                        CONSTRAINT ""FK_TechnicalDetails_PlaylistTracks_PlaylistTrackId"" FOREIGN KEY (""PlaylistTrackId"") REFERENCES ""PlaylistTracks"" (""Id"") ON DELETE CASCADE
+                    );
+                    CREATE UNIQUE INDEX ""IX_TechnicalDetails_PlaylistTrackId"" ON ""TechnicalDetails"" (""PlaylistTrackId"");
+                ";
+                await command.ExecuteNonQueryAsync();
+            }
+
+            // 2. PlaylistTracks Columns
+            if (!ColumnExists("PlaylistTracks", "PrimaryGenre"))
+            {
+                _logger.LogInformation("Patching Schema: Adding PrimaryGenre to PlaylistTracks...");
+                command.CommandText = @"ALTER TABLE ""PlaylistTracks"" ADD COLUMN ""PrimaryGenre"" TEXT NULL;";
+                await command.ExecuteNonQueryAsync();
+            }
+            if (!ColumnExists("PlaylistTracks", "IsPrepared"))
+            {
+                _logger.LogInformation("Patching Schema: Adding IsPrepared to PlaylistTracks...");
+                command.CommandText = @"ALTER TABLE ""PlaylistTracks"" ADD COLUMN ""IsPrepared"" INTEGER NOT NULL DEFAULT 0;";
+                await command.ExecuteNonQueryAsync();
+            }
+
+            // 3. LibraryEntries Columns
+            if (!ColumnExists("LibraryEntries", "PrimaryGenre"))
+            {
+                _logger.LogInformation("Patching Schema: Adding PrimaryGenre to LibraryEntries...");
+                command.CommandText = @"ALTER TABLE ""LibraryEntries"" ADD COLUMN ""PrimaryGenre"" TEXT NULL;";
+                await command.ExecuteNonQueryAsync();
+            }
+            if (!ColumnExists("LibraryEntries", "IsPrepared"))
+            {
+                _logger.LogInformation("Patching Schema: Adding IsPrepared to LibraryEntries...");
+                command.CommandText = @"ALTER TABLE ""LibraryEntries"" ADD COLUMN ""IsPrepared"" INTEGER NOT NULL DEFAULT 0;";
+                await command.ExecuteNonQueryAsync();
+            }
+            if (!ColumnExists("LibraryEntries", "CuePointsJson"))
+            {
+                _logger.LogInformation("Patching Schema: Adding CuePointsJson to LibraryEntries...");
+                command.CommandText = @"ALTER TABLE ""LibraryEntries"" ADD COLUMN ""CuePointsJson"" TEXT NULL;";
+                await command.ExecuteNonQueryAsync();
+            }
+            
+            _logger.LogInformation("Schema patching completed.");
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to apply schema patches. Application may be unstable.");
+        }
+    }
 }
+
 
 

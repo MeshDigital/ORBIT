@@ -454,7 +454,14 @@ public class PlaylistTrackViewModel : INotifyPropertyChanged, Library.ILibraryNo
              // Dates
              OnPropertyChanged(nameof(ReleaseDate));
              OnPropertyChanged(nameof(ReleaseYear));
+             OnPropertyChanged(nameof(ReleaseYear));
              OnPropertyChanged(nameof(IsReviewNeeded)); // Phase 10.4
+             
+             // Phase 11.5
+             OnPropertyChanged(nameof(CurationConfidence));
+             OnPropertyChanged(nameof(CurationIcon));
+             OnPropertyChanged(nameof(CurationColor));
+             OnPropertyChanged(nameof(ProvenanceTooltip));
         });
     }
 
@@ -686,6 +693,29 @@ public class PlaylistTrackViewModel : INotifyPropertyChanged, Library.ILibraryNo
             }
         }
     }
+
+    // Phase 11.5: Library Trust Badges
+    public SLSKDONET.Data.Entities.CurationConfidence CurationConfidence => Model.CurationConfidence;
+
+    public string CurationIcon => CurationConfidence switch
+    {
+        SLSKDONET.Data.Entities.CurationConfidence.Manual => "🛡️",
+        SLSKDONET.Data.Entities.CurationConfidence.High => "🏅",
+        SLSKDONET.Data.Entities.CurationConfidence.Medium => "🥈",
+        SLSKDONET.Data.Entities.CurationConfidence.Low => "📉",
+        _ => string.Empty
+    };
+    
+    public string CurationColor => CurationConfidence switch
+    {
+        SLSKDONET.Data.Entities.CurationConfidence.Manual => "#32CD32", // LimeGreen
+        SLSKDONET.Data.Entities.CurationConfidence.High => "#FFD700",   // Gold
+        SLSKDONET.Data.Entities.CurationConfidence.Medium => "#C0C0C0", // Silver
+        SLSKDONET.Data.Entities.CurationConfidence.Low => "#FF4444",    // Red
+        _ => "Transparent"
+    };
+
+    public string ProvenanceTooltip => $"Curation: {CurationConfidence}\nSource: {Model.Source}";
 
 
     public string MetadataStatus

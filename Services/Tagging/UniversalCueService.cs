@@ -16,13 +16,16 @@ namespace SLSKDONET.Services.Tagging
     {
         private readonly ILogger<UniversalCueService> _logger;
         private readonly ISeratoMarkerService _seratoService;
+        private readonly RekordboxService _rekordboxService; // Phase 11.5
 
         public UniversalCueService(
             ILogger<UniversalCueService> logger,
-            ISeratoMarkerService seratoService)
+            ISeratoMarkerService seratoService,
+            RekordboxService rekordboxService)
         {
             _logger = logger;
             _seratoService = seratoService;
+            _rekordboxService = rekordboxService;
         }
 
         public async Task SyncToTagsAsync(string filePath, List<OrbitCue> cues)
@@ -31,10 +34,24 @@ namespace SLSKDONET.Services.Tagging
              // await _traktorService.WriteTagsAsync(filePath, cues);
         }
 
-        public Task ExportToXmlAsync(IEnumerable<PlaylistTrack> tracks)
+        public async Task ExportToXmlAsync(IEnumerable<PlaylistTrack> tracks)
         {
-             // Rekordbox XML logic later
-             return Task.CompletedTask;
+             try
+             {
+                 _logger.LogInformation("Exporting {Count} tracks to Rekordbox XML via Universal Bridge", tracks.Count());
+                 
+                 var desktop = Environment.GetFolderPath(Environment.SpecialFolder.Desktop);
+                 var outputPath = System.IO.Path.Combine(desktop, $"ORBIT_Export_{DateTime.Now:yyyyMMdd_HHmmss}.xml");
+                 
+                 await _rekordboxService.ExportPlaylistAsync(tracks.ToList(), "ORBIT Universal Export", outputPath);
+                 
+                 _logger.LogInformation("Export successful: {Path}", outputPath);
+             }
+             catch (Exception ex)
+             {
+                 _logger.LogError(ex, "Universal XML Export failed");
+                 throw;
+             }
         }
     }
 }

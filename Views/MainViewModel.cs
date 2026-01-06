@@ -45,6 +45,7 @@ public class MainViewModel : INotifyPropertyChanged
     public HomeViewModel HomeViewModel { get; }
     public StatusBarViewModel StatusBar { get; }
     public AnalysisQueueViewModel AnalysisQueueViewModel { get; }
+    public BulkOperationViewModel BulkOperationViewModel { get; }
 
     public event PropertyChangedEventHandler? PropertyChanged;
 
@@ -87,6 +88,7 @@ public class MainViewModel : INotifyPropertyChanged
         IEventBus eventBus,
         AnalysisQueueService analysisQueue,
         AnalysisQueueViewModel analysisQueueViewModel,
+        BulkOperationViewModel bulkOperationViewModel,
         NativeDependencyHealthService dependencyHealthService)
     {
         _logger = logger;
@@ -114,6 +116,7 @@ public class MainViewModel : INotifyPropertyChanged
         StatusBar = new StatusBarViewModel(eventBus, _dependencyHealthService);
         
         AnalysisQueueViewModel = analysisQueueViewModel;
+        BulkOperationViewModel = bulkOperationViewModel;
 
         // Initialize commands
         NavigateHomeCommand = new RelayCommand(NavigateToHome); // Phase 6D

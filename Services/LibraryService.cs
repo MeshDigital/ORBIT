@@ -1026,4 +1026,68 @@ public class LibraryService : ILibraryService
             return new List<StyleDefinitionEntity>();
         }
     }
+
+    // Phase 11.5: Verification logic
+    public async Task MarkTrackAsVerifiedAsync(string trackHash)
+    {
+        try
+        {
+            await _databaseService.MarkTrackAsVerifiedAsync(trackHash).ConfigureAwait(false);
+            _logger.LogInformation("Marked track verified: {Hash}", trackHash);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to verify track");
+            throw;
+        }
+    }
+    /// <summary>
+    /// Creates a physical clone of a track, duplicating its database entry and decoupling its identity.
+    /// This allows for multiple versions of the same file (e.g., Radio Edit vs Extended) with independent cues.
+    /// </summary>
+    public async Task<PlaylistTrack> CreatePhysicalCloneAsync(PlaylistTrack source, string newPath)
+    {
+        try
+        {
+            // 1. Create a deep copy of the track model
+            var clone = EntityToPlaylistTrack(PlaylistTrackToEntity(source));
+            
+            // 2. Assign a new unique identity
+            clone.Id = Guid.NewGuid();
+            clone.ResolvedFilePath = newPath;
+            
+            // 3. Decouple the Hash (Critical to avoid collision in the "All Tracks" view)
+            // We append a clone suffix to ensure it doesn't merge with the original
+            clone.TrackUniqueHash = $"{source.TrackUniqueHash}_CLONE_{Guid.NewGuid().ToString("N").Substring(0, 6)}";
+            
+            // 4. Reset preparation state for the new copy
+            clone.IsPrepared = false;
+            clone.CuePointsJson = null; // Fresh start for cues
+            clone.Status = TrackStatus.Downloaded; // Immediately ready
+            clone.AddedAt = DateTime.UtcNow;
+
+            // 5. Persist to PlaylistTracks table
+            await SavePlaylistTrackAsync(clone).ConfigureAwait(false);
+
+            // 6. Index in the global LibraryEntry table
+            await AddTrackToLibraryIndexAsync(clone, newPath).ConfigureAwait(false);
+
+            // 7. Initialize fresh Technical Details
+            var tech = new TrackTechnicalEntity
+            {
+                PlaylistTrackId = clone.Id,
+                IsPrepared = false,
+                LastUpdated = DateTime.UtcNow
+            };
+            await SaveTechnicalDetailsAsync(tech).ConfigureAwait(false);
+
+            _logger.LogInformation("Physical clone created: {Hash} at {Path}", clone.TrackUniqueHash, newPath);
+            return clone;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to create physical clone for {Title}", source.Title);
+            throw;
+        }
+    }
 }

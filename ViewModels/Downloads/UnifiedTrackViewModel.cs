@@ -417,6 +417,14 @@ public class UnifiedTrackViewModel : ReactiveObject, IDisplayableTrack, IDisposa
                 this.RaisePropertyChanged(nameof(PreparationColor));
                 this.RaisePropertyChanged(nameof(PrimaryGenre));
                 
+                this.RaisePropertyChanged(nameof(PrimaryGenre));
+                
+                // Curation & Trust
+                this.RaisePropertyChanged(nameof(CurationConfidence));
+                this.RaisePropertyChanged(nameof(CurationIcon));
+                this.RaisePropertyChanged(nameof(CurationColor));
+                this.RaisePropertyChanged(nameof(ProvenanceTooltip));
+
                 // Audio features
                 this.RaisePropertyChanged(nameof(IsEnriched));
                 this.RaisePropertyChanged(nameof(WaveformData));
@@ -438,6 +446,29 @@ public class UnifiedTrackViewModel : ReactiveObject, IDisplayableTrack, IDisposa
         // Publish event
         _eventBus.Publish(new PlayTrackRequestEvent(payload));
     }
+    
+    // Phase 11.5: Library Trust Badges
+    public SLSKDONET.Data.Entities.CurationConfidence CurationConfidence => Model.CurationConfidence;
+
+    public string CurationIcon => CurationConfidence switch
+    {
+        SLSKDONET.Data.Entities.CurationConfidence.Manual => "🛡️",
+        SLSKDONET.Data.Entities.CurationConfidence.High => "🏅",
+        SLSKDONET.Data.Entities.CurationConfidence.Medium => "🥈",
+        SLSKDONET.Data.Entities.CurationConfidence.Low => "📉",
+        _ => string.Empty
+    };
+    
+    public Avalonia.Media.IBrush CurationColor => CurationConfidence switch
+    {
+        SLSKDONET.Data.Entities.CurationConfidence.Manual => Avalonia.Media.Brushes.LimeGreen,
+        SLSKDONET.Data.Entities.CurationConfidence.High => Avalonia.Media.Brushes.Gold,
+        SLSKDONET.Data.Entities.CurationConfidence.Medium => Avalonia.Media.Brushes.Silver,
+        SLSKDONET.Data.Entities.CurationConfidence.Low => Avalonia.Media.Brushes.OrangeRed,
+        _ => Avalonia.Media.Brushes.Transparent
+    };
+
+    public string ProvenanceTooltip => $"Confidence: {CurationConfidence}\nSource: {Model.Source}";
 
     public void Dispose()
     {

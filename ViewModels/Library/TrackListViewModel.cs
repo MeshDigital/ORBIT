@@ -137,8 +137,44 @@ public class TrackListViewModel : ReactiveObject
                     
                     _isFilterDownloaded = false;
                     this.RaisePropertyChanged(nameof(IsFilterDownloaded));
+
+                    _isFilterNeedsReview = false;
+                    this.RaisePropertyChanged(nameof(IsFilterNeedsReview));
                 }
-                else if (!IsFilterDownloaded)
+                else if (!IsFilterDownloaded && !IsFilterNeedsReview)
+                {
+                    // If everything is unselected, force All back on
+                    _isFilterAll = true;
+                    this.RaisePropertyChanged(nameof(IsFilterAll));
+                }
+            }
+            finally { _updatingFilters = false; }
+        }
+    }
+
+    private bool _isFilterNeedsReview;
+    public bool IsFilterNeedsReview
+    {
+        get => _isFilterNeedsReview;
+        set
+        {
+            if (_updatingFilters) return;
+            _updatingFilters = true;
+            try
+            {
+                this.RaiseAndSetIfChanged(ref _isFilterNeedsReview, value);
+                if (value)
+                {
+                    _isFilterAll = false;
+                    this.RaisePropertyChanged(nameof(IsFilterAll));
+                    
+                    _isFilterDownloaded = false;
+                    this.RaisePropertyChanged(nameof(IsFilterDownloaded));
+                    
+                    _isFilterPending = false;
+                    this.RaisePropertyChanged(nameof(IsFilterPending));
+                }
+                else if (!IsFilterDownloaded && !IsFilterPending)
                 {
                     // If everything is unselected, force All back on
                     _isFilterAll = true;
@@ -272,7 +308,8 @@ public class TrackListViewModel : ReactiveObject
             x => x.SearchText,
             x => x.IsFilterAll,
             x => x.IsFilterDownloaded,
-            x => x.IsFilterPending)
+            x => x.IsFilterPending,
+            x => x.IsFilterNeedsReview)
             .Throttle(TimeSpan.FromMilliseconds(250))
             .ObserveOn(RxApp.MainThreadScheduler)
             .Subscribe(_ => RefreshFilteredTracks());
@@ -286,8 +323,47 @@ public class TrackListViewModel : ReactiveObject
         // Phase 15: Refresh filters when definitions change
         eventBus.GetEvent<StyleDefinitionsUpdatedEvent>().Subscribe(evt => { _ = LoadStyleFiltersAsync(); });
         
+        // Phase 11.6: Refresh UI when track is added (cloned)
+        eventBus.GetEvent<TrackAddedEvent>().Subscribe(OnTrackAdded);
+        
         // Initial Load
         _ = LoadStyleFiltersAsync();
+    }
+
+    private void OnTrackAdded(TrackAddedEvent evt)
+    {
+        Dispatcher.UIThread.Post(() => {
+            // If the track belongs to the current project, add it
+            if (_mainViewModel?.LibraryViewModel?.SelectedProject?.Id == evt.TrackModel.PlaylistId)
+            {
+                // Prevents duplicates if the event is fired twice
+                if (CurrentProjectTracks.Any(t => t.Model.Id == evt.TrackModel.Id)) return;
+
+                var vm = new PlaylistTrackViewModel(evt.TrackModel, _eventBus, _libraryService, _artworkCache);
+                
+                // Sync Initial State
+                if (evt.InitialState.HasValue)
+                {
+                    vm.State = evt.InitialState.Value;
+                }
+
+                CurrentProjectTracks.Add(vm);
+                RefreshFilteredTracks();
+            }
+            // "All Tracks" project (Guid.Empty)
+            else if (_mainViewModel?.LibraryViewModel?.SelectedProject?.Id == Guid.Empty)
+            {
+                // In All Tracks view, we add it if it's a new unique file 
+                // but cloned tracks ARE new unique files.
+                if (CurrentProjectTracks.Any(t => t.Model.TrackUniqueHash == evt.TrackModel.TrackUniqueHash)) return;
+
+                var vm = new PlaylistTrackViewModel(evt.TrackModel, _eventBus, _libraryService, _artworkCache);
+                if (evt.InitialState.HasValue) vm.State = evt.InitialState.Value;
+                
+                CurrentProjectTracks.Add(vm);
+                RefreshFilteredTracks();
+            }
+        });
     }
 
     private void OnTrackMoved(TrackMovedEvent evt)
@@ -471,6 +547,9 @@ public class TrackListViewModel : ReactiveObject
         // Apply state filter first
         if (!IsFilterAll)
         {
+            if (IsFilterNeedsReview && !track.IsReviewNeeded)
+                return false;
+
             if (IsFilterDownloaded && track.State != PlaylistTrackState.Completed)
                 return false;
 

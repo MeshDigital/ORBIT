@@ -12,6 +12,7 @@ using SLSKDONET.Models;
 using SLSKDONET.Services.Models.Export;
 using SLSKDONET.Services.IO; // For FileVerificationHelper
 using SLSKDONET.Utils; // For KeyConverter
+using System.Text.Json;
 
 namespace SLSKDONET.Services.Export;
 
@@ -112,23 +113,28 @@ public class RekordboxService
                 finalKey = KeyConverter.ToCamelot(t.ManualKey);
             }
 
-            exportTracks.Add(new RekordboxTrack
+            var rTrack = new RekordboxTrack
             {
                 TrackID = idCounter++,
                 Name = XmlSanitizer.Sanitize(t.Title) ?? "Unknown",
                 Artist = XmlSanitizer.Sanitize(t.Artist) ?? "Unknown",
                 Album = XmlSanitizer.Sanitize(t.Album) ?? "Unknown",
                 Genre = "SLSK", // Could use t.Genres if parsed
-                TotalTime = 0, // We need Duration. PlaylistTrack doesn't have it explicitly mapped always? 
-                               // Actually it does not. We might need to hydrate from LibraryEntity if missing.
-                               // For now, allow 0 (Rekordbox will analyze).
+                TotalTime = 0, 
                 Size = fileInfo.Length,
                 DateAdded = t.AddedAt.ToString("yyyy-MM-dd"),
                 BitRate = t.Bitrate ?? 0,
                 AverageBpm = t.BPM ?? (t.SpotifyBPM ?? 0),
                 Tonality = finalKey,
                 Location = FormatPathForRekordbox(t.ResolvedFilePath)
-            });
+            };
+
+            if (!string.IsNullOrEmpty(t.CuePointsJson))
+            {
+                try { rTrack.CuePoints = System.Text.Json.JsonSerializer.Deserialize<List<OrbitCue>>(t.CuePointsJson) ?? new(); } catch { }
+            }
+
+            exportTracks.Add(rTrack);
         }
 
         return await GenerateXmlFile(exportTracks, collectionName, outputPath);
@@ -149,7 +155,7 @@ public class RekordboxService
             string finalKey = KeyConverter.ToCamelot(e.MusicalKey);
             if (string.IsNullOrEmpty(finalKey)) finalKey = KeyConverter.ToCamelot(e.SpotifyKey);
 
-            exportTracks.Add(new RekordboxTrack
+            var rTrack = new RekordboxTrack
             {
                 TrackID = idCounter++,
                 Name = XmlSanitizer.Sanitize(e.Title),
@@ -163,7 +169,14 @@ public class RekordboxService
                 AverageBpm = e.BPM ?? (e.SpotifyBPM ?? 0),
                 Tonality = finalKey,
                 Location = FormatPathForRekordbox(e.FilePath)
-            });
+            };
+
+            if (!string.IsNullOrEmpty(e.CuePointsJson))
+            {
+                try { rTrack.CuePoints = System.Text.Json.JsonSerializer.Deserialize<List<OrbitCue>>(e.CuePointsJson) ?? new(); } catch { }
+            }
+
+            exportTracks.Add(rTrack);
         }
 
         return await GenerateXmlFile(exportTracks, collectionName, outputPath);
@@ -225,6 +238,17 @@ public class RekordboxService
                     await writer.WriteAttributeStringAsync(null, "Tonality", null, t.Tonality);
                     
                 await writer.WriteAttributeStringAsync(null, "Location", null, t.Location);
+                
+                // Export Cue Points (Phase 11.5)
+                foreach (var cue in t.CuePoints)
+                {
+                    await writer.WriteStartElementAsync(null, "POSITION_MARK", null);
+                    await writer.WriteAttributeStringAsync(null, "Name", null, XmlSanitizer.Sanitize(cue.Name));
+                    await writer.WriteAttributeStringAsync(null, "Type", null, "0"); // 0 = Hot Cue
+                    await writer.WriteAttributeStringAsync(null, "Start", null, cue.Timestamp.ToString("F3", CultureInfo.InvariantCulture));
+                    await writer.WriteAttributeStringAsync(null, "Num", null, cue.SlotIndex >= 0 ? cue.SlotIndex.ToString() : "-1");
+                    await writer.WriteEndElementAsync(); // POSITION_MARK
+                }
                 
                 await writer.WriteEndElementAsync(); // TRACK
             }

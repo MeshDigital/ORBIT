@@ -45,4 +45,9 @@ public class RekordboxTrack
     /// Absolute path URI: file://localhost/C:/Music/Track.mp3
     /// </summary>
     public string Location { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Cue points for Rekordbox export.
+    /// </summary>
+    public System.Collections.Generic.List<SLSKDONET.Models.OrbitCue> CuePoints { get; set; } = new();
 }

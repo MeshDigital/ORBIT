@@ -29,6 +29,7 @@ namespace SLSKDONET.ViewModels
         private readonly Services.HarmonicMatchService _harmonicMatchService;
         private readonly Services.ILibraryService _libraryService;
         private readonly Services.Tagging.IUniversalCueService _cueService;
+        private readonly TrackOperationsViewModel _trackOperations; // Phase 11.6
         private readonly ILogger<TrackInspectorViewModel> _logger;
         private readonly CompositeDisposable _disposables = new();
         private Data.Entities.AudioAnalysisEntity? _analysis;
@@ -104,6 +105,8 @@ namespace SLSKDONET.ViewModels
         public System.Windows.Input.ICommand SaveCuesCommand { get; }
         public System.Windows.Input.ICommand AddCueCommand { get; }
         public System.Windows.Input.ICommand DeleteCueCommand { get; }
+        public System.Windows.Input.ICommand MarkAsVerifiedCommand { get; } // Phase 11.5
+        public System.Windows.Input.ICommand CloneCommand { get; } // Phase 11.6
 
         public TrackInspectorViewModel(
             Services.IAudioAnalysisService audioAnalysisService, 
@@ -114,6 +117,7 @@ namespace SLSKDONET.ViewModels
             Services.HarmonicMatchService harmonicMatchService,
             Services.ILibraryService libraryService,
             Services.Tagging.IUniversalCueService cueService,
+            TrackOperationsViewModel trackOperations,
             ILogger<TrackInspectorViewModel> logger)
         {
             _audioAnalysisService = audioAnalysisService;
@@ -124,6 +128,7 @@ namespace SLSKDONET.ViewModels
             _harmonicMatchService = harmonicMatchService;
             _libraryService = libraryService;
             _cueService = cueService;
+            _trackOperations = trackOperations;
             _logger = logger;
 
             // Phase 12.6: Listen for global track selection
@@ -180,6 +185,30 @@ namespace SLSKDONET.ViewModels
                 })
                 .DisposeWith(_disposables);
             
+            // Phase 11.5: Verification Command
+            MarkAsVerifiedCommand = ReactiveCommand.CreateFromTask(async () =>
+            {
+                if (Track == null || string.IsNullOrEmpty(Track.TrackUniqueHash)) return;
+                try 
+                {
+                    await _libraryService.MarkTrackAsVerifiedAsync(Track.TrackUniqueHash);
+                    await LoadProDjFeaturesAsync(); // Refresh UI
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Failed to verify track");
+                }
+            });
+
+            CloneCommand = ReactiveCommand.CreateFromTask(async () => 
+            {
+                if (Track == null) return;
+                
+                // Wrap in a fake ViewModel expected by TrackOperations
+                var trackVm = new PlaylistTrackViewModel(Track, _eventBus);
+                _trackOperations.CloneTrackCommand.Execute(trackVm);
+            });
+
             // Interactive Commands
             ForceReAnalyzeCommand = ReactiveCommand.CreateFromTask(async () =>
             {
@@ -760,7 +789,7 @@ namespace SLSKDONET.ViewModels
             get
             {
                 if (!EssentiaBpm.HasValue || (Track?.BPM ?? 0) <= 0) return false;
-                return Math.Abs(EssentiaBpm.Value - Track.BPM) > 1.0; // Tolerance of 1 BPM
+                return Math.Abs(EssentiaBpm.Value - (float)(Track.BPM ?? 0)) > 1.0f; // Tolerance of 1 BPM
             }
         }
 

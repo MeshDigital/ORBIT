@@ -80,6 +80,11 @@ namespace SLSKDONET.ViewModels
             ForensicAssessment = MetadataForensicService.GetForensicAssessment(result.Model);
             IsGoldenMatch = MetadataForensicService.IsGoldenMatch(result.Model);
             IsFake = MetadataForensicService.IsFake(result.Model);
+            
+            // Sync with base SearchResult for Filter & Badge logic
+            if (IsFake) _result.IntegrityStatus = "Suspect";
+            else if (IsGoldenMatch) _result.IntegrityStatus = "Verified";
+            else _result.IntegrityStatus = "";
         }
     }
 }

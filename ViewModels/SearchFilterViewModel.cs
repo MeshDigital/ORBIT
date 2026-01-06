@@ -159,8 +159,23 @@ public class SearchFilterViewModel : ReactiveObject
             // If High Reliability is ON, reject queues > 50
             if (highReliability && result.QueueLength > 50) return false;
 
-            // Phase 12.6: Hide potential fakes/upscales
-            if (hideSuspects && result.IntegrityStatus == "Suspect") return false;
+            // Phase 12.6: Hide potential fakes/upscales (Operational Hardening)
+            if (hideSuspects)
+            {
+                if (result.IntegrityStatus == "Suspect" || MetadataForensicService.IsFake(result.Model)) 
+                    return false;
+
+                // 4. Manual Forensic Size Gate (Phase 11.5)
+                if (result.Size > 0 && result.Length > 0 && result.Bitrate > 0)
+                {
+                    double expectedBytes = (result.Bitrate * 1000.0 / 8.0) * result.Length.Value;
+                    // Formula: ±15% variance + 10% buffer = ±25% total allowance
+                    if (result.Size < (expectedBytes * 0.75) || result.Size > (expectedBytes * 1.25))
+                    {
+                        return false;
+                    }
+                }
+            }
 
             return true;
         };

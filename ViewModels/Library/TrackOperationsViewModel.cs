@@ -20,10 +20,13 @@ public class TrackOperationsViewModel : INotifyPropertyChanged
     private MainViewModel? _mainViewModel; // Injected post-construction
     private readonly PlayerViewModel _playerViewModel;
     private readonly IFileInteractionService _fileInteractionService;
+    private readonly Services.IO.IFileWriteService _fileWriteService; // Phase 11.6 Physical Duplication
+    private readonly LibraryService _libraryService; // Phase 11.6 Physical Duplication
     private readonly ForensicLockdownService _forensicLockdownService; // Phase 7
     private readonly Services.Musical.ManualCueGenerationService _prepService; // Phase 10.4
     private readonly NativeDependencyHealthService _dependencyHealthService; // Phase 10.5
     private readonly IBulkOperationCoordinator _bulkCoordinator; // Phase 10.5
+    private readonly IEventBus _eventBus; // Phase 11.6 Notification
 
     public event PropertyChangedEventHandler? PropertyChanged;
     
@@ -36,6 +39,7 @@ public class TrackOperationsViewModel : INotifyPropertyChanged
     public System.Windows.Input.ICommand DownloadAlbumCommand { get; }
     public System.Windows.Input.ICommand RemoveTrackCommand { get; }
     public System.Windows.Input.ICommand DeleteAndBlacklistCommand { get; } // Phase 7
+    public System.Windows.Input.ICommand CloneTrackCommand { get; } // Phase 11.6: Physical Clone
     public System.Windows.Input.ICommand RetryOfflineTracksCommand { get; }
     public System.Windows.Input.ICommand OpenFolderCommand { get; }
     public System.Windows.Input.ICommand IndustrialPrepCommand { get; } // Phase 10.4
@@ -49,19 +53,25 @@ public class TrackOperationsViewModel : INotifyPropertyChanged
         DownloadManager downloadManager,
         PlayerViewModel playerViewModel,
         IFileInteractionService fileInteractionService,
+        Services.IO.IFileWriteService fileWriteService,
+        LibraryService libraryService,
         ForensicLockdownService forensicLockdownService,
         Services.Musical.ManualCueGenerationService prepService,
         NativeDependencyHealthService dependencyHealthService,
-        IBulkOperationCoordinator bulkCoordinator)
+        IBulkOperationCoordinator bulkCoordinator,
+        IEventBus eventBus)
     {
         _logger = logger;
         _downloadManager = downloadManager;
         _playerViewModel = playerViewModel;
         _fileInteractionService = fileInteractionService;
+        _fileWriteService = fileWriteService;
+        _libraryService = libraryService;
         _forensicLockdownService = forensicLockdownService;
         _prepService = prepService;
         _dependencyHealthService = dependencyHealthService;
         _bulkCoordinator = bulkCoordinator;
+        _eventBus = eventBus;
 
         // Subscribe to dynamic health updates
         _dependencyHealthService.HealthChanged += (s, healthy) =>
@@ -70,7 +80,7 @@ public class TrackOperationsViewModel : INotifyPropertyChanged
              {
                  OnPropertyChanged(nameof(AreDependenciesHealthy));
                  OnPropertyChanged(nameof(DependencyWarningMessage));
-                 (IndustrialPrepCommand as SLSKDONET.Services.AsyncRelayCommand<System.Collections.IList>)?.RaiseCanExecuteChanged();
+                 (IndustrialPrepCommand as SLSKDONET.Views.AsyncRelayCommand<System.Collections.IList>)?.RaiseCanExecuteChanged();
              });
         };
 
@@ -83,6 +93,7 @@ public class TrackOperationsViewModel : INotifyPropertyChanged
         DownloadAlbumCommand = new AsyncRelayCommand<PlaylistTrackViewModel>(ExecuteDownloadAlbum);
         RemoveTrackCommand = new AsyncRelayCommand<PlaylistTrackViewModel>(ExecuteRemoveTrack);
         DeleteAndBlacklistCommand = new AsyncRelayCommand<PlaylistTrackViewModel>(ExecuteDeleteAndBlacklist); // Phase 7
+        CloneTrackCommand = new AsyncRelayCommand<PlaylistTrackViewModel>(ExecuteCloneTrack); // Phase 11.6
         RetryOfflineTracksCommand = new AsyncRelayCommand(ExecuteRetryOfflineTracks);
         OpenFolderCommand = new RelayCommand<PlaylistTrackViewModel>(ExecuteOpenFolder);
         
@@ -93,6 +104,47 @@ public class TrackOperationsViewModel : INotifyPropertyChanged
     public void SetMainViewModel(MainViewModel mainViewModel)
     {
         _mainViewModel = mainViewModel;
+    }
+
+    private async Task ExecuteCloneTrack(PlaylistTrackViewModel? vm)
+    {
+        if (vm?.Model == null || string.IsNullOrEmpty(vm.Model.ResolvedFilePath)) return;
+
+        try 
+        {
+            var sourcePath = vm.Model.ResolvedFilePath;
+            var directory = System.IO.Path.GetDirectoryName(sourcePath);
+            var fileName = System.IO.Path.GetFileNameWithoutExtension(sourcePath);
+            var extension = System.IO.Path.GetExtension(sourcePath);
+            
+            if (string.IsNullOrEmpty(directory)) return;
+
+            // 1. Generate descriptive new name
+            var newPath = System.IO.Path.Combine(directory, $"{fileName} (Clone){extension}");
+            int counter = 1;
+            while (System.IO.File.Exists(newPath))
+            {
+                newPath = System.IO.Path.Combine(directory, $"{fileName} (Clone {++counter}){extension}");
+            }
+
+            _logger.LogInformation("Cloning track '{Title}' to '{Path}'", vm.Title, newPath);
+
+            // 2. Physical Atomic Copy
+            var copySuccess = await _fileWriteService.CopyFileAtomicAsync(sourcePath, newPath);
+            if (!copySuccess) throw new System.IO.IOException("Failed to duplicate file on disk.");
+
+            // 3. Register in Engine
+            var clone = await _libraryService.CreatePhysicalCloneAsync(vm.Model, newPath);
+
+            _logger.LogInformation("Clone successful. New Track ID: {Id}", clone.Id);
+
+            // 4. Trigger UI Refresh
+            _eventBus.Publish(new TrackAddedEvent(clone, PlaylistTrackState.Completed));
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Clone operation failed");
+        }
     }
 
     private void ExecutePlayTrack(PlaylistTrackViewModel? track)

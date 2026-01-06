@@ -106,6 +106,14 @@ public class SmartPlaylistViewModel : INotifyPropertyChanged
             Filter = tracks => tracks.Where(t => t.Model?.IsLiked == true)
         });
 
+        SmartPlaylists.Add(new SmartPlaylist
+        {
+            Id = Guid.Parse("00000000-0000-0000-0000-000000000006"),
+            Name = "Curation Queue",
+            Icon = "⚖️",
+            Filter = tracks => tracks.Where(t => t.Model?.IsReviewNeeded == true || t.Model?.CurationConfidence == Data.Entities.CurationConfidence.Low)
+        });
+
         _logger.LogInformation("Initialized {Count} smart playlists", SmartPlaylists.Count);
     }
 

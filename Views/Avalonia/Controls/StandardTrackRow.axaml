@@ -159,6 +159,14 @@
                    <TextBlock Text="-" Foreground="#777"/>
                    <TextBlock Text="{Binding TrackTitle}" Foreground="#EEE" FontSize="14" TextTrimming="CharacterEllipsis"/>
                    
+                   <!-- Curation Trust Badge (Phase 11.5) -->
+                   <Border CornerRadius="2" Padding="4,1" Margin="0,0,6,0" VerticalAlignment="Center" 
+                           BorderThickness="1" BorderBrush="{Binding CurationColor}"
+                           IsVisible="{Binding CurationIcon, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"
+                           ToolTip.Tip="{Binding ProvenanceTooltip}">
+                       <TextBlock Text="{Binding CurationIcon}" FontSize="10" VerticalAlignment="Center"/>
+                   </Border>
+
                    <!-- Integrity Check Badge -->
                    <Border Classes="IntegrityBadge Secure" IsVisible="{Binding IsSecure}">
                        <TextBlock Text="✓ VERIFIED" FontSize="9" FontWeight="Bold" Foreground="#00FF00"/>

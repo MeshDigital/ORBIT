@@ -4,6 +4,7 @@ using System.Reactive.Linq;
 using ReactiveUI;
 using SLSKDONET.Models;
 using SLSKDONET.Services;
+using Avalonia.Threading;
 
 namespace SLSKDONET.ViewModels;
 
@@ -125,7 +126,7 @@ public class StatusBarViewModel : ReactiveObject, IDisposable
         // Phase 10.5: Subscribe to Health Events
         _dependencyHealthService.HealthChanged += (s, healthy) =>
         {
-             RxApp.MainThreadScheduler.Schedule(() => IsHealthy = healthy);
+             Dispatcher.UIThread.Post(() => IsHealthy = healthy);
         };
 
         // Subscribe to queue status changes

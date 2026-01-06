@@ -241,9 +241,13 @@
                                          Classes="chip"
                                          Padding="16,8"/>
                             <ToggleButton Content="Pending" 
-                                         IsChecked="{Binding Tracks.IsFilterPending, Mode=TwoWay}"
-                                         Classes="chip"
-                                         Padding="16,8"/>
+                                          IsChecked="{Binding Tracks.IsFilterPending, Mode=TwoWay}"
+                                          Classes="chip"
+                                          Padding="16,8"/>
+                            <ToggleButton Content="Needs Review" 
+                                          IsChecked="{Binding Tracks.IsFilterNeedsReview, Mode=TwoWay}"
+                                          Classes="chip danger"
+                                          Padding="16,8"/>
                             
                             <!-- Phase 15: Dynamic Style Filters -->
                             <ItemsControl ItemsSource="{Binding Tracks.StyleFilters}">
@@ -446,6 +450,15 @@
                                                 <TextBlock Text="📂"/>
                                             </MenuItem.Icon>
                                         </MenuItem>
+
+                                        <MenuItem Header="Create Independent Physical Copy" 
+                                                  Command="{Binding $parent[UserControl].DataContext.Operations.CloneTrackCommand}" 
+                                                  CommandParameter="{Binding}"
+                                                  ToolTip.Tip="Create a physical copy of this file with independent cues">
+                                             <MenuItem.Icon>
+                                                <TextBlock Text="📁"/>
+                                            </MenuItem.Icon>
+                                        </MenuItem>
                                         
                                         <Separator/>
                                         
@@ -474,6 +487,16 @@
                                                   InputGesture="Delete">
                                              <MenuItem.Icon>
                                                 <TextBlock Text="🗑️"/>
+                                            </MenuItem.Icon>
+                                        </MenuItem>
+
+                                        <MenuItem Header="Delete &amp; Ban (Forensic)" 
+                                                  Command="{Binding $parent[UserControl].DataContext.Operations.DeleteAndBlacklistCommand}" 
+                                                  CommandParameter="{Binding}"
+                                                  Foreground="#FF6B6B"
+                                                  ToolTip.Tip="Delete file and block hash from ever being imported again">
+                                             <MenuItem.Icon>
+                                                <TextBlock Text="⛔"/>
                                             </MenuItem.Icon>
                                         </MenuItem>
                                         
