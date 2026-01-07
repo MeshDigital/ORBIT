@@ -45,9 +45,9 @@ public class TonalData
     [JsonPropertyName("key_krumhansl")]
     public KeyData? KeyKrumhansl { get; set; }
 
-    // Phase 13C: Chord Extraction
+    // Phase 13C: Chord Extraction - Using JsonElement for flexibility since format varies
     [JsonPropertyName("chords_key")]
-    public string[]? ChordsKey { get; set; }
+    public System.Text.Json.JsonElement? ChordsKey { get; set; }
 }
 
 public class KeyData
