@@ -149,6 +149,13 @@
                 </Panel>
             </Border>
             
+            <!-- Health Bar (Traffic Light) -->
+            <Rectangle Grid.Row="0" Grid.RowSpan="2" Grid.Column="0"
+                       Width="4" HorizontalAlignment="Left"
+                       Fill="{Binding QualityColor}"
+                       RadiusX="2" RadiusY="2"
+                       IsVisible="{Binding IsCompleted}"/>
+            
             <!-- Column 1: Spacer -->
             
             <!-- Column 2: Main Content -->
@@ -180,9 +187,14 @@
                        <TextBlock Text="{Binding PreparationStatus}" FontSize="8" FontWeight="Bold" Foreground="White"/>
                    </Border>
                    
-                   <!-- Primary Genre Tag (Phase 10) -->
-                   <Border Background="#33FFFFFF" CornerRadius="2" Padding="4,0" IsVisible="{Binding PrimaryGenre, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
-                       <TextBlock Text="{Binding PrimaryGenre}" FontSize="9" Foreground="#CCC" FontWeight="SemiBold"/>
+                   <!-- Primary Genre Tag (Pill) -->
+                   <Border Background="#33FFFFFF" CornerRadius="10" Padding="8,1" IsVisible="{Binding PrimaryGenre, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
+                       <TextBlock Text="{Binding PrimaryGenre}" FontSize="10" Foreground="#CCC" FontWeight="SemiBold"/>
+                   </Border>
+
+                   <!-- Year Tag (Pill) -->
+                   <Border Background="#1AFFFFFF" CornerRadius="10" Padding="8,1" IsVisible="{Binding YearDisplay, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
+                       <TextBlock Text="{Binding YearDisplay}" FontSize="10" Foreground="#AAA" FontWeight="SemiBold"/>
                    </Border>
                 </StackPanel>
             </StackPanel>
@@ -226,17 +238,13 @@
                 
                 <TextBlock Text="•" Foreground="#444" IsVisible="{Binding IsCompleted}"/>
                 
-                <!-- BPM/Key Badges -->
+                <!-- BPM/Key Pills -->
                 <StackPanel Orientation="Horizontal" Spacing="6" IsVisible="{Binding IsCompleted}">
-                    <Border Background="#222" CornerRadius="3" Padding="4,0">
-                        <TextBlock Text="{Binding BpmDisplay}" Foreground="#AAA" FontSize="10" FontFamily="Consolas">
-                           <TextBlock.Effect>
-                               <DropShadowEffect BlurRadius="0" Color="Black" OffsetX="1" OffsetY="1" Opacity="0.5"/>
-                           </TextBlock.Effect>
-                        </TextBlock>
+                    <Border Background="#2A2A2A" CornerRadius="10" Padding="8,1" BorderBrush="#333" BorderThickness="1">
+                        <TextBlock Text="{Binding BpmDisplay}" Foreground="#AAA" FontSize="11" FontFamily="Consolas" FontWeight="Bold"/>
                     </Border>
-                    <Border Background="#222" CornerRadius="3" Padding="4,0">
-                         <TextBlock Text="{Binding KeyDisplay}" Foreground="#AAA" FontSize="10" FontFamily="Consolas"/>
+                    <Border Background="#2A2A2A" CornerRadius="10" Padding="8,1" BorderBrush="#333" BorderThickness="1">
+                         <TextBlock Text="{Binding KeyDisplay}" Foreground="#AAA" FontSize="11" FontFamily="Consolas" FontWeight="Bold"/>
                     </Border>
                 </StackPanel>
             </StackPanel>

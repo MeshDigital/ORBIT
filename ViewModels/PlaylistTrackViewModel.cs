@@ -33,6 +33,26 @@ public class PlaylistTrackViewModel : INotifyPropertyChanged, Library.ILibraryNo
 
     public DateTime? ReleaseDate => Model?.ReleaseDate;
     public string ReleaseYear => Model?.ReleaseDate?.Year.ToString() ?? "";
+    public string YearDisplay => ReleaseYear; // Alias for StandardTrackRow compatibility
+
+    public string? PrimaryGenre => Model.PrimaryGenre;
+
+    public bool IsPrepared => Model.IsPrepared;
+    public string PreparationStatus => IsPrepared ? "Prepared" : "Raw";
+    public Avalonia.Media.IBrush PreparationColor => IsPrepared ? Avalonia.Media.Brushes.DodgerBlue : Avalonia.Media.Brushes.Gray;
+
+    public Avalonia.Media.IBrush QualityColor 
+    {
+        get
+        {
+            if (Model.Bitrate >= 1000 || (Model.Format?.Equals("FLAC", StringComparison.OrdinalIgnoreCase) ?? false)) return Avalonia.Media.Brushes.DeepSkyBlue; 
+            if (Model.Bitrate >= 320) return Avalonia.Media.Brushes.LimeGreen; 
+            if (Model.Bitrate >= 192) return Avalonia.Media.Brushes.Orange; 
+            return Avalonia.Media.Brushes.Red; 
+        }
+    }
+    
+
 
     public int SortOrder 
     {
@@ -458,7 +478,14 @@ public class PlaylistTrackViewModel : INotifyPropertyChanged, Library.ILibraryNo
              OnPropertyChanged(nameof(ReleaseDate));
              OnPropertyChanged(nameof(ReleaseYear));
              OnPropertyChanged(nameof(ReleaseYear));
-             OnPropertyChanged(nameof(IsReviewNeeded)); // Phase 10.4
+              OnPropertyChanged(nameof(IsReviewNeeded)); // Phase 10.4
+              OnPropertyChanged(nameof(PrimaryGenre)); // New
+              OnPropertyChanged(nameof(IsPrepared)); // New
+              OnPropertyChanged(nameof(PreparationStatus)); // New
+              OnPropertyChanged(nameof(PreparationColor)); // New
+              OnPropertyChanged(nameof(QualityColor)); // New
+              OnPropertyChanged(nameof(StatusColor)); // New
+              OnPropertyChanged(nameof(YearDisplay)); // New
              
              // Phase 11.5
              OnPropertyChanged(nameof(CurationConfidence));

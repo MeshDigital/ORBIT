@@ -7,3 +7,11 @@ public enum IntegrityLevel
     Suspicious = 2, // Bitrate mismatch or Spectral analysis failed
     Gold = 3        // Perfect Match (Duration + BPM + Key + Audio Hash)
 }
+
+public enum ActiveWorkspace
+{
+    Selector, // Central Only (Triage)
+    Analyst,  // Inspector (Verification)
+    Preparer, // Mix Helper + Inspector (Cueing)
+    Forensic  // Full Page Lab (Deep Dive)
+}

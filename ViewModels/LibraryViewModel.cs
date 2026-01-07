@@ -57,11 +57,44 @@ public class LibraryViewModel : INotifyPropertyChanged, IDisposable
     }
 
     // Phase 9: Mix Helper Sidebar
-    private bool _isMixHelperVisible = false;
+    private bool _isMixHelperVisible;
     public bool IsMixHelperVisible
     {
         get => _isMixHelperVisible;
-        set { _isMixHelperVisible = value; OnPropertyChanged(); }
+        set 
+        { 
+            if (SetProperty(ref _isMixHelperVisible, value))
+            {
+                UpdateWorkspaceFromState();
+                OnPropertyChanged(nameof(IsRightPanelVisible));
+            }
+        }
+    }
+
+    private ActiveWorkspace _currentWorkspace = ActiveWorkspace.Selector;
+    public ActiveWorkspace CurrentWorkspace
+    {
+        get => _currentWorkspace;
+        set
+        {
+            if (SetProperty(ref _currentWorkspace, value))
+            {
+                ApplyWorkspaceState();
+            }
+        }
+    }
+
+    private bool _isForensicLabVisible;
+    public bool IsForensicLabVisible
+    {
+        get => _isForensicLabVisible;
+        set 
+        {
+             if (SetProperty(ref _isForensicLabVisible, value))
+             {
+                 UpdateWorkspaceFromState();
+             }
+        }
     }
 
     private PlaylistTrackViewModel? _mixHelperSeedTrack;
@@ -192,12 +225,78 @@ public class LibraryViewModel : INotifyPropertyChanged, IDisposable
         get => _isInspectorOpen;
         set 
         {
-            if (_isInspectorOpen != value)
+            if (SetProperty(ref _isInspectorOpen, value))
             {
-                _isInspectorOpen = value;
-                OnPropertyChanged();
+                UpdateWorkspaceFromState();
+                OnPropertyChanged(nameof(IsRightPanelVisible));
             }
         }
+    }
+    
+    public bool IsRightPanelVisible => IsMixHelperVisible || IsInspectorOpen;
+
+    private bool _isUpdatingState;
+
+    private void UpdateWorkspaceFromState()
+    {
+        if (_isUpdatingState) return;
+        _isUpdatingState = true;
+
+        if (IsForensicLabVisible)
+        {
+            CurrentWorkspace = ActiveWorkspace.Forensic;
+        }
+        else if (IsMixHelperVisible && IsInspectorOpen)
+        {
+            CurrentWorkspace = ActiveWorkspace.Preparer;
+        }
+        else if (IsInspectorOpen)
+        {
+            CurrentWorkspace = ActiveWorkspace.Analyst;
+        }
+        else
+        {
+            CurrentWorkspace = ActiveWorkspace.Selector;
+        }
+
+        _isUpdatingState = false;
+    }
+
+    private void ApplyWorkspaceState()
+    {
+        if (_isUpdatingState) return;
+        _isUpdatingState = true;
+
+        switch (CurrentWorkspace)
+        {
+            case ActiveWorkspace.Selector:
+                IsMixHelperVisible = false;
+                IsInspectorOpen = false;
+                IsForensicLabVisible = false;
+                break;
+            case ActiveWorkspace.Analyst:
+                IsMixHelperVisible = false;
+                IsInspectorOpen = true;
+                IsForensicLabVisible = false;
+                break;
+            case ActiveWorkspace.Preparer:
+                IsMixHelperVisible = true;
+                IsInspectorOpen = true;
+                IsForensicLabVisible = false;
+                break;
+            case ActiveWorkspace.Forensic:
+                // Keep background state? or hide them? 
+                // User said "Blur" effect background.
+                IsForensicLabVisible = true;
+                break;
+        }
+
+        OnPropertyChanged(nameof(IsMixHelperVisible));
+        OnPropertyChanged(nameof(IsInspectorOpen));
+        OnPropertyChanged(nameof(IsForensicLabVisible));
+        OnPropertyChanged(nameof(IsRightPanelVisible));
+
+        _isUpdatingState = false;
     }
 
     public LibraryViewModel(
@@ -290,6 +389,10 @@ public class LibraryViewModel : INotifyPropertyChanged, IDisposable
                      Tracks.SelectedTracks.Add(track);
                  }
                  IsInspectorOpen = true;
+            }
+            else if (param?.ToString() == "CloseForensic")
+            {
+                IsForensicLabVisible = false;
             }
             else
             {
