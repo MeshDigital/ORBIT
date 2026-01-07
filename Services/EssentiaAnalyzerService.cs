@@ -272,6 +272,21 @@ public class EssentiaAnalyzerService : IAudioIntelligenceService, IDisposable
                     return null;
                 }
 
+                // DEBUG: Log extracted data to verify what Essentia produced
+                _logger.LogInformation("🎵 ESSENTIA EXTRACTION SUCCESS for {File}:", Path.GetFileName(filePath));
+                _logger.LogInformation("   ├─ BPM: {Bpm} (confidence: {Conf})", 
+                    data.Rhythm?.Bpm ?? 0, data.Rhythm?.BpmConfidence ?? 0);
+                _logger.LogInformation("   ├─ Key: {Key} {Scale} (strength: {Strength})", 
+                    data.Tonal?.KeyEdma?.Key ?? "Unknown", 
+                    data.Tonal?.KeyEdma?.Scale ?? "Unknown",
+                    data.Tonal?.KeyEdma?.Strength ?? 0);
+                _logger.LogInformation("   ├─ Danceability: {Dance} | Voice/Instrumental: {Voice}",
+                    data.HighLevel?.Danceability?.AllDanceability ?? 0,
+                    data.HighLevel?.VoiceInstrumental?.AllVoice ?? 0);
+                _logger.LogInformation("   └─ Moods - Happy: {Happy} | Aggressive: {Aggressive}",
+                    data.HighLevel?.MoodHappy?.AllHappy ?? 0,
+                    data.HighLevel?.MoodAggressive?.AllAggressive ?? 0);
+
                 // Map to AudioFeaturesEntity
                 var entity = new AudioFeaturesEntity
                 {
