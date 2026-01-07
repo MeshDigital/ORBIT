@@ -3391,21 +3391,21 @@ public class DatabaseService
                 }
             }
             
-            // 5. AudioFeatures Table Columns
-            if (TableExists("AudioFeatures"))
+            // 5. AudioFeatures Table Columns - Force attempt (table may not exist yet during cold start)
+            try
             {
-                // Force-add AiEmbeddingJson (catches error if already exists)
-                try
-                {
-                    _logger.LogInformation("Patching Schema: Adding AiEmbeddingJson to AudioFeatures...");
-                    command.CommandText = @"ALTER TABLE ""AudioFeatures"" ADD COLUMN ""AiEmbeddingJson"" TEXT NULL;";
-                    await command.ExecuteNonQueryAsync();
-                    _logger.LogInformation("✅ AiEmbeddingJson column added successfully");
-                }
-                catch (Microsoft.Data.Sqlite.SqliteException ex) when (ex.Message.Contains("duplicate column"))
-                {
-                    _logger.LogInformation("AiEmbeddingJson column already exists, skipping");
-                }
+                _logger.LogInformation("Attempting to add AiEmbeddingJson column to AudioFeatures...");
+                command.CommandText = @"ALTER TABLE ""AudioFeatures"" ADD COLUMN ""AiEmbeddingJson"" TEXT NULL;";
+                await command.ExecuteNonQueryAsync();
+                _logger.LogInformation("✅ AiEmbeddingJson column added successfully");
+            }
+            catch (Microsoft.Data.Sqlite.SqliteException ex) when (ex.Message.Contains("duplicate column"))
+            {
+                _logger.LogInformation("AiEmbeddingJson column already exists, skipping");
+            }
+            catch (Microsoft.Data.Sqlite.SqliteException ex) when (ex.Message.Contains("no such table"))
+            {
+                _logger.LogInformation("AudioFeatures table doesn't exist yet, skipping (will be created with column)");
             }
             
             _logger.LogInformation("Schema patching completed.");
