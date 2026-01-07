@@ -3394,11 +3394,17 @@ public class DatabaseService
             // 5. AudioFeatures Table Columns
             if (TableExists("AudioFeatures"))
             {
-                if (!ColumnExists("AudioFeatures", "AiEmbeddingJson"))
+                // Force-add AiEmbeddingJson (catches error if already exists)
+                try
                 {
                     _logger.LogInformation("Patching Schema: Adding AiEmbeddingJson to AudioFeatures...");
                     command.CommandText = @"ALTER TABLE ""AudioFeatures"" ADD COLUMN ""AiEmbeddingJson"" TEXT NULL;";
                     await command.ExecuteNonQueryAsync();
+                    _logger.LogInformation("✅ AiEmbeddingJson column added successfully");
+                }
+                catch (Microsoft.Data.Sqlite.SqliteException ex) when (ex.Message.Contains("duplicate column"))
+                {
+                    _logger.LogInformation("AiEmbeddingJson column already exists, skipping");
                 }
             }
             
