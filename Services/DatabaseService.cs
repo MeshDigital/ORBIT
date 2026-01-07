@@ -3408,6 +3408,27 @@ public class DatabaseService
                 _logger.LogInformation("AudioFeatures table doesn't exist yet, skipping (will be created with column)");
             }
             
+            // 6. LibraryFolders Table - For folder scanning feature
+            try
+            {
+                _logger.LogInformation("Ensuring LibraryFolders table exists...");
+                command.CommandText = @"
+                    CREATE TABLE IF NOT EXISTS ""LibraryFolders"" (
+                        ""Id"" TEXT NOT NULL PRIMARY KEY,
+                        ""FolderPath"" TEXT NOT NULL,
+                        ""IsEnabled"" INTEGER NOT NULL DEFAULT 1,
+                        ""AddedAt"" TEXT NOT NULL,
+                        ""LastScannedAt"" TEXT NULL,
+                        ""TracksFound"" INTEGER NOT NULL DEFAULT 0
+                    );";
+                await command.ExecuteNonQueryAsync();
+                _logger.LogInformation("✅ LibraryFolders table verified");
+            }
+            catch (Microsoft.Data.Sqlite.SqliteException ex)
+            {
+                _logger.LogWarning(ex, "Failed to create LibraryFolders table");
+            }
+            
             _logger.LogInformation("Schema patching completed.");
         }
         catch (Exception ex)

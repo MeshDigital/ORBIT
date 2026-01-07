@@ -34,6 +34,7 @@ public class SettingsViewModel : INotifyPropertyChanged, IDisposable
     private readonly SpotifyAuthService _spotifyAuthService;
     private readonly ISpotifyMetadataService _spotifyMetadataService;
     private readonly DatabaseService _databaseService;
+    private readonly LibraryFolderScannerService _libraryFolderScannerService;
 
     // Hardcoded public client ID provided by user/project
     // Ideally this would be in a secured config, but for this desktop app scenario it's acceptable as a default.
@@ -583,6 +584,20 @@ public class SettingsViewModel : INotifyPropertyChanged, IDisposable
     public ICommand RestartSpotifyAuthCommand { get; }
     public ICommand CheckFfmpegCommand { get; } // Phase 8: Dependency validation
     public ICommand ResetDatabaseCommand { get; }
+    
+    // Library Folder Scanner
+    public ObservableCollection<LibraryFolderViewModel> LibraryFolders { get; } = new();
+    
+    private string _scanStatus = string.Empty;
+    public string ScanStatus
+    {
+        get => _scanStatus;
+        set => SetProperty(ref _scanStatus, value);
+    }
+    
+    public ICommand AddLibraryFolderCommand { get; }
+    public ICommand RemoveLibraryFolderCommand { get; }
+    public ICommand ScanAllLibraryFoldersCommand { get; }
 
     // Phase 8: FFmpeg Dependency State
     private bool _isFfmpegInstalled;
@@ -621,7 +636,8 @@ public class SettingsViewModel : INotifyPropertyChanged, IDisposable
         IFileInteractionService fileInteractionService,
         SpotifyAuthService spotifyAuthService,
         ISpotifyMetadataService spotifyMetadataService,
-        DatabaseService databaseService)
+        DatabaseService databaseService,
+        LibraryFolderScannerService libraryFolderScannerService)
     {
         _logger = logger;
         _config = config;
@@ -630,6 +646,7 @@ public class SettingsViewModel : INotifyPropertyChanged, IDisposable
         _spotifyAuthService = spotifyAuthService;
         _spotifyMetadataService = spotifyMetadataService;
         _databaseService = databaseService;
+        _libraryFolderScannerService = libraryFolderScannerService;
 
         // Ensure default Client ID is set if empty
         if (string.IsNullOrEmpty(_config.SpotifyClientId))
@@ -651,6 +668,14 @@ public class SettingsViewModel : INotifyPropertyChanged, IDisposable
         CheckFfmpegCommand = new AsyncRelayCommand(CheckFfmpegAsync); // Phase 8
         RestartSpotifyAuthCommand = new AsyncRelayCommand(RestartSpotifyAuthAsync, () => IsSpotifyConnecting);
         ResetDatabaseCommand = new AsyncRelayCommand(ResetDatabaseAsync);
+    
+        // Library Folder Scanner commands
+        AddLibraryFolderCommand = new AsyncRelayCommand(AddLibraryFolderAsync);
+        RemoveLibraryFolderCommand = new RelayCommand<LibraryFolderViewModel?>(RemoveLibraryFolder);
+        ScanAllLibraryFoldersCommand = new AsyncRelayCommand(ScanAllLibraryFoldersAsync);
+    
+        // Load existing library folders
+        _ = LoadLibraryFoldersAsync();
 
         // Explicitly initialize IsAuthenticating to false
         IsAuthenticating = false;
@@ -1069,6 +1094,7 @@ public class SettingsViewModel : INotifyPropertyChanged, IDisposable
     /// Useful for testing if the app has a "poisoned" token cache.
     /// </summary>
     private async Task RevokeAndReAuthAsync()
+
     {
         // Cancel any previous attempts
         _connectCts?.Cancel();
@@ -1121,4 +1147,144 @@ public class SettingsViewModel : INotifyPropertyChanged, IDisposable
             (RevokeAndReAuthCommand as AsyncRelayCommand)?.RaiseCanExecuteChanged();
         }
     }
+    
+    // Library Folder Scanner Methods
+    private async Task LoadLibraryFoldersAsync()
+    {
+        try
+        {
+            using var context = new Data.AppDbContext();
+            var folders = await Microsoft.EntityFrameworkCore.EntityFrameworkQueryableExtensions.ToListAsync(context.LibraryFolders);
+            
+            Avalonia.Threading.Dispatcher.UIThread.Post(() =>
+            {
+                LibraryFolders.Clear();
+                foreach (var folder in folders)
+                {
+                    LibraryFolders.Add(new LibraryFolderViewModel(folder));
+                }
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to load library folders");
+        }
+    }
+    
+    private async Task AddLibraryFolderAsync()
+    {
+        try
+        {
+            var folderPath = await _fileInteractionService.OpenFolderDialogAsync("Select Library Folder");
+            if (string.IsNullOrEmpty(folderPath)) return;
+            
+            using var context = new Data.AppDbContext();
+            
+            // Check if folder already exists
+            var exists = await Microsoft.EntityFrameworkCore.EntityFrameworkQueryableExtensions.AnyAsync(
+                context.LibraryFolders, f => f.FolderPath == folderPath);
+            
+            if (exists)
+            {
+                _logger.LogWarning("Folder already added: {Path}", folderPath);
+                return;
+            }
+            
+            var folderEntity = new Data.Entities.LibraryFolderEntity
+            {
+                Id = Guid.NewGuid(),
+                FolderPath = folderPath,
+                IsEnabled = true,
+                AddedAt = DateTime.UtcNow
+            };
+            
+            context.LibraryFolders.Add(folderEntity);
+            await context.SaveChangesAsync();
+            
+            Avalonia.Threading.Dispatcher.UIThread.Post(() =>
+            {
+                LibraryFolders.Add(new LibraryFolderViewModel(folderEntity));
+            });
+            
+            _logger.LogInformation("Added library folder: {Path}", folderPath);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to add library folder");
+        }
+    }
+    
+    private async void RemoveLibraryFolder(LibraryFolderViewModel? folderVm)
+    {
+        if (folderVm == null) return;
+        
+        try
+        {
+            using var context = new Data.AppDbContext();
+            var folder = await context.LibraryFolders.FindAsync(folderVm.Id);
+            if (folder != null)
+            {
+                context.LibraryFolders.Remove(folder);
+                await context.SaveChangesAsync();
+                
+                Avalonia.Threading.Dispatcher.UIThread.Post(() =>
+                {
+                    LibraryFolders.Remove(folderVm);
+                });
+                
+                _logger.LogInformation("Removed library folder: {Path}", folderVm.FolderPath);
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to remove library folder");
+        }
+    }
+    
+    private async Task ScanAllLibraryFoldersAsync()
+    {
+        try
+        {
+            ScanStatus = "Scanning...";
+            var progress = new Progress<ScanProgress>(p =>
+            {
+                ScanStatus = $"Found: {p.FilesDiscovered} | Imported: {p.FilesImported} | Skipped: {p.FilesSkipped}";
+            });
+            
+            var results = await _libraryFolderScannerService.ScanAllFoldersAsync(progress);
+            
+            var totalImported = results.Values.Sum(r => r.FilesImported);
+            var totalSkipped = results.Values.Sum(r => r.FilesSkipped);
+            
+            ScanStatus = $"✅ Complete! Imported: {totalImported}, Skipped: {totalSkipped}";
+            
+            _logger.LogInformation("Library folder scan complete: {Imported} imported, {Skipped} skipped", 
+                totalImported, totalSkipped);
+            
+            // Clear status after 5 seconds
+            await Task.Delay(5000);
+            ScanStatus = string.Empty;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to scan library folders");
+            ScanStatus = "❌ Scan failed";
+            await Task.Delay(3000);
+            ScanStatus = string.Empty;
+        }
+    }
 }
+
+// Simple ViewModel for library folder list items
+public class LibraryFolderViewModel
+{
+    public Guid Id { get; }
+    public string FolderPath { get; }
+    
+    public LibraryFolderViewModel(Data.Entities.LibraryFolderEntity entity)
+    {
+        Id = entity.Id;
+        FolderPath = entity.FolderPath;
+    }
+}
+

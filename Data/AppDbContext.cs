@@ -33,6 +33,7 @@ public class AppDbContext : DbContext
     public DbSet<Entities.StyleDefinitionEntity> StyleDefinitions { get; set; } // Phase 15: Style Lab
     public DbSet<Entities.LibraryActionLogEntity> LibraryActionLogs { get; set; } // Phase 16.1: Ledger
     public DbSet<Entities.BlacklistedItemEntity> Blacklist { get; set; } // Phase 7: Forensic Duplication
+    public DbSet<Entities.LibraryFolderEntity> LibraryFolders { get; set; } // Library Folder Scanner
 
     protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
     {

@@ -591,6 +591,9 @@ public partial class App : Application
 
         // Phase 2.5: Path provider for safe folder structure
         services.AddSingleton<PathProviderService>();
+        
+        // Library Folder Scanner
+        services.AddSingleton<LibraryFolderScannerService>();
 
         // Download manager
         
