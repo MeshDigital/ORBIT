@@ -34,6 +34,9 @@ public class LibraryViewModel : INotifyPropertyChanged, IDisposable
     private readonly HarmonicMatchService _harmonicMatchService; // Phase 8: DJ Features
     private readonly AnalysisQueueService _analysisQueueService; // Analysis queue control
     private readonly Services.Library.SmartSorterService _smartSorterService; // Phase 16: Smart Sorter
+    // Child ViewModels
+    public LibrarySourcesViewModel LibrarySourcesViewModel { get; }
+    
     private readonly Services.AI.PersonalClassifierService _personalClassifier;
     private readonly LibraryCacheService _libraryCacheService; // Session 1: Performance Optimization
     private readonly IServiceProvider _serviceProvider;
@@ -80,6 +83,13 @@ public class LibraryViewModel : INotifyPropertyChanged, IDisposable
     {
         get => _isLoadingMatches;
         set { _isLoadingMatches = value; OnPropertyChanged(); }
+    }
+
+    private bool _isSourcesOpen = false;
+    public bool IsSourcesOpen
+    {
+        get => _isSourcesOpen;
+        set { _isSourcesOpen = value; OnPropertyChanged(); }
     }
 
     // Child ViewModels (Phase 0: ViewModel Refactoring)
@@ -137,6 +147,7 @@ public class LibraryViewModel : INotifyPropertyChanged, IDisposable
 
     // Commands that delegate to child ViewModels or handle coordination
     public System.Windows.Input.ICommand ViewHistoryCommand { get; }
+    public System.Windows.Input.ICommand OpenSourcesCommand { get; }
     public System.Windows.Input.ICommand ToggleEditModeCommand { get; }
     public System.Windows.Input.ICommand ToggleActiveDownloadsCommand { get; }
     
@@ -211,6 +222,7 @@ public class LibraryViewModel : INotifyPropertyChanged, IDisposable
         Services.Library.SmartSorterService smartSorterService, // Phase 16
         LibraryCacheService libraryCacheService,
         Services.Export.IHardwareExportService hardwareExportService, // Phase 9
+        LibrarySourcesViewModel librarySourcesViewModel,
         IServiceProvider serviceProvider) // Factory for transient VMs
 
     {
@@ -226,6 +238,7 @@ public class LibraryViewModel : INotifyPropertyChanged, IDisposable
         _harmonicMatchService = harmonicMatchService;
         _analysisQueueService = analysisQueueService;
         _smartSorterService = smartSorterService;
+        LibrarySourcesViewModel = librarySourcesViewModel;
         _personalClassifier = serviceProvider.GetService(typeof(Services.AI.PersonalClassifierService)) as Services.AI.PersonalClassifierService 
                              ?? throw new InvalidOperationException("PersonalClassifierService not found");
         _serviceProvider = serviceProvider;
@@ -244,6 +257,11 @@ public class LibraryViewModel : INotifyPropertyChanged, IDisposable
         
         // Initialize commands
         ViewHistoryCommand = new AsyncRelayCommand(ExecuteViewHistoryAsync);
+        OpenSourcesCommand = new RelayCommand<object>(param => 
+        {
+            if (param?.ToString() == "Close") IsSourcesOpen = false;
+            else IsSourcesOpen = true;
+        });
         ToggleEditModeCommand = new RelayCommand<object>(_ => IsEditMode = !IsEditMode);
         ToggleActiveDownloadsCommand = new RelayCommand<object>(_ => IsActiveDownloadsVisible = !IsActiveDownloadsVisible);
         ToggleActiveDownloadsCommand = new RelayCommand<object>(_ => IsActiveDownloadsVisible = !IsActiveDownloadsVisible);

@@ -121,8 +121,71 @@ public class DatabaseService
         _logger.LogInformation("[{Ms}ms] Database Init: Starting", sw.ElapsedMilliseconds);
         
         using var context = new AppDbContext();
-        await context.Database.EnsureCreatedAsync();
-        _logger.LogInformation("[{Ms}ms] Database Init: EnsureCreated completed", sw.ElapsedMilliseconds);
+        // Phase 12: Transition to EF Core Migrations
+        // Detect legacy database (created by EnsureCreated) and bootstrap history if needed
+        var db = context.Database;
+        bool legacyDbExists = false;
+        try 
+        {
+            var conn = db.GetDbConnection();
+            await conn.OpenAsync();
+            using var cmd = conn.CreateCommand();
+            cmd.CommandText = "SELECT count(*) FROM sqlite_master WHERE type='table' AND name='Tracks';";
+            var result = await cmd.ExecuteScalarAsync();
+            legacyDbExists = (long)(result ?? 0) > 0;
+            await conn.CloseAsync();
+        } catch {}
+
+        if (legacyDbExists)
+        {
+            // Check if history table exists
+            bool historyExists = false;
+            try 
+            {
+                var conn = db.GetDbConnection();
+                await conn.OpenAsync();
+                using var cmd = conn.CreateCommand();
+                cmd.CommandText = "SELECT count(*) FROM sqlite_master WHERE type='table' AND name='__EFMigrationsHistory';";
+                var result = await cmd.ExecuteScalarAsync();
+                historyExists = (long)(result ?? 0) > 0;
+                await conn.CloseAsync();
+            } catch {}
+
+            if (!historyExists)
+            {
+                _logger.LogWarning("Legacy manually-patched database detected. Bootstrapping EF migrations history.");
+                
+                // 1. Ensure LibraryFolders table exists (transition logic)
+                // If the user has a legacy DB but missed the manual patch update, we create it manually once
+                // so that the migration bootstrap is valid.
+                await db.ExecuteSqlRawAsync(@"
+                    CREATE TABLE IF NOT EXISTS ""LibraryFolders"" (
+                        ""Id"" TEXT NOT NULL PRIMARY KEY,
+                        ""FolderPath"" TEXT NOT NULL,
+                        ""IsEnabled"" INTEGER NOT NULL DEFAULT 1,
+                        ""AddedAt"" TEXT NOT NULL,
+                        ""LastScannedAt"" TEXT NULL,
+                        ""TracksFound"" INTEGER NOT NULL DEFAULT 0
+                    );");
+
+                // 2. Create history table
+                await db.ExecuteSqlRawAsync(@"
+                    CREATE TABLE IF NOT EXISTS ""__EFMigrationsHistory"" (
+                        ""MigrationId"" TEXT NOT NULL PRIMARY KEY,
+                        ""ProductVersion"" TEXT NOT NULL
+                    );");
+
+                // 3. Mark InitialStructure as applied
+                await db.ExecuteSqlRawAsync(@"
+                    INSERT OR IGNORE INTO ""__EFMigrationsHistory"" (""MigrationId"", ""ProductVersion"")
+                    VALUES ('20260107122524_InitialStructure', '9.0.0');");
+            }
+        }
+
+        // Apply migrations (safe now)
+        await context.Database.MigrateAsync();
+        
+        _logger.LogInformation("[{Ms}ms] Database Init: Migrations applied", sw.ElapsedMilliseconds);
 
         // Phase 1B: Configure WAL mode for better concurrency
         var connection = context.Database.GetDbConnection();
@@ -3408,26 +3471,7 @@ public class DatabaseService
                 _logger.LogInformation("AudioFeatures table doesn't exist yet, skipping (will be created with column)");
             }
             
-            // 6. LibraryFolders Table - For folder scanning feature
-            try
-            {
-                _logger.LogInformation("Ensuring LibraryFolders table exists...");
-                command.CommandText = @"
-                    CREATE TABLE IF NOT EXISTS ""LibraryFolders"" (
-                        ""Id"" TEXT NOT NULL PRIMARY KEY,
-                        ""FolderPath"" TEXT NOT NULL,
-                        ""IsEnabled"" INTEGER NOT NULL DEFAULT 1,
-                        ""AddedAt"" TEXT NOT NULL,
-                        ""LastScannedAt"" TEXT NULL,
-                        ""TracksFound"" INTEGER NOT NULL DEFAULT 0
-                    );";
-                await command.ExecuteNonQueryAsync();
-                _logger.LogInformation("✅ LibraryFolders table verified");
-            }
-            catch (Microsoft.Data.Sqlite.SqliteException ex)
-            {
-                _logger.LogWarning(ex, "Failed to create LibraryFolders table");
-            }
+
             
             _logger.LogInformation("Schema patching completed.");
         }

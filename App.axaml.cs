@@ -713,6 +713,7 @@ public partial class App : Application
         services.AddSingleton<ImportPreviewViewModel>();
         services.AddSingleton<ImportHistoryViewModel>();
         services.AddSingleton<SpotifyImportViewModel>();
+        services.AddSingleton<ViewModels.LibrarySourcesViewModel>();
 
         // Utilities
         services.AddSingleton<SearchQueryNormalizer>();

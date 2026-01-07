@@ -50,26 +50,11 @@ public class LibraryFolderScannerService
     /// </summary>
     public async Task<ScanResult> ScanFolderAsync(Guid folderId, IProgress<ScanProgress>? progress = null, CancellationToken ct = default)
     {
-        using var context = new AppDbContext();
-        var folder = await context.LibraryFolders.FindAsync(new object[] { folderId }, ct);
+        using var metaContext = new AppDbContext();
+        var folder = await metaContext.LibraryFolders.FindAsync(new object[] { folderId }, ct);
         
-        if (folder == null)
-        {
-            _logger.LogWarning("Folder {FolderId} not found", folderId);
-            return new ScanResult();
-        }
-
-        if (!folder.IsEnabled)
-        {
-            _logger.LogInformation("Folder {Path} is disabled, skipping scan", folder.FolderPath);
-            return new ScanResult();
-        }
-
-        if (!Directory.Exists(folder.FolderPath))
-        {
-            _logger.LogWarning("Folder path does not exist: {Path}", folder.FolderPath);
-            return new ScanResult();
-        }
+        if (folder == null || !folder.IsEnabled) return new ScanResult();
+        if (!Directory.Exists(folder.FolderPath)) return new ScanResult();
 
         _logger.LogInformation("📁 Scanning folder: {Path}", folder.FolderPath);
         
@@ -78,54 +63,92 @@ public class LibraryFolderScannerService
         
         try
         {
-            // Discover all audio files
+            // 1. Discover all audio files (CPU bound)
             var audioFiles = await DiscoverAudioFilesAsync(folder.FolderPath, ct);
             result.TotalFilesFound = audioFiles.Count;
             scanProgress.FilesDiscovered = audioFiles.Count;
             progress?.Report(scanProgress);
-            
-            _logger.LogInformation("Found {Count} audio files in {Path}", audioFiles.Count, folder.FolderPath);
 
-            // Import each file
+            if (audioFiles.Count == 0) return result;
+
+            // 2. Load existing file paths into memory for O(1) duplicate checking
+            // This prevents N+1 DB queries and write starvation checking
+            _logger.LogInformation("Loading existing library paths...");
+            HashSet<string> existingPaths;
+            
+            // Use a separate short-lived context for reading
+            using (var readContext = new AppDbContext())
+            {
+                // We only need the FilePath string
+                existingPaths = await readContext.LibraryEntries
+                    .AsNoTracking()
+                    .Select(e => e.FilePath)
+                    .ToHashSetAsync(ct);
+            }
+            
+            _logger.LogInformation("Loaded {Count} existing paths. Starting import...", existingPaths.Count);
+
+            // 3. Process files in batches
+            var batch = new List<LibraryEntryEntity>();
+            const int BatchSize = 50;
+
             foreach (var filePath in audioFiles)
             {
                 if (ct.IsCancellationRequested) break;
                 
                 scanProgress.CurrentFile = Path.GetFileName(filePath);
-                progress?.Report(scanProgress);
                 
-                try
+                // Fast in-memory check
+                if (existingPaths.Contains(filePath))
                 {
-                    // Check if already imported
-                    if (await IsFileAlreadyImportedAsync(filePath, ct))
-                    {
-                        result.FilesSkipped++;
-                        scanProgress.FilesSkipped++;
-                        continue;
-                    }
-
-                    // Import file
-                    var libraryEntryId = await ImportFileToLibraryAsync(filePath, ct);
-                    if (libraryEntryId != Guid.Empty)
-                    {
-                        result.FilesImported++;
-                        result.ImportedLibraryEntryIds.Add(libraryEntryId);
-                        scanProgress.FilesImported++;
-                        progress?.Report(scanProgress);
-                    }
+                    result.FilesSkipped++;
+                    scanProgress.FilesSkipped++;
+                    progress?.Report(scanProgress);
+                    continue;
                 }
-                catch (Exception ex)
+
+                // Extract metadata (CPU bound)
+                var entry = CreateLibraryEntry(filePath);
+                if (entry != null)
                 {
-                    _logger.LogError(ex, "Failed to import file: {Path}", filePath);
+                    batch.Add(entry);
+                    result.ImportedLibraryEntryIds.Add(entry.Id);
+                }
+                else
+                {
                     result.FilesSkipped++;
                     scanProgress.FilesSkipped++;
                 }
+
+                // Flush batch if full
+                if (batch.Count >= BatchSize)
+                {
+                    await SaveBatchAsync(batch, ct);
+                    
+                    result.FilesImported += batch.Count;
+                    scanProgress.FilesImported += batch.Count;
+                    progress?.Report(scanProgress);
+                    
+                    batch.Clear();
+                    
+                    // CRITICAL: Yield control to UI and other services (prevent Write Starvation)
+                    await Task.Yield();
+                }
+            }
+
+            // Flush remaining
+            if (batch.Count > 0)
+            {
+                await SaveBatchAsync(batch, ct);
+                result.FilesImported += batch.Count;
+                scanProgress.FilesImported += batch.Count;
+                progress?.Report(scanProgress);
             }
 
             // Update folder metadata
             folder.LastScannedAt = DateTime.UtcNow;
             folder.TracksFound = result.TotalFilesFound;
-            await context.SaveChangesAsync(ct);
+            await metaContext.SaveChangesAsync(ct);
 
             _logger.LogInformation("✅ Scan complete: {Imported} imported, {Skipped} skipped", 
                 result.FilesImported, result.FilesSkipped);
@@ -136,6 +159,70 @@ public class LibraryFolderScannerService
         }
 
         return result;
+    }
+
+    /// <summary>
+    /// Saves a batch of entries to the database in a single transaction
+    /// </summary>
+    private async Task SaveBatchAsync(List<LibraryEntryEntity> batch, CancellationToken ct)
+    {
+        try 
+        {
+            using var context = new AppDbContext();
+            context.LibraryEntries.AddRange(batch);
+            await context.SaveChangesAsync(ct);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to save batch of {Count} entries", batch.Count);
+        }
+    }
+
+    /// <summary>
+    /// Creates a LibraryEntryEntity from a file path using TagLib
+    /// </summary>
+    private LibraryEntryEntity? CreateLibraryEntry(string filePath)
+    {
+        try
+        {
+            var fileInfo = new FileInfo(filePath);
+            string artist = "Unknown Artist";
+            string title = Path.GetFileNameWithoutExtension(filePath);
+            string album = string.Empty;
+            int duration = 0;
+
+            try
+            {
+                var file = TagLib.File.Create(filePath);
+                artist = string.IsNullOrWhiteSpace(file.Tag.FirstPerformer) ? artist : file.Tag.FirstPerformer;
+                title = string.IsNullOrWhiteSpace(file.Tag.Title) ? title : file.Tag.Title;
+                album = file.Tag.Album ?? string.Empty;
+                duration = (int)file.Properties.Duration.TotalSeconds;
+            }
+            catch
+            {
+                // Tags failed, use defaults
+            }
+
+            return new LibraryEntryEntity
+            {
+                Id = Guid.NewGuid(),
+                UniqueHash = Guid.NewGuid().ToString(), // TODO: Calculate real hash if needed
+                Artist = artist,
+                Title = title,
+                Album = album,
+                DurationSeconds = duration,
+                FilePath = filePath,
+                AddedAt = DateTime.UtcNow,
+                Bitrate = 0, 
+                Format = Path.GetExtension(filePath).TrimStart('.')
+            };
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to create entry for {Path}", filePath);
+            return null;
+        }
     }
 
     /// <summary>
@@ -153,89 +240,13 @@ public class LibraryFolderScannerService
                 audioFiles.AddRange(allFiles.Where(f => 
                     SupportedExtensions.Contains(Path.GetExtension(f).ToLowerInvariant())));
             }
-            catch (UnauthorizedAccessException ex)
-            {
-                _logger.LogWarning(ex, "Access denied to folder: {Path}", folderPath);
-            }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error discovering files in {Path}", folderPath);
+                _logger.LogWarning("Error discovering files in {Path}: {Message}", folderPath, ex.Message);
             }
         }, ct);
 
         return audioFiles;
-    }
-
-    /// <summary>
-    /// Checks if a file is already imported by path
-    /// </summary>
-    private async Task<bool> IsFileAlreadyImportedAsync(string filePath, CancellationToken ct)
-    {
-        using var context = new AppDbContext();
-        
-        // Check by FilePath first (most reliable)
-        return await context.LibraryEntries
-            .AnyAsync(e => e.FilePath == filePath, ct);
-    }
-
-    /// <summary>
-    /// Imports a single audio file to the library
-    /// </summary>
-    private async Task<Guid> ImportFileToLibraryAsync(string filePath, CancellationToken ct)
-    {
-        try
-        {
-            // Read basic metadata from file using TagLib
-            var fileInfo = new FileInfo(filePath);
-            
-            string artist = "Unknown Artist";
-            string title = Path.GetFileNameWithoutExtension(filePath);
-            string album = string.Empty;
-            int? year = null;
-            int duration = 0;
-
-            try
-            {
-                var file = TagLib.File.Create(filePath);
-                artist = string.IsNullOrWhiteSpace(file.Tag.FirstPerformer) ? artist : file.Tag.FirstPerformer;
-                title = string.IsNullOrWhiteSpace(file.Tag.Title) ? title : file.Tag.Title;
-                album = file.Tag.Album ?? string.Empty;
-                year = (int?)file.Tag.Year;
-                duration = (int)file.Properties.Duration.TotalSeconds;
-            }
-            catch (Exception ex)
-            {
-                _logger.LogWarning(ex, "Failed to read tags from {File}, using filename", filePath);
-            }
-
-            // Create library entry
-            var entry = new LibraryEntryEntity
-            {
-                Id = Guid.NewGuid(),
-                UniqueHash = Guid.NewGuid().ToString(), // Temporary, will be replaced with actual hash later
-                Artist = artist,
-                Title = title,
-                Album = album,
-                DurationSeconds = duration,
-                FilePath = filePath,
-                AddedAt = DateTime.UtcNow,
-                Bitrate = 0, // Will be analyzed later
-                Format = Path.GetExtension(filePath).TrimStart('.')
-            };
-
-            using var context = new AppDbContext();
-            context.LibraryEntries.Add(entry);
-            await context.SaveChangesAsync(ct);
-
-            _logger.LogInformation("Imported: {Artist} - {Title}", artist, title);
-            
-            return entry.Id;
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Failed to import {File}", filePath);
-            return Guid.Empty;
-        }
     }
 
     /// <summary>
@@ -263,3 +274,4 @@ public class LibraryFolderScannerService
         return results;
     }
 }
+

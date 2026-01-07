@@ -42,6 +42,10 @@
                                  <MenuItem Header="Upgrade Scout (Soon)" Command="{Binding ToggleUpgradeScoutCommand}" IsEnabled="False" ToolTip.Tip="Feature coming in Phase 8">
                                      <MenuItem.Icon>💎</MenuItem.Icon>
                                  </MenuItem>
+                                 <Separator/>
+                                 <MenuItem Header="Manage Sources" Command="{Binding OpenSourcesCommand}">
+                                     <MenuItem.Icon>📁</MenuItem.Icon>
+                                 </MenuItem>
                                  <MenuItem Header="New Smart Playlist" Command="{Binding Projects.AddPlaylistCommand}">
                                      <MenuItem.Icon>⚡</MenuItem.Icon>
                                  </MenuItem>
@@ -1057,5 +1061,35 @@
                 </Grid>
             </Border>
         </Border>
+        <!-- Sources Overlay -->
+        <Grid Grid.Column="0" Grid.ColumnSpan="7" 
+              Background="#BB000000"
+              IsVisible="{Binding IsSourcesOpen}">
+            <!-- Click background to close -->
+            <Button HorizontalAlignment="Stretch" VerticalAlignment="Stretch"
+                    Background="Transparent"
+                    Command="{Binding $parent[UserControl].DataContext.OpenSourcesCommand}" 
+                    CommandParameter="Close">
+                <Button.Template>
+                    <ControlTemplate>
+                        <Panel Background="Transparent"/>
+                    </ControlTemplate>
+                </Button.Template>
+            </Button>
+            
+            <!-- Content -->
+            <TransitioningContentControl Content="{Binding LibrarySourcesViewModel}">
+                <TransitioningContentControl.DataTemplates>
+                    <DataTemplate DataType="vm:LibrarySourcesViewModel">
+                         <views:LibrarySourcesView Width="600" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                    </DataTemplate>
+                </TransitioningContentControl.DataTemplates>
+            </TransitioningContentControl>
+
+            <!-- Close Button (X) -->
+            <Button HorizontalAlignment="Right" VerticalAlignment="Top" Margin="20"
+                    Content="❌" FontSize="20" Background="Transparent" Foreground="White"
+                    Command="{Binding OpenSourcesCommand}" CommandParameter="Close"/>
+        </Grid>
     </Grid>
 </UserControl>
