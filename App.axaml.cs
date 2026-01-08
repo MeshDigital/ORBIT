@@ -680,6 +680,7 @@ public partial class App : Application
         // Phase 9: Forensic & Style Services
         services.AddSingleton<SonicIntegrityService>();
         services.AddSingleton<SLSKDONET.Services.AI.PersonalClassifierService>();
+        services.AddSingleton<SLSKDONET.Services.AI.TensorFlowModelPool>();
 
         // Phase 10: Tagging & Mobility
         services.AddSingleton<SLSKDONET.Services.IO.SafeWriteService>();
