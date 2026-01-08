@@ -13,12 +13,12 @@
             <Setter Property="BorderThickness" Value="0"/>
             <Setter Property="Padding" Value="8"/>
             <Setter Property="CornerRadius" Value="4"/>
-            <Setter Property="Foreground" Value="#CCCCCC"/>
+            <Setter Property="Foreground" Value="{DynamicResource TextSecondaryBrush}"/>
             <Setter Property="Cursor" Value="Hand"/>
             <Setter Property="VerticalAlignment" Value="Center"/>
         </Style>
         <Style Selector="Button.ActionBtn:hover">
-            <Setter Property="Background" Value="#33FFFFFF"/>
+            <Setter Property="Background" Value="{DynamicResource HoverBrush}"/>
             <Setter Property="Foreground" Value="White"/>
         </Style>
         
@@ -49,8 +49,8 @@
         </Style>
     </UserControl.Styles>
 
-    <Border Background="#1E1E1E" 
-            BorderBrush="#333333" 
+    <Border Background="{DynamicResource BackgroundBrush}" 
+            BorderBrush="{DynamicResource BorderBrush}" 
             BorderThickness="0,0,0,1" 
             Padding="8,6">
             
@@ -126,7 +126,7 @@
             <!-- Column 0: Album Art / Status Icon -->
             <Border Grid.Row="0" Grid.RowSpan="2" Grid.Column="0" 
                     Width="48" Height="48" 
-                    CornerRadius="4" ClipToBounds="True" Background="#111">
+                    CornerRadius="4" ClipToBounds="True" Background="{DynamicResource SurfaceBrush}">
                 <Panel>
                     <!-- Actual Image -->
                     <Image Source="{Binding Artwork.Image}" 
@@ -135,7 +135,7 @@
                            
                     <!-- Placeholder/Status Overlay if no art or if downloading -->
                     <PathIcon Data="{StaticResource music_regular}" 
-                              Foreground="#444" 
+                              Foreground="{DynamicResource TextTertiaryBrush}" 
                               Width="24" Height="24"
                               IsVisible="{Binding AlbumArtUrl, Converter={x:Static StringConverters.IsNullOrEmpty}}"/>
                               
@@ -162,9 +162,9 @@
             <StackPanel Grid.Row="0" Grid.Column="2" Orientation="Vertical" VerticalAlignment="Center" Spacing="2">
                 <!-- Line 1: Artist - Title -->
                 <StackPanel Orientation="Horizontal" Spacing="6">
-                   <TextBlock Text="{Binding ArtistName}" FontWeight="SemiBold" Foreground="#DDD" FontSize="14" TextTrimming="CharacterEllipsis"/>
-                   <TextBlock Text="-" Foreground="#777"/>
-                   <TextBlock Text="{Binding TrackTitle}" Foreground="#EEE" FontSize="14" TextTrimming="CharacterEllipsis"/>
+                   <TextBlock Text="{Binding ArtistName}" FontWeight="SemiBold" Foreground="{DynamicResource TextBrush}" FontSize="14" TextTrimming="CharacterEllipsis"/>
+                   <TextBlock Text="-" Foreground="{DynamicResource TextTertiaryBrush}"/>
+                   <TextBlock Text="{Binding TrackTitle}" Foreground="{DynamicResource TextBrush}" FontSize="14" TextTrimming="CharacterEllipsis"/>
                    
                    <!-- Curation Trust Badge (Phase 11.5) -->
                    <Border CornerRadius="2" Padding="4,1" Margin="0,0,6,0" VerticalAlignment="Center" 
@@ -198,8 +198,8 @@
                    </Border>
                    
                    <!-- Primary Genre Tag (Pill) -->
-                   <Border Background="#33FFFFFF" CornerRadius="10" Padding="8,1" IsVisible="{Binding PrimaryGenre, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
-                       <TextBlock Text="{Binding PrimaryGenre}" FontSize="10" Foreground="#CCC" FontWeight="SemiBold"/>
+                   <Border Background="{DynamicResource TertiaryBackgroundBrush}" CornerRadius="10" Padding="8,1" IsVisible="{Binding PrimaryGenre, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
+                       <TextBlock Text="{Binding PrimaryGenre}" FontSize="10" Foreground="{DynamicResource TextSecondaryBrush}" FontWeight="SemiBold"/>
                    </Border>
 
                    <!-- Year Tag (Pill) -->
@@ -220,41 +220,41 @@
                                ToolTip.Tip="{Binding DetailedStatusText}"/>
                 </StackPanel>
                 
-                <TextBlock Text="•" Foreground="#444"/>
+                <TextBlock Text="•" Foreground="{DynamicResource TextTertiaryBrush}"/>
                 
                 <!-- Tech Summary & Quality Badge -->
                 <StackPanel Orientation="Horizontal" Spacing="4">
-                    <Border Background="#222" CornerRadius="3" Padding="4,0" 
+                    <Border Background="{DynamicResource SurfaceBrush}" CornerRadius="3" Padding="4,0" 
                             ToolTip.Tip="{Binding Model.Bitrate, StringFormat='{}Bitrate: {0}kbps'}">
                         <TextBlock Text="{Binding QualityIcon}" FontSize="12" VerticalAlignment="Center"/>
                     </Border>
                     
-                    <TextBlock Text="{Binding TechnicalSummary}" Foreground="#999" FontSize="11" FontFamily="Consolas" VerticalAlignment="Center"/>
+                    <TextBlock Text="{Binding TechnicalSummary}" Foreground="{DynamicResource TextSecondaryBrush}" FontSize="11" FontFamily="Consolas" VerticalAlignment="Center"/>
                 </StackPanel>
                 
                 <!-- NEW: Duration (only show if completed) -->
-                <TextBlock Text="•" Foreground="#444" IsVisible="{Binding IsCompleted}"/>
+                                <TextBlock Text="•" Foreground="{DynamicResource TextTertiaryBrush}" IsVisible="{Binding IsCompleted}"/>
                 <StackPanel Orientation="Horizontal" Spacing="4" IsVisible="{Binding IsCompleted}">
-                    <TextBlock Text="⏱" FontSize="11" Foreground="#666"/>
-                    <TextBlock Text="{Binding Duration}" Foreground="#AAA" FontSize="11" FontFamily="Consolas"/>
+                    <TextBlock Text="⏱" FontSize="11" Foreground="{DynamicResource TextTertiaryBrush}"/>
+                    <TextBlock Text="{Binding Duration}" Foreground="{DynamicResource TextSecondaryBrush}" FontSize="11" FontFamily="Consolas"/>
                 </StackPanel>
                 
                 <!-- NEW: File Size (only show if completed) -->
-                <TextBlock Text="•" Foreground="#444" IsVisible="{Binding IsCompleted}"/>
+                                <TextBlock Text="•" Foreground="{DynamicResource TextTertiaryBrush}" IsVisible="{Binding IsCompleted}"/>
                 <StackPanel Orientation="Horizontal" Spacing="4" IsVisible="{Binding IsCompleted}">
-                    <TextBlock Text="💾" FontSize="11" Foreground="#666"/>
-                    <TextBlock Text="{Binding FileSizeDisplay}" Foreground="#AAA" FontSize="11" FontFamily="Consolas"/>
+                    <TextBlock Text="💾" FontSize="11" Foreground="{DynamicResource TextTertiaryBrush}"/>
+                    <TextBlock Text="{Binding FileSizeDisplay}" Foreground="{DynamicResource TextSecondaryBrush}" FontSize="11" FontFamily="Consolas"/>
                 </StackPanel>
                 
-                <TextBlock Text="•" Foreground="#444" IsVisible="{Binding IsCompleted}"/>
+                                <TextBlock Text="•" Foreground="{DynamicResource TextTertiaryBrush}" IsVisible="{Binding IsCompleted}"/>
                 
                 <!-- BPM/Key Pills -->
                 <StackPanel Orientation="Horizontal" Spacing="6" IsVisible="{Binding IsCompleted}">
-                    <Border Background="#2A2A2A" CornerRadius="10" Padding="8,1" BorderBrush="#333" BorderThickness="1">
-                        <TextBlock Text="{Binding BpmDisplay}" Foreground="#AAA" FontSize="11" FontFamily="Consolas" FontWeight="Bold"/>
+                    <Border Background="{DynamicResource SecondaryBackgroundBrush}" CornerRadius="10" Padding="8,1" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1">
+                        <TextBlock Text="{Binding BpmDisplay}" Foreground="{DynamicResource TextSecondaryBrush}" FontSize="11" FontFamily="Consolas" FontWeight="Bold"/>
                     </Border>
-                    <Border Background="#2A2A2A" CornerRadius="10" Padding="8,1" BorderBrush="#333" BorderThickness="1">
-                         <TextBlock Text="{Binding KeyDisplay}" Foreground="#AAA" FontSize="11" FontFamily="Consolas" FontWeight="Bold"/>
+                    <Border Background="{DynamicResource SecondaryBackgroundBrush}" CornerRadius="10" Padding="8,1" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1">
+                         <TextBlock Text="{Binding KeyDisplay}" Foreground="{DynamicResource TextSecondaryBrush}" FontSize="11" FontFamily="Consolas" FontWeight="Bold"/>
                     </Border>
                 </StackPanel>
             </StackPanel>

@@ -19,25 +19,25 @@
         </Style>
         
         <Style Selector="ListBoxItem:pointerover /template/ ContentPresenter">
-            <Setter Property="Background" Value="#20FFFFFF"/>
+            <Setter Property="Background" Value="{DynamicResource HoverBrush}"/>
         </Style>
         
         <Style Selector="ListBoxItem:selected /template/ ContentPresenter">
-            <Setter Property="Background" Value="#30FFFFFF"/>
+            <Setter Property="Background" Value="{DynamicResource TertiaryBackgroundBrush}"/>
         </Style>
     </UserControl.Styles>
     
-    <Border Background="#1A1A1A" CornerRadius="8" Padding="16">
+    <Border Background="{DynamicResource BackgroundBrush}" CornerRadius="8" Padding="16">
         <DockPanel>
             <!-- Header -->
             <StackPanel DockPanel.Dock="Top" Spacing="8" Margin="0,0,0,16">
                 <TextBlock Text="Play Queue" 
                           FontSize="18" 
                           FontWeight="SemiBold"
-                          Foreground="White"/>
+                          Foreground="{DynamicResource TextBrush}"/>
                 
                 <StackPanel Orientation="Horizontal" Spacing="12">
-                    <TextBlock Foreground="#AAAAAA">
+                    <TextBlock Foreground="{DynamicResource TextSecondaryBrush}">
                         <Run Text="{Binding Queue.Count}"/>
                         <Run Text="tracks"/>
                     </TextBlock>
@@ -47,8 +47,8 @@
                             IsEnabled="{Binding Queue.Count}"
                             Padding="8,4"
                             FontSize="12"
-                            Background="#333333"
-                            Foreground="White"
+                            Background="{DynamicResource TertiaryBackgroundBrush}"
+                            Foreground="{DynamicResource TextBrush}"
                             CornerRadius="4"/>
                 </StackPanel>
             </StackPanel>
@@ -63,12 +63,12 @@
                                 <!-- Track Info -->
                                 <StackPanel Grid.Column="0" Spacing="4">
                                     <TextBlock Text="{Binding Title}"
-                                              Foreground="White"
+                                              Foreground="{DynamicResource TextBrush}"
                                               TextTrimming="CharacterEllipsis"/>
                                     
                                     <TextBlock Text="{Binding Artist}"
                                               FontSize="12"
-                                              Foreground="#AAAAAA"
+                                       Foreground="{DynamicResource TextSecondaryBrush}"
                                               TextTrimming="CharacterEllipsis"/>
                                 </StackPanel>
                                 

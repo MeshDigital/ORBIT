@@ -29,7 +29,7 @@
             </ContextMenu>
         </Grid.ContextMenu>
         <!-- Tiny Album Art -->
-        <Border Grid.Column="0" Grid.RowSpan="2" Width="48" Height="48" CornerRadius="4" ClipToBounds="True" Background="#333">
+        <Border Grid.Column="0" Grid.RowSpan="2" Width="48" Height="48" CornerRadius="4" ClipToBounds="True" Background="{DynamicResource TertiaryBackgroundBrush}">
             <Image Source="{Binding AlbumArtUrl, Converter={StaticResource BitmapValueConverter}}" Stretch="UniformToFill"/>
         </Border>
 
@@ -39,7 +39,7 @@
             
             <!-- Stats: Total | Downloaded | Active | Failed -->
             <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,2,0,0">
-                <TextBlock Text="{Binding TotalTracks, StringFormat='{}📁 {0}'}" FontSize="11" Foreground="#888" ToolTip.Tip="Total tracks"/>
+                <TextBlock Text="{Binding TotalTracks, StringFormat='{}📁 {0}'}" FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}" ToolTip.Tip="Total tracks"/>
                 <TextBlock Text="{Binding SuccessfulCount, StringFormat='{}✓ {0}'}" FontSize="11" Foreground="#1DB954" ToolTip.Tip="Downloaded" IsVisible="{Binding SuccessfulCount}"/>
                 <TextBlock Text="{Binding ActiveDownloadsCount, StringFormat='{}↓ {0}'}" FontSize="11" Foreground="#00A3FF" ToolTip.Tip="Downloading" IsVisible="{Binding HasActiveDownloads}"/>
                 <TextBlock Text="{Binding FailedCount, StringFormat='{}✗ {0}'}" FontSize="11" Foreground="#F44336" ToolTip.Tip="Failed" IsVisible="{Binding FailedCount}"/>
