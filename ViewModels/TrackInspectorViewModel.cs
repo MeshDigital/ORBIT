@@ -46,7 +46,7 @@ namespace SLSKDONET.ViewModels
             if (Track == null || (entry.TrackIdentifier != Track.TrackUniqueHash && entry.CorrelationId != Track.TrackUniqueHash))
                 return;
 
-            RxApp.MainThreadScheduler.Schedule(() =>
+            Avalonia.Threading.Dispatcher.UIThread.Post(() =>
             {
                 ForensicLogs.Insert(0, entry);
             });

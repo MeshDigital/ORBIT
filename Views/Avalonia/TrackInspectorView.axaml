@@ -328,9 +328,7 @@
                                                    FontWeight="Bold"
                                                    FontSize="11">
                                             <TextBlock.Foreground>
-                                                <MultiBinding Converter="{x:Static conv:LogLevelColorConverter.Instance}">
-                                                    <Binding Path="Level"/>
-                                                </MultiBinding>
+                                                <Binding Path="Level" Converter="{x:Static conv:LogLevelColorConverter.Instance}"/>
                                             </TextBlock.Foreground>
                                         </TextBlock>
                                     </DataTemplate>

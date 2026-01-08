@@ -125,7 +125,7 @@ public class DownloadDiscoveryService
             double bestSilverScore = 0;
 
             // Consume the stream
-            await foreach (var searchTrack in _searchOrchestrator.SearchAsync(
+            await foreach (Track searchTrack in _searchOrchestrator.SearchAsync(
                 query,
                 preferredFormats,
                 minBitrate,

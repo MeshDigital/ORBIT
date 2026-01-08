@@ -11,6 +11,8 @@ public interface ISafetyFilterService
 {
     bool IsSafe(Track candidate, string query, int? targetDurationSeconds = null);
     bool IsUpscaled(PlaylistTrack track);
+    SafetyCheckResult EvaluateCandidate(Track candidate, string query, int? targetDuration = null);
+    void EvaluateSafety(Track track, string query);
 }
 
 /// <summary>
@@ -22,6 +24,7 @@ public class SafetyFilterService : ISafetyFilterService
 {
     private readonly ILogger<SafetyFilterService> _logger;
     private readonly AppConfig _config;
+    private readonly string[] _bannedExtensions = new[] { ".exe", ".zip", ".rar", ".lnk", ".bat", ".cmd", ".vbs", ".dmg", ".iso" };
 
     public SafetyFilterService(ILogger<SafetyFilterService> logger, AppConfig config)
     {
