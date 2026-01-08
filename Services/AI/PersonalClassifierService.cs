@@ -13,12 +13,14 @@ namespace SLSKDONET.Services.AI;
 public class PersonalClassifierService
 {
     private readonly MLContext _mlContext;
+    private readonly DatabaseService _databaseService;
     private ITransformer? _trainedModel;
     private PredictionEngine<VibeInput, VibePrediction>? _predictionEngine;
     private const string ModelPath = "Data/Models/personal_vibe_model.zip";
 
-    public PersonalClassifierService()
+    public PersonalClassifierService(DatabaseService databaseService)
     {
+        _databaseService = databaseService;
         _mlContext = new MLContext(seed: 42); // Seed for reproducibility to ensure consistent results
         LoadModel();
     }
@@ -155,6 +157,33 @@ public class PersonalClassifierService
         }
 
         return (prediction.PredictedLabel, maxConfidence);
+    }
+
+    /// <summary>
+    /// Classifies a track by its file path using the trained model.
+    /// Fetches audio features (embedding) from the database.
+    /// </summary>
+    public async Task<(string Label, float Confidence)> ClassifyTrackAsync(string filePath)
+    {
+        // 1. Get AudioFeatures for this file
+        var features = await _databaseService.GetAudioFeaturesAsync(filePath);
+        if (features == null || string.IsNullOrEmpty(features.AiEmbeddingJson))
+            return ("Unknown", 0f);
+        
+        // 2. Deserialize embedding
+        try 
+        {
+            var embedding = System.Text.Json.JsonSerializer.Deserialize<float[]>(features.AiEmbeddingJson);
+            if (embedding == null || embedding.Length != 128)
+                return ("Unknown", 0f);
+
+            // 3. Use existing Predict method
+            return Predict(embedding);
+        }
+        catch
+        {
+            return ("Error", 0f);
+        }
     }
 
     /// <summary>

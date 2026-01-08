@@ -1325,6 +1325,37 @@ public class DatabaseService
         using var context = new AppDbContext();
         return await context.AudioFeatures.AsNoTracking().FirstOrDefaultAsync(f => f.TrackUniqueHash == uniqueHash);
     }
+
+    /// <summary>
+    /// Finds AudioFeatures by file path.
+    /// Used by PersonalClassifierService to classify tracks on the fly.
+    /// </summary>
+    public async Task<AudioFeaturesEntity?> GetAudioFeaturesAsync(string filePath)
+    {
+        using var context = new AppDbContext();
+        
+        // 1. Try to find a LibraryEntry with this path
+        var libraryEntry = await context.LibraryEntries
+            .AsNoTracking()
+            .FirstOrDefaultAsync(e => e.FilePath == filePath);
+
+        if (libraryEntry != null)
+        {
+            return await GetAudioFeaturesByHashAsync(libraryEntry.UniqueHash);
+        }
+
+        // 2. Try to find a PlaylistTrack with this path
+        var track = await context.PlaylistTracks
+            .AsNoTracking()
+            .FirstOrDefaultAsync(t => t.ResolvedFilePath == filePath);
+
+        if (track != null)
+        {
+            return await GetAudioFeaturesByHashAsync(track.TrackUniqueHash);
+        }
+
+        return null;
+    }
 }
 
 
