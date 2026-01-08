@@ -43,6 +43,7 @@ public partial class LibraryViewModel : INotifyPropertyChanged, IDisposable
     private readonly IServiceProvider _serviceProvider;
     private readonly Services.Export.IHardwareExportService _hardwareExportService;
     private readonly DatabaseService _databaseService;
+    private readonly ForensicLabViewModel _forensicLab;
 
     // Infrastructure for Sidebars/Delayed operations
     private System.Threading.Timer? _selectionDebounceTimer;
@@ -55,6 +56,7 @@ public partial class LibraryViewModel : INotifyPropertyChanged, IDisposable
     public TrackInspectorViewModel TrackInspector { get; }
     public UpgradeScoutViewModel UpgradeScout { get; }
     public LibrarySourcesViewModel LibrarySourcesViewModel { get; }
+    public ForensicLabViewModel ForensicLab => _forensicLab;
 
     private Views.MainViewModel? _mainViewModel;
     public Views.MainViewModel? MainViewModel
@@ -146,34 +148,9 @@ public partial class LibraryViewModel : INotifyPropertyChanged, IDisposable
 
     partial void InitializeCommands();
 
-    public LibraryViewModel(
-        ILogger<LibraryViewModel> logger,
-        Library.ProjectListViewModel projects,
-        Library.TrackListViewModel tracks,
-        Library.TrackOperationsViewModel operations,
-        Library.SmartPlaylistViewModel smartPlaylists,
-        INavigationService navigationService,
-        ImportHistoryViewModel importHistoryViewModel,
-        ILibraryService libraryService,
-        IEventBus eventBus,
-        PlayerViewModel playerViewModel,
-        UpgradeScoutViewModel upgradeScout,
-        TrackInspectorViewModel trackInspector,
-        Services.Export.RekordboxService rekordboxService,
-        IDialogService dialogService,
-        INotificationService notificationService,
-        SpotifyEnrichmentService spotifyEnrichmentService,
-        HarmonicMatchService harmonicMatchService,
-        AnalysisQueueService analysisQueueService,
-        Services.Library.SmartSorterService smartSorterService,
-        LibraryCacheService libraryCacheService,
-        Services.Export.IHardwareExportService hardwareExportService,
-        LibrarySourcesViewModel librarySourcesViewModel,
-        IServiceProvider serviceProvider,
-        DownloadManager downloadManager, // Added parameter
-        Services.AI.PersonalClassifierService personalClassifier,
         DatabaseService databaseService,
-        SearchFilterViewModel searchFilters)
+        SearchFilterViewModel searchFilters,
+        ForensicLabViewModel forensicLab)
     {
         _logger = logger;
         _navigationService = navigationService;
@@ -193,6 +170,7 @@ public partial class LibraryViewModel : INotifyPropertyChanged, IDisposable
         _hardwareExportService = hardwareExportService;
         _serviceProvider = serviceProvider;
         _databaseService = databaseService;
+        _forensicLab = forensicLab;
         LibrarySourcesViewModel = librarySourcesViewModel;
 
         Projects = projects;

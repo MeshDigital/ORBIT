@@ -86,19 +86,72 @@ public class SpotifyEnrichmentService
         {
             var client = await _authService.GetAuthenticatedClientAsync();
 
-            var query = $"track:{trackName} artist:{artist}";
-            var searchReq = new SearchRequest(SearchRequest.Types.Track, query) { Limit = 1 };
+            string sanitizedArtist = artist;
+            string sanitizedTitle = trackName;
+
+            // FIX: Handle "Unknown Artist" and bad metadata
+            if (string.Equals(artist, "Unknown Artist", StringComparison.OrdinalIgnoreCase) || 
+                string.IsNullOrWhiteSpace(artist))
+            {
+                // Try to parse "Artist - Title" from track name if it looks like a filename/combined string
+                if (trackName.Contains(" - "))
+                {
+                    var parts = trackName.Split(" - ", StringSplitOptions.RemoveEmptyEntries);
+                    if (parts.Length >= 2)
+                    {
+                        sanitizedArtist = parts[0].Trim();
+                        sanitizedTitle = parts[1].Trim();
+                        _logger.LogInformation("Parsed 'Unknown Artist' track as: Artist='{A}', Title='{T}'", sanitizedArtist, sanitizedTitle);
+                    }
+                    else
+                    {
+                         sanitizedArtist = ""; // Search just by title
+                    }
+                }
+                else
+                {
+                    sanitizedArtist = ""; // Clean it so we don't send "Unknown Artist" to Spotify
+                }
+            }
+
+            var query = !string.IsNullOrEmpty(sanitizedArtist) 
+                ? $"track:{sanitizedTitle} artist:{sanitizedArtist}" 
+                : $"track:{sanitizedTitle}"; // Fallback to just title search
+
+            // Fallback for tricky titles: remove "feat." and parentheses
+            // e.g. "Song (Original Mix)" -> "Song"
+            // This happens if exact search fails
             
+            var searchReq = new SearchRequest(SearchRequest.Types.Track, query) { Limit = 1 };
             var response = await client.Search.Item(searchReq);
             var track = response.Tracks.Items?.FirstOrDefault();
 
             if (track == null)
             {
-                 // Fallback: Try simpler query
-                 var simplerQuery = $"{artist} {trackName}";
+                 // Fallback 1: Simpler query (concatenated)
+                 var simplerQuery = !string.IsNullOrEmpty(sanitizedArtist) 
+                    ? $"{sanitizedArtist} {sanitizedTitle}" 
+                    : sanitizedTitle;
+                    
                  searchReq = new SearchRequest(SearchRequest.Types.Track, simplerQuery) { Limit = 1 };
                  response = await client.Search.Item(searchReq);
                  track = response.Tracks.Items?.FirstOrDefault();
+            }
+            
+            if (track == null && (sanitizedTitle.Contains("(") || sanitizedTitle.Contains("[")))
+            {
+                // Fallback 2: Remove brackets/parentheses (e.g. "Title (Remix)" -> "Title")
+                var cleanTitle = System.Text.RegularExpressions.Regex.Replace(sanitizedTitle, @"\s*[\(\[].*?[\)\]]", "").Trim();
+                if (!string.IsNullOrEmpty(cleanTitle) && cleanTitle != sanitizedTitle)
+                {
+                     var simpleQuery = !string.IsNullOrEmpty(sanitizedArtist) 
+                        ? $"{sanitizedArtist} {cleanTitle}" 
+                        : cleanTitle;
+                        
+                     searchReq = new SearchRequest(SearchRequest.Types.Track, simpleQuery) { Limit = 1 };
+                     response = await client.Search.Item(searchReq);
+                     track = response.Tracks.Items?.FirstOrDefault();
+                }
             }
 
             if (track == null)

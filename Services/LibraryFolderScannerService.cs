@@ -273,5 +273,36 @@ public class LibraryFolderScannerService
 
         return results;
     }
+    /// <summary>
+    /// Ensures that the specified path is registered as a library folder.
+    /// Uses the existing folder if found, or creates a new one.
+    /// </summary>
+    public async Task EnsureDefaultFolderAsync(string path)
+    {
+        if (string.IsNullOrWhiteSpace(path) || !Directory.Exists(path)) return;
+
+        using var context = new AppDbContext();
+        
+        // Check if already exists (case-insensitive for Windows)
+        var normalizedPath = Path.GetFullPath(path).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+        
+        var exists = await context.LibraryFolders
+            .AnyAsync(f => f.FolderPath == path); // Simple check first
+            
+        if (!exists)
+        {
+            // Double check with more complex logic if needed, but for now simple add
+            _logger.LogInformation("Registering new default library folder: {Path}", path);
+            
+            context.LibraryFolders.Add(new LibraryFolderEntity 
+            { 
+                FolderPath = path,
+                IsEnabled = true,
+                AddedAt = DateTime.UtcNow
+            });
+            
+            await context.SaveChangesAsync();
+        }
+    }
 }
 

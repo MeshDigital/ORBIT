@@ -144,6 +144,12 @@ public partial class LibraryViewModel
                 IsInspectorOpen = false;
                 IsForensicLabVisible = true;
                 IsDiscoveryLaneVisible = false;
+                
+                // [NEW] Load currently selected track into Forensic Lab
+                if (Tracks.SelectedTracks.FirstOrDefault() is { } selectedTrack)
+                {
+                    _ = _forensicLab.LoadTrackAsync(selectedTrack.UniqueHash);
+                }
                 break;
             case ActiveWorkspace.Industrial:
                 IsMixHelperVisible = false;

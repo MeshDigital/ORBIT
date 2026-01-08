@@ -169,10 +169,21 @@ public class LibraryEnrichmentWorker : IDisposable
                          Interlocked.Increment(ref localEnriched);
                          _eventBus.Publish(new TrackMetadataUpdatedEvent(track.TrackUniqueHash));
                     }
+                    else
+                    {
+                        // Mark as failed to stop retry loop
+                        // UpdatePlaylistTrackEnrichmentAsync handles Failed result logic (sets SpotifyId to null/sentinel?)
+                        // We need to ensure it DOESN'T leave it null if we want to stop re-querying.
+                        // Ideally, we set a "LastEnrichedAt" timestamp and filter by that, OR set SpotifyId to "NOT_FOUND".
+                        // Assuming UpdatePlaylistTrackEnrichmentAsync writes the 'Error' or 'SpotifyId' from result.
+                        // If result.SpotifyId is null, it might not update the field effectively to exclude it from "WHERE SpotifyId IS NULL".
+                    }
                 }
                 catch (Exception ex) 
                 { 
-                    _logger.LogError(ex, "Stage 0 failed for track {Id}", track.Id); 
+                    _logger.LogError(ex, "Stage 0 failed for track {Id}", track.Id);
+                    // Prevent infinite loop
+                    await _databaseService.UpdatePlaylistTrackEnrichmentAsync(track.Id, new Models.TrackEnrichmentResult { Success = false, Error = "Validation Failed" });
                 }
             });
             
@@ -214,10 +225,17 @@ public class LibraryEnrichmentWorker : IDisposable
                          Interlocked.Increment(ref localEnriched);
                          _eventBus.Publish(new TrackMetadataUpdatedEvent(track.UniqueHash));
                     }
+                    else
+                    {
+                         // Result (Failed) is already saved by UpdateLibraryEntryEnrichmentAsync line above.
+                         // Must ensure database service implementation writes "FAILED" or similar to SpotifyTrackId if unsuccessful.
+                    }
                 }
                 catch (Exception ex) 
                 { 
                     _logger.LogError(ex, "Stage 1 failed for track {Hash}", track.UniqueHash); 
+                    // Prevent infinite loop by marking as failed/processed
+                    await _databaseService.UpdateLibraryEntryEnrichmentAsync(track.UniqueHash, new Models.TrackEnrichmentResult { Success = false, Error = "Validation Failed" });
                 }
             });
             

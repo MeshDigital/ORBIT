@@ -556,6 +556,9 @@ namespace SLSKDONET.Migrations
                     b.Property<double?>("Danceability")
                         .HasColumnType("REAL");
 
+                    b.Property<string>("DetectedSubGenre")
+                        .HasColumnType("TEXT");
+
                     b.Property<int?>("DurationSeconds")
                         .HasColumnType("INTEGER");
 
@@ -647,6 +650,9 @@ namespace SLSKDONET.Migrations
 
                     b.Property<string>("SpotifyTrackId")
                         .HasColumnType("TEXT");
+
+                    b.Property<float?>("SubGenreConfidence")
+                        .HasColumnType("REAL");
 
                     b.Property<string>("Title")
                         .IsRequired()
@@ -971,6 +977,9 @@ namespace SLSKDONET.Migrations
                         .IsRequired()
                         .HasColumnType("TEXT");
 
+                    b.Property<float?>("SubGenreConfidence")
+                        .HasColumnType("REAL");
+
                     b.Property<string>("Title")
                         .IsRequired()
                         .HasColumnType("TEXT");
@@ -1071,6 +1080,9 @@ namespace SLSKDONET.Migrations
 
                     b.Property<double?>("Danceability")
                         .HasColumnType("REAL");
+
+                    b.Property<string>("DetectedSubGenre")
+                        .HasColumnType("TEXT");
 
                     b.Property<double?>("Energy")
                         .HasColumnType("REAL");
@@ -1176,6 +1188,9 @@ namespace SLSKDONET.Migrations
                     b.Property<string>("State")
                         .IsRequired()
                         .HasColumnType("TEXT");
+
+                    b.Property<float?>("SubGenreConfidence")
+                        .HasColumnType("REAL");
 
                     b.Property<string>("Title")
                         .IsRequired()

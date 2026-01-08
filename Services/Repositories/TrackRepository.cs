@@ -188,6 +188,7 @@ public class TrackRepository : ITrackRepository
                     existing.SpotifyArtistId = result.SpotifyArtistId;
                     if (!string.IsNullOrEmpty(result.ISRC)) existing.ISRC = result.ISRC;
                     if (!string.IsNullOrEmpty(result.AlbumArtUrl)) existing.AlbumArtUrl = result.AlbumArtUrl;
+                    
                     if (result.Bpm > 0 || !string.IsNullOrEmpty(result.MusicalKey))
                     {
                         existing.BPM = result.Bpm;
@@ -199,10 +200,31 @@ public class TrackRepository : ITrackRepository
                         // Phase 12.7: Style Classification
                         if (!string.IsNullOrEmpty(result.DetectedSubGenre)) existing.DetectedSubGenre = result.DetectedSubGenre;
                         if (result.SubGenreConfidence > 0) existing.SubGenreConfidence = result.SubGenreConfidence;
-
-                        existing.IsEnriched = true;
                     }
                 }
+                else
+                {
+                     // Mark as failed to prevent infinite retry loop
+                    existing.SpotifyTrackId = "FAILED";
+                    _logger.LogWarning("Marking LibraryEntry {Hash} as Enrichment FAILED", uniqueHash);
+                }
+                
+                // IMPORTANT: Always mark as enriched if we attempted identification, 
+                // so Stage 1 doesn't pick it up again. If Success=true, Stage 2 (Features) 
+                // will pick it up if IsEnriched is still false.
+                // Wait, if I set IsEnriched = true here, Stage 2 will SKIP it.
+                // So if Success=true, we should only set IsEnriched = true if we actually GOT the features.
+                // But if Success=false, we MUST set IsEnriched = true to stop the loop.
+                
+                if (!result.Success) 
+                {
+                    existing.IsEnriched = true;
+                }
+                else if (result.Bpm > 0)
+                {
+                    existing.IsEnriched = true;
+                }
+
                 existing.LastUsedAt = DateTime.UtcNow;
                 await context.SaveChangesAsync();
             }
@@ -252,7 +274,20 @@ public class TrackRepository : ITrackRepository
                         if (result.SubGenreConfidence > 0) track.SubGenreConfidence = result.SubGenreConfidence;
                     }
                 }
-                track.IsEnriched = true;
+                else
+                {
+                    // Mark as failed to prevent infinite retry loop
+                    track.SpotifyTrackId = "FAILED";
+                    _logger.LogWarning("Marking PlaylistTrack {Id} as Enrichment FAILED", id);
+                }
+
+                // If identification failed, mark as enriched to stop the cycle.
+                // If it succeeded but we don't have features yet, Stage 2 will pick it up (IsEnriched is still false).
+                if (!result.Success || result.Bpm > 0)
+                {
+                    track.IsEnriched = true;
+                }
+                
                 await context.SaveChangesAsync();
             }
         }

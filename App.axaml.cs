@@ -638,10 +638,14 @@ public partial class App : Application
         // ViewModels
         services.AddSingleton<MainViewModel>();
         services.AddSingleton<SearchViewModel>();
+        services.AddSingleton<SearchFilterViewModel>(); // [FIX] Added missing registration
         services.AddSingleton<ConnectionViewModel>();
         services.AddSingleton<SettingsViewModel>();
         services.AddSingleton<HomeViewModel>(); // [NEW] Command Center ViewModel
         services.AddSingleton<BulkOperationViewModel>();
+
+        // [NEW] Library Scanning
+        services.AddSingleton<LibraryFolderScannerService>();
         
         // Orchestration Services
         services.AddSingleton<SearchOrchestrationService>();
@@ -741,8 +745,8 @@ public partial class App : Application
         services.AddTransient<Views.Avalonia.AnalysisQueuePage>();
         services.AddTransient<Views.Avalonia.StyleLabPage>();
         
-        // Singleton ViewModels
         services.AddSingleton<ViewModels.TrackInspectorViewModel>();
+        services.AddSingleton<ViewModels.ForensicLabViewModel>();
     }
 
     /// <summary>

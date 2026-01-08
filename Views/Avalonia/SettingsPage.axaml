@@ -10,6 +10,7 @@
 
     <UserControl.Resources>
         <conv:RankColorConverter x:Key="RankColorConverter"/>
+        <conv:BoolToTextConverter x:Key="BoolToTextConverter"/>
     </UserControl.Resources>
     
     <ScrollViewer>
@@ -540,6 +541,30 @@
                                 Padding="16,8"
                                 VerticalAlignment="Center"/>
                     </Grid>
+                    
+                    <Separator Background="#333" Height="1"/>
+                    
+                    <!-- Manual Scan -->
+                    <StackPanel Spacing="10">
+                        <TextBlock Text="Library Scan" FontWeight="SemiBold" FontSize="16" Foreground="{DynamicResource TextBrush}"/>
+                        <TextBlock Text="Manually scan the configured download folder for new files." 
+                                   Foreground="{DynamicResource TextSecondaryBrush}" FontSize="12" TextWrapping="Wrap"/>
+                        
+                        <StackPanel Orientation="Horizontal" Spacing="10">
+                            <Button Command="{Binding ScanLibraryCommand}" 
+                                    IsEnabled="{Binding !IsScanning}"
+                                    Classes="AccentBtn" HorizontalAlignment="Left"
+                                    Padding="16,8" Background="#0078D4">
+                                <StackPanel Orientation="Horizontal" Spacing="8">
+                                    <PathIcon Data="{StaticResource search_regular}" Width="16" Height="16"/>
+                                    <TextBlock Text="{Binding IsScanning, Converter={StaticResource BoolToTextConverter}, ConverterParameter='Scanning...|Scan Library'}" VerticalAlignment="Center" Foreground="White"/>
+                                </StackPanel>
+                            </Button>
+                            
+                            <TextBlock Text="{Binding ScanStatus}" VerticalAlignment="Center" 
+                                       Foreground="{DynamicResource TextSecondaryBrush}" FontSize="12"/>
+                        </StackPanel>
+                    </StackPanel>
                 </StackPanel>
             </Border>
 

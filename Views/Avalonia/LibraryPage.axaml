@@ -253,6 +253,11 @@
                                     <ContextMenu>
                                         <MenuItem Header="Play" Command="{Binding $parent[UserControl].DataContext.Operations.PlayTrackCommand}" CommandParameter="{Binding}"><MenuItem.Icon><TextBlock Text="▶️"/></MenuItem.Icon></MenuItem>
                                         <MenuItem Header="Analyze Track" Command="{Binding $parent[UserControl].DataContext.AnalyzeTrackCommand}" CommandParameter="{Binding}"><MenuItem.Icon><TextBlock Text="🔬"/></MenuItem.Icon></MenuItem>
+                                        <MenuItem Header="Open in Forensic Lab" 
+                                                  Command="{Binding $parent[UserControl].DataContext.SwitchWorkspaceCommand}" 
+                                                  CommandParameter="{x:Static vm:ActiveWorkspace.Forensic}">
+                                            <MenuItem.Icon><TextBlock Text="🕵️"/></MenuItem.Icon>
+                                        </MenuItem>
                                         <MenuItem Header="Industrial Prep (Bulk)" Command="{Binding $parent[UserControl].DataContext.Operations.IndustrialPrepCommand}" CommandParameter="{Binding $parent[UserControl].DataContext.Tracks.SelectedTracks}"><MenuItem.Icon><TextBlock Text="🏭"/></MenuItem.Icon></MenuItem>
                                         <MenuItem Header="Open File Location" Command="{Binding $parent[UserControl].DataContext.Operations.OpenFolderCommand}" CommandParameter="{Binding}"><MenuItem.Icon><TextBlock Text="📁"/></MenuItem.Icon></MenuItem>
                                         <MenuItem Header="Create Independent Physical Copy" Command="{Binding $parent[UserControl].DataContext.Operations.CloneTrackCommand}" CommandParameter="{Binding}" ToolTip.Tip="Create a physical copy of this file with independent cues"><MenuItem.Icon><TextBlock Text="📄"/></MenuItem.Icon></MenuItem>
@@ -320,9 +325,10 @@
                         </Border>
                     </Grid>
 
-                    <!-- Body (Waveform Placeholder) -->
-                    <Border Grid.Row="1" Margin="24,0" Background="#111" CornerRadius="8">
-                        <TextBlock Text="Waveform Analysis Visualization" HorizontalAlignment="Center" VerticalAlignment="Center" Foreground="#444"/>
+                    <!-- Body (Waveform) -->
+                    <Border Grid.Row="1" Margin="24,0" Background="#111" CornerRadius="8" ClipToBounds="True">
+                        <controls:WaveformControl DataContext="{Binding Tracks.LeadSelectedTrack}"
+                                                 Margin="0,20"/>
                     </Border>
                     
                     <!-- Footer -->
@@ -345,7 +351,7 @@
                 <Border.Transitions>
                     <Transitions>
                         <DoubleTransition Property="Opacity" Duration="0:0:0.2"/>
-                        <TransformOperationsTransition Property="RenderTransform" Duration="0:0:0.2" Easing="CubicOut"/>
+                        <TransformOperationsTransition Property="RenderTransform" Duration="0:0:0.2" Easing="CubicEaseOut"/>
                     </Transitions>
                 </Border.Transitions>
             </Border>
@@ -419,6 +425,24 @@
             </Border>
         </Border>
 
+        <!-- RIGHT PANEL SPLITTER -->
+        <GridSplitter Grid.Column="3" Width="1" Background="#3E3E3E" 
+                      IsVisible="{Binding IsRightPanelVisible}"/>
+
+        <!-- RIGHT PANEL: Inspector / Mix Helper -->
+        <Border Grid.Column="4" Background="#202020" 
+                Width="320"
+                IsVisible="{Binding IsRightPanelVisible}">
+            <Grid>
+                <!-- Track Inspector -->
+                <views:TrackInspectorView DataContext="{Binding TrackInspector}"
+                                         IsVisible="{Binding IsInspectorOpen}"/>
+                
+                <!-- Mix Helper (Harmonic Matching) -->
+                <views:MixHelperView IsVisible="{Binding IsMixHelperVisible}"/>
+            </Grid>
+        </Border>
+
         <!-- Sources Overlay -->
         <Grid Grid.ColumnSpan="5" 
               Background="#BB000000"
@@ -468,7 +492,7 @@
             </Button>
             
             <controls:ForensicLabDashboard Margin="40" 
-                                           DataContext="{Binding TrackInspector.SelectedTrack}"/>
+                                           DataContext="{Binding ForensicLab}"/>
         </Grid>
     </Grid>
 </UserControl>

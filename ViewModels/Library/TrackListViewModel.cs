@@ -14,6 +14,8 @@ using SLSKDONET.Services;
 using SLSKDONET.Views;
 using System.Reactive.Disposables;
 
+using System.Collections.Specialized;
+
 namespace SLSKDONET.ViewModels.Library;
 
 /// <summary>
@@ -212,7 +214,23 @@ public class TrackListViewModel : ReactiveObject, IDisposable
     }
     
     // ListBox Selection Binding
-    public ObservableCollection<PlaylistTrackViewModel> SelectedTracks { get; } = new();
+    private ObservableCollection<PlaylistTrackViewModel> _selectedTracks = new();
+    public ObservableCollection<PlaylistTrackViewModel> SelectedTracks 
+    { 
+        get => _selectedTracks;
+        private set
+        {
+            if (_selectedTracks != null)
+                _selectedTracks.CollectionChanged -= OnSelectionChanged;
+            
+            this.RaiseAndSetIfChanged(ref _selectedTracks, value);
+            
+            if (_selectedTracks != null)
+                _selectedTracks.CollectionChanged += OnSelectionChanged;
+                
+            UpdateSelectionState();
+        }
+    }
 
     public PlaylistTrackViewModel? LeadSelectedTrack => SelectedTracks.FirstOrDefault();
 
@@ -289,18 +307,14 @@ public class TrackListViewModel : ReactiveObject, IDisposable
         
         SelectAllTracksCommand = ReactiveCommand.Create(() => 
         {
-            SelectedTracks.Clear();
-            foreach (var track in FilteredTracks)
-            {
-               SelectedTracks.Add(track);
-            }
-            UpdateSelectionState();
+            // CRITICAL: Create new collection to avoid N notifications from .Add() loop
+            // This replaces the entire selection in one go, preventing UI stack overflow
+            SelectedTracks = new ObservableCollection<PlaylistTrackViewModel>(FilteredTracks);
         });
 
         DeselectAllTracksCommand = ReactiveCommand.Create(() => 
         {
-            SelectedTracks.Clear();
-            UpdateSelectionState();
+            SelectedTracks = new ObservableCollection<PlaylistTrackViewModel>();
         });
 
         BulkDownloadCommand = ReactiveCommand.CreateFromTask(ExecuteBulkDownloadAsync);
@@ -310,7 +324,7 @@ public class TrackListViewModel : ReactiveObject, IDisposable
         BulkReEnrichCommand = ReactiveCommand.CreateFromTask(ExecuteBulkReEnrichAsync);
 
         // Selection Change Tracking
-        SelectedTracks.CollectionChanged += (s, e) => UpdateSelectionState();
+        _selectedTracks.CollectionChanged += OnSelectionChanged;
 
         // Throttled search and filter synchronization
         this.WhenAnyValue(
@@ -339,6 +353,12 @@ public class TrackListViewModel : ReactiveObject, IDisposable
         
         // Initial Load
         _ = LoadStyleFiltersAsync();
+    }
+    
+    // Explicit handler to support attach/detach
+    private void OnSelectionChanged(object? sender, NotifyCollectionChangedEventArgs e)
+    {
+        UpdateSelectionState();
     }
 
     public void Dispose()

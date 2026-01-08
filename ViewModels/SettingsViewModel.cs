@@ -34,12 +34,14 @@ public class SettingsViewModel : INotifyPropertyChanged, IDisposable
     private readonly SpotifyAuthService _spotifyAuthService;
     private readonly ISpotifyMetadataService _spotifyMetadataService;
     private readonly DatabaseService _databaseService;
+    private readonly LibraryFolderScannerService _libraryFolderScannerService;
 
     // Hardcoded public client ID provided by user/project
     // Ideally this would be in a secured config, but for this desktop app scenario it's acceptable as a default.
     private const string DefaultSpotifyClientId = "67842a599c6f45edbf3de3d84231deb4";
 
     public event PropertyChangedEventHandler? PropertyChanged;
+
 
     // Settings Properties
     public string DownloadPath
@@ -583,6 +585,22 @@ public class SettingsViewModel : INotifyPropertyChanged, IDisposable
     public ICommand RestartSpotifyAuthCommand { get; }
     public ICommand CheckFfmpegCommand { get; } // Phase 8: Dependency validation
     public ICommand ResetDatabaseCommand { get; }
+    public ICommand ScanLibraryCommand { get; } // [NEW] Manual Scan
+    
+    // Scan State
+    private bool _isScanning;
+    public bool IsScanning
+    {
+        get => _isScanning;
+        set => SetProperty(ref _isScanning, value);
+    }
+    
+    private string _scanStatus = "Idle";
+    public string ScanStatus
+    {
+        get => _scanStatus;
+        set => SetProperty(ref _scanStatus, value);
+    }
     
     // Phase 8: FFmpeg Dependency State
     private bool _isFfmpegInstalled;
@@ -621,7 +639,8 @@ public class SettingsViewModel : INotifyPropertyChanged, IDisposable
         IFileInteractionService fileInteractionService,
         SpotifyAuthService spotifyAuthService,
         ISpotifyMetadataService spotifyMetadataService,
-        DatabaseService databaseService)
+        DatabaseService databaseService,
+        LibraryFolderScannerService libraryFolderScannerService)
     {
         _logger = logger;
         _config = config;
@@ -630,6 +649,7 @@ public class SettingsViewModel : INotifyPropertyChanged, IDisposable
         _spotifyAuthService = spotifyAuthService;
         _spotifyMetadataService = spotifyMetadataService;
         _databaseService = databaseService;
+        _libraryFolderScannerService = libraryFolderScannerService;
 
         // Ensure default Client ID is set if empty
         if (string.IsNullOrEmpty(_config.SpotifyClientId))
@@ -651,6 +671,7 @@ public class SettingsViewModel : INotifyPropertyChanged, IDisposable
         CheckFfmpegCommand = new AsyncRelayCommand(CheckFfmpegAsync); // Phase 8
         RestartSpotifyAuthCommand = new AsyncRelayCommand(RestartSpotifyAuthAsync, () => IsSpotifyConnecting);
         ResetDatabaseCommand = new AsyncRelayCommand(ResetDatabaseAsync);
+        ScanLibraryCommand = new AsyncRelayCommand(ScanLibraryAsync, () => !IsScanning);
         
         // Explicitly initialize IsAuthenticating to false
         IsAuthenticating = false;
@@ -1000,6 +1021,55 @@ public class SettingsViewModel : INotifyPropertyChanged, IDisposable
         catch (Exception ex)
         {
             _logger.LogError(ex, "Failed to reset database via Settings");
+        }
+    }
+    
+    private async Task ScanLibraryAsync()
+    {
+        try
+        {
+            if (IsScanning) return;
+            IsScanning = true;
+            ScanStatus = "Preparing to scan...";
+            
+            _logger.LogInformation("Starting manual library scan...");
+            
+            // 1. Ensure download folder is registered
+            if (!string.IsNullOrEmpty(_config.DownloadDirectory))
+            {
+                await _libraryFolderScannerService.EnsureDefaultFolderAsync(_config.DownloadDirectory);
+            }
+            else
+            {
+                 // Fallback or warning?
+                 _logger.LogWarning("No download directory configured for scanning.");
+            }
+            
+            // 2. Run Scan
+            var progress = new Progress<ScanProgress>(p =>
+            {
+                // Throttle updates or just show simplified status
+                ScanStatus = $"Scanning: Found {p.FilesDiscovered}, Imported {p.FilesImported}...";
+            });
+            
+            var results = await _libraryFolderScannerService.ScanAllFoldersAsync(progress);
+            
+            // 3. Summarize
+            int totalImported = results.Values.Sum(r => r.FilesImported);
+            int totalSkipped = results.Values.Sum(r => r.FilesSkipped);
+            
+            ScanStatus = $"Done. Imported {totalImported} new tracks.";
+            _logger.LogInformation("Manual scan complete. Imported: {Imported}, Skipped: {Skipped}", totalImported, totalSkipped);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Manual scan failed");
+            ScanStatus = "Scan Failed";
+        }
+        finally
+        {
+            IsScanning = false;
+            (ScanLibraryCommand as AsyncRelayCommand)?.RaiseCanExecuteChanged();
         }
     }
 
