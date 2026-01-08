@@ -37,7 +37,7 @@ public class EssentiaAnalyzerService : IAudioIntelligenceService, IDisposable
     // - Slow HDD seeks: +5-10 seconds on fragmented drives
     // - Safety margin: 3x average = handles 99% of cases without false kills
     // - Prevents hung processes from blocking queue indefinitely
-    private const int ANALYSIS_TIMEOUT_SECONDS = 45;
+    private const int ANALYSIS_TIMEOUT_SECONDS = 120;
     
     private static string? _essentiaPath;
     private static bool _binaryValidated = false;

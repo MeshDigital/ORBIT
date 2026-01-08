@@ -143,9 +143,9 @@ public class UnifiedTrackViewModel : ReactiveObject, IDisplayableTrack, IDisposa
 
     // IDisplayableTrack Implementation
     public string GlobalId => Model.TrackUniqueHash;
-    public string ArtistName => Model.Artist ?? "Unknown Artist";
-    public string TrackTitle => Model.Title ?? "Unknown Title";
-    public string AlbumName => Model.Album ?? "Unknown Album";
+    public string ArtistName => !string.IsNullOrWhiteSpace(Model.Artist) ? Model.Artist : "Unknown Artist";
+    public string TrackTitle => !string.IsNullOrWhiteSpace(Model.Title) ? Model.Title : "Unknown Title";
+    public string AlbumName => !string.IsNullOrWhiteSpace(Model.Album) ? Model.Album : "Unknown Album";
     public string? AlbumArtUrl => Model.AlbumArtUrl;
 
     private ArtworkProxy _artwork;
@@ -460,6 +460,9 @@ public class UnifiedTrackViewModel : ReactiveObject, IDisplayableTrack, IDisposa
             if (updatedTrack != null)
             {
                 // Sync important fields back to Model instance
+                Model.Artist = updatedTrack.Artist;
+                Model.Title = updatedTrack.Title;
+                Model.Album = updatedTrack.Album;
                 Model.AlbumArtUrl = updatedTrack.AlbumArtUrl;
                 Model.SpotifyAlbumId = updatedTrack.SpotifyAlbumId;
                 Model.SpotifyTrackId = updatedTrack.SpotifyTrackId;

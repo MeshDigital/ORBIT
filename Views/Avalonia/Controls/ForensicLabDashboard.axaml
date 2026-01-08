@@ -426,4 +426,24 @@
             </Grid>
         </Border>
     </Grid>
+
+    <!-- LOADING OVERLAY -->
+    <Grid Background="#CC000000" IsVisible="{Binding IsLoading}" ZIndex="1000">
+        <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="16">
+            <ProgressBar IsIndeterminate="True" 
+                         Width="200" 
+                         Height="4" 
+                         Foreground="#4EC9B0" 
+                         Background="#333"/>
+            <TextBlock Text="{Binding LoadingStatus}" 
+                       Foreground="#4EC9B0" 
+                       FontSize="16" 
+                       FontWeight="SemiBold" 
+                       HorizontalAlignment="Center"/>
+            <TextBlock Text="Analyzing audio features... This may take up to 2 minutes." 
+                       Foreground="#888" 
+                       FontSize="12" 
+                       HorizontalAlignment="Center"/>
+        </StackPanel>
+    </Grid>
 </UserControl>

@@ -179,6 +179,14 @@
   - ✅ **C# Polishing**: Removed duplicate properties in `PlaylistTrackViewModel` and fixed `ActiveWorkspace` enum usage.
   - ✅ **Stable Build**: Application now compiles cleanly (0 Errors).
 
+### Recent Updates (January 8, 2026) - UI & Stability Fixes
+- ✅ **Forensic Lab UI Fix**:
+  - ✅ **Refactoring**: Decoupled `ForensicLabDashboard` overlay from the main content grid in `LibraryPage.axaml` to resolve persistent blur issue.
+  - ✅ **UX Improvement**: Added a dedicated Loading Screen with progress bar to the dashboard during analysis.
+- ✅ **Analysis Stability**:
+  - ✅ **Timeout Adjustment**: Increased Essentia analysis timeout from 45s to 120s in `EssentiaAnalyzerService.cs` to prevent "SIDECAR TIMEOUT" on longer tracks.
+  - ✅ **Bug Fix**: Resolved `CubicOut` easing exception via clean build.
+
 ### Recent Updates (January 8, 2026) - Reliability & Transparency Wave
 - ✅ **Phase 10.5: Native Dependency Health (Complete)**:
   - ✅ **Proactive Service**: Created `NativeDependencyHealthService` to verify `ffmpeg` and `essentia` binaries on startup.

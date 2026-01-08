@@ -287,6 +287,7 @@ public class ProjectListViewModel : INotifyPropertyChanged, IDisposable
             {
                 // Performance fix: Batch add items instead of one-by-one to avoid repeated UI reflows
                 // Clear collection
+                if (AllProjects == null) AllProjects = new ObservableCollection<PlaylistJob>();
                 AllProjects.Clear();
                 
                 // Add all items at once in sorted order
@@ -301,7 +302,7 @@ public class ProjectListViewModel : INotifyPropertyChanged, IDisposable
                 RefreshFilteredProjects();
 
                 // Select first project if available
-                if (FilteredProjects.Count > 0)
+                if (FilteredProjects.Count > 0 && SelectedProject == null)
                 {
                     SelectedProject = FilteredProjects[0];
                 }

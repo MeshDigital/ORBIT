@@ -38,10 +38,12 @@
         <KeyBinding Gesture="Escape" Command="{Binding SmartEscapeCommand}"/>
     </UserControl.KeyBindings>
 
-    <Grid ColumnDefinitions="280,Auto,*,Auto,Auto"
-          Effect="{Binding IsForensicLabVisible, Converter={StaticResource BoolBlurConverter}}">
+    <Grid>
+        <!-- CONTENT LAYER (Blurred when Overlay is active) -->
+        <Grid ColumnDefinitions="280,Auto,*,Auto,Auto"
+              Effect="{Binding IsForensicLabVisible, Converter={StaticResource BoolBlurConverter}}">
         
-        <!-- LEFT PANEL: Playlist List -->
+            <!-- LEFT PANEL: Playlist List -->
         <Border Grid.Column="0" Background="#202020" BorderBrush="#3E3E3E" BorderThickness="0,0,1,0">
             <Grid RowDefinitions="Auto,*,Auto">
                 
@@ -357,8 +359,10 @@
             </Border>
         </Grid>
 
+        </Grid>
+
         <!-- REMOVAL HISTORY OVERLAY -->
-        <Border Grid.ColumnSpan="5" 
+        <Border Grid.ColumnSpan="1" 
                 Background="#CC000000" 
                 IsVisible="{Binding IsRemovalHistoryVisible}"
                 ZIndex="100">
@@ -444,7 +448,7 @@
         </Border>
 
         <!-- Sources Overlay -->
-        <Grid Grid.ColumnSpan="5" 
+        <Grid Grid.ColumnSpan="1" 
               Background="#BB000000"
               IsVisible="{Binding IsSourcesOpen}"
               ZIndex="300">
@@ -476,7 +480,7 @@
         </Grid>
 
         <!-- FORENSIC LAB OVERLAY (Phase 5) -->
-        <Grid Grid.ColumnSpan="5" IsVisible="{Binding IsForensicLabVisible}" 
+        <Grid Grid.ColumnSpan="1" IsVisible="{Binding IsForensicLabVisible}" 
               Background="#CC000000"
               ZIndex="400">
             <!-- Click background to close (Escape hatch) -->
