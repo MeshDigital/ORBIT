@@ -52,6 +52,12 @@
 *   **Auto-Tagging**: Library tracks are automatically assigned a `DetectedSubGenre` with confidence scores.
 *   **Dynamic Filtering**: Instant style chips in the Library UI.
 
+### ✅ Phase 20: Smart Playlists 2.0
+**Goal**: Dynamic, criteria-based playlists.
+*   **Smart Criteria**: JSON-backed rules for Energy, BPM, and Genre.
+*   **Auto-Population**: `SmartPlaylistService` dynamically evaluating tracks.
+*   **Persistence**: Database schema enabled for `IsSmartPlaylist` and criteria storage.
+
 ---
 
 ## 🚧 Active Development

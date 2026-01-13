@@ -197,6 +197,43 @@ public class AudioFeaturesEntity
     /// Range: 1-9 (1=negative/dark, 9=positive/uplifting)
     /// </summary>
     public float Valence { get; set; }
+    
+    // Phase 21: AI Brain Upgrade
+    public float? Sadness { get; set; }
+    
+    // Tier 3: Specialized Analysis
+    public float? AvgPitch { get; set; }
+    public float? PitchConfidence { get; set; }
+    public string VggishEmbeddingJson { get; set; } = string.Empty;
+    public string VisualizationVectorJson { get; set; } = string.Empty;
+    
+    // Raw byte storage for EF Core
+    [Column("VectorEmbedding")]
+    public byte[]? VectorEmbeddingBytes { get; set; } 
+
+    // Friendly float[] access
+    [NotMapped]
+    public float[]? VectorEmbedding
+    {
+        get
+        {
+            if (VectorEmbeddingBytes == null) return null;
+            var floatArray = new float[VectorEmbeddingBytes.Length / 4];
+            Buffer.BlockCopy(VectorEmbeddingBytes, 0, floatArray, 0, VectorEmbeddingBytes.Length);
+            return floatArray;
+        }
+        set
+        {
+            if (value == null)
+            {
+                VectorEmbeddingBytes = null;
+                return;
+            }
+            var byteArray = new byte[value.Length * 4];
+            Buffer.BlockCopy(value, 0, byteArray, 0, byteArray.Length);
+            VectorEmbeddingBytes = byteArray;
+        }
+    }
 
     /// <summary>
     /// Electronic subgenre from 'genre_electronic-musicnn-msd-2.pb'.

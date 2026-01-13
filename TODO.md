@@ -197,6 +197,14 @@
   - ✅ **Data Model**: Added `CurationConfidence` and `Source` to `PlaylistTrack` and `AudioFeaturesEntity`.
   - ✅ **Inspector Logic**: Implemented `HasBpmMismatch`, `HasKeyMismatch`, and `DiffBpmLabel` logic in `TrackInspectorViewModel`.
 
+### Recent Updates (January 10, 2026) - Smart Playlists 2.0
+- ✅ **Phase 20: Smart Playlists (Complete)**:
+  - ✅ **Smart Engine**: Created `SmartPlaylistService` and `SmartPlaylistCriteria` for dynamic track evaluation.
+  - ✅ **Database Support**: Added `IsSmartPlaylist` and `SmartCriteriaJson` columns to `Projects` table.
+  - ✅ **Creation UI**: Implemented `CreateSmartPlaylistDialog` with Energy, BPM, and Genre filters.
+  - ✅ **Persistence**: Verified robust saving and loading of smart criteria via `DatabaseService` and `LibraryService`.
+  - ✅ **UI Integration**: Added "New Smart Playlist" entry point to Library Tools menu.
+
 ---
 
 ## 📊 CODE QUALITY REVIEW FINDINGS (December 30, 2025)

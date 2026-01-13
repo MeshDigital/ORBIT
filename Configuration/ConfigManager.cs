@@ -88,7 +88,6 @@ public class ConfigManager
                 SpotifyCallbackPort = int.TryParse(config["Spotify:SpotifyCallbackPort"], out var scp) ? scp : 5000,
                 SpotifyRedirectUri = config["Spotify:SpotifyRedirectUri"] ?? "http://127.0.0.1:5000/callback",
                 ClearSpotifyOnExit = bool.TryParse(config["Spotify:ClearSpotifyOnExit"], out var csoe) && csoe,
-                SpotifyEnableAudioFeatures = bool.TryParse(config["Spotify:SpotifyEnableAudioFeatures"], out var seaf) && seaf,
 
                 // [Search] & Brain 2.0
                 RankingProfile = config["Search:RankingProfile"] ?? "Balanced",
@@ -190,7 +189,6 @@ public class ConfigManager
         iniContent.AppendLine($"SpotifyRedirectUri = {config.SpotifyRedirectUri}");
         iniContent.AppendLine($"SpotifyRememberAuth = {config.SpotifyRememberAuth}");
         iniContent.AppendLine($"MetadataEnrichmentEnabled = {config.SpotifyUseApi}");
-        iniContent.AppendLine($"SpotifyEnableAudioFeatures = {config.SpotifyEnableAudioFeatures}");
         iniContent.AppendLine($"ClearSpotifyOnExit = {config.ClearSpotifyOnExit}");
 
         iniContent.AppendLine();

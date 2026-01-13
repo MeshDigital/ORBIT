@@ -190,11 +190,16 @@ public partial class LibraryViewModel
             await Projects.LoadProjectsAsync();
             
             // Phase 18: Also reload tracks for the currently selected project
-            if (SelectedProject != null)
+            var currentProject = SelectedProject;
+            if (currentProject != null)
             {
-                await Tracks.LoadProjectTracksAsync(SelectedProject);
+                await Tracks.LoadProjectTracksAsync(currentProject);
+                
+                // Defensive check: SelectedProject might have changed during await
+                int trackCount = Tracks.CurrentProjectTracks?.Count ?? 0;
+                
                 _notificationService.Show("Library Refreshed", 
-                    $"Project '{SelectedProject.SourceTitle}' reloaded with {Tracks.CurrentProjectTracks.Count} tracks.", 
+                    $"Project '{currentProject.SourceTitle}' reloaded with {trackCount} tracks.", 
                     NotificationType.Success);
             }
             else

@@ -1,5 +1,19 @@
 # Recent Changes
 
+## [0.1.0-alpha.6] - Sonic Visualizations (Phase 18.2)
+
+### New Features
+* **Sonic Profile UI**: Added `SonicProfileControl` to visualize track energy (Arousal) and mood (Valence).
+  * **Energy Battery**: Gradient bar showing intensity from Chill (Blue) to Banger (Red).
+  * **Mood Slider**: Bi-directional indicator for Melancholic vs. Euphoric vibes.
+  * **Vocals Icon**: Indicator for Instrumental vs. Vocal tracks.
+* **Track Inspector**: Integrated Sonic Profile into the inspector view.
+* **Smart Playlists**: Updated creation dialog to use visual sliders for vibe selection.
+
+### Improvements
+* **SmartPlaylistService**: Refactored to ReactiveUI and removed CommunityToolkit.Mvvm dependency.
+* **Build System**: Fixed duplicate command definitions and restored .NET 9.0 build health.
+
 ## [0.1.0-alpha.5] - Analysis & Inspector Update
 
 ### New Features
