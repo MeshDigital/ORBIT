@@ -347,7 +347,7 @@
                     <!-- Card View -->
                     <ListBox IsVisible="{Binding ViewSettings.ViewMode, Converter={StaticResource EnumToBoolConverter}, ConverterParameter={x:Static models:TrackViewMode.Cards}}" 
                          ItemsSource="{Binding Tracks.LimitedTracks}" 
-                         SelectionMode="Extended" 
+                         SelectionMode="Multiple" 
                          Background="Transparent"
  BorderThickness="0">
                         <ListBox.ItemsPanel>

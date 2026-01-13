@@ -622,6 +622,19 @@ public class TrackListViewModel : ReactiveObject, IDisposable
     /// Refreshes the filtered tracks based on current filter settings.
     /// Optimized with batch updates for virtualization performance.
     /// </summary>
+    private void SeparateStems()
+    {
+         if (SelectedTracks == null || !SelectedTracks.Any()) return;
+
+         foreach (var track in SelectedTracks.ToList())
+         {
+             if (track.SeparateStemsCommand.CanExecute(null))
+             {
+                 track.SeparateStemsCommand.Execute(null);
+             }
+         }
+    }
+
     public void RefreshFilteredTracks()
     {
         // For virtualized view, we recreate the collection with the new filters
@@ -646,7 +659,7 @@ public class TrackListViewModel : ReactiveObject, IDisposable
         FilteredTracks = virtualized;
         
         // Update limited view for Cards to prevent UI freeze
-        RaisePropertyChanged(nameof(LimitedTracks));
+        this.RaisePropertyChanged(nameof(LimitedTracks));
         
         _logger.LogDebug("RefreshFilteredTracks (Virtualized): Updated filters for project {Id}", selectedProjectId);
 
