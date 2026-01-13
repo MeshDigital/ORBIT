@@ -129,6 +129,11 @@ public class PlaylistTrack
     public double? Danceability { get; set; }
     public double? Valence { get; set; }
     public string? MoodTag { get; set; }
+    public double? InstrumentalProbability { get; set; } // Phase 18.2
+    
+    // Phase 21: AI Brain
+    public double? Sadness { get; set; }
+    public float[]? VectorEmbedding { get; set; } // Effnet Embeddings
 
     // Phase 3A: Dual-Truth Metadata
     public double? SpotifyBPM { get; set; }

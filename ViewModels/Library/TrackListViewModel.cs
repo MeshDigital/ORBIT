@@ -49,8 +49,8 @@ public class TrackListViewModel : ReactiveObject, IDisposable
         }
     }
 
-    private ObservableCollection<PlaylistTrackViewModel> _filteredTracks = new();
-    public ObservableCollection<PlaylistTrackViewModel> FilteredTracks
+    private IList<PlaylistTrackViewModel> _filteredTracks = new ObservableCollection<PlaylistTrackViewModel>();
+    public IList<PlaylistTrackViewModel> FilteredTracks
     {
         get => _filteredTracks;
         private set => this.RaiseAndSetIfChanged(ref _filteredTracks, value);
@@ -198,6 +198,30 @@ public class TrackListViewModel : ReactiveObject, IDisposable
         get => _hasMultiSelection;
         private set => this.RaiseAndSetIfChanged(ref _hasMultiSelection, value);
     }
+    
+    // Phase 22: Search 2.0 - The Bouncer
+    private bool _isBouncerActive;
+    public bool IsBouncerActive
+    {
+        get => _isBouncerActive;
+        set
+        {
+            this.RaiseAndSetIfChanged(ref _isBouncerActive, value);
+            RefreshFilteredTracks();
+        }
+    }
+
+    // Phase 22: Search 2.0 - Vibe Filter
+    private string? _vibeFilter;
+    public string? VibeFilter
+    {
+        get => _vibeFilter;
+        set
+        {
+            this.RaiseAndSetIfChanged(ref _vibeFilter, value);
+            RefreshFilteredTracks();
+        }
+    }
 
     private bool _hasSelectedTracks;
     public bool HasSelectedTracks
@@ -220,10 +244,14 @@ public class TrackListViewModel : ReactiveObject, IDisposable
         get => _selectedTracks;
         private set
         {
+            if (value == null || Equals(_selectedTracks, value)) return;
+
             if (_selectedTracks != null)
                 _selectedTracks.CollectionChanged -= OnSelectionChanged;
             
-            this.RaiseAndSetIfChanged(ref _selectedTracks, value);
+            this.RaisePropertyChanging();
+            _selectedTracks = value;
+            this.RaisePropertyChanged();
             
             if (_selectedTracks != null)
                 _selectedTracks.CollectionChanged += OnSelectionChanged;
@@ -231,6 +259,13 @@ public class TrackListViewModel : ReactiveObject, IDisposable
             UpdateSelectionState();
         }
     }
+    
+    // Phase 22: Available Vibes
+    public ObservableCollection<string> AvailableVibes { get; } = new ObservableCollection<string>
+    {
+        "Aggressive", "Chaotic", "Energetic", "Happy", 
+        "Party", "Relaxed", "Sad", "Dark"
+    };
 
     public PlaylistTrackViewModel? LeadSelectedTrack => SelectedTracks.FirstOrDefault();
 
@@ -282,6 +317,7 @@ public class TrackListViewModel : ReactiveObject, IDisposable
     public System.Windows.Input.ICommand BulkRetryCommand { get; }
     public System.Windows.Input.ICommand BulkCancelCommand { get; }
     public System.Windows.Input.ICommand BulkReEnrichCommand { get; }
+    public System.Windows.Input.ICommand SeparateStemsCommand { get; }
     
     // Phase 18: Sonic Match - Find Similar Vibe
     public System.Windows.Input.ICommand FindSimilarCommand { get; }
@@ -483,98 +519,95 @@ public class TrackListViewModel : ReactiveObject, IDisposable
 
         try
         {
-            _logger.LogInformation("Loading tracks for project: {Name}", job.SourceTitle);
+            _logger.LogInformation("Loading tracks for project: {Name} (Virtualized)", job.SourceTitle);
             
-            // Note: We create a new collection, but we should dispose the old one's items if we are replacing the reference.
-            // The setter for CurrentProjectTracks replaces the reference.
-            // However, we can't easily access the *old* value inside the method creating the new one easily unless we do it before assignment.
-            // But we are assigning to specific property.
-            
-            // Better strategy: Clean up before reassignment in Setter or here?
-            // Since we assign a *new* ObservableCollection in this method, the old one is lost.
-            
-            // Dispose currently loaded tracks
+            // Cleanup existing
+            foreach (var track in CurrentProjectTracks)
+            {
+               if (track is IDisposable disposable) disposable.Dispose();
+            }
+            CurrentProjectTracks.Clear();
+
+            // Set up virtualization
+            var virtualized = new VirtualizedTrackCollection(
+                _libraryService, 
+                _eventBus, 
+                _artworkCache, 
+                job.Id, 
+                SearchText, 
+                IsFilterDownloaded ? true : (IsFilterPending ? false : null));
+
+            await Dispatcher.UIThread.InvokeAsync(() =>
+            {
+                FilteredTracks = virtualized;
+                _logger.LogInformation("Virtualized collection initialized for project {Title}", job.SourceTitle);
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to initialize virtualized track loading");
+        }
+    }
+
+    /// <summary>
+    /// Phase 23: Loads tracks for a Smart Crate (Dynamic Playlist).
+    /// </summary>
+    public async Task LoadSmartCrateAsync(List<string> trackGlobalIds)
+    {
+        try
+        {
+             _logger.LogInformation("Loading Smart Crate with {Count} tracks", trackGlobalIds.Count);
+             
+             // Dispose existing
             foreach (var track in CurrentProjectTracks)
             {
                if (track is IDisposable disposable) disposable.Dispose();
             }
             
             var tracks = new ObservableCollection<PlaylistTrackViewModel>();
-
-            if (job.Id == Guid.Empty) // All Tracks
+            
+            // Bulk fetch library entries
+            var entries = await _libraryService.GetLibraryEntriesByHashesAsync(trackGlobalIds);
+            
+            _logger.LogInformation("Resolved {Count} library entries for crate", entries.Count);
+            
+            foreach (var entry in entries)
             {
-                // Load unique files from LibraryEntry table (deduplicated)
-                _logger.LogInformation("Loading all unique library entries from LibraryEntry table");
-                var entries = await _libraryService.LoadAllLibraryEntriesAsync();
-                
-                _logger.LogInformation("Loaded {Count} unique library entries", entries.Count);
-                
-                // Convert to PlaylistTrackViewModel
-                foreach (var entry in entries.OrderBy(e => e.Artist).ThenBy(e => e.Title))
-                {
-                    var vm = new PlaylistTrackViewModel(
-                        new PlaylistTrack
-                        {
-                            Id = Guid.NewGuid(),
-                            PlaylistId = Guid.Empty,
-                            TrackUniqueHash = entry.UniqueHash,
-                            Artist = entry.Artist,
-                            Title = entry.Title,
-                            Album = entry.Album,
-                            Status = TrackStatus.Downloaded,
-                            ResolvedFilePath = entry.FilePath,
-                            Format = entry.Format
-                        },
-                        _eventBus,
-                        _libraryService,
-                        _artworkCache
-                    );
-                    
-                    tracks.Add(vm);
-                }
-            }
-            else
-            {
-                // Load from database
-                var freshTracks = await _libraryService.LoadPlaylistTracksAsync(job.Id);
-
-                foreach (var track in freshTracks.OrderBy(t => t.TrackNumber))
-                {
-                    // Create Smart VM with EventBus subscription
-                    var vm = new PlaylistTrackViewModel(track, _eventBus, _libraryService, _artworkCache);
-
-                    // Sync with live MainViewModel state to get initial values
-                    // Note: This is still useful for initial state (e.g. if download is 50% done when validation opens)
-                    var liveTrack = _mainViewModel?.AllGlobalTracks
-                        .FirstOrDefault(t => t.GlobalId == track.TrackUniqueHash);
-
-                    if (liveTrack != null)
+                 // Create VM (in-memory only, no PlaylistTrack ID relation yet)
+                 var vm = new PlaylistTrackViewModel(
+                    new PlaylistTrack
                     {
-                        vm.State = liveTrack.State;
-                        vm.Progress = liveTrack.Progress;
-                        vm.CurrentSpeed = liveTrack.CurrentSpeed;
-                        vm.ErrorMessage = liveTrack.ErrorMessage;
-                        vm.CancellationTokenSource = liveTrack.CancellationTokenSource; // Share token? careful.
-                        // Actually, sharing state is enough because events will drive updates.
-                    }
-
-                    tracks.Add(vm);
-
-                    // Phase 0: Load album artwork handled by ArtworkProxy
-                }
+                        Id = Guid.NewGuid(), // Ephemeral ID
+                        PlaylistId = Guid.Empty,
+                        TrackUniqueHash = entry.UniqueHash,
+                        Artist = entry.Artist,
+                        Title = entry.Title,
+                        Album = entry.Album,
+                        Status = TrackStatus.Downloaded, // Assume downloaded
+                        ResolvedFilePath = entry.FilePath,
+                        Format = entry.Format
+                    },
+                    _eventBus,
+                    _libraryService,
+                    _artworkCache
+                );
+                
+                // Try to sync with Global State if available in MainViewModel (for active status)
+                // Accessing MainViewModel requires traversing parents or injection.
+                // Current architecture: We don't have MainViewModel injected here directly?
+                // We do have OnGlobalTrackUpdated event handling though.
+                
+                tracks.Add(vm);
             }
-
-            // Update UI
+            
             await Dispatcher.UIThread.InvokeAsync(() =>
             {
                 CurrentProjectTracks = tracks;
-                // RefreshFilteredTracks is called by property setter, so explicit call is redundant
-                _logger.LogInformation("Loaded {Count} tracks for project {Title}", tracks.Count, job.SourceTitle);
             });
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to load project tracks");
+             _logger.LogError(ex, "Failed to load Smart Crate");
         }
     }
 
@@ -584,29 +617,32 @@ public class TrackListViewModel : ReactiveObject, IDisposable
     /// </summary>
     public void RefreshFilteredTracks()
     {
-        var filtered = CurrentProjectTracks.Where(FilterTracks).ToList();
-
-        _logger.LogDebug("RefreshFilteredTracks: {Input} -> {Filtered} tracks",
-            CurrentProjectTracks.Count, filtered.Count);
-
-        // Batch update for better virtualization performance
-        FilteredTracks.Clear();
+        // For virtualized view, we recreate the collection with the new filters
+        // This is efficient because it only loads the first page.
         
-        // Add in batches to reduce UI notifications
-        const int batchSize = 100;
-        for (int i = 0; i < filtered.Count; i += batchSize)
+        var selectedProjectId = _mainViewModel?.LibraryViewModel?.SelectedProject?.Id ?? Guid.Empty;
+
+        // Dispose existing virtualized collection if any
+        if (FilteredTracks is VirtualizedTrackCollection existingVtc)
         {
-            var batch = filtered.Skip(i).Take(batchSize);
-            foreach (var track in batch)
-            {
-                FilteredTracks.Add(track);
-            }
+            existingVtc.Dispose();
         }
 
-        // Phase 6D: Ensure TreeDataGrid source is updated
-        Hierarchical.UpdateTracks(filtered);
+        var virtualized = new VirtualizedTrackCollection(
+            _libraryService, 
+            _eventBus, 
+            _artworkCache, 
+            selectedProjectId, 
+            SearchText, 
+            IsFilterDownloaded ? true : (IsFilterPending ? false : null));
 
-        this.RaisePropertyChanged(nameof(FilteredTracks));
+        FilteredTracks = virtualized;
+        
+        _logger.LogDebug("RefreshFilteredTracks (Virtualized): Updated filters for project {Id}", selectedProjectId);
+
+        // Notify Hierarchical (TreeDataGrid) - this still needs a full list or smart hierarchy
+        // For now, let's skip updating hierarchy for All Tracks if it's too huge, or only update with first page
+        // Hierarchical.UpdateTracks(firstPage); // TODO: Hierarchical virtualization
     }
 
     private bool FilterTracks(object obj)
@@ -645,6 +681,33 @@ public class TrackListViewModel : ReactiveObject, IDisposable
                  }
             }
             if (!match) return false;
+        }
+        
+        // Phase 22: The Bouncer (Quality Control)
+        if (IsBouncerActive)
+        {
+             // Filter out < 256kbps or unanalyzed tracks
+             // Note: FLAC usually has Bitrate 0 or 1000+ in our simpler model, need to check
+             // BitrateScore is usually the robust one.
+             if (track.Model.BitrateScore.HasValue && track.Model.BitrateScore.Value < 256)
+             {
+                 return false;
+             }
+             // Also filter suspicious integrity if we want to be strict
+             if (track.Model.Integrity == Data.IntegrityLevel.Suspicious)
+             {
+                 return false;
+             }
+        }
+        
+        // Phase 22: Vibe Filter (Mood)
+        if (!string.IsNullOrEmpty(VibeFilter))
+        {
+             // Match MoodTag (e.g. "Aggressive", "Chill")
+             if (!string.Equals(track.Model.MoodTag, VibeFilter, StringComparison.OrdinalIgnoreCase))
+             {
+                 return false;
+             }
         }
 
         // Apply search filter

@@ -1,4 +1,5 @@
 using SLSKDONET.ViewModels;
+using SLSKDONET.Data.Essentia;
 
 namespace SLSKDONET.Models;
 
@@ -42,7 +43,7 @@ public record PlayAlbumRequestEvent(System.Collections.Generic.IEnumerable<Playl
 public record DownloadAlbumRequestEvent(object Album); // object to handle AlbumNode or PlaylistJob
 
 
-public record AddToProjectRequestEvent(PlaylistTrack Track); // Phase 12.7: Context Menu Actions
+public record AddToProjectRequestEvent(System.Collections.Generic.IEnumerable<PlaylistTrack> Tracks); // Phase 12.7: Context Menu Actions
 public record RevealFileRequestEvent(string FilePath);
 
 // Explicit Track Events (missing in record list but used in code)
@@ -57,8 +58,13 @@ public record TrackMetadataUpdatedEvent(string TrackGlobalId);
 // Audio Analysis Pipeline (Phase 3 Integration + Phase 1 Progress)
 public record TrackAnalysisCompletedEvent(string TrackGlobalId, bool Success, string? ErrorMessage = null);
 public record TrackAnalysisStartedEvent(string TrackGlobalId, string FileName);
+
+// Phase 24: Stem Workspace Communication
+public record OpenStemWorkspaceRequestEvent(string TrackGlobalId);
 public record AnalysisProgressEvent(string TrackGlobalId, string CurrentStep, int ProgressPercent);
 public record TrackAnalysisFailedEvent(string TrackGlobalId, string Error);
+public record TrackAnalysisRequestedEvent(string TrackGlobalId, AnalysisTier Tier = AnalysisTier.Tier1); // New Trigger Event
+public record StemSeparationRequestedEvent(string TrackGlobalId, string FilePath);
 
 // Analysis Queue Visibility (Glass Box Architecture)
 public record AnalysisQueueStatusChangedEvent(

@@ -86,9 +86,11 @@ public class TrackEntity
     public int? MinBitrateOverride { get; set; }
 
     // Phase 12.7: Style Classification
-    public string? DetectedSubGenre { get; set; }
-    public float? SubGenreConfidence { get; set; }
     public string? MoodTag { get; set; }
+    public string? DetectedSubGenre { get; set; } // Phase 12.7
+    public string? PrimaryGenre { get; set; } // Phase 10
+    public double? InstrumentalProbability { get; set; } // Phase 18.2
+
 }
 
 /// <summary>
@@ -110,6 +112,10 @@ public class PlaylistJobEntity
     public int SuccessfulCount { get; set; }
     public int FailedCount { get; set; }
     public int MissingCount { get; set; }
+
+    // Phase 20: Smart Playlists 2.0
+    public bool IsSmartPlaylist { get; set; } = false;
+    public string? SmartCriteriaJson { get; set; }
 
     public bool IsDeleted { get; set; } = false;
     public DateTime? DeletedAt { get; set; }
@@ -232,6 +238,15 @@ public class PlaylistTrackEntity
     public string? PreferredFormats { get; set; }
     public int? MinBitrateOverride { get; set; }
     
+    public double? InstrumentalProbability { get; set; } // Phase 18.2
+    
+    // Phase 21: Smart Enrichment Retry System
+    public int EnrichmentAttempts { get; set; } = 0;
+    public string? LastEnrichmentAttempt { get; set; }
+
+    // Configured in AppDbContext via Fluent API
+    public virtual AudioFeaturesEntity? AudioFeatures { get; set; }
+
     public PlaylistJobEntity? Job { get; set; }
 }
 
@@ -315,4 +330,13 @@ public class LibraryEntryEntity
     // Phase 12.7: Style Classification
     public string? DetectedSubGenre { get; set; }
     public float? SubGenreConfidence { get; set; }
+
+    public double? InstrumentalProbability { get; set; } // Phase 18.2
+    
+    // Phase 21: Smart Enrichment Retry System
+    public int EnrichmentAttempts { get; set; } = 0;
+    public string? LastEnrichmentAttempt { get; set; }
+
+    // Configured in AppDbContext via Fluent API
+    public virtual AudioFeaturesEntity? AudioFeatures { get; set; }
 }

@@ -43,6 +43,7 @@ public partial class LibraryViewModel : INotifyPropertyChanged, IDisposable
     private readonly IServiceProvider _serviceProvider;
     private readonly Services.Export.IHardwareExportService _hardwareExportService;
     private readonly DatabaseService _databaseService;
+    private readonly SmartCrateService _smartCrateService;
     private readonly ForensicLabViewModel _forensicLab;
 
     // Infrastructure for Sidebars/Delayed operations
@@ -145,6 +146,17 @@ public partial class LibraryViewModel : INotifyPropertyChanged, IDisposable
 
     private readonly PlayerViewModel _playerViewModel;
     public PlayerViewModel PlayerViewModel => _playerViewModel;
+    
+    // Track View Customization
+    public TrackViewSettings ViewSettings { get; } = new();
+    
+    // Help Panel
+    private bool _isHelpPanelOpen;
+    public bool IsHelpPanelOpen
+    {
+        get => _isHelpPanelOpen;
+        set => SetProperty(ref _isHelpPanelOpen, value);
+    }
 
     partial void InitializeCommands();
 
@@ -175,6 +187,7 @@ public partial class LibraryViewModel : INotifyPropertyChanged, IDisposable
         Services.AI.PersonalClassifierService personalClassifier,
         DatabaseService databaseService,
         SearchFilterViewModel searchFilters,
+        SmartCrateService smartCrateService,
         ForensicLabViewModel forensicLab)
     {
         _logger = logger;
@@ -195,6 +208,7 @@ public partial class LibraryViewModel : INotifyPropertyChanged, IDisposable
         _hardwareExportService = hardwareExportService;
         _serviceProvider = serviceProvider;
         _databaseService = databaseService;
+        _smartCrateService = smartCrateService;
         _forensicLab = forensicLab;
         LibrarySourcesViewModel = librarySourcesViewModel;
 

@@ -9,6 +9,7 @@
              xmlns:conv="clr-namespace:SLSKDONET.Views.Avalonia.Converters"
              xmlns:tree="clr-namespace:Avalonia.Controls;assembly=Avalonia.Controls.TreeDataGrid"
              xmlns:rootConv="clr-namespace:SLSKDONET.Converters"
+             xmlns:models="clr-namespace:SLSKDONET.Models"
              xmlns:helpers="clr-namespace:SLSKDONET.Helpers"
              xmlns:interactivity="clr-namespace:Avalonia.Xaml.Interactivity;assembly=Avalonia.Xaml.Interactivity"
              xmlns:ia="clr-namespace:Avalonia.Xaml.Interactions.Core;assembly=Avalonia.Xaml.Interactions"
@@ -22,6 +23,7 @@
         <conv:RankColorConverter x:Key="RankColorConverter"/>
         <rootConv:BoolOpacityConverter x:Key="BoolOpacityConverter"/>
         <conv:BoolBlurConverter x:Key="BoolBlurConverter"/>
+        <conv:EnumToBooleanConverter x:Key="EnumToBoolConverter"/>
         <x:Double x:Key="NonDownloadedOpacity">0.3</x:Double>
     </UserControl.Resources>
 
@@ -57,14 +59,14 @@
                                  <MenuItem Header="Import History" Command="{Binding ViewHistoryCommand}">
                                      <MenuItem.Icon><TextBlock Text="📜"/></MenuItem.Icon>
                                  </MenuItem>
-                                 <MenuItem Header="Upgrade Scout (Soon)" Command="{Binding ToggleUpgradeScoutCommand}" IsEnabled="False" ToolTip.Tip="Feature coming in Phase 8">
+                                 <MenuItem Header="Upgrade Scout" Command="{Binding ToggleUpgradeScoutCommand}">
                                      <MenuItem.Icon><TextBlock Text="💎"/></MenuItem.Icon>
                                  </MenuItem>
                                  <Separator/>
                                  <MenuItem Header="Manage Sources" Command="{Binding OpenSourcesCommand}">
                                      <MenuItem.Icon><TextBlock Text="📁"/></MenuItem.Icon>
                                  </MenuItem>
-                                 <MenuItem Header="New Smart Playlist" Command="{Binding Projects.AddPlaylistCommand}">
+                                 <MenuItem Header="New Smart Playlist" Command="{Binding CreateSmartPlaylistCommand}">
                                      <MenuItem.Icon><TextBlock Text="⚡"/></MenuItem.Icon>
                                  </MenuItem>
                                  <MenuItem Header="Retry Offline Tracks" Command="{Binding Operations.RetryOfflineTracksCommand}">
@@ -156,6 +158,10 @@
                                                 <MenuItem Header="Delete Playlist" Command="{Binding $parent[UserControl].DataContext.DeleteProjectCommand}" CommandParameter="{Binding}" InputGesture="Delete">
                                                     <MenuItem.Icon><TextBlock Text="🗑️"/></MenuItem.Icon>
                                                 </MenuItem>
+                                                <Separator/>
+                                                <MenuItem Header="Rename Playlist" Command="{Binding $parent[UserControl].DataContext.RenameProjectCommand}" CommandParameter="{Binding}">
+                                                    <MenuItem.Icon><TextBlock Text="✏️"/></MenuItem.Icon>
+                                                </MenuItem>
                                             </ContextMenu>
                                         </Border.ContextMenu>
                                         <controls:CompactPlaylistTemplate/>
@@ -185,7 +191,7 @@
         <GridSplitter Grid.Column="1" Width="1" Background="#3E3E3E" HorizontalAlignment="Center"/>
         
         <!-- RIGHT PANEL: Track List -->
-        <Grid Grid.Column="2" RowDefinitions="Auto,Auto,*">
+        <Grid Grid.Column="2" RowDefinitions="Auto,Auto,Auto,*">
             <Border Grid.Row="0" Background="#252526" BorderBrush="#3E3E3E" BorderThickness="0,0,0,1" Padding="20,16">
                 <Grid ColumnDefinitions="*,Auto">
                     <Grid Grid.Column="0" ColumnDefinitions="*,Auto">
@@ -219,7 +225,53 @@
                 </Grid>
             </Border>
             
-            <Border Grid.Row="1" Background="#252526" BorderBrush="#3E3E3E" BorderThickness="0,0,0,1" Padding="16,12" IsVisible="{Binding IsActiveDownloadsVisible}">
+            <!-- View Settings Toolbar -->
+            <Border Grid.Row="1" Background="#1E1E1E" BorderBrush="#3E3E3E" BorderThickness="0,0,0,1" Padding="12,6">
+                <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                    <TextBlock Text="View:" FontWeight="SemiBold" FontSize="11" Foreground="#888" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                    
+                    <ToggleButton IsChecked="{Binding ViewSettings.ShowQualityBar}" Classes="icon-button" ToolTip.Tip="Quality Bar">
+                        <TextBlock Text="🎨" FontSize="14"/>
+                    </ToggleButton>
+                    
+                    <ToggleButton IsChecked="{Binding ViewSettings.ShowStatusInfo}" Classes="icon-button" ToolTip.Tip="Status Info">
+                        <TextBlock Text="📊" FontSize="14"/>
+                    </ToggleButton>
+                    
+                    <ToggleButton IsChecked="{Binding ViewSettings.ShowBadges}" Classes="icon-button" ToolTip.Tip="Badges">
+                        <TextBlock Text="⭐" FontSize="14"/>
+                    </ToggleButton>
+                    
+                    <ToggleButton IsChecked="{Binding ViewSettings.ShowTechnicalDetails}" Classes="icon-button" ToolTip.Tip="Technical Info">
+                        <TextBlock Text="🔧" FontSize="14"/>
+                    </ToggleButton>
+                    
+                    <ToggleButton IsChecked="{Binding ViewSettings.ShowBpmKey}" Classes="icon-button" ToolTip.Tip="BPM &amp; Key">
+                        <TextBlock Text="🎵" FontSize="14"/>
+                    </ToggleButton>
+                    
+                    <ToggleButton IsChecked="{Binding ViewSettings.ShowReleaseYear}" Classes="icon-button" ToolTip.Tip="Release Year">
+                        <TextBlock Text="📅" FontSize="14"/>
+                    </ToggleButton>
+                    
+                    <ToggleButton IsChecked="{Binding ViewSettings.ShowVibePills}" Classes="icon-button" ToolTip.Tip="Vibe Pills">
+                        <TextBlock Text="✨" FontSize="14"/>
+                    </ToggleButton>
+                    
+                    <Separator Width="1" Height="16" Background="#444" Margin="8,0"/>
+                    
+                    <RadioButton IsChecked="{Binding ViewSettings.ViewMode, Converter={StaticResource EnumToBoolConverter}, ConverterParameter={x:Static models:TrackViewMode.List}}" 
+                                 Classes="icon-button" ToolTip.Tip="List View">
+                        <TextBlock Text="≡" FontSize="16"/>
+                    </RadioButton>
+                    <RadioButton IsChecked="{Binding ViewSettings.ViewMode, Converter={StaticResource EnumToBoolConverter}, ConverterParameter={x:Static models:TrackViewMode.Cards}}" 
+                                 Classes="icon-button" ToolTip.Tip="Card View">
+                        <TextBlock Text="⠿" FontSize="16"/>
+                    </RadioButton>
+                </StackPanel>
+            </Border>
+            
+            <Border Grid.Row="2" Background="#252526" BorderBrush="#3E3E3E" BorderThickness="0,0,0,1" Padding="16,12" IsVisible="{Binding IsActiveDownloadsVisible}">
                 <Grid RowDefinitions="Auto,Auto">
                     <Grid ColumnDefinitions="*,Auto" Grid.Row="0">
                         <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="16" VerticalAlignment="Center">
@@ -239,43 +291,74 @@
                 </Grid>
             </Border>
 
-            <Grid Grid.Row="2" RowDefinitions="*, Auto, Auto">
-                <ListBox Grid.Row="0" ItemsSource="{Binding Tracks.FilteredTracks}" SelectionMode="Multiple" SelectedItems="{Binding Tracks.SelectedTracks}" Background="Transparent" BorderThickness="0">
-                    <ListBox.ItemsPanel><ItemsPanelTemplate><VirtualizingStackPanel/></ItemsPanelTemplate></ListBox.ItemsPanel>
-                    <ListBox.Styles>
-                        <Style Selector="ListBoxItem">
-                            <Setter Property="Padding" Value="4"/><Setter Property="MinHeight" Value="72"/><Setter Property="HorizontalContentAlignment" Value="Stretch"/><Setter Property="Background" Value="Transparent"/><Setter Property="BorderThickness" Value="0,0,0,1"/><Setter Property="BorderBrush" Value="#22FFFFFF"/>
-                        </Style>
-                        <Style Selector="ListBoxItem:selected /template/ ContentPresenter"><Setter Property="Background" Value="#1AFFFFFF"/></Style>
-                    </ListBox.Styles>
-                    <ListBox.ItemTemplate>
-                        <DataTemplate DataType="vm:PlaylistTrackViewModel">
-                            <Border Background="Transparent" Padding="8,6">
-                                <Border.ContextMenu>
-                                    <ContextMenu>
-                                        <MenuItem Header="Play" Command="{Binding $parent[UserControl].DataContext.Operations.PlayTrackCommand}" CommandParameter="{Binding}"><MenuItem.Icon><TextBlock Text="▶️"/></MenuItem.Icon></MenuItem>
-                                        <MenuItem Header="Analyze Track" Command="{Binding $parent[UserControl].DataContext.AnalyzeTrackCommand}" CommandParameter="{Binding}"><MenuItem.Icon><TextBlock Text="🔬"/></MenuItem.Icon></MenuItem>
-                                        <MenuItem Header="Open in Forensic Lab" 
-                                                  Command="{Binding $parent[UserControl].DataContext.SwitchWorkspaceCommand}" 
-                                                  CommandParameter="{x:Static vm:ActiveWorkspace.Forensic}">
-                                            <MenuItem.Icon><TextBlock Text="🕵️"/></MenuItem.Icon>
-                                        </MenuItem>
-                                        <MenuItem Header="Industrial Prep (Bulk)" Command="{Binding $parent[UserControl].DataContext.Operations.IndustrialPrepCommand}" CommandParameter="{Binding $parent[UserControl].DataContext.Tracks.SelectedTracks}"><MenuItem.Icon><TextBlock Text="🏭"/></MenuItem.Icon></MenuItem>
-                                        <MenuItem Header="Open File Location" Command="{Binding $parent[UserControl].DataContext.Operations.OpenFolderCommand}" CommandParameter="{Binding}"><MenuItem.Icon><TextBlock Text="📁"/></MenuItem.Icon></MenuItem>
-                                        <MenuItem Header="Create Independent Physical Copy" Command="{Binding $parent[UserControl].DataContext.Operations.CloneTrackCommand}" CommandParameter="{Binding}" ToolTip.Tip="Create a physical copy of this file with independent cues"><MenuItem.Icon><TextBlock Text="📄"/></MenuItem.Icon></MenuItem>
-                                        <Separator/>
-                                        <MenuItem Header="Retry Download" Command="{Binding $parent[UserControl].DataContext.Operations.HardRetryCommand}" CommandParameter="{Binding}" IsVisible="{Binding CanHardRetry}"><MenuItem.Icon><TextBlock Text="🔄"/></MenuItem.Icon></MenuItem>
-                                        <MenuItem Header="Cancel" Command="{Binding CancelCommand}" IsVisible="{Binding CanCancel}"><MenuItem.Icon><TextBlock Text="✖"/></MenuItem.Icon></MenuItem>
-                                        <Separator/>
-                                        <MenuItem Header="Remove from Library" Command="{Binding $parent[UserControl].DataContext.Operations.RemoveTrackCommand}" CommandParameter="{Binding}" InputGesture="Delete"><MenuItem.Icon><TextBlock Text="🗑️"/></MenuItem.Icon></MenuItem>
-                                        <MenuItem Header="Delete &amp; Ban (Forensic)" Command="{Binding $parent[UserControl].DataContext.Operations.DeleteAndBlacklistCommand}" CommandParameter="{Binding}"><MenuItem.Icon><TextBlock Text="💀"/></MenuItem.Icon></MenuItem>
-                                    </ContextMenu>
-                                </Border.ContextMenu>
-                                <controls:StandardTrackRow/>
-                            </Border>
-                        </DataTemplate>
-                    </ListBox.ItemTemplate>
-                </ListBox>
+            <Grid Grid.Row="3" RowDefinitions="*, Auto, Auto">
+                <Panel Grid.Row="0">
+                    <!-- Standard List View -->
+                    <ListBox ItemsSource="{Binding Tracks.FilteredTracks}" 
+                             IsVisible="{Binding ViewSettings.ViewMode, Converter={StaticResource EnumToBoolConverter}, ConverterParameter={x:Static models:TrackViewMode.List}}"
+                             SelectionMode="Multiple" SelectedItems="{Binding Tracks.SelectedTracks}" Background="Transparent" BorderThickness="0">
+                        <ListBox.ItemsPanel><ItemsPanelTemplate><VirtualizingStackPanel/></ItemsPanelTemplate></ListBox.ItemsPanel>
+                        <ListBox.Styles>
+                            <Style Selector="ListBoxItem">
+                                <Setter Property="Padding" Value="4"/><Setter Property="MinHeight" Value="72"/><Setter Property="HorizontalContentAlignment" Value="Stretch"/><Setter Property="Background" Value="Transparent"/><Setter Property="BorderThickness" Value="0,0,0,1"/><Setter Property="BorderBrush" Value="#22FFFFFF"/>
+                            </Style>
+                            <Style Selector="ListBoxItem:selected /template/ ContentPresenter"><Setter Property="Background" Value="#1AFFFFFF"/></Style>
+                        </ListBox.Styles>
+                        <ListBox.ItemTemplate>
+                            <DataTemplate DataType="vm:PlaylistTrackViewModel">
+                                <Border Background="Transparent" Padding="8,6">
+                                    <Border.ContextMenu>
+                                        <ContextMenu>
+                                            <MenuItem Header="Play" Command="{Binding $parent[UserControl].DataContext.Operations.PlayTrackCommand}" CommandParameter="{Binding}"><MenuItem.Icon><TextBlock Text="▶️"/></MenuItem.Icon></MenuItem>
+                                            <MenuItem Header="Separate Stems" Command="{Binding SeparateStemsCommand}" IsVisible="{Binding IsCompleted}">
+                                                <MenuItem.Icon><TextBlock Text="🎹"/></MenuItem.Icon>
+                                            </MenuItem>
+                                            <MenuItem Header="Analyze Track">
+                                                <MenuItem.Icon><TextBlock Text="🔬"/></MenuItem.Icon>
+                                                <MenuItem Header="Tier 1: Basic (Fast)" Command="{Binding $parent[UserControl].DataContext.AnalyzeTrackT1Command}" CommandParameter="{Binding}" />
+                                                <MenuItem Header="Tier 2: Detailed" Command="{Binding $parent[UserControl].DataContext.AnalyzeTrackT2Command}" CommandParameter="{Binding}" />
+                                                <MenuItem Header="Tier 3: Specialized (Deep)" Command="{Binding $parent[UserControl].DataContext.AnalyzeTrackT3Command}" CommandParameter="{Binding}" />
+                                            </MenuItem>
+                                            <MenuItem Header="Open in Forensic Lab" 
+                                                      Command="{Binding $parent[UserControl].DataContext.SwitchWorkspaceCommand}" 
+                                                      CommandParameter="{x:Static vm:ActiveWorkspace.Forensic}">
+                                                <MenuItem.Icon><TextBlock Text="🕵️"/></MenuItem.Icon>
+                                            </MenuItem>
+                                            <MenuItem Header="Industrial Prep (Bulk)" Command="{Binding $parent[UserControl].DataContext.Operations.IndustrialPrepCommand}" CommandParameter="{Binding $parent[UserControl].DataContext.Tracks.SelectedTracks}"><MenuItem.Icon><TextBlock Text="🏭"/></MenuItem.Icon></MenuItem>
+                                            <MenuItem Header="Open File Location" Command="{Binding $parent[UserControl].DataContext.Operations.OpenFolderCommand}" CommandParameter="{Binding}"><MenuItem.Icon><TextBlock Text="📁"/></MenuItem.Icon></MenuItem>
+                                            <MenuItem Header="Add to Another Project..." Command="{Binding $parent[UserControl].DataContext.Operations.AddToProjectCommand}" CommandParameter="{Binding}"><MenuItem.Icon><TextBlock Text="➕"/></MenuItem.Icon></MenuItem>
+                                            <MenuItem Header="Create Independent Physical Copy" Command="{Binding $parent[UserControl].DataContext.Operations.CloneTrackCommand}" CommandParameter="{Binding}" ToolTip.Tip="Create a physical copy of this file with independent cues"><MenuItem.Icon><TextBlock Text="📄"/></MenuItem.Icon></MenuItem>
+                                            <Separator/>
+                                            <MenuItem Header="Retry Download" Command="{Binding $parent[UserControl].DataContext.Operations.HardRetryCommand}" CommandParameter="{Binding}" IsVisible="{Binding CanHardRetry}"><MenuItem.Icon><TextBlock Text="🔄"/></MenuItem.Icon></MenuItem>
+                                            <MenuItem Header="Cancel" Command="{Binding CancelCommand}" IsVisible="{Binding CanCancel}"><MenuItem.Icon><TextBlock Text="✖"/></MenuItem.Icon></MenuItem>
+                                            <Separator/>
+                                            <MenuItem Header="Remove from Library" Command="{Binding $parent[UserControl].DataContext.Operations.RemoveTrackCommand}" CommandParameter="{Binding}" InputGesture="Delete"><MenuItem.Icon><TextBlock Text="🗑️"/></MenuItem.Icon></MenuItem>
+                                            <MenuItem Header="Delete &amp; Ban (Forensic)" Command="{Binding $parent[UserControl].DataContext.Operations.DeleteAndBlacklistCommand}" CommandParameter="{Binding}"><MenuItem.Icon><TextBlock Text="💀"/></MenuItem.Icon></MenuItem>
+                                        </ContextMenu>
+                                    </Border.ContextMenu>
+                                    <controls:StandardTrackRow/>
+                                </Border>
+                            </DataTemplate>
+                        </ListBox.ItemTemplate>
+                    </ListBox>
+
+                    <!-- Card View -->
+                    <ListBox ItemsSource="{Binding Tracks.FilteredTracks}" 
+                             IsVisible="{Binding ViewSettings.ViewMode, Converter={StaticResource EnumToBoolConverter}, ConverterParameter={x:Static models:TrackViewMode.Cards}}"
+                             SelectionMode="Multiple" SelectedItems="{Binding Tracks.SelectedTracks}" Background="Transparent" BorderThickness="0">
+                        <ListBox.ItemsPanel>
+                            <ItemsPanelTemplate>
+                                <!-- Note: WrapPanel is not virtualized, but okay for small pages -->
+                                <WrapPanel/> 
+                            </ItemsPanelTemplate>
+                        </ListBox.ItemsPanel>
+                        <ListBox.ItemTemplate>
+                            <DataTemplate DataType="vm:PlaylistTrackViewModel">
+                                <controls:TrackCard/>
+                            </DataTemplate>
+                        </ListBox.ItemTemplate>
+                    </ListBox>
+                </Panel>
 
                 <GridSplitter Grid.Row="1" Height="2" HorizontalAlignment="Stretch" Background="#33FFFFFF" IsVisible="{Binding IsDiscoveryLaneVisible}">
                      <GridSplitter.Styles><Style Selector="GridSplitter:pointerover"><Setter Property="Background" Value="#4EC9B0"/><Setter Property="Height" Value="4"/></Style></GridSplitter.Styles>

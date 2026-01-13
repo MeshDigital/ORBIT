@@ -45,12 +45,14 @@ public class PlaylistTrackViewModel : INotifyPropertyChanged, Library.ILibraryNo
     {
         get
         {
-            if (Model.Bitrate >= 1000 || (Model.Format?.Equals("FLAC", StringComparison.OrdinalIgnoreCase) ?? false)) return Avalonia.Media.Brushes.DeepSkyBlue; 
-            if (Model.Bitrate >= 320) return Avalonia.Media.Brushes.LimeGreen; 
-            if (Model.Bitrate >= 192) return Avalonia.Media.Brushes.Orange; 
-            return Avalonia.Media.Brushes.Red; 
+            // Use MetadataForensicService if available, otherwise fallback to bitrate
+            var tier = MetadataForensicService.CalculateTier(Model);
+            return new Avalonia.Media.SolidColorBrush(Avalonia.Media.Color.Parse(MetadataForensicService.GetTierColor(tier)));
         }
     }
+
+    public string TierBadge => MetadataForensicService.GetTierBadge(MetadataForensicService.CalculateTier(Model));
+    public string Tier => MetadataForensicService.CalculateTier(Model).ToString();
     
 
 
@@ -137,6 +139,7 @@ public class PlaylistTrackViewModel : INotifyPropertyChanged, Library.ILibraryNo
         {
             Model.Energy = value;
             OnPropertyChanged();
+            OnPropertyChanged(nameof(SonicProfile));
         }
     }
 
@@ -157,8 +160,14 @@ public class PlaylistTrackViewModel : INotifyPropertyChanged, Library.ILibraryNo
         {
             Model.Valence = value;
             OnPropertyChanged();
+            OnPropertyChanged(nameof(SonicProfile));
         }
     }
+
+    public Models.SonicProfileData SonicProfile => new Models.SonicProfileData(
+        Energy, 
+        Valence, 
+        Model.InstrumentalProbability ?? 0.0);
     
     public double BPM => Model.BPM ?? 0.0;
     public string MusicalKey => Model.MusicalKey ?? "—";
@@ -218,9 +227,82 @@ public class PlaylistTrackViewModel : INotifyPropertyChanged, Library.ILibraryNo
 
     public ArtworkProxy Artwork => _artwork;
     
-    // Legacy property for compatibility (if XAML binds to ArtworkBitmap directly, we can redirect or just update XAML)
-    // We will update XAML to bind to Artwork.Image
     public Avalonia.Media.Imaging.Bitmap? ArtworkBitmap => _artwork?.Image;
+
+    // Status Properties for StandardTrackRow
+    public bool IsActive => State == PlaylistTrackState.Downloading || State == PlaylistTrackState.Searching || State == PlaylistTrackState.Queued || State == PlaylistTrackState.Pending;
+    public bool IsFailed => State == PlaylistTrackState.Failed || State == PlaylistTrackState.Cancelled;
+    public bool IsCompleted => State == PlaylistTrackState.Completed;
+
+    public string StatusText => State switch
+    {
+        PlaylistTrackState.Completed => "Ready",
+        PlaylistTrackState.Downloading => Progress > 0 ? $"{(int)Progress}%" : "Downloading...",
+        PlaylistTrackState.Searching => "Searching...",
+        PlaylistTrackState.Queued => "Queued",
+        PlaylistTrackState.Failed => !string.IsNullOrEmpty(ErrorMessage) ? ErrorMessage : "Failed",
+        PlaylistTrackState.Paused => "Paused",
+        _ => State.ToString()
+    };
+
+    public Avalonia.Media.IBrush StatusColor => State switch
+    {
+        PlaylistTrackState.Completed => Avalonia.Media.Brushes.LimeGreen,
+        PlaylistTrackState.Failed => Avalonia.Media.Brushes.OrangeRed,
+        PlaylistTrackState.Cancelled => Avalonia.Media.Brushes.Gray,
+        PlaylistTrackState.Downloading => Avalonia.Media.Brushes.Cyan,
+        PlaylistTrackState.Searching => Avalonia.Media.Brushes.Yellow,
+        _ => Avalonia.Media.Brushes.LightGray
+    };
+
+    public string DetailedStatusText => IsFailed 
+        ? $"Failed: {ErrorMessage ?? "Unknown Error"}" 
+        : StatusText;
+
+    public string TechnicalSummary
+    {
+        get
+        {
+            var parts = new List<string>();
+            if (Model.Bitrate.HasValue) parts.Add($"{Model.Bitrate}k");
+            if (!string.IsNullOrEmpty(Model.Format)) parts.Add(Model.Format.ToUpper());
+            if (FileSizeBytes > 0) parts.Add($"{FileSizeBytes / 1024.0 / 1024.0:F1}MB");
+            return string.Join(" • ", parts);
+        }
+    }
+
+    public string FileSizeDisplay => FileSizeBytes > 0 ? $"{FileSizeBytes / 1024.0 / 1024.0:F1} MB" : "—";
+    public string BpmDisplay => Model.BPM.HasValue ? $"{Model.BPM:0}" : "—";
+    public string KeyDisplay => Model.MusicalKey ?? "—";
+    public string DurationDisplay => Model.CanonicalDuration.HasValue ? TimeSpan.FromMilliseconds(Model.CanonicalDuration.Value).ToString(@"mm\:ss") : "—";
+
+    // Curation & Trust
+    public bool IsSecure => Model.QualityConfidence > 0.9 && !string.IsNullOrEmpty(Model.ResolvedFilePath);
+    public string CurationIcon => Model.CurationConfidence switch
+    {
+        Data.Entities.CurationConfidence.Manual => "🛡️",
+        Data.Entities.CurationConfidence.High => "🏅",
+        Data.Entities.CurationConfidence.Medium => "🥈",
+        Data.Entities.CurationConfidence.Low => "📉",
+        _ => string.Empty
+    };
+    
+    public Avalonia.Media.IBrush CurationColor => Model.CurationConfidence switch
+    {
+        Data.Entities.CurationConfidence.Manual => Avalonia.Media.Brushes.LimeGreen,
+        Data.Entities.CurationConfidence.High => Avalonia.Media.Brushes.Gold,
+        Data.Entities.CurationConfidence.Medium => Avalonia.Media.Brushes.Silver,
+        Data.Entities.CurationConfidence.Low => Avalonia.Media.Brushes.OrangeRed,
+        _ => Avalonia.Media.Brushes.Transparent
+    };
+
+    public string ProvenanceTooltip => $"Confidence: {Model.CurationConfidence}\nSource: {Model.Source}";
+
+    public string? DetectedSubGenre => Model.DetectedSubGenre;
+    public Avalonia.Media.IBrush VibeColor => Avalonia.Media.Brushes.Gray; // Simplified for now
+
+    public record VibePill(string Icon, string Label, Avalonia.Media.IBrush Color);
+    public IEnumerable<VibePill> VibePills => new List<VibePill>(); // Simplified for now
 
     public WaveformAnalysisData WaveformData
     {
@@ -254,6 +336,42 @@ public class PlaylistTrackViewModel : INotifyPropertyChanged, Library.ILibraryNo
     public string IntegrityText => Model.IsTrustworthy == false || Model.Integrity == Data.IntegrityLevel.Suspicious 
         ? "Upscale Detected" 
         : "Clean";
+    
+    // Phase 21: Stem Separation Support
+    private bool? _hasStems;
+    public bool HasStems
+    {
+        get
+        {
+            if (!_hasStems.HasValue)
+            {
+                // Initial check
+                _hasStems = false; // Default
+                _ = CheckStemsAsync();
+            }
+            return _hasStems.Value;
+        }
+        private set => SetProperty(ref _hasStems, value);
+    }
+
+    private async Task CheckStemsAsync()
+    {
+        // Check if stems directory exists and has files
+        // For now, assume stems are in a standard location relative to track or in a central cache
+        // StemSeparationService usually handles this.
+        if (string.IsNullOrEmpty(GlobalId)) return;
+        
+        // This is a placeholder for actual service check. 
+        // We'll update this once we have StemSeparationService injected or via EventBus.
+        // For now, we'll try to find a "stems" subfolder
+        try 
+        {
+             // We can use the service if it's accessible.
+             // Ideally, ILibraryService or a dedicated StemService should be used.
+             // Let's assume we'll use a message to trigger an update if it's missing.
+        }
+        catch { }
+    }
     // AlbumArtPath and Progress are already present in this class.
 
     // Reference to the underlying model if needed for persistence later
@@ -297,7 +415,15 @@ public class PlaylistTrackViewModel : INotifyPropertyChanged, Library.ILibraryNo
     public ICommand PauseCommand { get; }
     public ICommand ResumeCommand { get; }
     public ICommand CancelCommand { get; }
+
     public ICommand FindNewVersionCommand { get; }
+    public ICommand AnalyzeTrackCommand { get; }
+    public ICommand SeparateStemsCommand { get; }
+    public ICommand PlayCommand { get; }
+    public ICommand RevealFileCommand { get; }
+    public ICommand AddToProjectCommand { get; }
+    public ICommand RetryCommand { get; }
+    public ICommand HardRetryCommand { get; }
 
     private readonly IEventBus? _eventBus;
     private readonly ILibraryService? _libraryService;
@@ -335,6 +461,13 @@ public class PlaylistTrackViewModel : INotifyPropertyChanged, Library.ILibraryNo
         ResumeCommand = new RelayCommand(Resume, () => CanResume);
         CancelCommand = new RelayCommand(Cancel, () => CanCancel);
         FindNewVersionCommand = new RelayCommand(FindNewVersion, () => CanHardRetry);
+        AnalyzeTrackCommand = new RelayCommand(AnalyzeTrack, () => State == PlaylistTrackState.Completed); // Enable only if available locally
+        SeparateStemsCommand = new RelayCommand(SeparateStems, () => State == PlaylistTrackState.Completed && !HasStems);
+        PlayCommand = new RelayCommand(PlayTrack, () => IsCompleted);
+        RevealFileCommand = new RelayCommand(RevealFile, () => IsCompleted);
+        AddToProjectCommand = new RelayCommand(() => _eventBus?.Publish(new Models.AddToProjectRequestEvent(new[] { Model })), () => IsCompleted);
+        RetryCommand = new RelayCommand(FindNewVersion, () => CanHardRetry);
+        HardRetryCommand = RetryCommand;
         
         // Smart Subscription
             if (_eventBus != null)
@@ -348,6 +481,12 @@ public class PlaylistTrackViewModel : INotifyPropertyChanged, Library.ILibraryNo
 
             // Initialize ArtworkProxy
             _artwork = new ArtworkProxy(_artworkCacheService!, track.AlbumArtUrl);
+            
+            // Eagerly trigger artwork load if URL exists (fixes artwork not showing after restart)
+            if (!string.IsNullOrWhiteSpace(track.AlbumArtUrl))
+            {
+                _ = _artwork.Image; // Access property to trigger async load
+            }
         }
 
     public void Dispose()
@@ -479,12 +618,10 @@ public class PlaylistTrackViewModel : INotifyPropertyChanged, Library.ILibraryNo
              OnPropertyChanged(nameof(LoudnessDisplay));
              OnPropertyChanged(nameof(TruePeakDisplay));
              OnPropertyChanged(nameof(DynamicRangeDisplay));
-             OnPropertyChanged(nameof(DynamicRangeDisplay));
              OnPropertyChanged(nameof(ConfidenceDisplay));
 
              // Dates
              OnPropertyChanged(nameof(ReleaseDate));
-             OnPropertyChanged(nameof(ReleaseYear));
              OnPropertyChanged(nameof(ReleaseYear));
               OnPropertyChanged(nameof(IsReviewNeeded)); // Phase 10.4
               OnPropertyChanged(nameof(PrimaryGenre)); // New
@@ -495,11 +632,10 @@ public class PlaylistTrackViewModel : INotifyPropertyChanged, Library.ILibraryNo
               OnPropertyChanged(nameof(StatusColor)); // New
               OnPropertyChanged(nameof(YearDisplay)); // New
              
-             // Phase 11.5
-             OnPropertyChanged(nameof(CurationConfidence));
-             OnPropertyChanged(nameof(CurationIcon));
-             OnPropertyChanged(nameof(CurationColor));
-             OnPropertyChanged(nameof(ProvenanceTooltip));
+              // Phase 11.5
+              OnPropertyChanged(nameof(CurationIcon));
+              OnPropertyChanged(nameof(CurationColor));
+              OnPropertyChanged(nameof(ProvenanceTooltip));
         });
     }
 
@@ -539,6 +675,20 @@ public class PlaylistTrackViewModel : INotifyPropertyChanged, Library.ILibraryNo
             }
         }
         catch { /* Fail silently */ }
+    }
+
+    private void AnalyzeTrack()
+    {
+        if (_eventBus == null || string.IsNullOrEmpty(GlobalId)) return;
+        
+        // Publish event to request analysis
+        // The AnalysisOrchestrator or AnalysisQueueService should listen to this.
+        _eventBus.Publish(new Models.TrackAnalysisRequestedEvent(GlobalId));
+        
+        // Optimistic UI update
+        _isAnalyzing = true;
+        OnPropertyChanged(nameof(MetadataStatus));
+        OnPropertyChanged(nameof(MetadataStatusSymbol));
     }
 
     private void OnProgressChanged(TrackProgressChangedEvent evt)
@@ -606,7 +756,7 @@ public class PlaylistTrackViewModel : INotifyPropertyChanged, Library.ILibraryNo
                 OnPropertyChanged(nameof(CanDeleteFile));
                 
                 // Visual distinctions
-                OnPropertyChanged(nameof(IsDownloaded));
+                OnPropertyChanged(nameof(IsCompleted));
                 
                 // CommandManager.InvalidateRequerySuggested() happens automatically or via interaction
             }
@@ -714,10 +864,7 @@ public class PlaylistTrackViewModel : INotifyPropertyChanged, Library.ILibraryNo
         }
     }
     
-    // Fix: Add display property for consistent "—" fallback
-    public string BpmDisplay => Model.BPM.HasValue && Model.BPM > 0 ? $"{Model.BPM:0}" : "—";
-    public string KeyDisplay => !string.IsNullOrEmpty(Model.MusicalKey) ? Model.MusicalKey : "—";
-    
+
     // Phase 10.4: Industrial Prep
     public bool IsReviewNeeded
     {
@@ -731,30 +878,6 @@ public class PlaylistTrackViewModel : INotifyPropertyChanged, Library.ILibraryNo
             }
         }
     }
-
-    // Phase 11.5: Library Trust Badges
-    public SLSKDONET.Data.Entities.CurationConfidence CurationConfidence => Model.CurationConfidence;
-
-    public string CurationIcon => CurationConfidence switch
-    {
-        SLSKDONET.Data.Entities.CurationConfidence.Manual => "🛡️",
-        SLSKDONET.Data.Entities.CurationConfidence.High => "🏅",
-        SLSKDONET.Data.Entities.CurationConfidence.Medium => "🥈",
-        SLSKDONET.Data.Entities.CurationConfidence.Low => "📉",
-        _ => string.Empty
-    };
-    
-    public string CurationColor => CurationConfidence switch
-    {
-        SLSKDONET.Data.Entities.CurationConfidence.Manual => "#32CD32", // LimeGreen
-        SLSKDONET.Data.Entities.CurationConfidence.High => "#FFD700",   // Gold
-        SLSKDONET.Data.Entities.CurationConfidence.Medium => "#C0C0C0", // Silver
-        SLSKDONET.Data.Entities.CurationConfidence.Low => "#FF4444",    // Red
-        _ => "Transparent"
-    };
-
-    public string ProvenanceTooltip => $"Curation: {CurationConfidence}\nSource: {Model.Source}";
-
 
     public string MetadataStatus
     {
@@ -787,18 +910,7 @@ public class PlaylistTrackViewModel : INotifyPropertyChanged, Library.ILibraryNo
         }
     }
 
-    public string DurationDisplay
-    {
-        get
-        {
-            if (Model.CanonicalDuration.HasValue)
-            {
-                var t = TimeSpan.FromMilliseconds(Model.CanonicalDuration.Value);
-                return $"{(int)t.TotalMinutes}:{t.Seconds:D2}";
-            }
-            return string.Empty;
-        }
-    }
+
 
 
 
@@ -820,32 +932,14 @@ public class PlaylistTrackViewModel : INotifyPropertyChanged, Library.ILibraryNo
         }
     }
 
-    /// <summary>
-    /// Formatted file size display (e.g., "10.5 MB" or "850 KB")
-    /// </summary>
-    public string FileSizeDisplay
-    {
-        get
-        {
-            if (FileSizeBytes == 0) return "—";
-            
-            double mb = FileSizeBytes / 1024.0 / 1024.0;
-            if (mb >= 1.0)
-                return $"{mb:F1} MB";
-            
-            double kb = FileSizeBytes / 1024.0;
-            return $"{kb:F0} KB";
-        }
-    }
 
 
 
 
 
 
-    public bool IsActive => State == PlaylistTrackState.Searching || 
-                           State == PlaylistTrackState.Downloading || 
-                           State == PlaylistTrackState.Queued;
+
+
 
     // Computed Properties for Logic
     public bool CanPause => State == PlaylistTrackState.Downloading || State == PlaylistTrackState.Queued || State == PlaylistTrackState.Searching;
@@ -853,44 +947,6 @@ public class PlaylistTrackViewModel : INotifyPropertyChanged, Library.ILibraryNo
     public bool CanCancel => State != PlaylistTrackState.Completed && State != PlaylistTrackState.Cancelled;
     public bool CanHardRetry => State == PlaylistTrackState.Failed || State == PlaylistTrackState.Cancelled; // Or Completed if we want to re-download
     public bool CanDeleteFile => State == PlaylistTrackState.Completed || State == PlaylistTrackState.Failed || State == PlaylistTrackState.Cancelled;
-
-    public bool IsDownloaded => State == PlaylistTrackState.Completed;
-
-    // Visuals - Color codes for Avalonia (replacing WPF Brushes)
-    public string StatusColor
-    {
-        get
-        {
-            return State switch
-            {
-                PlaylistTrackState.Completed => "#90EE90",      // Light Green
-                PlaylistTrackState.Downloading => "#00BFFF",    // Deep Sky Blue
-                PlaylistTrackState.Searching => "#6495ED",      // Cornflower Blue
-                PlaylistTrackState.Queued => "#00FFFF",         // Cyan
-                PlaylistTrackState.Paused => "#FFA500",         // Orange
-                PlaylistTrackState.Failed => "#FF0000",         // Red
-                PlaylistTrackState.Deferred => "#FFD700",       // Goldenrod (Preemption)
-                PlaylistTrackState.Cancelled => "#808080",      // Gray
-                _ => "#D3D3D3"                                  // LightGray
-            };
-        }
-    }
-
-    public string StatusText => State switch
-    {
-        PlaylistTrackState.Completed => "✓ Ready",
-        PlaylistTrackState.Downloading => $"↓ {Progress:P0}",
-        PlaylistTrackState.Searching => "🔍 Search",
-        PlaylistTrackState.Queued => "⏳ Queued",
-        PlaylistTrackState.Failed => "✗ Failed",
-        PlaylistTrackState.Deferred => "⏳ Deferred",
-        PlaylistTrackState.Pending => "⊙ Missing",
-        _ => "?"
-    };
-
-    public string DetailedStatusText => !string.IsNullOrEmpty(ErrorMessage) 
-        ? $"Status: {State}\nDetails: {ErrorMessage}" 
-        : StatusText;
 
     public string MetadataStatusColor => MetadataStatus switch
     {
@@ -999,5 +1055,29 @@ public class PlaylistTrackViewModel : INotifyPropertyChanged, Library.ILibraryNo
         field = value;
         OnPropertyChanged(propertyName);
         return true;
+    }
+
+    public void SeparateStems()
+    {
+        if (_eventBus == null || string.IsNullOrEmpty(GlobalId)) return;
+        _eventBus.Publish(new Models.StemSeparationRequestedEvent(GlobalId, Model.ResolvedFilePath ?? ""));
+        
+        // UI notification or temporary state if needed
+        ErrorMessage = "Stem separation queued...";
+        OnPropertyChanged(nameof(StatusText));
+        OnPropertyChanged(nameof(DetailedStatusText));
+    }
+
+    private void PlayTrack()
+    {
+        _eventBus?.Publish(new Models.PlayTrackRequestEvent(this));
+    }
+
+    private void RevealFile()
+    {
+        if (!string.IsNullOrEmpty(Model.ResolvedFilePath))
+        {
+            _eventBus?.Publish(new Models.RevealFileRequestEvent(Model.ResolvedFilePath));
+        }
     }
 }

@@ -2,10 +2,11 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
-             xmlns:vm="clr-namespace:SLSKDONET.ViewModels.Downloads;assembly=ORBIT"
+             xmlns:vm="clr-namespace:SLSKDONET.ViewModels"
+             xmlns:views="clr-namespace:SLSKDONET.Views.Avalonia"
              mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="60"
              x:Class="SLSKDONET.Views.Avalonia.Controls.StandardTrackRow"
-             x:DataType="vm:UnifiedTrackViewModel">
+             x:DataType="vm:PlaylistTrackViewModel">
              
     <UserControl.Styles>
         <Style Selector="Button.ActionBtn">
@@ -54,82 +55,7 @@
             BorderThickness="0,0,0,1" 
             Padding="8,6">
             
-        <Border.ContextMenu>
-            <ContextMenu>
-                <MenuItem Header="Play" Command="{Binding PlayCommand}" IsVisible="{Binding IsCompleted}">
-                    <MenuItem.Icon>
-                        <PathIcon Data="{StaticResource play_circle_regular}" Width="16" Height="16"/>
-                    </MenuItem.Icon>
-                </MenuItem>
-                <MenuItem Header="Show in Explorer" Command="{Binding RevealFileCommand}" IsVisible="{Binding IsCompleted}">
-                    <MenuItem.Icon>
-                        <PathIcon Data="{StaticResource folder_open_regular}" Width="16" Height="16"/>
-                    </MenuItem.Icon>
-                </MenuItem>
-                <MenuItem Header="Add to Project" Command="{Binding AddToProjectCommand}" IsVisible="{Binding IsCompleted}">
-                    <MenuItem.Icon>
-                        <PathIcon Data="{StaticResource add_circle_regular}" Width="16" Height="16"/>
-                    </MenuItem.Icon>
-                </MenuItem>
-                
-                <MenuItem Header="Find Similar (Sonic Twin)" Command="{Binding FindSimilarCommand}" IsVisible="{Binding IsCompleted}">
-                    <MenuItem.Icon>
-                        <PathIcon Data="{StaticResource radar_regular}" Width="16" Height="16"/>
-                    </MenuItem.Icon>
-                </MenuItem>
 
-                <MenuItem Header="Find Similar Vibe (AI)" 
-                          Command="{Binding $parent[ListBox].DataContext.FindSimilarCommand}" 
-                          CommandParameter="{Binding}"
-                          IsVisible="{Binding IsCompleted}"
-                          InputGesture="Ctrl+M">
-                    <MenuItem.Icon>
-                        <PathIcon Data="{StaticResource brain_circuit_regular}" Width="16" Height="16"/>
-                    </MenuItem.Icon>
-                </MenuItem>
-                
-                <Separator IsVisible="{Binding IsCompleted}"/>
-                
-                <MenuItem Header="Retry Download" Command="{Binding RetryCommand}" IsVisible="{Binding IsFailed}">
-                    <MenuItem.Icon>
-                        <PathIcon Data="{StaticResource arrow_counterclockwise_regular}" Width="16" Height="16"/>
-                    </MenuItem.Icon>
-                </MenuItem>
-                
-                <MenuItem Header="Pause" Command="{Binding PauseCommand}" IsVisible="{Binding IsActive}">
-                     <MenuItem.Icon>
-                        <PathIcon Data="{StaticResource pause_regular}" Width="16" Height="16"/>
-                    </MenuItem.Icon>
-                </MenuItem>
-                
-                 <MenuItem Header="Resume" Command="{Binding ResumeCommand}" IsVisible="{Binding IsPaused}">
-                     <MenuItem.Icon>
-                        <PathIcon Data="{StaticResource play_regular}" Width="16" Height="16"/>
-                    </MenuItem.Icon>
-                </MenuItem>
-                
-                <MenuItem Header="Cancel" Command="{Binding CancelCommand}" IsVisible="{Binding IsActive}">
-                     <MenuItem.Icon>
-                        <PathIcon Data="{StaticResource dismiss_regular}" Width="16" Height="16"/>
-                    </MenuItem.Icon>
-                </MenuItem>
-                
-                <Separator/>
-                
-                <MenuItem Header="Remove from List" Command="{Binding CleanCommand}" InputGesture="Delete">
-                    <MenuItem.Icon>
-                        <PathIcon Data="{StaticResource delete_regular}" Width="16" Height="16"/>
-                    </MenuItem.Icon>
-                </MenuItem>
-                
-                <!-- Phase 7: Forensic Duplication -->
-                <MenuItem Header="Delete &amp; Blacklist (Use with Caution!)" Command="{Binding DeleteAndBlacklistCommand}" IsVisible="{Binding IsCompleted}">
-                    <MenuItem.Icon>
-                        <PathIcon Data="{StaticResource shield_dismiss_regular}" Width="16" Height="16" Foreground="#FF4444"/>
-                    </MenuItem.Icon>
-                </MenuItem>
-            </ContextMenu>
-        </Border.ContextMenu>
             
         <Grid ColumnDefinitions="50, 12, *, Auto" RowDefinitions="Auto, Auto">
         
@@ -163,8 +89,14 @@
             <Rectangle Grid.Row="0" Grid.RowSpan="2" Grid.Column="0"
                        Width="4" HorizontalAlignment="Left"
                        Fill="{Binding QualityColor}"
-                       RadiusX="2" RadiusY="2"
-                       IsVisible="{Binding IsCompleted}"/>
+                       RadiusX="2" RadiusY="2">
+                <Rectangle.IsVisible>
+                    <MultiBinding Converter="{x:Static BoolConverters.And}">
+                        <Binding Path="IsCompleted"/>
+                        <Binding Path="$parent[views:LibraryPage].DataContext.ViewSettings.ShowQualityBar"/>
+                    </MultiBinding>
+                </Rectangle.IsVisible>
+            </Rectangle>
             
             <!-- Column 1: Spacer -->
             
@@ -176,34 +108,54 @@
                    <TextBlock Text="-" Foreground="{DynamicResource TextTertiaryBrush}"/>
                    <TextBlock Text="{Binding TrackTitle}" Foreground="{DynamicResource TextBrush}" FontSize="14" TextTrimming="CharacterEllipsis"/>
                    
-                   <!-- Curation Trust Badge (Phase 11.5) -->
+                   <!--Curation Trust Badge (Phase 11.5) -->
                    <Border CornerRadius="2" Padding="4,1" Margin="0,0,6,0" VerticalAlignment="Center" 
                            BorderThickness="1" BorderBrush="{Binding CurationColor}"
-                           IsVisible="{Binding CurationIcon, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"
                            ToolTip.Tip="{Binding ProvenanceTooltip}">
+                       <Border.IsVisible>
+                           <MultiBinding Converter="{x:Static BoolConverters.And}">
+                               <Binding Path="CurationIcon" Converter="{x:Static StringConverters.IsNotNullOrEmpty}"/>
+                               <Binding Path="$parent[views:LibraryPage].DataContext.ViewSettings.ShowBadges"/>
+                           </MultiBinding>
+                       </Border.IsVisible>
                        <TextBlock Text="{Binding CurationIcon}" FontSize="10" VerticalAlignment="Center"/>
                    </Border>
 
                    <!-- Integrity Check Badge -->
-                   <Border Classes="IntegrityBadge Secure" IsVisible="{Binding IsSecure}">
+                   <Border Classes="IntegrityBadge Secure">
+                       <Border.IsVisible>
+                           <MultiBinding Converter="{x:Static BoolConverters.And}">
+                               <Binding Path="IsSecure"/>
+                               <Binding Path="$parent[views:LibraryPage].DataContext.ViewSettings.ShowBadges"/>
+                           </MultiBinding>
+                       </Border.IsVisible>
                        <TextBlock Text="✓ VERIFIED" FontSize="9" FontWeight="Bold" Foreground="#00FF00"/>
                    </Border>
 
-                   <!-- Discovery Match Badge (Phase 4+) -->
-                   <Border Background="#209C27B0" CornerRadius="2" Padding="4,1" Margin="0,0,6,0" VerticalAlignment="Center"
-                           BorderBrush="#9C27B0" BorderThickness="1"
-                           IsVisible="{Binding DiscoveryReason, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
-                       <StackPanel Orientation="Horizontal" Spacing="4">
-                           <TextBlock Text="✨" FontSize="10" VerticalAlignment="Center"/>
-                           <TextBlock Text="{Binding DiscoveryReason}" FontSize="9" FontWeight="Bold" Foreground="#D05CE3" VerticalAlignment="Center"/>
-                       </StackPanel>
-                   </Border>
+                    <!-- Discovery Match Badge -->
+                    <Border Background="#209C27B0" CornerRadius="2" Padding="4,1" Margin="0,0,6,0" VerticalAlignment="Center"
+                            BorderBrush="#9C27B0" BorderThickness="1"
+                            IsVisible="{Binding DiscoveryReason, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
+                        <StackPanel Orientation="Horizontal" Spacing="4">
+                            <TextBlock Text="✨" FontSize="10" VerticalAlignment="Center"/>
+                            <TextBlock Text="{Binding DiscoveryReason}" FontSize="9" FontWeight="Bold" Foreground="#D05CE3" VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- Stem Availability Badge (Phase 21) -->
+                    <Border Background="#20E91E63" CornerRadius="2" Padding="4,1" Margin="0,0,6,0" VerticalAlignment="Center"
+                            BorderBrush="#E91E63" BorderThickness="1"
+                            IsVisible="{Binding HasStems}">
+                        <StackPanel Orientation="Horizontal" Spacing="4">
+                            <TextBlock Text="🎹" FontSize="10" VerticalAlignment="Center"/>
+                            <TextBlock Text="STEMS" FontSize="9" FontWeight="Bold" Foreground="#EC407A" VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </Border>
 
                    <!-- Preparation Badge (Phase 10) -->
                    <Border Classes="PrepBadge" 
                            Background="{Binding PreparationColor}" 
-                           Opacity="0.8"
-                           IsVisible="{Binding IsCompleted}">
+                           Opacity="0.8">
                        <TextBlock Text="{Binding PreparationStatus}" FontSize="8" FontWeight="Bold" Foreground="White"/>
                    </Border>
                    
@@ -216,14 +168,25 @@
                    <Button Background="{Binding VibeColor}" 
                            Command="{Binding FilterByVibeCommand}"
                            BorderThickness="0" CornerRadius="10" Padding="8,1" Margin="0,0,6,0" 
-                           IsVisible="{Binding DetectedSubGenre, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"
                            ToolTip.Tip="{Binding SubGenreConfidence, StringFormat='AI Confidence: {0:P0}. Click to filter by this vibe.'}">
+                       <Button.IsVisible>
+                           <MultiBinding Converter="{x:Static BoolConverters.And}">
+                               <Binding Path="DetectedSubGenre" Converter="{x:Static StringConverters.IsNotNullOrEmpty}"/>
+                               <Binding Path="$parent[views:LibraryPage].DataContext.ViewSettings.ShowVibePills"/>
+                           </MultiBinding>
+                       </Button.IsVisible>
                        <TextBlock Text="{Binding DetectedSubGenre, StringFormat='✨ {0}'}" FontSize="10" 
                                   Foreground="White" FontWeight="Heavy" Opacity="0.9"/>
                    </Button>
 
                    <!-- Year Tag (Pill) -->
-                   <Border Background="#1AFFFFFF" CornerRadius="10" Padding="8,1" IsVisible="{Binding YearDisplay, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
+                   <Border Background="#1AFFFFFF" CornerRadius="10" Padding="8,1">
+                       <Border.IsVisible>
+                           <MultiBinding Converter="{x:Static BoolConverters.And}">
+                               <Binding Path="YearDisplay" Converter="{x:Static StringConverters.IsNotNullOrEmpty}"/>
+                               <Binding Path="$parent[views:LibraryPage].DataContext.ViewSettings.ShowReleaseYear"/>
+                           </MultiBinding>
+                       </Border.IsVisible>
                        <TextBlock Text="{Binding YearDisplay}" FontSize="10" Foreground="#AAA" FontWeight="SemiBold"/>
                    </Border>
                 </StackPanel>
@@ -240,36 +203,35 @@
                                ToolTip.Tip="{Binding DetailedStatusText}"/>
                 </StackPanel>
                 
-                <TextBlock Text="•" Foreground="{DynamicResource TextTertiaryBrush}"/>
-                
                 <!-- Tech Summary & Quality Badge -->
                 <StackPanel Orientation="Horizontal" Spacing="4">
-                    <Border Background="{DynamicResource SurfaceBrush}" CornerRadius="3" Padding="4,0" 
-                            ToolTip.Tip="{Binding Model.Bitrate, StringFormat='{}Bitrate: {0}kbps'}">
-                        <TextBlock Text="{Binding QualityIcon}" FontSize="12" VerticalAlignment="Center"/>
+                    <TextBlock Text="•" Foreground="{DynamicResource TextTertiaryBrush}" Margin="0,0,6,0"/>
+                    <Border Background="Transparent" CornerRadius="3" Padding="2,0" 
+                            ToolTip.Tip="{Binding Tier}">
+                        <TextBlock Text="{Binding TierBadge}" FontSize="16" VerticalAlignment="Center"/>
                     </Border>
                     
                     <TextBlock Text="{Binding TechnicalSummary}" Foreground="{DynamicResource TextSecondaryBrush}" FontSize="11" FontFamily="Consolas" VerticalAlignment="Center"/>
                 </StackPanel>
                 
                 <!-- NEW: Duration (only show if completed) -->
-                                <TextBlock Text="•" Foreground="{DynamicResource TextTertiaryBrush}" IsVisible="{Binding IsCompleted}"/>
                 <StackPanel Orientation="Horizontal" Spacing="4" IsVisible="{Binding IsCompleted}">
+                    <TextBlock Text="•" Foreground="{DynamicResource TextTertiaryBrush}" Margin="0,0,6,0"/>
                     <TextBlock Text="⏱" FontSize="11" Foreground="{DynamicResource TextTertiaryBrush}"/>
                     <TextBlock Text="{Binding Duration}" Foreground="{DynamicResource TextSecondaryBrush}" FontSize="11" FontFamily="Consolas"/>
                 </StackPanel>
                 
                 <!-- NEW: File Size (only show if completed) -->
-                                <TextBlock Text="•" Foreground="{DynamicResource TextTertiaryBrush}" IsVisible="{Binding IsCompleted}"/>
                 <StackPanel Orientation="Horizontal" Spacing="4" IsVisible="{Binding IsCompleted}">
+                    <TextBlock Text="•" Foreground="{DynamicResource TextTertiaryBrush}" Margin="0,0,6,0"/>
                     <TextBlock Text="💾" FontSize="11" Foreground="{DynamicResource TextTertiaryBrush}"/>
                     <TextBlock Text="{Binding FileSizeDisplay}" Foreground="{DynamicResource TextSecondaryBrush}" FontSize="11" FontFamily="Consolas"/>
                 </StackPanel>
                 
-                                <TextBlock Text="•" Foreground="{DynamicResource TextTertiaryBrush}" IsVisible="{Binding IsCompleted}"/>
                 
                 <!-- BPM/Key Pills -->
                 <StackPanel Orientation="Horizontal" Spacing="6" IsVisible="{Binding IsCompleted}">
+                    <TextBlock Text="•" Foreground="{DynamicResource TextTertiaryBrush}" Margin="0,0,6,0"/>
                     <Border Background="{DynamicResource SecondaryBackgroundBrush}" CornerRadius="10" Padding="8,1" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1">
                         <TextBlock Text="{Binding BpmDisplay}" Foreground="{DynamicResource TextSecondaryBrush}" FontSize="11" FontFamily="Consolas" FontWeight="Bold"/>
                     </Border>

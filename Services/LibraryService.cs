@@ -76,7 +76,13 @@ public class LibraryService : ILibraryService
 
     public async Task<List<LibraryEntry>> LoadAllLibraryEntriesAsync()
     {
-        var entities = await _databaseService.LoadAllLibraryEntriesAsync().ConfigureAwait(false);
+        var entities = await _databaseService.GetAllLibraryEntriesAsync().ConfigureAwait(false);
+        return entities.Select(EntityToLibraryEntry).ToList();
+    }
+
+    public async Task<List<LibraryEntry>> GetLibraryEntriesByHashesAsync(List<string> hashes)
+    {
+        var entities = await _databaseService.GetLibraryEntriesByHashesAsync(hashes).ConfigureAwait(false);
         return entities.Select(EntityToLibraryEntry).ToList();
     }
 
@@ -160,7 +166,7 @@ public class LibraryService : ILibraryService
             }
 
             // 2. Get all existing library entry hashes directly
-            var existingEntries = await _databaseService.LoadAllLibraryEntriesAsync();
+            var existingEntries = await _databaseService.GetAllLibraryEntriesAsync();
             var existingHashes = new HashSet<string>(existingEntries.Select(e => e.UniqueHash));
 
             // 3. Identify missing entries
@@ -414,7 +420,11 @@ public class LibraryService : ILibraryService
                 // Phase 2.5: Persistence
                 IsUserPaused = job.IsUserPaused,
                 DateStarted = job.DateStarted,
-                DateUpdated = job.DateUpdated
+                DateUpdated = job.DateUpdated,
+
+                // Phase 20
+                IsSmartPlaylist = job.IsSmartPlaylist,
+                SmartCriteriaJson = job.SmartCriteriaJson
             };
 
             await _databaseService.SavePlaylistJobAsync(entity).ConfigureAwait(false);
@@ -588,6 +598,35 @@ public class LibraryService : ILibraryService
         }
     }
 
+    public async Task<int> GetTrackCountAsync(Guid playlistId, string? filter = null, bool? downloadedOnly = null)
+    {
+        try
+        {
+            // Use repository through databaseService if possible, or add to databaseService
+            // For now, I'll assume databaseService exposes it or I'll add it there.
+            return await _databaseService.GetPlaylistTrackCountAsync(playlistId, filter, downloadedOnly).ConfigureAwait(false);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to get track count for {PlaylistId}", playlistId);
+            return 0;
+        }
+    }
+
+    public async Task<List<PlaylistTrack>> GetPagedPlaylistTracksAsync(Guid playlistId, int skip, int take, string? filter = null, bool? downloadedOnly = null)
+    {
+        try
+        {
+            var entities = await _databaseService.GetPagedPlaylistTracksAsync(playlistId, skip, take, filter, downloadedOnly).ConfigureAwait(false);
+            return entities.Select(EntityToPlaylistTrack).ToList();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to load paged playlist tracks for {PlaylistId}", playlistId);
+            return new List<PlaylistTrack>();
+        }
+    }
+
     public async Task SavePlaylistTrackAsync(PlaylistTrack track)
     {
         try
@@ -676,7 +715,7 @@ public class LibraryService : ILibraryService
     public async Task<List<LibraryEntry>> LoadDownloadedTracksAsync()
     {
         // This now directly loads from the database. The old JSON method is gone.
-        var entities = await _databaseService.LoadAllLibraryEntriesAsync().ConfigureAwait(false);
+        var entities = await _databaseService.GetAllLibraryEntriesAsync().ConfigureAwait(false);
         return entities.Select(EntityToLibraryEntry).ToList();
     }
 
@@ -738,7 +777,11 @@ public class LibraryService : ILibraryService
             DateStarted = entity.DateStarted,
             DateUpdated = entity.DateUpdated,
             IsDeleted = entity.IsDeleted,
-            DeletedAt = entity.DeletedAt
+            DeletedAt = entity.DeletedAt,
+
+            // Phase 20
+            IsSmartPlaylist = entity.IsSmartPlaylist,
+            SmartCriteriaJson = entity.SmartCriteriaJson
         };
 
         job.MissingCount = entity.TotalTracks - entity.SuccessfulCount - entity.FailedCount;
@@ -793,6 +836,11 @@ public class LibraryService : ILibraryService
             Energy = entity.Energy,
             Danceability = entity.Danceability,
             Valence = entity.Valence,
+
+            // Phase 21: AI Brain - Mapped below via AudioFeatures
+            // Sadness = entity.Sadness, // Removed
+            // VectorEmbedding = entity.VectorEmbedding, // Removed
+
             AnalysisOffset = entity.AnalysisOffset,
             BitrateScore = entity.BitrateScore,
             Bitrate = entity.Bitrate,
@@ -818,7 +866,12 @@ public class LibraryService : ILibraryService
             DynamicRange = entity.DynamicRange,
             
             // Phase 15
-            DetectedSubGenre = entity.DetectedSubGenre
+            DetectedSubGenre = entity.DetectedSubGenre,
+            InstrumentalProbability = entity.InstrumentalProbability, // Phase 18.2
+
+            // Phase 21: AI Brain (Mapped from AudioFeatures)
+            Sadness = entity.AudioFeatures?.Sadness,
+            VectorEmbedding = entity.AudioFeatures?.VectorEmbedding
         };
     }
 
@@ -887,7 +940,12 @@ public class LibraryService : ILibraryService
             // Phase 17: Technical Audio Analysis
             Loudness = track.Loudness,
             TruePeak = track.TruePeak,
-            DynamicRange = track.DynamicRange
+            DynamicRange = track.DynamicRange,
+            InstrumentalProbability = track.InstrumentalProbability // Phase 18.2
+            
+            // Phase 21: AI Brain - READ ONLY via AudioFeatures link
+            // We do not set Sadness/Vector on the PlaylistTrackEntity directly.
+            // They are stored in AudioFeaturesEntity linked by TrackUniqueHash.
         };
     }
 
@@ -916,6 +974,10 @@ public class LibraryService : ILibraryService
             BPM = entity.BPM,
             MusicalKey = entity.MusicalKey,
 
+            // Phase 21: AI Brain
+            Sadness = entity.AudioFeatures?.Sadness,
+            VectorEmbedding = entity.AudioFeatures?.VectorEmbedding,
+
             IsEnriched = entity.IsEnriched,
             
             // Phase 17: Technical Audio Analysis
@@ -933,7 +995,9 @@ public class LibraryService : ILibraryService
             SpotifyBPM = entity.SpotifyBPM,
             SpotifyKey = entity.SpotifyKey,
             ManualBPM = entity.ManualBPM,
-            ManualKey = entity.ManualKey
+            ManualKey = entity.ManualKey,
+            
+            InstrumentalProbability = entity.InstrumentalProbability // Phase 18.2
         };
     }
 
@@ -973,8 +1037,16 @@ public class LibraryService : ILibraryService
         entity.SpotifyBPM = entry.SpotifyBPM;
         entity.SpotifyKey = entry.SpotifyKey;
         entity.ManualBPM = entry.ManualBPM;
+        entity.ManualBPM = entry.ManualBPM;
         entity.ManualKey = entry.ManualKey;
         
+        entity.InstrumentalProbability = entry.InstrumentalProbability; // Phase 18.2
+        
+        // Phase 21: AI Brain - Read Only from AudioFeatures
+        // We do not set entity.Sadness directly as it lives in AudioFeaturesEntity
+        // entity.Sadness = entry.Sadness; 
+        // entity.VectorEmbedding = entry.VectorEmbedding;
+
         if (entry.AddedAt == default)
         {
             entity.AddedAt = DateTime.UtcNow;
@@ -1100,5 +1172,77 @@ public class LibraryService : ILibraryService
     {
         var all = await LoadAllLibraryEntriesAsync();
         return all.Where(e => e.AddedAt >= since).ToList();
+    }
+
+    public async Task AddTracksToProjectAsync(IEnumerable<PlaylistTrack> tracks, Guid targetProjectId)
+    {
+        try
+        {
+            var project = await FindPlaylistJobAsync(targetProjectId);
+            if (project == null) throw new InvalidOperationException("Target project not found");
+
+            var newTracks = new List<PlaylistTrack>();
+            foreach (var track in tracks)
+            {
+                // Create a clone of the relational entry for the new project
+                var newTrack = new PlaylistTrack
+                {
+                    Id = Guid.NewGuid(),
+                    PlaylistId = targetProjectId,
+                    Artist = track.Artist,
+                    Title = track.Title,
+                    Album = track.Album,
+                    TrackUniqueHash = track.TrackUniqueHash,
+                    Status = track.Status,
+                    ResolvedFilePath = track.ResolvedFilePath,
+                    TrackNumber = track.TrackNumber,
+                    AddedAt = DateTime.UtcNow,
+                    
+                    // Copy metadata
+                    SpotifyTrackId = track.SpotifyTrackId,
+                    ISRC = track.ISRC,
+                    SpotifyAlbumId = track.SpotifyAlbumId,
+                    SpotifyArtistId = track.SpotifyArtistId,
+                    AlbumArtUrl = track.AlbumArtUrl,
+                    ArtistImageUrl = track.ArtistImageUrl,
+                    Genres = track.Genres,
+                    Popularity = track.Popularity,
+                    CanonicalDuration = track.CanonicalDuration,
+                    ReleaseDate = track.ReleaseDate,
+                    MusicalKey = track.MusicalKey,
+                    BPM = track.BPM,
+                    Bitrate = track.Bitrate,
+                    Format = track.Format,
+                    IsEnriched = track.IsEnriched,
+                    IsPrepared = track.IsPrepared, // Phase 10
+                    PrimaryGenre = track.PrimaryGenre,
+                    DetectedSubGenre = track.DetectedSubGenre
+                };
+                newTracks.Add(newTrack);
+            }
+
+            if (newTracks.Any())
+            {
+                await SavePlaylistTracksAsync(newTracks);
+                
+                // Update project counts
+                project.SuccessfulCount += newTracks.Count(t => t.Status == TrackStatus.Downloaded);
+                project.FailedCount += newTracks.Count(t => t.Status == TrackStatus.Failed || t.Status == TrackStatus.Skipped);
+                project.MissingCount += newTracks.Count(t => t.Status == TrackStatus.Missing);
+                project.TotalTracks += newTracks.Count;
+                
+                await SavePlaylistJobAsync(project);
+                
+                _logger.LogInformation("Added {Count} tracks to project {Title}", newTracks.Count, project.SourceTitle);
+                
+                // Publish event so UI can refresh
+                _eventBus.Publish(new ProjectUpdatedEvent(targetProjectId));
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to add tracks to project {Id}", targetProjectId);
+            throw;
+        }
     }
 }

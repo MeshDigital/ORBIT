@@ -168,7 +168,7 @@ public partial class App : Application
             {
                 // Initialize database before anything else (required for app to function)
                 var databaseService = Services.GetRequiredService<DatabaseService>();
-                databaseService.InitAsync().GetAwaiter().GetResult();
+                await databaseService.InitAsync();
 
                 // Phase 2.4: Load ranking strategy from config
                 // TEMPORARILY DISABLED: Causing NullReferenceException on startup
@@ -216,7 +216,7 @@ public partial class App : Application
                 };
                 
                 ResultSorter.SetStrategy(strategy);
-                ResultSorter.SetWeights(config.CustomWeights ?? ScoringWeights.Balanced);
+                // ResultSorter.SetWeights(config.CustomWeights ?? ScoringWeights.Balanced); // Removed: Obsolete API
                 ResultSorter.SetConfig(config);
                 
                 Serilog.Log.Information("Loaded ranking strategy: {Profile}", profile);
@@ -242,6 +242,7 @@ public partial class App : Application
                 };
 
                 desktop.MainWindow = mainWindow;
+                mainWindow.Show(); // Explicitly show window after async initialization
                 
                 // Start background initialization (non-blocking)
                 _ = Task.Run(async () =>
@@ -699,6 +700,18 @@ public partial class App : Application
         // Phase 16: Applied Intelligence (Autonomy)
         services.AddSingleton<Services.Library.SmartSorterService>();
         services.AddTransient<ViewModels.Tools.SortPreviewViewModel>();
+
+        // Phase 20: Smart Playlists 2.0
+        services.AddSingleton<ISmartPlaylistService, SmartPlaylistService>();
+        
+        // Phase 23: Smart Crates (Dynamic AI Playlists)
+        services.AddSingleton<SmartCrateService>();
+        
+        // Phase 24: Stem Workspace (Stem Separation & Remixing)
+        services.AddSingleton<StemSeparationService>();
+        services.AddSingleton<StemProjectService>();
+        services.AddTransient<Services.Audio.RealTimeStemEngine>();
+        services.AddSingleton<ViewModels.Stem.StemWorkspaceViewModel>(); // Root VM for workspace
         
         // Phase 0: ViewModel Refactoring - Library child ViewModels
         services.AddTransient<ViewModels.Library.ProjectListViewModel>();

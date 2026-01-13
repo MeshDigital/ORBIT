@@ -39,6 +39,7 @@
         <converters:BoolInverseConverter x:Key="BoolInverseConverter"/>
         <converters:VuHeightConverter x:Key="VuHeightConverter"/>
         <converters:PercentageToAngleConverter x:Key="PercentageToAngleConverter"/>
+        <converters:PlayPauseConverter x:Key="PlayPauseConverter"/>
         <conv_root:ParameterizedBooleanConverter x:Key="BoolParameterConverter"/>
         
         <!-- Phase 18: Sonic Match Visual Converters -->

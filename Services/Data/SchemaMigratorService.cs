@@ -19,10 +19,130 @@ public class SchemaMigratorService
         _logger = logger;
     }
 
+    private async Task PerformBackupAsync()
+    {
+        try
+        {
+            var appData = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
+            var dbPath = System.IO.Path.Combine(appData, "ORBIT", "library.db");
+            var backupDir = System.IO.Path.Combine(appData, "ORBIT", "Backups");
+            
+            if (!System.IO.File.Exists(dbPath))
+            {
+                // Auto-Restore Logic
+                if (System.IO.Directory.Exists(backupDir))
+                {
+                    var latestBackup = new System.IO.DirectoryInfo(backupDir)
+                        .GetFiles("library.backup.*.db")
+                        .OrderByDescending(f => f.CreationTime)
+                        .FirstOrDefault();
+
+                    if (latestBackup != null)
+                    {
+                        _logger.LogWarning("⚠️ Database missing! Implementing Auto-Restore from: {Backup}", latestBackup.Name);
+                        System.IO.File.Copy(latestBackup.FullName, dbPath);
+                        _logger.LogInformation("✅ Database restored successfully. Initialization will now patch schema.");
+                        return; // Done, we restored. No need to backup the thing we just restored immediately.
+                    }
+                }
+                
+                _logger.LogInformation("No existing database and no backups found. Starting fresh.");
+                return;
+            }
+
+            System.IO.Directory.CreateDirectory(backupDir);
+
+            // Create new backup
+            var timestamp = DateTime.Now.ToString("yyyy-MM-dd_HH-mm-ss");
+            var backupPath = System.IO.Path.Combine(backupDir, $"library.backup.{timestamp}.db");
+            
+            // Use Copy to allow decent backup even if file checks fail later, 
+            // but wrap in Task.Run to not block startup significantly if large
+            await Task.Run(() => 
+            {
+                System.IO.File.Copy(dbPath, backupPath, overwrite: true);
+                _logger.LogInformation("Database backed up to: {Path}", backupPath);
+
+                // Rotate backups: Keep last 5
+                var backups = new System.IO.DirectoryInfo(backupDir)
+                    .GetFiles("library.backup.*.db")
+                    .OrderByDescending(f => f.CreationTime)
+                    .ToList();
+
+                if (backups.Count > 5)
+                {
+                    foreach (var oldBackup in backups.Skip(5))
+                    {
+                        try
+                        {
+                            oldBackup.Delete();
+                            _logger.LogInformation("Deleted old backup: {Name}", oldBackup.Name);
+                        }
+                        catch (Exception ex)
+                        {
+                            _logger.LogWarning(ex, "Failed to delete old backup: {Name}", oldBackup.Name);
+                        }
+                    }
+                }
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to perform automatic database backup");
+            // Do not throw, allow startup to continue
+        }
+    }
+
+    private async Task CheckForForceResetAsync()
+    {
+        try 
+        {
+            var appData = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
+            var markerPath = System.IO.Path.Combine(appData, "ORBIT", ".force_schema_reset");
+            var dbPath = System.IO.Path.Combine(appData, "ORBIT", "library.db");
+
+            if (System.IO.File.Exists(markerPath))
+            {
+                _logger.LogWarning("⚠️ FORCE RESET MARKER FOUND! Deleting database to force schema rebuild...");
+                
+                // Try to delete the database
+                if (System.IO.File.Exists(dbPath))
+                {
+                    // Basic retry loop in case of lingering locks
+                    for (int i = 0; i < 3; i++)
+                    {
+                        try 
+                        {
+                            System.IO.File.Delete(dbPath);
+                            _logger.LogInformation("✅ Database deleted via force reset.");
+                            break;
+                        }
+                        catch (Exception ex)
+                        {
+                            _logger.LogWarning("Attempt {Retry} to delete database failed: {Message}", i + 1, ex.Message);
+                            await Task.Delay(500);
+                        }
+                    }
+                }
+                
+                // Clean up marker
+                try { System.IO.File.Delete(markerPath); } catch {}
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to process force reset marker");
+        }
+    }
+
     public async Task InitializeDatabaseAsync()
     {
         var sw = System.Diagnostics.Stopwatch.StartNew();
         _logger.LogInformation("[{Ms}ms] Database Init: Starting", sw.ElapsedMilliseconds);
+
+        // Phase 24: Automatic Database Backup & Recovery
+        await CheckForForceResetAsync().ConfigureAwait(false); // Step 1: Check if user requested reset
+        await PerformBackupAsync().ConfigureAwait(false);      // Step 2: Backup existing or Restore if missing
         
         using var context = new AppDbContext();
         var db = context.Database;
@@ -128,6 +248,7 @@ public class SchemaMigratorService
         {
             using var context = new AppDbContext();
             var connection = context.Database.GetDbConnection() as SqliteConnection;
+            if (connection == null) return report;
             if (connection.State != System.Data.ConnectionState.Open)
                 await connection.OpenAsync();
 
@@ -215,6 +336,7 @@ public class SchemaMigratorService
     {
         using var context = new AppDbContext();
         var connection = context.Database.GetDbConnection() as SqliteConnection;
+        if (connection == null) return;
         if (connection.State != System.Data.ConnectionState.Open)
             await connection.OpenAsync();
 
@@ -285,6 +407,139 @@ public class SchemaMigratorService
                     CREATE UNIQUE INDEX ""IX_TechnicalDetails_PlaylistTrackId"" ON ""TechnicalDetails"" (""PlaylistTrackId"");
                 ";
                 await command.ExecuteNonQueryAsync();
+            }
+
+            // 1B. AudioFeatures Table (Phase 21: AI Brain)
+            if (!TableExists("audio_features"))
+            {
+                _logger.LogInformation("Patching Schema: Creating AudioFeatures table (AI Brain)...");
+                command.CommandText = @"
+                    CREATE TABLE ""audio_features"" (
+                        ""Id"" TEXT NOT NULL CONSTRAINT ""PK_audio_features"" PRIMARY KEY,
+                        ""TrackUniqueHash"" TEXT NOT NULL UNIQUE,
+                        
+                        -- Core Musical Features
+                        ""Bpm"" REAL NOT NULL DEFAULT 0,
+                        ""BpmConfidence"" REAL NOT NULL DEFAULT 0,
+                        ""Key"" TEXT NOT NULL DEFAULT '',
+                        ""Scale"" TEXT NOT NULL DEFAULT '',
+                        ""KeyConfidence"" REAL NOT NULL DEFAULT 0,
+                        ""CamelotKey"" TEXT NOT NULL DEFAULT '',
+                        
+                        -- Sonic Characteristics
+                        ""Energy"" REAL NOT NULL DEFAULT 0,
+                        ""Danceability"" REAL NOT NULL DEFAULT 0,
+                        ""Intensity"" REAL NOT NULL DEFAULT 0,
+                        ""SpectralCentroid"" REAL NOT NULL DEFAULT 0,
+                        ""SpectralComplexity"" REAL NOT NULL DEFAULT 0,
+                        ""OnsetRate"" REAL NOT NULL DEFAULT 0,
+                        ""DynamicComplexity"" REAL NOT NULL DEFAULT 0,
+                        ""LoudnessLUFS"" REAL NOT NULL DEFAULT 0,
+                        
+                        -- Drop Detection & DJ Cues
+                        ""DropTimeSeconds"" REAL NULL,
+                        ""DropConfidence"" REAL NOT NULL DEFAULT 0,
+                        ""CueIntro"" REAL NOT NULL DEFAULT 0,
+                        ""CueBuild"" REAL NULL,
+                        ""CueDrop"" REAL NULL,
+                        ""CuePhraseStart"" REAL NULL,
+                        
+                        -- Forensic Librarian
+                        ""BpmStability"" REAL NOT NULL DEFAULT 1.0,
+                        ""IsDynamicCompressed"" INTEGER NOT NULL DEFAULT 0,
+                        
+                        -- AI Layer (Vibe & Vocals)
+                        ""InstrumentalProbability"" REAL NOT NULL DEFAULT 0,
+                        ""MoodTag"" TEXT NOT NULL DEFAULT '',
+                        ""MoodConfidence"" REAL NOT NULL DEFAULT 0,
+                        
+                        -- EDM Specialist Models
+                        ""Arousal"" REAL NOT NULL DEFAULT 5,
+                        ""Valence"" REAL NOT NULL DEFAULT 5,
+                        ""Sadness"" REAL NULL,
+                        ""VectorEmbedding"" BLOB NULL,
+                        ""ElectronicSubgenre"" TEXT NOT NULL DEFAULT '',
+                        ""ElectronicSubgenreConfidence"" REAL NOT NULL DEFAULT 0,
+                        ""IsDjTool"" INTEGER NOT NULL DEFAULT 0,
+                        ""TonalProbability"" REAL NOT NULL DEFAULT 0.5,
+                        
+                        -- Advanced Harmonic Mixing
+                        ""ChordProgression"" TEXT NOT NULL DEFAULT '',
+                        
+                        -- Identity & Metadata
+                        ""Fingerprint"" TEXT NOT NULL DEFAULT '',
+                        ""AnalysisVersion"" TEXT NOT NULL DEFAULT '',
+                        ""AnalyzedAt"" TEXT NOT NULL,
+                        
+                        -- Sonic Taxonomy (Style Lab)
+                        ""DetectedSubGenre"" TEXT NOT NULL DEFAULT '',
+                        ""SubGenreConfidence"" REAL NOT NULL DEFAULT 0,
+                        ""GenreDistributionJson"" TEXT NOT NULL DEFAULT '{}',
+                        
+                        -- ML.NET Brain
+                        ""AiEmbeddingJson"" TEXT NOT NULL DEFAULT '',
+                        ""PredictedVibe"" TEXT NOT NULL DEFAULT '',
+                        ""PredictionConfidence"" REAL NOT NULL DEFAULT 0,
+                        ""EmbeddingMagnitude"" REAL NOT NULL DEFAULT 0,
+                        
+                        -- Provenance & Reliability
+                        ""CurationConfidence"" INTEGER NOT NULL DEFAULT 0,
+                        ""Source"" INTEGER NOT NULL DEFAULT 0,
+                        ""ProvenanceJson"" TEXT NOT NULL DEFAULT ''
+                    );
+                    CREATE UNIQUE INDEX ""IX_audio_features_TrackUniqueHash"" ON ""audio_features"" (""TrackUniqueHash"");
+                ";
+                await command.ExecuteNonQueryAsync();
+                _logger.LogInformation("✅ AudioFeatures table created successfully");
+            }
+
+            // 1C. AnalysisRuns Table (Phase 21: Analysis Run Tracking)
+            if (!TableExists("analysis_runs"))
+            {
+                _logger.LogInformation("Patching Schema: Creating AnalysisRuns table (Run Tracking & Error Logging)...");
+                command.CommandText = @"
+                    CREATE TABLE ""analysis_runs"" (
+                        ""RunId"" TEXT NOT NULL CONSTRAINT ""PK_analysis_runs"" PRIMARY KEY,
+                        ""TrackUniqueHash"" TEXT NOT NULL,
+                        ""TrackTitle"" TEXT NOT NULL DEFAULT '',
+                        ""FilePath"" TEXT NOT NULL DEFAULT '',
+                        
+                        -- Run Metadata
+                        ""StartedAt"" TEXT NOT NULL,
+                        ""CompletedAt"" TEXT NULL,
+                        ""DurationMs"" INTEGER NOT NULL DEFAULT 0,
+                        
+                        -- Status Tracking
+                        ""Status"" INTEGER NOT NULL DEFAULT 0,
+                        ""RetryAttempt"" INTEGER NOT NULL DEFAULT 0,
+                        ""WorkerThreadId"" INTEGER NOT NULL DEFAULT 0,
+                        
+                        -- Error Handling
+                        ""ErrorMessage"" TEXT NULL,
+                        ""ErrorStackTrace"" TEXT NULL,
+                        ""FailedStage"" TEXT NULL,
+                        
+                        -- Partial Success Tracking
+                        ""WaveformGenerated"" INTEGER NOT NULL DEFAULT 0,
+                        ""FfmpegAnalysisCompleted"" INTEGER NOT NULL DEFAULT 0,
+                        ""EssentiaAnalysisCompleted"" INTEGER NOT NULL DEFAULT 0,
+                        ""DatabaseSaved"" INTEGER NOT NULL DEFAULT 0,
+                        
+                        -- Performance Metrics
+                        ""FfmpegDurationMs"" INTEGER NOT NULL DEFAULT 0,
+                        ""EssentiaDurationMs"" INTEGER NOT NULL DEFAULT 0,
+                        ""DatabaseSaveDurationMs"" INTEGER NOT NULL DEFAULT 0,
+                        
+                        -- Provenance
+                        ""AnalysisVersion"" TEXT NOT NULL DEFAULT '',
+                        ""TriggerSource"" TEXT NOT NULL DEFAULT ''
+                    );
+                    CREATE INDEX ""IX_analysis_runs_TrackUniqueHash"" ON ""analysis_runs"" (""TrackUniqueHash"");
+                    CREATE INDEX ""IX_analysis_runs_Status"" ON ""analysis_runs"" (""Status"");
+                    CREATE INDEX ""IX_analysis_runs_StartedAt"" ON ""analysis_runs"" (""StartedAt"");
+                ";
+                await command.ExecuteNonQueryAsync();
+                _logger.LogInformation("✅ AnalysisRuns table created successfully");
             }
 
             // 2. PlaylistTracks Columns
@@ -359,8 +614,8 @@ public class SchemaMigratorService
             // 5. AudioFeatures Table Columns - Force attempt (table may not exist yet during cold start)
             try
             {
-                _logger.LogInformation("Attempting to add AiEmbeddingJson column to AudioFeatures...");
-                command.CommandText = @"ALTER TABLE ""AudioFeatures"" ADD COLUMN ""AiEmbeddingJson"" TEXT NULL;";
+                _logger.LogInformation("Attempting to add AiEmbeddingJson column to audio_features...");
+                command.CommandText = @"ALTER TABLE ""audio_features"" ADD COLUMN ""AiEmbeddingJson"" TEXT NULL;";
                 await command.ExecuteNonQueryAsync();
                 _logger.LogInformation("✅ AiEmbeddingJson column added successfully");
             }
@@ -385,16 +640,20 @@ public class SchemaMigratorService
                 ("ElectronicSubgenreConfidence", "REAL NOT NULL DEFAULT 0"),
                 ("IsDjTool", "INTEGER NOT NULL DEFAULT 0"),
                 ("TonalProbability", "REAL NOT NULL DEFAULT 0.5"),
-                ("Intensity", "REAL NOT NULL DEFAULT 0")
+                ("Intensity", "REAL NOT NULL DEFAULT 0"),
+                ("AvgPitch", "REAL NULL"),
+                ("PitchConfidence", "REAL NULL"),
+                ("VggishEmbeddingJson", "TEXT NULL DEFAULT ''"),
+                ("VisualizationVectorJson", "TEXT NULL DEFAULT ''")
             };
 
             foreach (var (columnName, columnDef) in edmColumns)
             {
                 try
                 {
-                    command.CommandText = $@"ALTER TABLE ""AudioFeatures"" ADD COLUMN ""{columnName}"" {columnDef};";
+                    command.CommandText = $@"ALTER TABLE ""audio_features"" ADD COLUMN ""{columnName}"" {columnDef};";
                     await command.ExecuteNonQueryAsync();
-                    _logger.LogInformation("✅ Added column {Column} to AudioFeatures", columnName);
+                    _logger.LogInformation("✅ Added column {Column} to audio_features", columnName);
                 }
                 catch (Microsoft.Data.Sqlite.SqliteException ex) when (ex.Message.Contains("duplicate column"))
                 {
@@ -402,12 +661,12 @@ public class SchemaMigratorService
                 }
                 catch (Microsoft.Data.Sqlite.SqliteException ex) when (ex.Message.Contains("no such table"))
                 {
-                    _logger.LogWarning("AudioFeatures table doesn't exist yet, will be created by EF Core");
+                    _logger.LogWarning("audio_features table doesn't exist yet, will be created by EF Core");
                     break; // No point continuing if table doesn't exist
                 }
                 catch (Exception ex)
                 {
-                    _logger.LogWarning(ex, "Failed to add column {Column} to AudioFeatures", columnName);
+                    _logger.LogWarning(ex, "Failed to add column {Column} to audio_features", columnName);
                 }
             }
 
@@ -477,6 +736,118 @@ public class SchemaMigratorService
                     );
                     CREATE INDEX ""IX_GenreCueTemplates_GenreName"" ON ""GenreCueTemplates"" (""GenreName"");
                 ";
+                await command.ExecuteNonQueryAsync();
+            }
+
+            // 9. Phase 20: Smart Playlists (Projects Table)
+            if (TableExists("Projects"))
+            {
+                if (!ColumnExists("Projects", "IsSmartPlaylist"))
+                {
+                    _logger.LogInformation("Patching Schema: Adding IsSmartPlaylist to Projects...");
+                    command.CommandText = @"ALTER TABLE ""Projects"" ADD COLUMN ""IsSmartPlaylist"" INTEGER NOT NULL DEFAULT 0;";
+                    await command.ExecuteNonQueryAsync();
+                }
+                if (!ColumnExists("Projects", "SmartCriteriaJson"))
+                {
+                    _logger.LogInformation("Patching Schema: Adding SmartCriteriaJson to Projects...");
+                    command.CommandText = @"ALTER TABLE ""Projects"" ADD COLUMN ""SmartCriteriaJson"" TEXT NULL;";
+                    await command.ExecuteNonQueryAsync();
+                }
+            }
+
+            // 10. Phase 18.2: Sonic Visualizations
+            if (TableExists("PlaylistTracks"))
+            {
+                if (!ColumnExists("PlaylistTracks", "InstrumentalProbability"))
+                {
+                    _logger.LogInformation("Patching Schema: Adding InstrumentalProbability to PlaylistTracks...");
+                    command.CommandText = @"ALTER TABLE ""PlaylistTracks"" ADD COLUMN ""InstrumentalProbability"" REAL NULL;";
+                    await command.ExecuteNonQueryAsync();
+                }
+                if (!ColumnExists("PlaylistTracks", "Arousal"))
+                {
+                    _logger.LogInformation("Patching Schema: Adding Arousal to PlaylistTracks...");
+                    command.CommandText = @"ALTER TABLE ""PlaylistTracks"" ADD COLUMN ""Arousal"" REAL NULL;";
+                    await command.ExecuteNonQueryAsync();
+                }
+            }
+            if (TableExists("LibraryEntries"))
+            {
+                if (!ColumnExists("LibraryEntries", "InstrumentalProbability"))
+                {
+                    _logger.LogInformation("Patching Schema: Adding InstrumentalProbability to LibraryEntries...");
+                    command.CommandText = @"ALTER TABLE ""LibraryEntries"" ADD COLUMN ""InstrumentalProbability"" REAL NULL;";
+                    await command.ExecuteNonQueryAsync();
+                }
+                if (!ColumnExists("LibraryEntries", "Arousal"))
+                {
+                    _logger.LogInformation("Patching Schema: Adding Arousal to LibraryEntries...");
+                    command.CommandText = @"ALTER TABLE ""LibraryEntries"" ADD COLUMN ""Arousal"" REAL NULL;";
+                    await command.ExecuteNonQueryAsync();
+                }
+            }
+            if (TableExists("audio_features"))
+            {
+                if (!ColumnExists("audio_features", "InstrumentalProbability"))
+                {
+                    _logger.LogInformation("Patching Schema: Adding InstrumentalProbability to audio_features...");
+                    command.CommandText = @"ALTER TABLE ""audio_features"" ADD COLUMN ""InstrumentalProbability"" REAL NULL;";
+                    await command.ExecuteNonQueryAsync();
+                }
+                if (!ColumnExists("audio_features", "Arousal"))
+                {
+                    _logger.LogInformation("Patching Schema: Adding Arousal to audio_features...");
+                    command.CommandText = @"ALTER TABLE ""audio_features"" ADD COLUMN ""Arousal"" REAL NULL;";
+                    await command.ExecuteNonQueryAsync();
+                }
+            }
+
+            // 11. Phase 21: Smart Enrichment Retry System
+            if (TableExists("PlaylistTracks"))
+            {
+                if (!ColumnExists("PlaylistTracks", "LastEnrichmentAttempt"))
+                {
+                    _logger.LogInformation("Patching Schema: Adding LastEnrichmentAttempt to PlaylistTracks...");
+                    command.CommandText = @"ALTER TABLE ""PlaylistTracks"" ADD COLUMN ""LastEnrichmentAttempt"" TEXT NULL;";
+                    await command.ExecuteNonQueryAsync();
+                }
+                if (!ColumnExists("PlaylistTracks", "EnrichmentAttempts"))
+                {
+                    _logger.LogInformation("Patching Schema: Adding EnrichmentAttempts to PlaylistTracks...");
+                    command.CommandText = @"ALTER TABLE ""PlaylistTracks"" ADD COLUMN ""EnrichmentAttempts"" INTEGER NOT NULL DEFAULT 0;";
+                    await command.ExecuteNonQueryAsync();
+                }
+            }
+            if (TableExists("LibraryEntries"))
+            {
+                if (!ColumnExists("LibraryEntries", "LastEnrichmentAttempt"))
+                {
+                    _logger.LogInformation("Patching Schema: Adding LastEnrichmentAttempt to LibraryEntries...");
+                    command.CommandText = @"ALTER TABLE ""LibraryEntries"" ADD COLUMN ""LastEnrichmentAttempt"" TEXT NULL;";
+                    await command.ExecuteNonQueryAsync();
+                }
+                if (!ColumnExists("LibraryEntries", "EnrichmentAttempts"))
+                {
+                    _logger.LogInformation("Patching Schema: Adding EnrichmentAttempts to LibraryEntries...");
+                    command.CommandText = @"ALTER TABLE ""LibraryEntries"" ADD COLUMN ""EnrichmentAttempts"" INTEGER NOT NULL DEFAULT 0;";
+                    await command.ExecuteNonQueryAsync();
+                }
+            }
+
+            // 12. Phase 23: Smart Crates
+            if (!TableExists("smart_crate_definitions"))
+            {
+                _logger.LogInformation("Patching Schema: Creating smart_crate_definitions table...");
+                command.CommandText = @"
+                    CREATE TABLE IF NOT EXISTS ""smart_crate_definitions"" (
+                        ""Id"" TEXT PRIMARY KEY,
+                        ""Name"" TEXT NOT NULL,
+                        ""RulesJson"" TEXT NOT NULL,
+                        ""SortOrder"" INTEGER NOT NULL,
+                        ""CreatedAt"" TEXT NOT NULL,
+                        ""UpdatedAt"" TEXT NOT NULL
+                    );";
                 await command.ExecuteNonQueryAsync();
             }
 

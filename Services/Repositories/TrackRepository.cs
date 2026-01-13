@@ -122,7 +122,8 @@ public class TrackRepository : ITrackRepository
     {
         using var context = new AppDbContext();
         return await context.PlaylistTracks
-            .Include(t => t.TechnicalDetails) // FIX: Load waveform band data
+            .Include(t => t.TechnicalDetails) 
+            .Include(t => t.AudioFeatures) // Phase 21: Eager load Brain data
             .Where(t => t.PlaylistId == playlistId)
             .OrderBy(t => t.SortOrder)
             .ToListAsync();
@@ -131,7 +132,9 @@ public class TrackRepository : ITrackRepository
     public async Task<PlaylistTrackEntity?> GetPlaylistTrackByHashAsync(Guid playlistId, string hash)
     {
         using var context = new AppDbContext();
-        return await context.PlaylistTracks.FirstOrDefaultAsync(t => t.PlaylistId == playlistId && t.TrackUniqueHash == hash);
+        return await context.PlaylistTracks
+            .Include(t => t.AudioFeatures)
+            .FirstOrDefaultAsync(t => t.PlaylistId == playlistId && t.TrackUniqueHash == hash);
     }
 
     public async Task SavePlaylistTrackAsync(PlaylistTrackEntity track)
@@ -163,11 +166,62 @@ public class TrackRepository : ITrackRepository
         return await context.PlaylistTracks.ToListAsync();
     }
 
+    public async Task<int> GetPlaylistTrackCountAsync(Guid playlistId, string? filter = null, bool? downloadedOnly = null)
+    {
+        using var context = new AppDbContext();
+        var query = context.PlaylistTracks.AsQueryable();
+        if (playlistId != Guid.Empty)
+        {
+            query = query.Where(t => t.PlaylistId == playlistId);
+        }
+        query = ApplyFilters(query, filter, downloadedOnly);
+        return await query.CountAsync();
+    }
+
+    public async Task<List<PlaylistTrackEntity>> GetPagedPlaylistTracksAsync(Guid playlistId, int skip, int take, string? filter = null, bool? downloadedOnly = null)
+    {
+        using var context = new AppDbContext();
+        var query = context.PlaylistTracks
+            .Include(t => t.TechnicalDetails)
+            .Include(t => t.AudioFeatures)
+            .AsQueryable();
+            
+        if (playlistId != Guid.Empty)
+        {
+            query = query.Where(t => t.PlaylistId == playlistId);
+        }
+            
+        query = ApplyFilters(query, filter, downloadedOnly);
+        
+        return await query
+            .OrderBy(t => t.SortOrder)
+            .Skip(skip)
+            .Take(take)
+            .ToListAsync();
+    }
+
+    private IQueryable<PlaylistTrackEntity> ApplyFilters(IQueryable<PlaylistTrackEntity> query, string? filter, bool? downloadedOnly)
+    {
+        if (!string.IsNullOrEmpty(filter))
+        {
+            var lowerFilter = filter.ToLower();
+            query = query.Where(t => t.Artist.ToLower().Contains(lowerFilter) || t.Title.ToLower().Contains(lowerFilter));
+        }
+        if (downloadedOnly == true)
+        {
+            query = query.Where(t => t.Status == TrackStatus.Downloaded);
+        }
+        return query;
+    }
+
     public async Task<List<LibraryEntryEntity>> GetLibraryEntriesNeedingEnrichmentAsync(int limit)
     {
         using var context = new AppDbContext();
+        var cooldownDate = DateTime.UtcNow.AddHours(-4).ToString("O");
+        
         return await context.LibraryEntries
-            .Where(e => !e.IsEnriched && e.SpotifyTrackId == null)
+            .Where(e => !e.IsEnriched && e.SpotifyTrackId == null && 
+                       (e.LastEnrichmentAttempt == null || e.LastEnrichmentAttempt.CompareTo(cooldownDate) < 0))
             .OrderByDescending(e => e.AddedAt)
             .Take(limit)
             .ToListAsync();
@@ -182,6 +236,10 @@ public class TrackRepository : ITrackRepository
             var existing = await context.LibraryEntries.FindAsync(uniqueHash);
             if (existing != null)
             {
+                // Phase 21: Smart Retry - Track attempts and timestamp
+                existing.EnrichmentAttempts = existing.EnrichmentAttempts + 1;
+                existing.LastEnrichmentAttempt = DateTime.UtcNow.ToString("O");
+                
                 if (result.Success)
                 {
                     existing.SpotifyTrackId = result.SpotifyId;
@@ -202,30 +260,31 @@ public class TrackRepository : ITrackRepository
                         if (!string.IsNullOrEmpty(result.DetectedSubGenre)) existing.DetectedSubGenre = result.DetectedSubGenre;
                         if (result.SubGenreConfidence > 0) existing.SubGenreConfidence = result.SubGenreConfidence;
                     }
+                    
+                    // Reset retry tracking on success
+                    existing.EnrichmentAttempts = 0;
+                    existing.LastEnrichmentAttempt = null;
                 }
                 else
                 {
-                     // Mark as failed to prevent infinite retry loop
-                    existing.SpotifyTrackId = "FAILED";
-                    _logger.LogWarning("Marking LibraryEntry {Hash} as Enrichment FAILED", uniqueHash);
+                    // Phase 21: Only mark as permanently FAILED after max attempts (5)
+                    const int MaxAttempts = 5;
+                    if (existing.EnrichmentAttempts >= MaxAttempts)
+                    {
+                        existing.SpotifyTrackId = "FAILED";
+                        existing.IsEnriched = true; // Stop retrying
+                        _logger.LogWarning("Marking LibraryEntry {Hash} as permanently FAILED after {Attempts} attempts", uniqueHash, existing.EnrichmentAttempts);
+                    }
+                    else
+                    {
+                        _logger.LogInformation("LibraryEntry {Hash} enrichment failed (attempt {Attempt}/{Max}), will retry after cooldown", 
+                            uniqueHash, existing.EnrichmentAttempts, MaxAttempts);
+                    }
                 }
                 
-                // IMPORTANT: Always mark as enriched if we attempted identification, 
-                // so Stage 1 doesn't pick it up again. If Success=true, Stage 2 (Features) 
-                // will pick it up if IsEnriched is still false.
-                // Wait, if I set IsEnriched = true here, Stage 2 will SKIP it.
-                // So if Success=true, we should only set IsEnriched = true if we actually GOT the features.
-                // But if Success=false, we MUST set IsEnriched = true to stop the loop.
+                // Stage 2 (Features) is removed, so identification success is enough to mark as Enriched
+                existing.IsEnriched = result.Success || (existing.SpotifyTrackId == "FAILED");
                 
-                if (!result.Success) 
-                {
-                    existing.IsEnriched = true;
-                }
-                else if (result.Bpm > 0)
-                {
-                    existing.IsEnriched = true;
-                }
-
                 existing.LastUsedAt = DateTime.UtcNow;
                 await context.SaveChangesAsync();
             }
@@ -239,8 +298,11 @@ public class TrackRepository : ITrackRepository
     public async Task<List<PlaylistTrackEntity>> GetPlaylistTracksNeedingEnrichmentAsync(int limit)
     {
         using var context = new AppDbContext();
+        var cooldownDate = DateTime.UtcNow.AddHours(-4).ToString("O");
+
         return await context.PlaylistTracks
-            .Where(e => !e.IsEnriched && e.SpotifyTrackId == null)
+            .Where(e => !e.IsEnriched && e.SpotifyTrackId == null &&
+                       (e.LastEnrichmentAttempt == null || e.LastEnrichmentAttempt.CompareTo(cooldownDate) < 0))
             .OrderByDescending(e => e.AddedAt)
             .Take(limit)
             .ToListAsync();
@@ -255,6 +317,10 @@ public class TrackRepository : ITrackRepository
             var track = await context.PlaylistTracks.FindAsync(id);
             if (track != null)
             {
+                // Phase 21: Smart Retry - Track attempts and timestamp
+                track.EnrichmentAttempts = track.EnrichmentAttempts + 1;
+                track.LastEnrichmentAttempt = DateTime.UtcNow.ToString("O");
+                
                 if (result.Success)
                 {
                     track.SpotifyTrackId = result.SpotifyId;
@@ -274,100 +340,36 @@ public class TrackRepository : ITrackRepository
                         if (!string.IsNullOrEmpty(result.DetectedSubGenre)) track.DetectedSubGenre = result.DetectedSubGenre;
                         if (result.SubGenreConfidence > 0) track.SubGenreConfidence = result.SubGenreConfidence;
                     }
+                    
+                    // Reset retry tracking on success
+                    track.EnrichmentAttempts = 0;
+                    track.LastEnrichmentAttempt = null;
                 }
                 else
                 {
-                    // Mark as failed to prevent infinite retry loop
-                    track.SpotifyTrackId = "FAILED";
-                    _logger.LogWarning("Marking PlaylistTrack {Id} as Enrichment FAILED", id);
+                    // Phase 21: Only mark as permanently FAILED after max attempts (5)
+                    const int MaxAttempts = 5;
+                    if (track.EnrichmentAttempts >= MaxAttempts)
+                    {
+                        track.SpotifyTrackId = "FAILED";
+                        track.IsEnriched = true; // Stop retrying
+                        _logger.LogWarning("Marking PlaylistTrack {Id} as permanently FAILED after {Attempts} attempts", id, track.EnrichmentAttempts);
+                    }
+                    else
+                    {
+                        _logger.LogInformation("PlaylistTrack {Id} enrichment failed (attempt {Attempt}/{Max}), will retry after cooldown", 
+                            id, track.EnrichmentAttempts, MaxAttempts);
+                    }
                 }
 
                 // If identification failed, mark as enriched to stop the cycle.
                 // If it succeeded but we don't have features yet, Stage 2 will pick it up (IsEnriched is still false).
-                if (!result.Success || result.Bpm > 0)
-                {
-                    track.IsEnriched = true;
-                }
+                // If Success=true, Stage 2 (Features) will pick it up because SpotifyTrackId is not null but IsEnriched is false.
+                // We DON'T set IsEnriched=true here unless we truly have features or reached MaxAttempts.
+                track.IsEnriched = (result.Success && result.Bpm > 0) || (track.SpotifyTrackId == "FAILED");
                 
                 await context.SaveChangesAsync();
             }
-        }
-        finally
-        {
-            _writeSemaphore.Release();
-        }
-    }
-
-    public async Task<List<LibraryEntryEntity>> GetLibraryEntriesNeedingFeaturesAsync(int limit)
-    {
-        using var context = new AppDbContext();
-        return await context.LibraryEntries
-            .Where(e => e.SpotifyTrackId != null && !e.IsEnriched)
-            .OrderByDescending(e => e.AddedAt)
-            .Take(limit)
-            .ToListAsync();
-    }
-
-    public async Task<List<PlaylistTrackEntity>> GetPlaylistTracksNeedingFeaturesAsync(int limit)
-    {
-        using var context = new AppDbContext();
-        return await context.PlaylistTracks
-            .Where(e => e.SpotifyTrackId != null && !e.IsEnriched)
-            .OrderByDescending(e => e.AddedAt)
-            .Take(limit)
-            .ToListAsync();
-    }
-    public async Task UpdateLibraryEntriesFeaturesAsync(Dictionary<string, SpotifyAPI.Web.TrackAudioFeatures> featuresMap)
-    {
-        await _writeSemaphore.WaitAsync();
-        try
-        {
-            using var context = new AppDbContext();
-            var ids = featuresMap.Keys.ToList();
-            
-            // 1. Update Library Entries
-            var entries = await context.LibraryEntries
-                .Where(e => e.SpotifyTrackId != null && ids.Contains(e.SpotifyTrackId))
-                .ToListAsync();
-
-            foreach (var entry in entries)
-            {
-                if (entry.SpotifyTrackId != null && featuresMap.TryGetValue(entry.SpotifyTrackId, out var f))
-                {
-                    entry.BPM = f.Tempo;
-                    entry.Energy = f.Energy;
-                    entry.Valence = f.Valence;
-                    entry.Danceability = f.Danceability;
-                    
-                    var camelotNum = (f.Key + 7) % 12 + 1;
-                    entry.MusicalKey = $"{camelotNum}{(f.Mode == 1 ? "B" : "A")}";
-                    
-                    entry.IsEnriched = true;
-                }
-            }
-
-            // 2. Update Playlist Tracks (Intelligence Sync)
-            var pTracks = await context.PlaylistTracks
-                .Where(e => e.SpotifyTrackId != null && ids.Contains(e.SpotifyTrackId))
-                .ToListAsync();
-
-            foreach (var pt in pTracks)
-            {
-                if (pt.SpotifyTrackId != null && featuresMap.TryGetValue(pt.SpotifyTrackId, out var f))
-                {
-                    pt.BPM = f.Tempo;
-                    pt.Energy = f.Energy;
-                    pt.Valence = f.Valence;
-                    pt.Danceability = f.Danceability;
-                    
-                    var camelotNum = (f.Key + 7) % 12 + 1;
-                    pt.MusicalKey = $"{camelotNum}{(f.Mode == 1 ? "B" : "A")}";
-                    
-                    pt.IsEnriched = true;
-                }
-            }
-            
-            await context.SaveChangesAsync();
         }
         finally
         {

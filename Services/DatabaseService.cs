@@ -232,14 +232,12 @@ public class DatabaseService
     public async Task<LibraryEntryEntity?> FindLibraryEntryAsync(string uniqueHash)
     {
         using var context = new AppDbContext();
-        return await context.LibraryEntries.FindAsync(uniqueHash);
+        return await context.LibraryEntries
+            .Include(e => e.AudioFeatures)
+            .FirstOrDefaultAsync(e => e.UniqueHash == uniqueHash);
     }
 
-    public async Task<List<LibraryEntryEntity>> LoadAllLibraryEntriesAsync()
-    {
-        using var context = new AppDbContext();
-        return await context.LibraryEntries.AsNoTracking().ToListAsync();
-    }
+
 
     public async Task SaveLibraryEntryAsync(LibraryEntryEntity entry)
     {
@@ -286,7 +284,9 @@ public class DatabaseService
     public async Task<LibraryEntryEntity?> GetLibraryEntryAsync(Guid id)
     {
         using var context = new AppDbContext();
-        return await context.LibraryEntries.FirstOrDefaultAsync(e => e.Id == id);
+        return await context.LibraryEntries
+            .Include(e => e.AudioFeatures)
+            .FirstOrDefaultAsync(e => e.Id == id);
     }
 
     /// <summary>
@@ -342,20 +342,6 @@ public class DatabaseService
         await _trackRepository.UpdatePlaylistTrackEnrichmentAsync(id, result);
     }
 
-    public async Task<List<LibraryEntryEntity>> GetLibraryEntriesNeedingFeaturesAsync(int limit)
-    {
-        return await _trackRepository.GetLibraryEntriesNeedingFeaturesAsync(limit);
-    }
-
-    public async Task<List<PlaylistTrackEntity>> GetPlaylistTracksNeedingFeaturesAsync(int limit)
-    {
-        return await _trackRepository.GetPlaylistTracksNeedingFeaturesAsync(limit);
-    }
-
-    public async Task UpdateLibraryEntriesFeaturesAsync(Dictionary<string, SpotifyAPI.Web.TrackAudioFeatures> featuresMap)
-    {
-        await _trackRepository.UpdateLibraryEntriesFeaturesAsync(featuresMap);
-    }
 
 
     // ===== PlaylistJob Methods =====
@@ -452,6 +438,16 @@ public class DatabaseService
     public async Task<List<PlaylistTrackEntity>> LoadPlaylistTracksAsync(Guid jobId)
     {
         return await _trackRepository.LoadPlaylistTracksAsync(jobId);
+    }
+
+    public async Task<int> GetPlaylistTrackCountAsync(Guid playlistId, string? filter = null, bool? downloadedOnly = null)
+    {
+        return await _trackRepository.GetPlaylistTrackCountAsync(playlistId, filter, downloadedOnly);
+    }
+
+    public async Task<List<PlaylistTrackEntity>> GetPagedPlaylistTracksAsync(Guid playlistId, int skip, int take, string? filter = null, bool? downloadedOnly = null)
+    {
+        return await _trackRepository.GetPagedPlaylistTracksAsync(playlistId, skip, take, filter, downloadedOnly);
     }
 
     public async Task<PlaylistTrackEntity?> GetPlaylistTrackByHashAsync(Guid jobId, string trackHash)
@@ -578,6 +574,11 @@ public class DatabaseService
                  existingJob.SourceTitle = job.SourceTitle;
                  existingJob.SourceType = job.SourceType;
                  existingJob.IsDeleted = false;
+                 
+                 // Phase 20
+                 existingJob.IsSmartPlaylist = job.IsSmartPlaylist;
+                 existingJob.SmartCriteriaJson = job.SmartCriteriaJson;
+                 
                  context.Projects.Update(existingJob);
             }
             else
@@ -594,7 +595,12 @@ public class DatabaseService
                      SuccessfulCount = job.SuccessfulCount,
                      FailedCount = job.FailedCount,
                      MissingCount = job.MissingCount,
-                     IsDeleted = false
+                     // Duplicates removed
+                     IsDeleted = false,
+                     
+                     // Phase 20
+                     IsSmartPlaylist = job.IsSmartPlaylist,
+                     SmartCriteriaJson = job.SmartCriteriaJson
                  };
                  context.Projects.Add(jobEntity);
                  
@@ -1250,8 +1256,43 @@ public class DatabaseService
     /// </summary>
     public async Task<List<LibraryEntryEntity>> GetAllLibraryEntriesAsync()
     {
-        return await _trackRepository.GetAllLibraryEntriesAsync();
+        using var context = new AppDbContext();
+        // Load *all* entries, no filtering (for Global Index)
+        return await context.LibraryEntries
+            .AsNoTracking()
+            .Include(e => e.AudioFeatures) // Phase 21: Eager load Brain data
+            .ToListAsync()
+            .ConfigureAwait(false);
     }
+
+    public async Task<List<LibraryEntryEntity>> GetLibraryEntriesByHashesAsync(List<string> hashes)
+    {
+        if (hashes == null || !hashes.Any()) return new List<LibraryEntryEntity>();
+        
+        using var context = new AppDbContext();
+        // Chunk requests to avoid SQL parameter limits
+        var results = new List<LibraryEntryEntity>();
+        var chunks = hashes.Chunk(500);
+        
+        foreach (var chunk in chunks)
+        {
+            var chunkList = chunk.ToList();
+            var entries = await context.LibraryEntries.AsNoTracking()
+                .Include(e => e.AudioFeatures) // Phase 21: Eager load Brain data
+                .Where(e => chunkList.Contains(e.UniqueHash))
+                .ToListAsync()
+                .ConfigureAwait(false);
+            results.AddRange(entries);
+        }
+        
+        return results;
+    }
+
+    public async Task<List<LibraryEntryEntity>> SearchLibraryEntriesWithStatusAsync_Renamed(string query, int limit = 50)
+    {
+        return await _trackRepository.GetLibraryEntriesNeedingGenresAsync(limit);
+    }
+
     // ===== Genre Enrichment Methods (Stage 3) =====
 
     public async Task<List<LibraryEntryEntity>> GetLibraryEntriesNeedingGenresAsync(int limit)

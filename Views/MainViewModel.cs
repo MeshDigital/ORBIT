@@ -41,6 +41,8 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
     private readonly IFileInteractionService _fileInteractionService;
     private readonly AnalysisQueueService _analysisQueue;
     private readonly NativeDependencyHealthService _dependencyHealthService; // Phase 10.5
+    private readonly IDialogService _dialogService;
+    private readonly ILibraryService _libraryService;
 
     // Child ViewModels
     public PlayerViewModel PlayerViewModel { get; }
@@ -52,6 +54,10 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
     public StatusBarViewModel StatusBar { get; }
     public AnalysisQueueViewModel AnalysisQueueViewModel { get; }
     public BulkOperationViewModel BulkOperationViewModel { get; }
+    
+    // Phase 24: Stem Workspace
+    public ViewModels.Stem.StemWorkspaceViewModel StemWorkspaceViewModel { get; }
+
 
     public event PropertyChangedEventHandler? PropertyChanged;
 
@@ -95,7 +101,11 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
         AnalysisQueueService analysisQueue,
         AnalysisQueueViewModel analysisQueueViewModel,
         BulkOperationViewModel bulkOperationViewModel,
-        NativeDependencyHealthService dependencyHealthService)
+        NativeDependencyHealthService dependencyHealthService,
+        IDialogService dialogService,
+        ILibraryService libraryService,
+        ViewModels.Stem.StemWorkspaceViewModel stemWorkspaceViewModel)
+
     {
         _logger = logger;
         _config = config;
@@ -112,6 +122,8 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
         _spotifyMetadata = spotifyMetadata;
         _spotifyAuth = spotifyAuth;
         _analysisQueue = analysisQueue;
+        _dialogService = dialogService;
+        _libraryService = libraryService;
 
         PlayerViewModel = playerViewModel;
         LibraryViewModel = libraryViewModel;
@@ -123,6 +135,8 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
         
         AnalysisQueueViewModel = analysisQueueViewModel;
         BulkOperationViewModel = bulkOperationViewModel;
+        StemWorkspaceViewModel = stemWorkspaceViewModel;
+
 
         // Initialize commands
         NavigateHomeCommand = new RelayCommand(NavigateToHome); // Phase 6D
@@ -140,7 +154,12 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
         ZoomInCommand = new RelayCommand(ZoomIn);
         ZoomOutCommand = new RelayCommand(ZoomOut);
         ResetZoomCommand = new RelayCommand(ResetZoom);
+        ResetZoomCommand = new RelayCommand(ResetZoom);
         ToggleAnalysisPauseCommand = new RelayCommand(ToggleAnalysisPause);
+        
+        // Phase 24: Stem Workspace Toggle
+        ToggleStemWorkspaceCommand = new RelayCommand(() => StemWorkspaceViewModel.IsVisible = !StemWorkspaceViewModel.IsVisible);
+
 
         // Spotify Hub Initialization (TODO: Phase 7 - Implement when needed)
         // Downloads Page Commands
@@ -164,9 +183,7 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
             
         _disposables.Add(_eventBus.GetEvent<AddToProjectRequestEvent>().Subscribe(evt => 
         {
-             // TODO: Phase 6D - Show "Add to Project" Dialog
-             // For now, we can log or show a toast
-             StatusText = $"Request to add '{evt.Track.Title}' to project (Coming Soon)";
+             _ = OnAddToProjectRequested(evt.Tracks);
         }));
         
         // Glass Box Architecture: Analysis Queue Visibility
@@ -190,12 +207,21 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
                 NavigateAnalysisQueue();
                 
                 // 2. Open the specific track in Lab Mode
-                this.AnalysisQueueViewModel.OpenTrackInLab(evt.TrackHash);
+                _ = this.AnalysisQueueViewModel.OpenTrackInLab(evt.TrackHash);
             });
         }));
 
-        
-        // Fix #2: Startup State Sync - prevent "ghost queue" race condition
+        // Phase 24: Stem Workspace Navigation
+        _disposables.Add(_eventBus.GetEvent<OpenStemWorkspaceRequestEvent>().Subscribe(evt =>
+        {
+            Dispatcher.UIThread.Post(() =>
+            {
+               // Show Workspace Overlay
+               StemWorkspaceViewModel.IsVisible = true;
+               // Load the requested track
+               _ = StemWorkspaceViewModel.LoadTrackAsync(evt.TrackGlobalId);
+            });
+        }));
         // Sync initial state in case events fired before subscription
         AnalysisQueueCount = _analysisQueue.QueuedCount;
         AnalysisProcessedCount = _analysisQueue.ProcessedCount;
@@ -571,6 +597,8 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
     public ICommand ToggleAnalysisPauseCommand { get; }
     public ICommand ExecuteBrainTestCommand { get; }
     public ICommand RetryAllFailedDownloadsCommand { get; }
+    public ICommand ToggleStemWorkspaceCommand { get; }
+
     
     // Downloads Page Commands
     public ICommand PauseAllDownloadsCommand { get; }
@@ -895,5 +923,50 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
         string action = IsAnalysisPaused ? "paused" : "resumed";
         StatusText = $"Analysis queue {action}";
         _logger.LogInformation("Analysis queue {Action} by user", action);
+    }
+
+    private async Task OnAddToProjectRequested(IEnumerable<PlaylistTrack> tracks)
+    {
+        try
+        {
+            var trackList = tracks.ToList();
+            if (!trackList.Any()) return;
+
+            _logger.LogInformation("Showing project picker for {Count} tracks", trackList.Count);
+
+            // 1. Load all projects
+            var projects = await _libraryService.LoadAllPlaylistJobsAsync();
+            
+            // Filter out "All Tracks" (Guid.Empty) if it's in the list
+            projects = projects.Where(p => p.Id != Guid.Empty).ToList();
+
+            if (!projects.Any())
+            {
+                _logger.LogWarning("No projects found to add tracks to");
+                return;
+            }
+
+            // 2. Show Picker
+            var selectedProject = await _dialogService.ShowProjectPickerAsync(projects);
+            if (selectedProject != null)
+            {
+                _logger.LogInformation("Adding tracks to project: {Title}", selectedProject.SourceTitle);
+                
+                // 3. Perform addition
+                await _libraryService.AddTracksToProjectAsync(trackList, selectedProject.Id);
+                
+                // 4. Show success notification
+                string message = trackList.Count == 1 
+                    ? $"Added '{trackList[0].Title}' to '{selectedProject.SourceTitle}'"
+                    : $"Added {trackList.Count} tracks to '{selectedProject.SourceTitle}'";
+                
+                StatusText = message;
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to handle Add to Project request");
+            StatusText = "Failed to add tracks to project";
+        }
     }
 }
