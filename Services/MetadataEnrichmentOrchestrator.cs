@@ -93,8 +93,7 @@ public class MetadataEnrichmentOrchestrator : IDisposable
                 // 3. Execute Logic
                 await ProcessTaskAsync(task);
 
-                // 4. Mark Completed
-                await _taskRepository.MarkCompletedAsync(task.Id);
+                // Note: ProcessTaskAsync handles MarkCompleted/MarkFailed internally
                 
                 // Yield briefly to behave nice in loop
                 await Task.Delay(100, token);
@@ -124,14 +123,22 @@ public class MetadataEnrichmentOrchestrator : IDisposable
                 return;
             }
 
-            // A. Check Settings/Auth
+            // A. Check if track already enriched to prevent infinite loops
+            if (trackEntity.IsEnriched && !string.IsNullOrEmpty(trackEntity.SpotifyTrackId))
+            {
+                _logger.LogDebug("Track {TrackId} already enriched, skipping task {TaskId}", trackEntity.GlobalId, task.Id);
+                await _taskRepository.MarkCompletedAsync(task.Id);
+                return;
+            }
+
+            // B. Check Settings/Auth
             if (!_config.SpotifyUseApi || !_spotifyAuthService.IsAuthenticated)
             {
                 await _taskRepository.MarkCompletedAsync(task.Id); // Skip but mark done to clear queue
                 return;
             }
 
-            // B. Construct Model
+            // C. Construct Model
             var model = new PlaylistTrack
             {
                 TrackUniqueHash = trackEntity.GlobalId,
@@ -176,15 +183,16 @@ public class MetadataEnrichmentOrchestrator : IDisposable
                 // Even if not enriched via Spotify, try auto-tagging if analysis results exist
                 await ApplyAutoTaggingAsync(trackEntity);
                 await _databaseService.SaveTrackAsync(trackEntity);
-                
-                // We still mark task as completed because we tried.
             }
+            
+            // Mark task complete (whether enriched or not, we tried)
+            await _taskRepository.MarkCompletedAsync(task.Id);
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Task execution failed for {TaskId}", task.Id);
             await _taskRepository.MarkFailedAsync(task.Id, ex.Message);
-            throw; // Re-throw to loop handler if needed, or swallow here
+            // Don't re-throw - task is marked failed, let loop continue
         }
     }
 

@@ -67,6 +67,8 @@ public class DownloadManager : INotifyPropertyChanged, IDisposable
     private readonly CancellationTokenSource _globalCts = new();
     private readonly SemaphoreSlim _downloadSemaphore; // Initialized in optimization
     private Task? _processingTask;
+    private readonly object _processingLock = new();
+    public bool IsRunning => _processingTask != null && !_processingTask.IsCompleted;
 
     // STATE MACHINE:
     // WHY: Downloads are long-running stateful operations that can fail mid-flight
@@ -466,7 +468,7 @@ public class DownloadManager : INotifyPropertyChanged, IDisposable
                 // 2. [NEW] Queue Enrichment Tasks for all tracks
                 foreach (var track in job.PlaylistTracks)
                 {
-                    await _enrichmentTaskRepository.QueueTaskAsync(track.Id.ToString(), job.Id);
+                    await _enrichmentTaskRepository.QueueTaskAsync(track.TrackUniqueHash, job.Id);
                 }
                 _logger.LogInformation("Queued enrichment tasks for {Count} tracks", job.PlaylistTracks.Count);
             }
@@ -534,7 +536,7 @@ public class DownloadManager : INotifyPropertyChanged, IDisposable
                         existingCtx.NextRetryTime = null;
                         existingCtx.FailureReason = null;
                         
-                        _ = _enrichmentTaskRepository.QueueTaskAsync(existingCtx.Model.Id.ToString(), existingCtx.Model.PlaylistId);
+                        _ = _enrichmentTaskRepository.QueueTaskAsync(existingCtx.Model.TrackUniqueHash, existingCtx.Model.PlaylistId);
                         queued++; 
                         continue;
                     }
@@ -565,7 +567,7 @@ public class DownloadManager : INotifyPropertyChanged, IDisposable
                 
                 if (ctx.State == PlaylistTrackState.Pending || ctx.State == PlaylistTrackState.Searching)
                 {
-                    _ = _enrichmentTaskRepository.QueueTaskAsync(ctx.Model.Id.ToString(), ctx.Model.PlaylistId);
+                    _ = _enrichmentTaskRepository.QueueTaskAsync(ctx.Model.TrackUniqueHash, ctx.Model.PlaylistId);
                 }
             }
         }
@@ -615,12 +617,12 @@ public class DownloadManager : INotifyPropertyChanged, IDisposable
                     TrackStatus.Downloaded => PlaylistTrackState.Completed,
                     TrackStatus.Failed => PlaylistTrackState.Failed,
                     TrackStatus.Skipped => PlaylistTrackState.Cancelled,
-                    _ => PlaylistTrackState.Pending
+                    _ => PlaylistTrackState.Paused // FORCE PAUSE ON LOAD (User Request)
                 };
                 
                 // Reset transient states
                 if (ctx.State == PlaylistTrackState.Downloading || ctx.State == PlaylistTrackState.Searching)
-                    ctx.State = PlaylistTrackState.Pending;
+                    ctx.State = PlaylistTrackState.Paused; // FORCE PAUSE ON LOAD (User Request)
 
                 _downloads.Add(ctx);
                 
@@ -1056,7 +1058,7 @@ public class DownloadManager : INotifyPropertyChanged, IDisposable
 
     public async Task StartAsync(CancellationToken ct = default)
     {
-        if (_processingTask != null) return;
+        if (IsRunning) return;
 
         _logger.LogInformation("DownloadManager Orchestrator started.");
 

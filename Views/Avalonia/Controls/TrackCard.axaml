@@ -22,8 +22,14 @@
                        Stretch="UniformToFill"/>
                 
                 <!-- Quality Indicator (Overlay Gradient) -->
-                <Border VerticalAlignment="Bottom" Height="40"
-                        Background="LinearGradient(0deg, #CC000000, Transparent)">
+                <Border VerticalAlignment="Bottom" Height="40">
+                    <Border.Background>
+                        <LinearGradientBrush StartPoint="0%,0%" EndPoint="0%,100%">
+                             <!-- Top is transparent, Bottom is Dark (Overlay) -->
+                            <GradientStop Color="Transparent" Offset="0"/>
+                            <GradientStop Color="#CC000000" Offset="1"/>
+                        </LinearGradientBrush>
+                    </Border.Background>
                     <StackPanel Orientation="Horizontal" Margin="8,0" VerticalAlignment="Center" Spacing="8">
                          <Border Background="{Binding QualityColor}" Width="4" Height="4" CornerRadius="2"/>
                          <TextBlock Text="{Binding TechnicalSummary}" FontSize="10" Foreground="White" Opacity="0.8"/>

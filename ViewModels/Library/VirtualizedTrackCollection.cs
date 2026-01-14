@@ -9,6 +9,7 @@ using System.Threading.Tasks;
 using SLSKDONET.Models;
 using SLSKDONET.Services;
 using Avalonia.Threading;
+using Microsoft.Extensions.Logging;
 
 namespace SLSKDONET.ViewModels.Library;
 
@@ -16,8 +17,9 @@ namespace SLSKDONET.ViewModels.Library;
 /// A collection that virtualizes data by loading tracks in pages from the database.
 /// Optimized for large libraries (50k+ tracks).
 /// </summary>
-public class VirtualizedTrackCollection : IList<PlaylistTrackViewModel>, INotifyCollectionChanged, INotifyPropertyChanged, IDisposable
+public class VirtualizedTrackCollection : IList<PlaylistTrackViewModel>, IList, INotifyCollectionChanged, INotifyPropertyChanged, IDisposable
 {
+    private readonly ILogger _logger;
     private readonly ILibraryService _libraryService;
     private readonly IEventBus _eventBus;
     private readonly ArtworkCacheService _artworkCache;
@@ -34,6 +36,7 @@ public class VirtualizedTrackCollection : IList<PlaylistTrackViewModel>, INotify
     public event PropertyChangedEventHandler? PropertyChanged;
 
     public VirtualizedTrackCollection(
+        ILogger logger,
         ILibraryService libraryService,
         IEventBus eventBus,
         ArtworkCacheService artworkCache,
@@ -42,6 +45,7 @@ public class VirtualizedTrackCollection : IList<PlaylistTrackViewModel>, INotify
         bool? downloadedOnly = null,
         int pageSize = 100)
     {
+        _logger = logger;
         _libraryService = libraryService;
         _eventBus = eventBus;
         _artworkCache = artworkCache;
@@ -66,14 +70,12 @@ public class VirtualizedTrackCollection : IList<PlaylistTrackViewModel>, INotify
                 OnPropertyChanged(nameof(Count));
                 // Notify reset so UI binds to the new count
                 CollectionChanged?.Invoke(this, new NotifyCollectionChangedEventArgs(NotifyCollectionChangedAction.Reset));
+                _logger.LogInformation("[VirtualizedTrackCollection] Reset fired after count load: {Count}", _count);
             });
-            
-            // Debug log
-            System.Diagnostics.Debug.WriteLine($"[VirtualizedTrackCollection] Loaded count: {_count} for project {_playlistId}");
         }
         catch (Exception ex)
         {
-            System.Diagnostics.Debug.WriteLine($"[VirtualizedTrackCollection] LoadCountAsync Failed: {ex}");
+            _logger.LogError(ex, "[VirtualizedTrackCollection] LoadCountAsync Failed");
         }
     }
 
@@ -81,7 +83,7 @@ public class VirtualizedTrackCollection : IList<PlaylistTrackViewModel>, INotify
     {
         get
         {
-            if (index < 0 || index >= Count) throw new IndexOutOfRangeException();
+            if (index < 0 || index >= Count) return GetPlaceholder(); // Return placeholder instead of throwing
 
             int pageIndex = index / _pageSize;
             int itemIndex = index % _pageSize;
@@ -95,11 +97,11 @@ public class VirtualizedTrackCollection : IList<PlaylistTrackViewModel>, INotify
             // Trigger async load if not already pending
             if (!_pendingPages.Contains(pageIndex))
             {
-                _ = LoadPageAsync(pageIndex);
+                 // Trace access to see if virtualization is working
+                 _logger.LogDebug("[VirtualizedTrackCollection] Accessing unloaded index {Index} (Page {Page})", index, pageIndex);
+                 _ = LoadPageAsync(pageIndex);
             }
 
-            // Return a placeholder or null (Avalonia ListBox handles null/placeholder rows if configured, 
-            // but usually we want a temporary VM)
             return GetPlaceholder();
         }
         set => throw new NotSupportedException();
@@ -110,9 +112,13 @@ public class VirtualizedTrackCollection : IList<PlaylistTrackViewModel>, INotify
     {
         if (_placeholder == null)
         {
-            // Empty model for placeholder
-            var model = new PlaylistTrack { Title = "Loading...", Artist = "..." };
-            _placeholder = new PlaylistTrackViewModel(model, _eventBus, _libraryService, _artworkCache);
+            _placeholder = new PlaylistTrackViewModel(new PlaylistTrack 
+            { 
+                 Id = Guid.Empty, 
+                 Title = "Loading...", 
+                 Artist = "...",
+                 PlaylistId = _playlistId
+            }, _eventBus, _libraryService, _artworkCache);
         }
         return _placeholder;
     }
@@ -123,7 +129,7 @@ public class VirtualizedTrackCollection : IList<PlaylistTrackViewModel>, INotify
 
         try
         {
-            System.Diagnostics.Debug.WriteLine($"[VirtualizedTrackCollection] Loading page {pageIndex}...");
+            _logger.LogInformation("[VirtualizedTrackCollection] Loading page {PageIndex}...", pageIndex);
             
             int skip = pageIndex * _pageSize;
             var tracks = await _libraryService.GetPagedPlaylistTracksAsync(_playlistId, skip, _pageSize, _filter, _downloadedOnly);
@@ -132,8 +138,8 @@ public class VirtualizedTrackCollection : IList<PlaylistTrackViewModel>, INotify
             
             _pages[pageIndex] = new PageInfo { Items = viewModels, LastAccess = DateTime.UtcNow };
 
-            // Cleanup old pages if cache gets too big
-            if (_pages.Count > 10) 
+            // Cache management
+            if (_pages.Count > 20) 
             {
                 var oldest = _pages.OrderBy(p => p.Value.LastAccess).First();
                 _pages.Remove(oldest.Key);
@@ -141,15 +147,13 @@ public class VirtualizedTrackCollection : IList<PlaylistTrackViewModel>, INotify
 
             await Dispatcher.UIThread.InvokeAsync(() =>
             {
-                System.Diagnostics.Debug.WriteLine($"[VirtualizedTrackCollection] Page {pageIndex} loaded with {viewModels.Count} items. Triggering UI update.");
-                
-                // Force a Reset to ensure all visible items are redrawn/updated
+                // Trigger a Reset to ensure UI re-evaluates all visible items
                 CollectionChanged?.Invoke(this, new NotifyCollectionChangedEventArgs(NotifyCollectionChangedAction.Reset));
             });
         }
         catch (Exception ex)
         {
-            System.Diagnostics.Debug.WriteLine($"[VirtualizedTrackCollection] LoadPageAsync Failed: {ex}");
+            _logger.LogError(ex, "[VirtualizedTrackCollection] LoadPageAsync Failed");
         }
         finally
         {
@@ -158,34 +162,54 @@ public class VirtualizedTrackCollection : IList<PlaylistTrackViewModel>, INotify
     }
 
     public int Count => _count == -1 ? 0 : _count;
-
     public bool IsReadOnly => true;
 
-    /// <summary>
-    /// Returns a subset of items for non-virtualized views to prevent UI freezing.
-    /// </summary>
     public IEnumerable<PlaylistTrackViewModel> GetSubset(int count)
     {
-        // Force load first page if not loaded
-        if (!_pages.ContainsKey(0))
-        {
-             // We can't await here easily, so we rely on the async load to trigger later
-             // For now, return what we have or empty placeholders
-             LoadPageAsync(0).ConfigureAwait(false);
-        }
-        
-        // Return mostly placeholders if not loaded, but this prevents the crash 
-        // by only iterating 'count' times instead of 'Count' times
         for (int i = 0; i < Math.Min(count, Count); i++)
         {
             yield return this[i];
         }
     }
 
+    // IList (non-generic) Implementation
+    object? IList.this[int index] 
+    { 
+        get => this[index]; 
+        set => throw new NotSupportedException(); 
+    }
+    bool IList.IsFixedSize => true;
+    bool IList.IsReadOnly => true;
+    int IList.Add(object? value) => throw new NotSupportedException();
+    void IList.Clear() => throw new NotSupportedException();
+    bool IList.Contains(object? value) => value is PlaylistTrackViewModel vm && Contains(vm);
+    int IList.IndexOf(object? value) => (value is PlaylistTrackViewModel vm) ? IndexOf(vm) : -1;
+    void IList.Insert(int index, object? value) => throw new NotSupportedException();
+    void IList.Remove(object? value) => throw new NotSupportedException();
+    void IList.RemoveAt(int index) => throw new NotSupportedException();
+    
+    // ICollection (non-generic) Implementation
+    void ICollection.CopyTo(Array array, int index)
+    {
+        for (int i = 0; i < Count; i++)
+        {
+            array.SetValue(this[i], index + i);
+        }
+    }
+    bool ICollection.IsSynchronized => false;
+    object ICollection.SyncRoot => this;
+
+    // Generic IList/ICollection/IEnumerable
     public void Add(PlaylistTrackViewModel item) => throw new NotSupportedException();
     public void Clear() => throw new NotSupportedException();
-    public bool Contains(PlaylistTrackViewModel item) => false;
-    public void CopyTo(PlaylistTrackViewModel[] array, int arrayIndex) { }
+    public bool Contains(PlaylistTrackViewModel item) => _pages.Values.Any(p => p.Items.Contains(item));
+    public void CopyTo(PlaylistTrackViewModel[] array, int arrayIndex) 
+    { 
+        for (int i = 0; i < Count && arrayIndex + i < array.Length; i++)
+        {
+             array[arrayIndex + i] = this[i];
+        }
+    }
     public IEnumerator<PlaylistTrackViewModel> GetEnumerator()
     {
         for (int i = 0; i < Count; i++) yield return this[i];
@@ -200,10 +224,7 @@ public class VirtualizedTrackCollection : IList<PlaylistTrackViewModel>, INotify
     {
         foreach (var page in _pages.Values)
         {
-            foreach (var vm in page.Items)
-            {
-                vm.Dispose();
-            }
+            foreach (var vm in page.Items) vm.Dispose();
         }
         _pages.Clear();
     }

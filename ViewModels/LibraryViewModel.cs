@@ -272,6 +272,11 @@ public partial class LibraryViewModel : INotifyPropertyChanged, IDisposable
     public void SetMainViewModel(Views.MainViewModel mainViewModel)
     {
         MainViewModel = mainViewModel;
+        // FIX: Pass reference to child VM so it knows what project is selected
+        if (Tracks != null)
+        {
+            Tracks.SetMainViewModel(mainViewModel);
+        }
     }
 
     public void AddToPlaylist(PlaylistJob targetPlaylist, PlaylistTrackViewModel track)

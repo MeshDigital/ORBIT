@@ -260,13 +260,11 @@
                     
                     <Separator Width="1" Height="16" Background="#444" Margin="8,0"/>
                     
-                    <RadioButton IsChecked="{Binding ViewSettings.ViewMode, Converter={StaticResource EnumToBoolConverter}, ConverterParameter={x:Static models:TrackViewMode.List}}" 
-                                 Command="{Binding SetViewModeCommand}" CommandParameter="{x:Static models:TrackViewMode.List}"
+                    <RadioButton IsChecked="{Binding ViewSettings.ViewMode, Mode=TwoWay, Converter={StaticResource EnumToBoolConverter}, ConverterParameter={x:Static models:TrackViewMode.List}}" 
                                  Classes="icon-button" ToolTip.Tip="List View">
                         <TextBlock Text="≡" FontSize="16"/>
                     </RadioButton>
-                    <RadioButton IsChecked="{Binding ViewSettings.ViewMode, Converter={StaticResource EnumToBoolConverter}, ConverterParameter={x:Static models:TrackViewMode.Cards}}" 
-                                 Command="{Binding SetViewModeCommand}" CommandParameter="{x:Static models:TrackViewMode.Cards}"
+                    <RadioButton IsChecked="{Binding ViewSettings.ViewMode, Mode=TwoWay, Converter={StaticResource EnumToBoolConverter}, ConverterParameter={x:Static models:TrackViewMode.Cards}}" 
                                  Classes="icon-button" ToolTip.Tip="Card View">
                         <TextBlock Text="⠿" FontSize="16"/>
                     </RadioButton>

@@ -52,7 +52,11 @@ public class TrackListViewModel : ReactiveObject, IDisposable
     private IList<PlaylistTrackViewModel> _filteredTracks = new ObservableCollection<PlaylistTrackViewModel>();
     public IList<PlaylistTrackViewModel> FilteredTracks
     {
-        get => _filteredTracks;
+        get
+        {
+             _logger?.LogDebug("FilteredTracks accessed. Type: {Type}", _filteredTracks?.GetType().Name);
+             return _filteredTracks;
+        }
         private set 
         {
             if (_filteredTracks is INotifyCollectionChanged oldCol)
@@ -82,8 +86,21 @@ public class TrackListViewModel : ReactiveObject, IDisposable
     /// A safe subset of tracks (max 50) for non-virtualized views like the Card View.
     /// Prevents UI freezing with large lists.
     /// </summary>
-    public IEnumerable<PlaylistTrackViewModel> LimitedTracks => 
-        (FilteredTracks as VirtualizedTrackCollection)?.GetSubset(50) ?? FilteredTracks.Take(50);
+    /// <summary>
+    /// A safe subset of tracks (max 50) for non-virtualized views like the Card View.
+    /// Prevents UI freezing with large lists.
+    /// </summary>
+    public IEnumerable<PlaylistTrackViewModel> LimitedTracks
+    {
+        get
+        {
+            _logger?.LogInformation("LimitedTracks accessed by UI");
+            var result = (FilteredTracks as VirtualizedTrackCollection)?.GetSubset(50) ?? FilteredTracks.Take(50);
+            var list = result.ToList();
+            _logger?.LogInformation("LimitedTracks returning {Count} items (Subset for CardView)", list.Count);
+            return list;
+        }
+    }
 
     private string _searchText = string.Empty;
     public string SearchText
@@ -559,6 +576,7 @@ public class TrackListViewModel : ReactiveObject, IDisposable
 
             // Set up virtualization
             var virtualized = new VirtualizedTrackCollection(
+                _logger,
                 _libraryService, 
                 _eventBus, 
                 _artworkCache, 
@@ -566,9 +584,18 @@ public class TrackListViewModel : ReactiveObject, IDisposable
                 SearchText, 
                 IsFilterDownloaded ? true : (IsFilterPending ? false : null));
 
+            // Subscribe to update LimitedTracks when data arrives
+            virtualized.CollectionChanged += (s, e) => {
+                 if (e.Action == NotifyCollectionChangedAction.Reset)
+                 {
+                     Dispatcher.UIThread.Post(() => this.RaisePropertyChanged(nameof(LimitedTracks)));
+                 }
+            };
+
             await Dispatcher.UIThread.InvokeAsync(() =>
             {
                 FilteredTracks = virtualized;
+                this.RaisePropertyChanged(nameof(LimitedTracks));
                 _logger.LogInformation("Virtualized collection initialized for project {Title}", job.SourceTitle);
             });
         }
@@ -659,9 +686,6 @@ public class TrackListViewModel : ReactiveObject, IDisposable
 
     public void RefreshFilteredTracks()
     {
-        // For virtualized view, we recreate the collection with the new filters
-        // This is efficient because it only loads the first page.
-        
         var selectedProjectId = _mainViewModel?.LibraryViewModel?.SelectedProject?.Id ?? Guid.Empty;
 
         // Dispose existing virtualized collection if any
@@ -670,7 +694,27 @@ public class TrackListViewModel : ReactiveObject, IDisposable
             existingVtc.Dispose();
         }
 
+        // Phase 23: Logic for In-Memory vs Database Virtualization
+        // If we have CurrentProjectTracks populated (e.g. from a Smart Crate or memory-only list),
+        // and it feels like we should be showing them (no project ID mismatch).
+        if (CurrentProjectTracks.Any() && selectedProjectId != Guid.Empty && CurrentProjectTracks.First().SourceId != selectedProjectId)
+        {
+             // ID Mismatch - use virtualization to reload from the correct project
+             _logger.LogInformation("RefreshFilteredTracks: ID mismatch or project switch detected. Using virtualization.");
+        }
+        else if (CurrentProjectTracks.Any() && selectedProjectId == Guid.Empty)
+        {
+             // Use in-memory tracks (useful for Smart Playlists that aren't DB crates)
+             _logger.LogInformation("RefreshFilteredTracks: Using in-memory tracks (Count: {Count})", CurrentProjectTracks.Count);
+             var filtered = CurrentProjectTracks.Where(FilterTracks).ToList();
+             FilteredTracks = new ObservableCollection<PlaylistTrackViewModel>(filtered);
+             this.RaisePropertyChanged(nameof(LimitedTracks));
+             return;
+        }
+
+        // Standard Path: Virtualization for DB Projects or "All Tracks"
         var virtualized = new VirtualizedTrackCollection(
+            _logger,
             _libraryService, 
             _eventBus, 
             _artworkCache, 
@@ -678,16 +722,18 @@ public class TrackListViewModel : ReactiveObject, IDisposable
             SearchText, 
             IsFilterDownloaded ? true : (IsFilterPending ? false : null));
 
+        virtualized.CollectionChanged += (s, e) => {
+            if (e.Action == NotifyCollectionChangedAction.Reset)
+            {
+                Dispatcher.UIThread.Post(() => this.RaisePropertyChanged(nameof(LimitedTracks)));
+            }
+        };
+
         FilteredTracks = virtualized;
-        
-        // Update limited view for Cards to prevent UI freeze
         this.RaisePropertyChanged(nameof(LimitedTracks));
         
-        _logger.LogDebug("RefreshFilteredTracks (Virtualized): Updated filters for project {Id}", selectedProjectId);
-
-        // Notify Hierarchical (TreeDataGrid) - this still needs a full list or smart hierarchy
-        // For now, let's skip updating hierarchy for All Tracks if it's too huge, or only update with first page
-        // Hierarchical.UpdateTracks(firstPage); // TODO: Hierarchical virtualization
+        _logger.LogInformation("RefreshFilteredTracks (Virtualized): Updated filters for project {Id}. Search='{Search}', DL={DL}, Pend={Pend}", 
+            selectedProjectId, SearchText, IsFilterDownloaded, IsFilterPending);
     }
 
     private bool FilterTracks(object obj)

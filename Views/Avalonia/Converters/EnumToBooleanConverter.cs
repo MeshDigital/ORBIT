@@ -9,7 +9,9 @@ namespace SLSKDONET.Views.Avalonia.Converters
         public object? Convert(object? value, Type targetType, object? parameter, CultureInfo culture)
         {
             if (value == null || parameter == null) return false;
-            return value.Equals(parameter);
+            
+            // Robust check using string representation to handle type mismatches (int vs enum)
+            return value.ToString().Equals(parameter.ToString(), StringComparison.OrdinalIgnoreCase);
         }
 
         public object? ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture)

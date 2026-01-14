@@ -184,6 +184,7 @@ public class PlaylistTrackViewModel : INotifyPropertyChanged, Library.ILibraryNo
             {
                 Model.Artist = value;
                 OnPropertyChanged();
+                OnPropertyChanged(nameof(ArtistName));
             }
         }
     }
@@ -197,6 +198,7 @@ public class PlaylistTrackViewModel : INotifyPropertyChanged, Library.ILibraryNo
             {
                 Model.Title = value;
                 OnPropertyChanged();
+                OnPropertyChanged(nameof(TrackTitle));
             }
         }
     }
@@ -210,6 +212,7 @@ public class PlaylistTrackViewModel : INotifyPropertyChanged, Library.ILibraryNo
             {
                 Model.Album = value;
                 OnPropertyChanged();
+                OnPropertyChanged(nameof(AlbumName));
             }
         }
     }
@@ -301,8 +304,47 @@ public class PlaylistTrackViewModel : INotifyPropertyChanged, Library.ILibraryNo
     public string? DetectedSubGenre => Model.DetectedSubGenre;
     public Avalonia.Media.IBrush VibeColor => Avalonia.Media.Brushes.Gray; // Simplified for now
 
-    public record VibePill(string Icon, string Label, Avalonia.Media.IBrush Color);
-    public IEnumerable<VibePill> VibePills => new List<VibePill>(); // Simplified for now
+    // public record VibePill(string Icon, string Label, Avalonia.Media.IBrush Color); // Moved to VibePillRecord.cs
+
+    // 1. Define the colors (Helper)
+    private static Avalonia.Media.IBrush GetGenreColor(string? genre)
+    {
+        return genre?.ToLower() switch
+        {
+            "techno" => Avalonia.Media.Brushes.MediumPurple,
+            "house" => Avalonia.Media.Brushes.DeepPink,
+            "dnb" or "drum and bass" => Avalonia.Media.Brushes.OrangeRed,
+            "ambient" => Avalonia.Media.Brushes.Teal,
+            "dubstep" => Avalonia.Media.Brushes.Indigo,
+            _ => Avalonia.Media.Brushes.SlateGray
+        };
+    }
+
+    public IEnumerable<VibePill> VibePills
+    {
+        get
+        {
+            var list = new List<VibePill>();
+            if (!string.IsNullOrEmpty(DetectedSubGenre))
+            {
+                 list.Add(new VibePill("🎵", DetectedSubGenre, GetGenreColor(DetectedSubGenre)));
+            }
+
+            // Energy/Mood Pills
+            if (Energy > 0.8) list.Add(new VibePill("⚡", "High Energy", Avalonia.Media.Brushes.Gold));
+            else if (Energy < 0.3 && Energy > 0) list.Add(new VibePill("🌙", "Chill", Avalonia.Media.Brushes.CornflowerBlue));
+
+            if (Valence > 0.7) list.Add(new VibePill("😎", "Positive", Avalonia.Media.Brushes.LimeGreen));
+            else if (Valence < 0.3 && Valence > 0) list.Add(new VibePill("💀", "Dark", Avalonia.Media.Brushes.DarkSlateGray));
+            
+            if (Model.InstrumentalProbability > 0.8)
+            {
+                list.Add(new VibePill("🎤", "Instrumental", Avalonia.Media.Brushes.DarkCyan));
+            }
+
+            return list;
+        }
+    }
 
     public WaveformAnalysisData WaveformData
     {
@@ -356,21 +398,42 @@ public class PlaylistTrackViewModel : INotifyPropertyChanged, Library.ILibraryNo
 
     private async Task CheckStemsAsync()
     {
-        // Check if stems directory exists and has files
-        // For now, assume stems are in a standard location relative to track or in a central cache
-        // StemSeparationService usually handles this.
-        if (string.IsNullOrEmpty(GlobalId)) return;
-        
-        // This is a placeholder for actual service check. 
-        // We'll update this once we have StemSeparationService injected or via EventBus.
-        // For now, we'll try to find a "stems" subfolder
-        try 
+        if (string.IsNullOrEmpty(Model.ResolvedFilePath)) 
         {
-             // We can use the service if it's accessible.
-             // Ideally, ILibraryService or a dedicated StemService should be used.
-             // Let's assume we'll use a message to trigger an update if it's missing.
+            Avalonia.Threading.Dispatcher.UIThread.Post(() => HasStems = false);
+            return;
         }
-        catch { }
+
+        try
+        {
+            await Task.Run(() =>
+            {
+                var trackDir = System.IO.Path.GetDirectoryName(Model.ResolvedFilePath);
+                var trackName = System.IO.Path.GetFileNameWithoutExtension(Model.ResolvedFilePath);
+                
+                if (string.IsNullOrEmpty(trackDir)) return;
+
+                // Strategy A: /Music/Techno/Track.mp3 -> /Music/Techno/Stems/Track/
+                var stemPathA = System.IO.Path.Combine(trackDir, "Stems", trackName);
+                
+                // Strategy B: /Music/Techno/Track.mp3 -> /Music/Techno/Track_Stems/
+                var stemPathB = System.IO.Path.Combine(trackDir, $"{trackName}_Stems");
+                
+                // Strategy C: Check for _stems folder (Legacy)
+                var stemPathC = System.IO.Path.Combine(trackDir, "_stems");
+
+                bool found = (System.IO.Directory.Exists(stemPathA) && System.IO.Directory.GetFiles(stemPathA).Length > 0) || 
+                             (System.IO.Directory.Exists(stemPathB) && System.IO.Directory.GetFiles(stemPathB).Length > 0) ||
+                             (System.IO.Directory.Exists(stemPathC) && System.IO.Directory.GetFiles(stemPathC).Length > 0);
+
+                Avalonia.Threading.Dispatcher.UIThread.Post(() => 
+                {
+                    _hasStems = found;
+                    OnPropertyChanged(nameof(HasStems));
+                });
+            });
+        }
+        catch { /* Fail silently */ }
     }
     // AlbumArtPath and Progress are already present in this class.
 

@@ -19,9 +19,16 @@ public class EnrichmentTaskRepository : IEnrichmentTaskRepository
 
     public async Task QueueTaskAsync(string trackId, Guid? albumId = null)
     {
+        using var context = new AppDbContext();
+        
+        // 1. Check if track is already enriched in the main Tracks table
+        var alreadyEnriched = await context.Tracks
+            .AnyAsync(t => t.GlobalId == trackId && t.IsEnriched && !string.IsNullOrEmpty(t.SpotifyTrackId));
+        
+        if (alreadyEnriched) return;
+
         try
         {
-            using var context = new AppDbContext();
             // Idempotency check: Don't queue if already queued or processing
             var exists = await context.EnrichmentTasks
                 .AnyAsync(t => t.TrackId == trackId && 
