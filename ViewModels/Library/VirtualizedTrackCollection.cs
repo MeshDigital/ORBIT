@@ -56,14 +56,25 @@ public class VirtualizedTrackCollection : IList<PlaylistTrackViewModel>, INotify
 
     private async Task LoadCountAsync()
     {
-        var count = await _libraryService.GetTrackCountAsync(_playlistId, _filter, _downloadedOnly);
-        _count = count;
-        
-        await Dispatcher.UIThread.InvokeAsync(() =>
+        try 
         {
-            OnPropertyChanged(nameof(Count));
-            CollectionChanged?.Invoke(this, new NotifyCollectionChangedEventArgs(NotifyCollectionChangedAction.Reset));
-        });
+            var count = await _libraryService.GetTrackCountAsync(_playlistId, _filter, _downloadedOnly);
+            _count = count;
+            
+            await Dispatcher.UIThread.InvokeAsync(() =>
+            {
+                OnPropertyChanged(nameof(Count));
+                // Notify reset so UI binds to the new count
+                CollectionChanged?.Invoke(this, new NotifyCollectionChangedEventArgs(NotifyCollectionChangedAction.Reset));
+            });
+            
+            // Debug log
+            System.Diagnostics.Debug.WriteLine($"[VirtualizedTrackCollection] Loaded count: {_count} for project {_playlistId}");
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"[VirtualizedTrackCollection] LoadCountAsync Failed: {ex}");
+        }
     }
 
     public PlaylistTrackViewModel this[int index]
@@ -112,6 +123,8 @@ public class VirtualizedTrackCollection : IList<PlaylistTrackViewModel>, INotify
 
         try
         {
+            System.Diagnostics.Debug.WriteLine($"[VirtualizedTrackCollection] Loading page {pageIndex}...");
+            
             int skip = pageIndex * _pageSize;
             var tracks = await _libraryService.GetPagedPlaylistTracksAsync(_playlistId, skip, _pageSize, _filter, _downloadedOnly);
             
@@ -120,7 +133,7 @@ public class VirtualizedTrackCollection : IList<PlaylistTrackViewModel>, INotify
             _pages[pageIndex] = new PageInfo { Items = viewModels, LastAccess = DateTime.UtcNow };
 
             // Cleanup old pages if cache gets too big
-            if (_pages.Count > 10) // Keep ~1000 items in memory
+            if (_pages.Count > 10) 
             {
                 var oldest = _pages.OrderBy(p => p.Value.LastAccess).First();
                 _pages.Remove(oldest.Key);
@@ -128,15 +141,15 @@ public class VirtualizedTrackCollection : IList<PlaylistTrackViewModel>, INotify
 
             await Dispatcher.UIThread.InvokeAsync(() =>
             {
-                // Notify UI that a range of items changed
-                // Avalonia's VirtualizingStackPanel will re-request these items
-                // Notification for the entire page range
-                int startIndex = pageIndex * _pageSize;
-                // Note: NotifyCollectionChangedAction.Replace is often best for single items, 
-                // but for bulk, Reset or individual notifies might be needed.
-                // Modern Avalonia handles Reset gracefully for virtualization.
+                System.Diagnostics.Debug.WriteLine($"[VirtualizedTrackCollection] Page {pageIndex} loaded with {viewModels.Count} items. Triggering UI update.");
+                
+                // Force a Reset to ensure all visible items are redrawn/updated
                 CollectionChanged?.Invoke(this, new NotifyCollectionChangedEventArgs(NotifyCollectionChangedAction.Reset));
             });
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"[VirtualizedTrackCollection] LoadPageAsync Failed: {ex}");
         }
         finally
         {

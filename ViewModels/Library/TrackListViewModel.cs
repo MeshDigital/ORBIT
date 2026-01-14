@@ -53,7 +53,29 @@ public class TrackListViewModel : ReactiveObject, IDisposable
     public IList<PlaylistTrackViewModel> FilteredTracks
     {
         get => _filteredTracks;
-        private set => this.RaiseAndSetIfChanged(ref _filteredTracks, value);
+        private set 
+        {
+            if (_filteredTracks is INotifyCollectionChanged oldCol)
+            {
+                oldCol.CollectionChanged -= OnFilteredTracksChanged;
+            }
+
+            this.RaiseAndSetIfChanged(ref _filteredTracks, value);
+            
+            if (_filteredTracks is INotifyCollectionChanged newCol)
+            {
+                newCol.CollectionChanged += OnFilteredTracksChanged;
+            }
+            
+            this.RaisePropertyChanged(nameof(LimitedTracks));
+        }
+    }
+
+    private void OnFilteredTracksChanged(object? sender, NotifyCollectionChangedEventArgs e)
+    {
+        // When the virtualized collection updates (pages load), we must notify the UI 
+        // that LimitedTracks (Subset) has hypothetically changed so it re-reads the subset.
+        this.RaisePropertyChanged(nameof(LimitedTracks));
     }
     
     /// <summary>
