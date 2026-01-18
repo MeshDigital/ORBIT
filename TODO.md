@@ -2901,6 +2901,27 @@ New helper methods parse the model outputs:
 |-------|---------|
 | `arousal_valence-muse-musicnn-msd-1.pb` | 2D Vibe Map (referenced but not present) |
 
+## 🧠 Musical Brain 2026: Mission Control & Scalability
+
+**Goal**: Transform the analysis system into a world-class, fluid Pro-DJ command center that handles 100k+ tracks with DAW-level visual fidelity.
+
+### Phase 25: Mission Control Modernization
+- [ ] **Forensic Monitor**: "Human-in-the-loop" UI to explain AI rankings and allow manual score overrides for low-confidence detections.
+- [ ] **Glass Engine Dashboard**: Visual "Vibe Clusters" showing real-time batch progress with glowing 60fps animations (Avalonia Composition API).
+- [ ] **Semantic Theming**: Dynamic row colors based on AI Confidence Scores (High Confidence = Green, Review Needed = Amber).
+- [ ] **Command Bar (K-Style)**: `Ctrl+K` palette for operations like "Analyze last import", "Clear failed", or "Boost priority: Bass House".
+- [ ] **Sonic Health Gauge**: UI widget showing % of library with High-Fidelity vs. Low-Fidelity metadata/integrity status.
+
+### Phase 26: Cloud-Scale Performance (100k+ Tracks)
+- [ ] **Virtualization 2.0**: Shimmer loading, asynchronous prefetching, and delta-updates to ensure fluid scrolling in massive libraries.
+- [ ] **Headless Worker**: Decouple `AnalysisQueueService` into a background process that survives main UI crashes.
+- [ ] **Batch Refiner**: Bulk correction UI to "re-bias" AI scores for hundreds of tracks simultaneously.
+
+### Phase 27: Forensic Safety & Feedback
+- [ ] **Forensic Lockdown**: UI "Safe Mode" that auto-throttles heavy AI tasks if CPU load from the Audio Player/ASIO is too high.
+- [ ] **Spectrogram Comparison**: Forensic view to deep-dive into AI detection logic vs. raw spectral signal.
+- [ ] **Haptic/Audio Feedback**: Subtle auditory cues when large analysis batches complete.
+
 ---
 
 ## 🔮 What's Next: Phase 17.1

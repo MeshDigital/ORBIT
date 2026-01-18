@@ -45,6 +45,7 @@ public partial class LibraryViewModel : INotifyPropertyChanged, IDisposable
     private readonly DatabaseService _databaseService;
     private readonly SmartCrateService _smartCrateService;
     private readonly ForensicLabViewModel _forensicLab;
+    private readonly IntelligenceCenterViewModel _intelligenceCenter;
 
     // Infrastructure for Sidebars/Delayed operations
     private System.Threading.Timer? _selectionDebounceTimer;
@@ -144,6 +145,13 @@ public partial class LibraryViewModel : INotifyPropertyChanged, IDisposable
         set { SetProperty(ref _isRemovalHistoryVisible, value); }
     }
 
+    private bool _isForensicLabVisible;
+    public bool IsForensicLabVisible
+    {
+        get => _isForensicLabVisible;
+        set { SetProperty(ref _isForensicLabVisible, value); }
+    }
+
     private readonly PlayerViewModel _playerViewModel;
     public PlayerViewModel PlayerViewModel => _playerViewModel;
     
@@ -188,7 +196,8 @@ public partial class LibraryViewModel : INotifyPropertyChanged, IDisposable
         DatabaseService databaseService,
         SearchFilterViewModel searchFilters,
         SmartCrateService smartCrateService,
-        ForensicLabViewModel forensicLab)
+        ForensicLabViewModel forensicLab,
+        IntelligenceCenterViewModel intelligenceCenter)
     {
         _logger = logger;
         _navigationService = navigationService;
@@ -210,6 +219,7 @@ public partial class LibraryViewModel : INotifyPropertyChanged, IDisposable
         _databaseService = databaseService;
         _smartCrateService = smartCrateService;
         _forensicLab = forensicLab;
+        _intelligenceCenter = intelligenceCenter;
         LibrarySourcesViewModel = librarySourcesViewModel;
 
         Projects = projects;
@@ -219,6 +229,8 @@ public partial class LibraryViewModel : INotifyPropertyChanged, IDisposable
         UpgradeScout = upgradeScout;
         TrackInspector = trackInspector;
         
+        UpgradeScout.CloseRequested += (s, e) => IsUpgradeScoutVisible = false;
+
         InitializeCommands();
 
         // Wire up events

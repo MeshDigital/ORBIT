@@ -40,41 +40,7 @@ public partial class LibraryViewModel
         }
     }
 
-    private bool _isForensicLabVisible;
-    public bool IsForensicLabVisible
-    {
-        get => _isForensicLabVisible;
-        set 
-        {
-             if (SetProperty(ref _isForensicLabVisible, value))
-             {
-                 UpdateWorkspaceFromState();
-             }
-        }
-    }
-
-    private bool _isInspectorOpen;
-    public bool IsInspectorOpen
-    {
-        get => _isInspectorOpen;
-        set 
-        {
-            if (SetProperty(ref _isInspectorOpen, value))
-            {
-                UpdateWorkspaceFromState();
-                OnPropertyChanged(nameof(IsRightPanelVisible));
-                
-                // Auto-dock player to bottom when sidepanel opens
-                if (value && _playerViewModel != null)
-                {
-                    _playerViewModel.CurrentDockLocation = PlayerDockLocation.BottomBar;
-                    _playerViewModel.IsPlayerVisible = true; // Ensure player is visible
-                }
-            }
-        }
-    }
-    
-    public bool IsRightPanelVisible => IsMixHelperVisible || IsInspectorOpen;
+    public bool IsRightPanelVisible => IsMixHelperVisible;
 
     private bool _isDiscoveryLaneVisible;
     public bool IsDiscoveryLaneVisible
@@ -97,6 +63,13 @@ public partial class LibraryViewModel
         set { _isQuickLookVisible = value; OnPropertyChanged(); }
     }
 
+    private bool _isUpgradeScoutVisible;
+    public bool IsUpgradeScoutVisible
+    {
+        get => _isUpgradeScoutVisible;
+        set { _isUpgradeScoutVisible = value; OnPropertyChanged(); }
+    }
+
     private bool _isUpdatingState;
 
     private void UpdateWorkspaceFromState()
@@ -104,17 +77,9 @@ public partial class LibraryViewModel
         if (_isUpdatingState) return;
         _isUpdatingState = true;
 
-        if (IsForensicLabVisible)
-        {
-            CurrentWorkspace = ActiveWorkspace.Forensic;
-        }
-        else if (IsMixHelperVisible && IsInspectorOpen)
+        if (IsMixHelperVisible)
         {
             CurrentWorkspace = ActiveWorkspace.Preparer;
-        }
-        else if (IsInspectorOpen)
-        {
-            CurrentWorkspace = ActiveWorkspace.Analyst;
         }
         else if (IsDiscoveryLaneVisible)
         {
@@ -137,38 +102,30 @@ public partial class LibraryViewModel
         {
             case ActiveWorkspace.Selector:
                 IsMixHelperVisible = false;
-                IsInspectorOpen = false;
-                IsForensicLabVisible = false;
                 IsDiscoveryLaneVisible = false;
                 break;
             case ActiveWorkspace.Analyst:
                 IsMixHelperVisible = false;
-                IsInspectorOpen = true;
-                IsForensicLabVisible = false;
                 IsDiscoveryLaneVisible = true; // Enabled for Analyst too
                 break;
             case ActiveWorkspace.Preparer:
                 IsMixHelperVisible = true;
-                IsInspectorOpen = true;
-                IsForensicLabVisible = false;
                 IsDiscoveryLaneVisible = true;
+                IsForensicLabVisible = false;
                 break;
             case ActiveWorkspace.Forensic:
                 IsMixHelperVisible = false;
-                IsInspectorOpen = false;
-                IsForensicLabVisible = true;
                 IsDiscoveryLaneVisible = false;
+                IsForensicLabVisible = true;
                 
-                // [NEW] Load currently selected track into Forensic Lab
+                // [Operation Glass Console] Opening Forensic workspace now summons the global console
                 if (Tracks.SelectedTracks.FirstOrDefault() is { } selectedTrack)
                 {
-                    _ = _forensicLab.LoadTrackAsync(selectedTrack.GlobalId);
+                    _ = _intelligenceCenter.OpenAsync(selectedTrack.GlobalId, IntelligenceViewState.Console);
                 }
                 break;
             case ActiveWorkspace.Industrial:
                 IsMixHelperVisible = false;
-                IsInspectorOpen = false;
-                IsForensicLabVisible = false;
                 IsDiscoveryLaneVisible = false;
                 break;
         }

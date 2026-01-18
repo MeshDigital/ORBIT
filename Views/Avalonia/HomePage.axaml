@@ -5,6 +5,7 @@
              xmlns:vm="clr-namespace:SLSKDONET.ViewModels"
              xmlns:conv="clr-namespace:SLSKDONET.Converters"
              xmlns:controls="clr-namespace:SLSKDONET.Views.Avalonia.Controls"
+             xmlns:Models="clr-namespace:SLSKDONET.Models"
              mc:Ignorable="d" d:DesignWidth="1200" d:DesignHeight="1000"
              x:Class="SLSKDONET.Views.Avalonia.HomePage"
              x:DataType="vm:HomeViewModel"
@@ -12,6 +13,7 @@
     
     <UserControl.Resources>
         <conv:MatchToColorConverter x:Key="MatchToColorConverter"/>
+        <conv:CountToColorConverter x:Key="CountToColorConverter"/>
     </UserControl.Resources>
     
     <UserControl.Styles>
@@ -26,6 +28,17 @@
         <Style Selector="Border.glass:pointerover">
             <Setter Property="BorderBrush" Value="#404045"/>
             <Setter Property="Background" Value="#222226"/>
+        </Style>
+        <Style Selector="Button.ActionBtnSmall">
+            <Setter Property="Background" Value="#2A2A2E"/>
+            <Setter Property="BorderBrush" Value="#3A3A3E"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Padding" Value="6"/>
+            <Setter Property="CornerRadius" Value="4"/>
+        </Style>
+        <Style Selector="Button.ActionBtnSmall:pointerover">
+            <Setter Property="Background" Value="#3A3A3E"/>
+            <Setter Property="BorderBrush" Value="#00A3FF"/>
         </Style>
     </UserControl.Styles>
 
@@ -49,64 +62,65 @@
                 <Grid ColumnDefinitions="2*,2*,1.5*" RowDefinitions="180">
                     <!-- Library Health Tile -->
                     <Border Grid.Column="0" Classes="glass" Padding="24" Margin="0,0,16,0">
-                        <Grid ColumnDefinitions="*,Auto">
-                            <Grid Grid.Column="0" RowDefinitions="Auto,*,Auto">
-                                <TextBlock Grid.Row="0" Text="LIBRARY PURITY" FontSize="11" FontWeight="Bold" Foreground="#606060" LetterSpacing="1"/>
-                                
-                                <StackPanel Grid.Row="1" VerticalAlignment="Center" Spacing="0">
-                                    <StackPanel Orientation="Horizontal" VerticalAlignment="Bottom">
-                                        <TextBlock Text="{Binding PurityPercent, StringFormat='{}{0:F0}'}" FontSize="48" FontWeight="Black" Foreground="White"/>
-                                        <TextBlock Text="%" FontSize="24" FontWeight="Bold" Foreground="#1DB954" Margin="4,0,0,10" VerticalAlignment="Bottom"/>
+                        <Grid RowDefinitions="Auto,*,Auto">
+                            <TextBlock Grid.Row="0" Text="SONIC HEALTH" FontSize="11" FontWeight="Bold" Foreground="#606060" LetterSpacing="1"/>
+                            
+                            <StackPanel Grid.Row="1" VerticalAlignment="Center" Spacing="10">
+                                <Grid ColumnDefinitions="*,Auto" VerticalAlignment="Bottom">
+                                    <StackPanel Orientation="Horizontal" Spacing="4" VerticalAlignment="Bottom">
+                                        <TextBlock Text="{Binding PurityPercent, StringFormat='{}{0:F1}'}" FontSize="32" FontWeight="Black" Foreground="White"/>
+                                        <TextBlock Text="%" FontSize="16" Foreground="#1DB954" FontWeight="Bold" Margin="0,0,0,6" VerticalAlignment="Bottom"/>
                                     </StackPanel>
-                                    <TextBlock Text="{Binding PurityStatus}" FontSize="13" Foreground="#A0A0A0" FontWeight="SemiBold"/>
-                                </StackPanel>
-                                
-                                <StackPanel Grid.Row="2" Orientation="Horizontal" Spacing="8">
-                                    <Border Background="#1A00A3FF" CornerRadius="6" Padding="8,4" ToolTip.Tip="Gold (FLAC/WAV)">
-                                        <TextBlock Text="{Binding LibraryHealth.GoldCount, StringFormat='{}{0} 🏆', FallbackValue='0'}" 
-                                                   FontSize="11" Foreground="#00A3FF" FontWeight="Bold"/>
-                                    </Border>
-                                    <Border Background="#1A1DB954" CornerRadius="6" Padding="8,4" ToolTip.Tip="Silver (320kbps)">
-                                        <TextBlock Text="{Binding LibraryHealth.SilverCount, StringFormat='{}{0} 🥈', FallbackValue='0'}" 
-                                                   FontSize="11" Foreground="#1DB954" FontWeight="Bold"/>
-                                    </Border>
-                                    <Border Background="#1AFF6B6B" CornerRadius="6" Padding="8,4" ToolTip.Tip="Bronze (Low Quality)">
-                                        <TextBlock Text="{Binding LibraryHealth.BronzeCount, StringFormat='{}{0} 🥉', FallbackValue='0'}" 
-                                                   FontSize="11" Foreground="#FF6B6B" FontWeight="Bold"/>
-                                    </Border>
-                                </StackPanel>
-                            </Grid>
+                                    <TextBlock Grid.Column="1" Text="{Binding PurityStatus}" FontSize="12" Foreground="#808080" VerticalAlignment="Bottom" Margin="0,0,0,6"/>
+                                </Grid>
+
+                                <!-- Segmented Heatmap -->
+                                <Border Height="8" CornerRadius="4" ClipToBounds="True" Background="#2A2A2E">
+                                    <Grid ColumnDefinitions="*,*,*">
+                                        <Border Grid.Column="0" Background="#00A3FF" HorizontalAlignment="Stretch"/>
+                                        <Border Grid.Column="1" Background="#1DB954" HorizontalAlignment="Stretch"/>
+                                        <Border Grid.Column="2" Background="#FF6B6B" HorizontalAlignment="Stretch"/>
+                                    </Grid>
+                                </Border>
+                            </StackPanel>
+                            
+                            <StackPanel Grid.Row="2" Orientation="Horizontal" Spacing="8">
+                                <Button Command="{Binding NavigateLibraryCommand}" Classes="ActionBtnSmall" Padding="8,4">
+                                    <TextBlock Text="{Binding LibraryHealth.GoldCount, StringFormat='{}{0} 🏆'}" FontSize="10" Foreground="#00A3FF" FontWeight="Bold"/>
+                                </Button>
+                                <Button Command="{Binding NavigateLibraryCommand}" Classes="ActionBtnSmall" Padding="8,4">
+                                    <TextBlock Text="{Binding LibraryHealth.SilverCount, StringFormat='{}{0} 🥈'}" FontSize="10" Foreground="#1DB954" FontWeight="Bold"/>
+                                </Button>
+                                <Button Command="{Binding UpgradeBronzeCommand}" Classes="ActionBtnSmall" Padding="8,4" BorderBrush="#FF6B6B">
+                                    <TextBlock Text="{Binding LibraryHealth.BronzeCount, StringFormat='{}{0} 🥉'}" FontSize="10" Foreground="#FF6B6B" FontWeight="Bold"/>
+                                </Button>
+                            </StackPanel>
                         </Grid>
                     </Border>
                     
-                    <!-- Active Missions (Air Traffic Control) Widget -->
+                    <!-- Active Missions Widget -->
                     <Border Grid.Column="1" Classes="glass" Padding="20" Margin="0,0,16,0">
                         <Grid RowDefinitions="Auto,*,Auto">
                             <Grid Grid.Row="0" ColumnDefinitions="*,Auto">
                                 <TextBlock Text="ACTIVE MISSIONS" FontSize="11" FontWeight="Bold" Foreground="#606060" LetterSpacing="1"/>
-                                <TextBlock Text="{Binding DownloadSpeed, StringFormat='{}⬇ {0}'}" FontSize="11" Foreground="#00BCD4" FontWeight="Bold" Grid.Column="1"/>
+                                <TextBlock Text="{Binding DownloadSpeed, StringFormat='{}⬇ {0}'}" FontSize="11" Foreground="#00D4" FontWeight="Bold" Grid.Column="1"/>
                             </Grid>
                             
-                            <StackPanel Grid.Row="1" VerticalAlignment="Center" Spacing="12">
-                                <!-- Express Lane -->
-                                <Grid ColumnDefinitions="Auto,*,Auto">
-                                    <TextBlock Text="🚀 Express" FontSize="13" Foreground="#FFCA28" FontWeight="Bold" Width="80"/>
-                                    <ProgressBar Grid.Column="1" Value="{Binding ExpressCount}" Maximum="10" Height="4" Background="#333" Foreground="#FFCA28" CornerRadius="2" Margin="0,0,12,0" VerticalAlignment="Center"/>
-                                    <TextBlock Grid.Column="2" Text="{Binding ExpressCount}" FontSize="13" Foreground="White" FontWeight="Bold"/>
+                            <StackPanel Grid.Row="1" VerticalAlignment="Center" Spacing="10">
+                                <Grid ColumnDefinitions="Auto,*,Auto" Margin="0,2">
+                                    <TextBlock Text="🚀 Express" FontSize="11" Foreground="#FFCA28" Width="70"/>
+                                    <ProgressBar Grid.Column="1" Value="{Binding ExpressCount}" Maximum="10" Height="3" Background="#222" Foreground="#FFCA28" Margin="0,0,10,0"/>
+                                    <TextBlock Grid.Column="2" Text="{Binding ExpressCount}" FontSize="11" Foreground="White" FontWeight="Bold"/>
                                 </Grid>
-                                
-                                <!-- Standard Lane -->
-                                <Grid ColumnDefinitions="Auto,*,Auto">
-                                    <TextBlock Text="📦 Standard" FontSize="13" Foreground="#2196F3" FontWeight="SemiBold" Width="80"/>
-                                    <ProgressBar Grid.Column="1" Value="{Binding StandardCount}" Maximum="50" Height="4" Background="#333" Foreground="#2196F3" CornerRadius="2" Margin="0,0,12,0" VerticalAlignment="Center"/>
-                                    <TextBlock Grid.Column="2" Text="{Binding StandardCount}" FontSize="13" Foreground="#DDD" FontWeight="SemiBold"/>
+                                <Grid ColumnDefinitions="Auto,*,Auto" Margin="0,2">
+                                    <TextBlock Text="📦 Standard" FontSize="11" Foreground="#2196F3" Width="70"/>
+                                    <ProgressBar Grid.Column="1" Value="{Binding StandardCount}" Maximum="50" Height="3" Background="#222" Foreground="#2196F3" Margin="0,0,10,0"/>
+                                    <TextBlock Grid.Column="2" Text="{Binding StandardCount}" FontSize="11" Foreground="#DDD"/>
                                 </Grid>
-                                
-                                <!-- Background Lane -->
-                                <Grid ColumnDefinitions="Auto,*,Auto">
-                                    <TextBlock Text="🌙 Background" FontSize="13" Foreground="#AAA" Width="80"/>
-                                    <ProgressBar Grid.Column="1" Value="{Binding BackgroundCount}" Maximum="200" Height="4" Background="#333" Foreground="#666" CornerRadius="2" Margin="0,0,12,0" VerticalAlignment="Center"/>
-                                    <TextBlock Grid.Column="2" Text="{Binding BackgroundCount}" FontSize="13" Foreground="#AAA"/>
+                                <Grid ColumnDefinitions="Auto,*,Auto" Margin="0,2">
+                                    <TextBlock Text="🌙 Background" FontSize="11" Foreground="#AAA" Width="70"/>
+                                    <ProgressBar Grid.Column="1" Value="{Binding BackgroundCount}" Maximum="200" Height="3" Background="#222" Foreground="#666" Margin="0,0,10,0"/>
+                                    <TextBlock Grid.Column="2" Text="{Binding BackgroundCount}" FontSize="11" Foreground="#AAA"/>
                                 </Grid>
                             </StackPanel>
                             
@@ -114,56 +128,102 @@
                         </Grid>
                     </Border>
                     
-                    <!-- System Health (Dead Letter) Widget -->
+                    <!-- System Resilience (Predictive Maintenance) -->
                     <Border Grid.Column="2" Classes="glass" Padding="20">
                         <Grid RowDefinitions="Auto,*,Auto">
-                            <TextBlock Grid.Row="0" Text="SYSTEM HEALTH" FontSize="11" FontWeight="Bold" Foreground="#606060" LetterSpacing="1"/>
+                            <TextBlock Grid.Row="0" Text="PREDICTIVE MAINTENANCE" FontSize="11" FontWeight="Bold" Foreground="#606060" LetterSpacing="1"/>
                             
-                            <StackPanel Grid.Row="1" VerticalAlignment="Center" Spacing="16" HorizontalAlignment="Center">
-                                <!-- Blinking LED Indicator -->
-                                <Border Width="32" Height="32" CornerRadius="16" Background="{Binding HealthColor, Converter={x:Static conv:StringToBrushConverter.Instance}}">
-                                    <Border.Styles>
-                                        <Style Selector="Border">
-                                            <Style.Animations>
-                                                <Animation Duration="0:0:2" IterationCount="Infinite">
-                                                    <KeyFrame Cue="0%">
-                                                        <Setter Property="Opacity" Value="0.6"/>
-                                                        <Setter Property="BoxShadow" Value="0 0 10 2 #40FFFFFF"/>
-                                                    </KeyFrame>
-                                                    <KeyFrame Cue="50%">
-                                                        <Setter Property="Opacity" Value="1.0"/>
-                                                        <Setter Property="BoxShadow" Value="0 0 20 5 #80FFFFFF"/>
-                                                    </KeyFrame>
-                                                    <KeyFrame Cue="100%">
-                                                        <Setter Property="Opacity" Value="0.6"/>
-                                                        <Setter Property="BoxShadow" Value="0 0 10 2 #40FFFFFF"/>
-                                                    </KeyFrame>
-                                                </Animation>
-                                            </Style.Animations>
-                                        </Style>
-                                    </Border.Styles>
-                                    <!-- Inner Core -->
-                                    <Border Width="12" Height="12" CornerRadius="6" Background="White" Opacity="0.8" HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                                </Border>
-                                
-                                <StackPanel Spacing="4">
-                                    <TextBlock Text="{Binding LibraryHealth.HealthStatus}" FontSize="14" FontWeight="Bold" Foreground="White" HorizontalAlignment="Center" TextAlignment="Center"/>
-                                    <TextBlock Text="{Binding CurrentSnapshot.ZombieProcessCount, StringFormat='{}Zombie Processes: {0}'}" 
-                                               FontSize="10" Foreground="#808080" HorizontalAlignment="Center"
-                                               IsVisible="{Binding CurrentSnapshot.ZombieProcessCount, Converter={x:Static ObjectConverters.NotEqual}, ConverterParameter=0}"/>
-                                </StackPanel>
+                            <StackPanel Grid.Row="1" VerticalAlignment="Center" Spacing="12">
+                                <Grid ColumnDefinitions="*,Auto">
+                                    <StackPanel Spacing="2">
+                                        <TextBlock Text="Zombies" FontSize="10" Foreground="#808080"/>
+                                        <TextBlock Text="{Binding CurrentSnapshot.ZombieProcessCount}" FontSize="18" FontWeight="Black" Foreground="White"/>
+                                    </StackPanel>
+                                    <StackPanel Grid.Column="1" Spacing="2" HorizontalAlignment="Right">
+                                        <TextBlock Text="Dead Letters" FontSize="10" Foreground="#808080" HorizontalAlignment="Right"/>
+                                        <TextBlock Text="{Binding CurrentSnapshot.DeadLetterCount}" FontSize="18" FontWeight="Black" Foreground="White"/>
+                                    </StackPanel>
+                                </Grid>
+
+                                <Border Height="1" Background="#2A2A2E" Margin="0,4"/>
+
+                                <Grid ColumnDefinitions="*,Auto">
+                                    <StackPanel Spacing="2">
+                                        <TextBlock Text="Forensic Lockdown" FontSize="10" Foreground="#808080"/>
+                                        <TextBlock Text="{Binding LockdownStatusText}" FontSize="13" FontWeight="Bold" Foreground="{Binding IsLockdownActive, Converter={StaticResource CountToColorConverter}}"/>
+                                    </StackPanel>
+                                    <StackPanel Grid.Column="1" Spacing="2" HorizontalAlignment="Right">
+                                        <TextBlock Text="CPU Load" FontSize="10" Foreground="#808080" HorizontalAlignment="Right"/>
+                                        <TextBlock Text="{Binding CurrentCpuLoad, StringFormat={}{0:P0}}" FontSize="18" FontWeight="Black" Foreground="White"/>
+                                    </StackPanel>
+                                </Grid>
+
+                                <Border Height="1" Background="#2A2A2E" Margin="0,4"/>
+
+                                <Button Command="{Binding ClearDeadLettersCommand}" 
+                                        HorizontalAlignment="Stretch" HorizontalContentAlignment="Center"
+                                        Background="#1AFF5252" BorderBrush="#FF5252" BorderThickness="1" Padding="6" CornerRadius="6">
+                                    <StackPanel Orientation="Horizontal" Spacing="8">
+                                        <TextBlock Text="🛠️" FontSize="12" VerticalAlignment="Center"/>
+                                        <TextBlock Text="SELF-HEAL ALL" FontSize="11" FontWeight="Bold" Foreground="#FF5252" VerticalAlignment="Center"/>
+                                    </StackPanel>
+                                </Button>
                             </StackPanel>
                             
-                            <Button Grid.Row="2" Command="{Binding ClearDeadLettersCommand}" 
-                                    IsVisible="{Binding LibraryHealth.IssuesCount, Converter={x:Static ObjectConverters.NotEqual}, ConverterParameter=0}"
-                                    Background="#2A1010" BorderBrush="#FF5252" BorderThickness="1" CornerRadius="4" HorizontalAlignment="Center" Padding="12,4">
-                                <TextBlock Text="Auto-Recover" Foreground="#FF5252" FontSize="11" FontWeight="Bold"/>
-                            </Button>
+                            <TextBlock Grid.Row="2" Text="Zero-Downtime Engine Active" FontSize="10" Foreground="#555" FontStyle="Italic" HorizontalAlignment="Center"/>
                         </Grid>
                     </Border>
                 </Grid>
 
+                <!-- Genre Galaxy (Phase 12.8) -->
+                <Border Classes="glass" Padding="24" Height="160" Margin="0,0,0,8">
+                    <Grid RowDefinitions="Auto,*">
+                        <TextBlock Grid.Row="0" Text="GENRE GALAXY" FontSize="11" FontWeight="Bold" Foreground="#606060" LetterSpacing="1" Margin="0,0,0,16"/>
+                        <ItemsControl Grid.Row="1" ItemsSource="{Binding TopGenres}">
+                            <ItemsControl.ItemsPanel>
+                                <ItemsPanelTemplate>
+                                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Spacing="32"/>
+                                </ItemsPanelTemplate>
+                            </ItemsControl.ItemsPanel>
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <StackPanel Spacing="8" VerticalAlignment="Center">
+                                        <Border Width="{Binding Size}" Height="{Binding Size}" CornerRadius="100" 
+                                                Background="#22FFFFFF" BorderBrush="{Binding Color}" BorderThickness="2"
+                                                BoxShadow="0 0 20 2 #4D00A3FF">
+                                            <TextBlock Text="{Binding Count}" FontSize="12" FontWeight="Black" Foreground="White" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                        </Border>
+                                        <TextBlock Text="{Binding Name}" FontSize="12" FontWeight="SemiBold" Foreground="#A0A0A0" HorizontalAlignment="Center"/>
+                                    </StackPanel>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </Grid>
+                </Border>
+
                 <!-- Phase 0A: Live Operations & Resilience Log -->
+                <!-- Vibe Search Command Bar (Phase 12.8) -->
+                <Border Classes="glass" Padding="20" Background="#11FFFFFF" Margin="0,0,0,24">
+                    <Grid ColumnDefinitions="Auto,*,Auto">
+                        <TextBlock Grid.Column="0" Text="✨" FontSize="20" VerticalAlignment="Center" Margin="0,0,16,0"/>
+                        <TextBox Grid.Column="1" Text="{Binding VibeSearchText}" Watermark="Describe the vibe (e.g. 'late night dark techno', 'sunny chill house')..." 
+                                 Background="Transparent" BorderThickness="0" FontSize="16" Foreground="White" VerticalAlignment="Center"
+                                 Classes="clear">
+                             <TextBox.Styles>
+                                 <Style Selector="TextBox:focus /template/ Border#PART_BorderElement">
+                                     <Setter Property="Background" Value="Transparent"/>
+                                     <Setter Property="BorderThickness" Value="0"/>
+                                 </Style>
+                             </TextBox.Styles>
+                        </TextBox>
+                        <Button Grid.Column="2" Command="{Binding ExecuteVibeSearchCommand}" Classes="ActionBtnSmall" Padding="12,8" Background="#00A3FF" BorderThickness="0">
+                            <StackPanel Orientation="Horizontal" Spacing="8">
+                                <TextBlock Text="Analyze &amp; Search" FontWeight="Bold" Foreground="White"/>
+                                <TextBlock Text="→" Foreground="White"/>
+                            </StackPanel>
+                        </Button>
+                    </Grid>
+                </Border>
                 <Grid ColumnDefinitions="2*,1*" Margin="0,0,0,8">
                     <!-- Live Operations Feed -->
                     <Border Grid.Column="0" Classes="glass" Padding="20" Margin="0,0,16,0">
@@ -180,13 +240,60 @@
                                 </StackPanel>
                             </Grid>
                             
-                            <ScrollViewer Grid.Row="1" MaxHeight="200" VerticalScrollBarVisibility="Auto" Margin="0,10,0,0">
+                            <ScrollViewer Grid.Row="1" MaxHeight="450" VerticalScrollBarVisibility="Auto" Margin="0,10,0,0">
                                 <ItemsControl ItemsSource="{Binding ActiveOperations}">
                                     <ItemsControl.ItemTemplate>
                                         <DataTemplate>
-                                            <Border Background="#252525" CornerRadius="4" Padding="10,6" Margin="0,0,0,4">
-                                                <TextBlock Text="{Binding}" Foreground="#E0E0E0" FontSize="12" FontFamily="Consolas, monospace"/>
-                                            </Border>
+                                            <Panel>
+                                                <!-- Analysis Forensic Cockpit View -->
+                                                <controls:SonicTelemetryCard IsVisible="{Binding Type, Converter={StaticResource EqualityConverter}, ConverterParameter={x:Static Models:OperationType.Analysis}}"
+                                                                           DataContext="{Binding Track}"/>
+
+                                                <!-- Standard Download/Search View -->
+                                                <Border IsVisible="{Binding Type, Converter={StaticResource EqualityConverter}, ConverterParameter={x:Static Models:OperationType.Download}}"
+                                                        Background="#1E1E22" CornerRadius="8" Padding="12,8" Margin="0,0,0,8" BorderBrush="#33FFFFFF" BorderThickness="1" ClipToBounds="True">
+                                                    <Grid ColumnDefinitions="48,*,Auto,Auto">
+                                                        <!-- Waveform Underlay -->
+                                                        <controls:WaveformControl Grid.Column="0" Grid.ColumnSpan="4"
+                                                                                Height="40" VerticalAlignment="Stretch"
+                                                                                Opacity="0.15" IsHitTestVisible="False"
+                                                                                WaveformData="{Binding Track.WaveformData}"
+                                                                                Progress="{Binding Progress}"
+                                                                                Foreground="#00A3FF"/>
+                                                        
+                                                        <!-- Status Icon/Art -->
+                                                        <Border Grid.Column="0" Width="36" Height="36" Background="#2A2A2E" CornerRadius="6" ClipToBounds="True">
+                                                            <Grid>
+                                                                <PathIcon Data="{StaticResource icons_music}" Width="16" Height="16" Foreground="#444" IsVisible="{Binding Track.ArtworkBitmap, Converter={x:Static ObjectConverters.IsNull}}"/>
+                                                                <Image Source="{Binding Track.ArtworkBitmap}" Stretch="UniformToFill"/>
+                                                            </Grid>
+                                                        </Border>
+                                                        
+                                                        <!-- Info -->
+                                                        <StackPanel Grid.Column="1" Margin="12,0,0,0" VerticalAlignment="Center">
+                                                            <TextBlock Text="{Binding Title}" FontWeight="SemiBold" FontSize="13" Foreground="White" TextTrimming="CharacterEllipsis"/>
+                                                            <StackPanel Orientation="Horizontal" Spacing="6">
+                                                                <TextBlock Text="{Binding Subtitle}" FontSize="10" Foreground="#808080"/>
+                                                                <TextBlock Text="•" FontSize="10" Foreground="#444"/>
+                                                                <TextBlock Text="{Binding StatusText}" FontSize="10" Foreground="#00A3FF" FontWeight="Bold"/>
+                                                            </StackPanel>
+                                                        </StackPanel>
+                                                        
+                                                        <!-- Mini Progress -->
+                                                        <TextBlock Grid.Column="2" Text="{Binding Track.SpeedDisplay}" VerticalAlignment="Center" FontSize="11" Foreground="#A0A0A0" Margin="0,0,16,0" IsVisible="{Binding Track, Converter={x:Static ObjectConverters.IsNotNull}}"/>
+
+                                                        <!-- Actions -->
+                                                        <StackPanel Grid.Column="3" Orientation="Horizontal" Spacing="4">
+                                                            <Button Classes="ActionBtnSmall" Command="{Binding Track.PauseCommand}" IsVisible="{Binding Track.IsActive}" ToolTip.Tip="Pause">
+                                                                <PathIcon Data="{StaticResource pause_regular}" Width="12" Height="12"/>
+                                                            </Button>
+                                                            <Button Classes="ActionBtnSmall" Command="{Binding Track.CancelCommand}" IsVisible="{Binding CanCancel}" ToolTip.Tip="Cancel">
+                                                                <PathIcon Data="{StaticResource dismiss_regular}" Width="12" Height="12"/>
+                                                            </Button>
+                                                        </StackPanel>
+                                                    </Grid>
+                                                </Border>
+                                            </Panel>
                                         </DataTemplate>
                                     </ItemsControl.ItemTemplate>
                                 </ItemsControl>

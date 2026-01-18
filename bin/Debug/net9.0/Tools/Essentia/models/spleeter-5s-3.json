@@ -1,0 +1,69 @@
+{
+    "name": "spleeter_5stems",
+    "type": "source separation",
+    "link": "https://essentia.upf.edu/models/source-separation/spleeter/spleeter-5s-3.pb",
+    "version": "v1.4.0",
+    "description": "Deezer spleeter source separation model for 5 sources",
+    "author": "Marius Miron",
+    "email": "marius.miron@upf.edu",
+    "release_date": "2020-09-03",
+    "framework": "tensorflow",
+    "framework_version": "1.15.0",
+    "programming_env": {
+        "language": "python",
+        "version": "3.7",
+        "others": "any other relevant info"
+    },
+    "model_types": [
+        "frozen_model"
+    ],
+    "dataset": {
+        "name": "musdb18",
+        "size": "150",
+        "link": "https://pypi.org/project/musdb/"
+    },
+    "schema": {
+        "inputs": [
+            {
+                "name": "waveform",
+                "type": "float",
+                "shape": [
+                    0,
+                    2
+                ]
+            }
+        ],
+        "outputs": [
+            {
+                "name": "waveform_vocals",
+                "op": "waveform_vocals",
+                "output_purpose": "predictions"
+            },
+            {
+                "name": "waveform_drums",
+                "op": "waveform_drums",
+                "output_purpose": "predictions"
+            },
+            {
+                "name": "waveform_bass",
+                "op": "waveform_bass",
+                "output_purpose": "predictions"
+            },
+            {
+                "name": "waveform_piano",
+                "op": "waveform_piano",
+                "output_purpose": "predictions"
+            },
+            {
+                "name": "waveform_other",
+                "op": "waveform_other",
+                "output_purpose": "predictions"
+            }
+        ]
+    },
+    "citation": "@article{hennequin2020spleeter,\ntitle={Spleeter: a fast and efficient music source separation tool with pre-trained models},\nauthor={Hennequin, Romain and Khlif, Anis and Voituret, Felix and Moussallam, Manuel},\njournal={Journal of Open Source Software},\nvolume={5},\nnumber={50},\npages={2154},\nyear={2020}\n}\n",
+    "inference": {
+        "sample_rate": 44100,
+        "algorithm": "N/A"
+    }
+}

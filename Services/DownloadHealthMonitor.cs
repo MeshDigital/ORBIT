@@ -23,10 +23,6 @@ public class DownloadHealthMonitor : IDisposable
     private CancellationTokenSource _cts = new();
     private Task? _monitorTask;
     
-    // Track stall counts for active downloads
-    // Key: GlobalId, Value: Consecutive stalled ticks
-    private readonly ConcurrentDictionary<string, int> _stallCounters = new();
-    
     // Track previous bytes to calculate delta
     private readonly ConcurrentDictionary<string, long> _previousBytes = new();
 
@@ -76,11 +72,10 @@ public class DownloadHealthMonitor : IDisposable
 
         // 1. Cleanup stale trackers for downloads that are no longer active
         var activeIds = activeDownloads.Select(d => d.GlobalId).ToHashSet();
-        foreach (var key in _stallCounters.Keys)
+        foreach (var key in _previousBytes.Keys)
         {
             if (!activeIds.Contains(key))
             {
-                _stallCounters.TryRemove(key, out _);
                 _previousBytes.TryRemove(key, out _);
             }
         }
@@ -98,25 +93,25 @@ public class DownloadHealthMonitor : IDisposable
             // Update previous for next tick
             _previousBytes[ctx.GlobalId] = currentBytes;
 
+            // Phase 0.3: Calculate Speed (Window is 15 seconds)
+            ctx.CurrentSpeed = delta / 15;
+
             if (delta > 0)
             {
                 // HEALTHY: Progress made
-                if (_stallCounters.ContainsKey(ctx.GlobalId))
-                {
-                    _stallCounters[ctx.GlobalId] = 0;
-                }
+                ctx.StallCount = 0;
             }
             else
             {
                 // STALLED: No progress
-                int stalls = _stallCounters.AddOrUpdate(ctx.GlobalId, 1, (_, count) => count + 1);
+                ctx.StallCount++;
                 
                 // Determine threshold based on Adaptive Logic
                 int threshold = CalculateStallThreshold(ctx);
                 
-                if (stalls >= threshold)
+                if (ctx.StallCount >= threshold)
                 {
-                     await HandleStalledDownloadAsync(ctx, stalls * 15);
+                     await HandleStalledDownloadAsync(ctx, ctx.StallCount * 15);
                 }
             }
         }
@@ -159,8 +154,9 @@ public class DownloadHealthMonitor : IDisposable
             // I will update DownloadContext to store CurrentPeer first.
             await _downloadManager.AutoRetryStalledDownloadAsync(ctx.GlobalId);
             
-            // Reset counter to promote stability (don't kill it immediately again if retry fails to start instantly)
-            _stallCounters.TryRemove(ctx.GlobalId, out _);
+            // Mark intervention time in context
+            ctx.LastIntervention = DateTime.UtcNow;
+            ctx.StallCount = 0; // Reset counter
         }
         catch (Exception ex)
         {

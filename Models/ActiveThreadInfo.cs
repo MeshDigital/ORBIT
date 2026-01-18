@@ -1,5 +1,8 @@
 using System;
+using System.Collections.Generic;
+using System.Collections.ObjectModel;
 using System.ComponentModel;
+using System.Linq;
 using System.Runtime.CompilerServices;
 
 namespace SLSKDONET.Models;
@@ -45,6 +48,73 @@ public class ActiveThreadInfo : INotifyPropertyChanged
         set => SetField(ref _startTime, value);
     }
 
+    private float _bpmConfidence;
+    public float BpmConfidence
+    {
+        get => _bpmConfidence;
+        set => SetField(ref _bpmConfidence, value);
+    }
+
+    private float _keyConfidence;
+    public float KeyConfidence
+    {
+        get => _keyConfidence;
+        set => SetField(ref _keyConfidence, value);
+    }
+
+    private float _integrityScore;
+    public float IntegrityScore
+    {
+        get => _integrityScore;
+        set => SetField(ref _integrityScore, value);
+    }
+
+    private SLSKDONET.Data.AnalysisStage _currentStage;
+    public SLSKDONET.Data.AnalysisStage CurrentStage
+    {
+        get => _currentStage;
+        set 
+        {
+            if (SetField(ref _currentStage, value))
+            {
+                UpdateStages();
+            }
+        }
+    }
+
+    public ObservableCollection<StageIndicator> ActiveStages { get; } = new();
+
+    private void UpdateStages()
+    {
+        var stages = Enum.GetValues<SLSKDONET.Data.AnalysisStage>();
+        if (ActiveStages.Count == 0)
+        {
+            foreach (var s in stages.Where(x => x != SLSKDONET.Data.AnalysisStage.Complete))
+            {
+                ActiveStages.Add(new StageIndicator { Label = s.ToString(), Stage = s });
+            }
+        }
+
+        foreach (var item in ActiveStages)
+        {
+            if (item.Stage < CurrentStage)
+            {
+                item.Color = Avalonia.Media.Brushes.LimeGreen;
+                item.Opacity = 1.0;
+            }
+            else if (item.Stage == CurrentStage)
+            {
+                item.Color = Avalonia.Media.Brushes.Cyan;
+                item.Opacity = 1.0;
+            }
+            else
+            {
+                item.Color = Avalonia.Media.Brushes.Gray;
+                item.Opacity = 0.3;
+            }
+        }
+    }
+
     public string ElapsedTime
     {
         get
@@ -68,5 +138,22 @@ public class ActiveThreadInfo : INotifyPropertyChanged
         field = value;
         OnPropertyChanged(propertyName);
         return true;
+    }
+
+    public class StageIndicator : INotifyPropertyChanged
+    {
+        public string Label { get; set; } = string.Empty;
+        public SLSKDONET.Data.AnalysisStage Stage { get; set; }
+        
+        private Avalonia.Media.IBrush _color = Avalonia.Media.Brushes.Gray;
+        public Avalonia.Media.IBrush Color { get => _color; set { _color = value; OnPropertyChanged(); OnPropertyChanged(nameof(GlowColor)); } }
+        
+        private double _opacity = 0.3;
+        public double Opacity { get => _opacity; set { _opacity = value; OnPropertyChanged(); } }
+
+        public Avalonia.Media.Color GlowColor => (Color as Avalonia.Media.ISolidColorBrush)?.Color ?? Avalonia.Media.Colors.Transparent;
+
+        public event PropertyChangedEventHandler? PropertyChanged;
+        protected void OnPropertyChanged([CallerMemberName] string? name = null) => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
     }
 }

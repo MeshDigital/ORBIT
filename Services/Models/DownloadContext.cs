@@ -39,6 +39,11 @@ public class DownloadContext
     }
     
     public bool IsResuming { get; set; }        // UI/Log feedback for "Resuming" vs "Downloading"
+    
+    // Phase 0.3: Health Metrics
+    public long CurrentSpeed { get; set; }      // Bytes per second
+    public int StallCount { get; set; }         // Consecutive stalled ticks
+    public DateTime? LastIntervention { get; set; } // When did the Health Monitor last kick in?
 
     // Phase 3A: Finalization Guard (prevents heartbeat race conditions)
     // 0 = false, 1 = true

@@ -134,7 +134,7 @@
                                                MidBand="{Binding CurrentTrack.MidData}"
                                                HighBand="{Binding CurrentTrack.HighData}"
                                              Progress="{Binding Position}"
-                                             IsRolling="True"
+                                             IsRolling="False"
                                              Background="#01000000"
                                              PlayheadBrush="#1DB954"
                                              SeekCommand="{Binding SeekCommand}"

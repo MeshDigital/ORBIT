@@ -1,0 +1,22 @@
+﻿  Determining projects to restore...
+  All projects are up-to-date for restore.
+  Avalonia.Controls.TreeDataGrid -> C:\Users\quint\OneDrive\Documenten\GitHub\QMUSICSLSK\External\TreeDataGrid\src\Avalonia.Controls.TreeDataGrid\bin\Debug\net9.0\Avalonia.Controls.TreeDataGrid.dll
+C:\Users\quint\OneDrive\Documenten\GitHub\QMUSICSLSK\Views\Avalonia\Controls\ConfidenceRadar.cs(13,14): error CS0260: Missing partial modifier on declaration of type 'ConfidenceRadar'; another partial declaration of this type exists [C:\Users\quint\OneDrive\Documenten\GitHub\QMUSICSLSK\SLSKDONET.csproj]
+C:\Users\quint\OneDrive\Documenten\GitHub\QMUSICSLSK\Views\Avalonia\Controls\ConfidenceRadar.axaml.cs(10,22): error CS0263: Partial declarations of 'ConfidenceRadar' must not specify different base classes [C:\Users\quint\OneDrive\Documenten\GitHub\QMUSICSLSK\SLSKDONET.csproj]
+C:\Users\quint\OneDrive\Documenten\GitHub\QMUSICSLSK\Views\Avalonia\Controls\ConfidenceRadar.cs(15,51): error CS0102: The type 'ConfidenceRadar' already contains a definition for 'ValueProperty' [C:\Users\quint\OneDrive\Documenten\GitHub\QMUSICSLSK\SLSKDONET.csproj]
+C:\Users\quint\OneDrive\Documenten\GitHub\QMUSICSLSK\Views\Avalonia\Controls\ConfidenceRadar.cs(18,19): error CS0102: The type 'ConfidenceRadar' already contains a definition for 'Value' [C:\Users\quint\OneDrive\Documenten\GitHub\QMUSICSLSK\SLSKDONET.csproj]
+C:\Users\quint\OneDrive\Documenten\GitHub\QMUSICSLSK\Views\Avalonia\Controls\ProjectPickerDialog.axaml.cs(48,47): warning CS0108: 'ProjectPickerDialog.PropertyChanged' hides inherited member 'AvaloniaObject.PropertyChanged'. Use the new keyword if hiding was intended. [C:\Users\quint\OneDrive\Documenten\GitHub\QMUSICSLSK\SLSKDONET.csproj]
+C:\Users\quint\OneDrive\Documenten\GitHub\QMUSICSLSK\Views\Avalonia\Controls\PromptDialog.axaml.cs(52,47): warning CS0108: 'PromptDialog.PropertyChanged' hides inherited member 'AvaloniaObject.PropertyChanged'. Use the new keyword if hiding was intended. [C:\Users\quint\OneDrive\Documenten\GitHub\QMUSICSLSK\SLSKDONET.csproj]
+
+Build FAILED.
+
+C:\Users\quint\OneDrive\Documenten\GitHub\QMUSICSLSK\Views\Avalonia\Controls\ProjectPickerDialog.axaml.cs(48,47): warning CS0108: 'ProjectPickerDialog.PropertyChanged' hides inherited member 'AvaloniaObject.PropertyChanged'. Use the new keyword if hiding was intended. [C:\Users\quint\OneDrive\Documenten\GitHub\QMUSICSLSK\SLSKDONET.csproj]
+C:\Users\quint\OneDrive\Documenten\GitHub\QMUSICSLSK\Views\Avalonia\Controls\PromptDialog.axaml.cs(52,47): warning CS0108: 'PromptDialog.PropertyChanged' hides inherited member 'AvaloniaObject.PropertyChanged'. Use the new keyword if hiding was intended. [C:\Users\quint\OneDrive\Documenten\GitHub\QMUSICSLSK\SLSKDONET.csproj]
+C:\Users\quint\OneDrive\Documenten\GitHub\QMUSICSLSK\Views\Avalonia\Controls\ConfidenceRadar.cs(13,14): error CS0260: Missing partial modifier on declaration of type 'ConfidenceRadar'; another partial declaration of this type exists [C:\Users\quint\OneDrive\Documenten\GitHub\QMUSICSLSK\SLSKDONET.csproj]
+C:\Users\quint\OneDrive\Documenten\GitHub\QMUSICSLSK\Views\Avalonia\Controls\ConfidenceRadar.axaml.cs(10,22): error CS0263: Partial declarations of 'ConfidenceRadar' must not specify different base classes [C:\Users\quint\OneDrive\Documenten\GitHub\QMUSICSLSK\SLSKDONET.csproj]
+C:\Users\quint\OneDrive\Documenten\GitHub\QMUSICSLSK\Views\Avalonia\Controls\ConfidenceRadar.cs(15,51): error CS0102: The type 'ConfidenceRadar' already contains a definition for 'ValueProperty' [C:\Users\quint\OneDrive\Documenten\GitHub\QMUSICSLSK\SLSKDONET.csproj]
+C:\Users\quint\OneDrive\Documenten\GitHub\QMUSICSLSK\Views\Avalonia\Controls\ConfidenceRadar.cs(18,19): error CS0102: The type 'ConfidenceRadar' already contains a definition for 'Value' [C:\Users\quint\OneDrive\Documenten\GitHub\QMUSICSLSK\SLSKDONET.csproj]
+    2 Warning(s)
+    4 Error(s)
+
+Time Elapsed 00:00:05.28

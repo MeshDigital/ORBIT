@@ -8,9 +8,9 @@ namespace SLSKDONET.Views.Avalonia.Controls;
 
 public partial class PromptDialog : Window, INotifyPropertyChanged
 {
-    private string _title;
-    private string _message;
-    private string _inputText;
+    private string _title = string.Empty;
+    private string _message = string.Empty;
+    private string _inputText = string.Empty;
 
     public string PromptTitle { get => _title; set => SetProperty(ref _title, value); }
     public string Message { get => _message; set => SetProperty(ref _message, value); }
@@ -49,7 +49,7 @@ public partial class PromptDialog : Window, INotifyPropertyChanged
         Close(null);
     }
 
-    public event PropertyChangedEventHandler? PropertyChanged;
+    public new event PropertyChangedEventHandler? PropertyChanged;
 
     protected virtual void OnPropertyChanged([CallerMemberName] string? propertyName = null)
     {

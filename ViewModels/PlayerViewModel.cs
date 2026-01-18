@@ -360,6 +360,20 @@ namespace SLSKDONET.ViewModels
             // Phase 0: Queue persistence - auto-save on changes
             Queue.CollectionChanged += OnQueueCollectionChanged;
             
+            // Phase 12.6: Waveform Seeking
+            eventBus.GetEvent<SeekRequestEvent>().Subscribe(evt => 
+            {
+                Seek((float)evt.PositionPercent);
+            }).DisposeWith(_disposables);
+
+            eventBus.GetEvent<SeekToSecondsRequestEvent>().Subscribe(evt => 
+            {
+                if (_playerService.Length > 0)
+                {
+                    Seek((float)(evt.Seconds * 1000.0 / _playerService.Length));
+                }
+            }).DisposeWith(_disposables);
+
             // Load saved queue on startup
             _ = LoadQueueAsync();
         }

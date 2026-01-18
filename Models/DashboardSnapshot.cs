@@ -28,8 +28,12 @@ public class DashboardSnapshot
     public int ZombieProcessCount { get; init; }
     public List<string> ResilienceLog { get; init; } = new();
 
+    // Forensic Telemetry (Phase 12.7)
+    public bool IsForensicLockdownActive { get; init; }
+    public double CurrentCpuLoad { get; init; }
+
     // Active Operations
-    public List<string> ActiveOperations { get; init; } = new(); // Simplified string representation for now or explicit ViewModel
+    public List<MissionOperation> ActiveOperations { get; init; } = new();
 
     /// <summary>
     /// Generates a hash code to detect meaningful UI changes.

@@ -1,0 +1,14 @@
+﻿  Determining projects to restore...
+  All projects are up-to-date for restore.
+  Avalonia.Controls.TreeDataGrid -> C:\Users\quint\OneDrive\Documenten\GitHub\QMUSICSLSK\External\TreeDataGrid\src\Avalonia.Controls.TreeDataGrid\bin\Debug\net9.0\Avalonia.Controls.TreeDataGrid.dll
+C:\Users\quint\OneDrive\Documenten\GitHub\QMUSICSLSK\Views/Avalonia/IntelligenceCenterView.axaml(62,22,62,22): Avalonia error AVLN2000: Unable to resolve suitable regular or attached property SuffixColor on type Avalonia.Base:Avalonia.Media.ExperimentalAcrylicMaterial Line 62, position 22. [C:\Users\quint\OneDrive\Documenten\GitHub\QMUSICSLSK\SLSKDONET.csproj]
+C:\Users\quint\OneDrive\Documenten\GitHub\QMUSICSLSK\Views/Avalonia/IntelligenceCenterView.axaml(128,30,128,30): Avalonia error AVLN2000: Unable to resolve suitable regular or attached property Padding on type Avalonia.Controls:Avalonia.Controls.StackPanel Line 128, position 30. [C:\Users\quint\OneDrive\Documenten\GitHub\QMUSICSLSK\SLSKDONET.csproj]
+
+Build FAILED.
+
+C:\Users\quint\OneDrive\Documenten\GitHub\QMUSICSLSK\Views/Avalonia/IntelligenceCenterView.axaml(62,22,62,22): Avalonia error AVLN2000: Unable to resolve suitable regular or attached property SuffixColor on type Avalonia.Base:Avalonia.Media.ExperimentalAcrylicMaterial Line 62, position 22. [C:\Users\quint\OneDrive\Documenten\GitHub\QMUSICSLSK\SLSKDONET.csproj]
+C:\Users\quint\OneDrive\Documenten\GitHub\QMUSICSLSK\Views/Avalonia/IntelligenceCenterView.axaml(128,30,128,30): Avalonia error AVLN2000: Unable to resolve suitable regular or attached property Padding on type Avalonia.Controls:Avalonia.Controls.StackPanel Line 128, position 30. [C:\Users\quint\OneDrive\Documenten\GitHub\QMUSICSLSK\SLSKDONET.csproj]
+    0 Warning(s)
+    2 Error(s)
+
+Time Elapsed 00:00:05.70

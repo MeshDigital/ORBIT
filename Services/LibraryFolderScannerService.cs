@@ -201,7 +201,13 @@ public class LibraryFolderScannerService
             }
             catch
             {
-                // Tags failed, use defaults
+                // Tags failed - use smart filename parsing
+                var parsed = ParseFilename(title);
+                artist = parsed.Artist ?? artist;
+                title = parsed.Title ?? title;
+                
+                _logger.LogDebug("Parsed filename '{File}' as Artist='{A}', Title='{T}'", 
+                    Path.GetFileName(filePath), artist, title);
             }
 
             return new LibraryEntryEntity
@@ -223,6 +229,39 @@ public class LibraryFolderScannerService
             _logger.LogError(ex, "Failed to create entry for {Path}", filePath);
             return null;
         }
+    }
+
+    /// <summary>
+    /// Parses a filename to extract artist and title, handling common patterns:
+    /// - "01. Artist - Title"
+    /// - "Artist - Title"
+    /// - "01 Artist - Title"
+    /// - "Title" (no artist)
+    /// </summary>
+    private (string? Artist, string? Title) ParseFilename(string filename)
+    {
+        if (string.IsNullOrWhiteSpace(filename))
+            return (null, null);
+
+        // Remove common track number prefixes: "01. ", "01 ", "1. ", "1 "
+        var cleaned = System.Text.RegularExpressions.Regex.Replace(
+            filename, 
+            @"^\d{1,3}[\.\s]+", 
+            ""
+        ).Trim();
+
+        // Try to split on " - " for "Artist - Title" format
+        if (cleaned.Contains(" - "))
+        {
+            var parts = cleaned.Split(new[] { " - " }, 2, StringSplitOptions.RemoveEmptyEntries);
+            if (parts.Length == 2)
+            {
+                return (parts[0].Trim(), parts[1].Trim());
+            }
+        }
+
+        // No artist found, return just the title
+        return (null, cleaned);
     }
 
     /// <summary>

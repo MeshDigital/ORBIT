@@ -55,6 +55,7 @@ namespace SLSKDONET.Services
         public bool IsInitialized => _isInitialized;
         public bool IsPlaying => _outputDevice?.PlaybackState == PlaybackState.Playing;
         public long Length => (long)(_audioFile?.TotalTime.TotalMilliseconds ?? 0);
+        public double Duration => _audioFile?.TotalTime.TotalSeconds ?? 0;
         public long Time => (long)(_audioFile?.CurrentTime.TotalMilliseconds ?? 0);
 
         public float Position

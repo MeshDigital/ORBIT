@@ -47,6 +47,27 @@ public class AnalysisJobViewModel : ReactiveObject
         get => _error;
         set => this.RaiseAndSetIfChanged(ref _error, value);
     }
+
+    private float _bpmConfidence;
+    public float BpmConfidence
+    {
+        get => _bpmConfidence;
+        set => this.RaiseAndSetIfChanged(ref _bpmConfidence, value);
+    }
+
+    private float _keyConfidence;
+    public float KeyConfidence
+    {
+        get => _keyConfidence;
+        set => this.RaiseAndSetIfChanged(ref _keyConfidence, value);
+    }
+
+    private float _integrityScore;
+    public float IntegrityScore
+    {
+        get => _integrityScore;
+        set => this.RaiseAndSetIfChanged(ref _integrityScore, value);
+    }
     
     public DateTime Timestamp { get; set; } = DateTime.Now;
     
@@ -163,6 +184,7 @@ public class AnalysisQueueViewModel : ReactiveObject, IDisposable
     }
 
     public ReactiveCommand<AnalysisJobViewModel, Unit> InspectTrackCommand { get; }
+    public ReactiveCommand<LibraryEntry, Unit> InspectLibraryEntryCommand { get; }
     public ReactiveCommand<Unit, Unit> RunBrainTestCommand { get; }
     public ReactiveCommand<Unit, Unit> PerformDemoPrepCommand { get; }
 
@@ -212,9 +234,17 @@ public class AnalysisQueueViewModel : ReactiveObject, IDisposable
     }
 
     public ReactiveCommand<Unit, Unit> ToggleForensicStreamCommand { get; }
+    
+    public ReactiveCommand<Unit, Unit> PurgeStuckJobsCommand { get; }
+    public ReactiveCommand<Unit, Unit> ClearCompletedCommand { get; }
+    public ReactiveCommand<Unit, Unit> ClearFailedCommand { get; }
+    
+    public ReactiveCommand<AnalysisJobViewModel, Unit> PlayTrackCommand { get; }
+    public ReactiveCommand<AnalysisJobViewModel, Unit> LocateTrackCommand { get; }
 
     private readonly IForensicLogger _forensicLogger;
     private readonly ILibraryService _libraryService; // For Forensic Lab
+    private readonly IntelligenceCenterViewModel _intelligenceCenter;
 
     public AnalysisQueueViewModel(
         ILogger<AnalysisQueueViewModel> logger,
@@ -224,7 +254,8 @@ public class AnalysisQueueViewModel : ReactiveObject, IDisposable
         AnalysisQueueService queueService,
         MusicalBrainTestService testService,
         IForensicLogger forensicLogger,
-        ILibraryService libraryService) // For Forensic Lab
+        ILibraryService libraryService,
+        IntelligenceCenterViewModel intelligenceCenter) // Added for Glass Console
     {
         _logger = logger;
         _eventBus = eventBus;
@@ -234,8 +265,10 @@ public class AnalysisQueueViewModel : ReactiveObject, IDisposable
         _testService = testService;
         _forensicLogger = forensicLogger;
         _libraryService = libraryService;
+        _intelligenceCenter = intelligenceCenter;
 
         InspectTrackCommand = ReactiveCommand.Create<AnalysisJobViewModel>(InspectTrack);
+        InspectLibraryEntryCommand = ReactiveCommand.Create<LibraryEntry>(InspectLibraryEntry);
         RunBrainTestCommand = ReactiveCommand.CreateFromTask(RunBrainTestAsync);
         PerformDemoPrepCommand = ReactiveCommand.CreateFromTask(PerformDemoPrepAsync);
         ToggleForensicStreamCommand = ReactiveCommand.Create(() => { IsForensicStreamExpanded = !IsForensicStreamExpanded; });
@@ -244,6 +277,38 @@ public class AnalysisQueueViewModel : ReactiveObject, IDisposable
             LabViewModel?.Dispose();
             LabViewModel = null;
             IsLabModeActive = false;
+        });
+
+        // Cleanup Commands
+        PurgeStuckJobsCommand = ReactiveCommand.Create(PurgeStuckJobs);
+        ClearCompletedCommand = ReactiveCommand.Create(() => CompletedJobs.Clear());
+        ClearFailedCommand = ReactiveCommand.Create(() => FailedJobs.Clear());
+
+        // Job Control Commands
+        PlayTrackCommand = ReactiveCommand.Create<AnalysisJobViewModel>(job => 
+        {
+             if (System.IO.File.Exists(job.FilePath))
+             {
+                 // Use OS default player
+                 try {
+                    new System.Diagnostics.Process { 
+                        StartInfo = new System.Diagnostics.ProcessStartInfo(job.FilePath) { UseShellExecute = true } 
+                    }.Start();
+                 } catch (Exception ex) { _logger.LogError(ex, "Failed to play file"); }
+             }
+        });
+        
+        LocateTrackCommand = ReactiveCommand.Create<AnalysisJobViewModel>(job => 
+        {
+             if (System.IO.File.Exists(job.FilePath))
+             {
+                 // Open folder and select file
+                 try {
+                    new System.Diagnostics.Process { 
+                        StartInfo = new System.Diagnostics.ProcessStartInfo("explorer.exe", $"/select,\"{job.FilePath}\"") { UseShellExecute = true } 
+                    }.Start();
+                 } catch (Exception ex) { _logger.LogError(ex, "Failed to locate file"); }
+             }
         });
 
         // Search debouncing
@@ -338,20 +403,14 @@ public class AnalysisQueueViewModel : ReactiveObject, IDisposable
 
     private void InspectTrack(AnalysisJobViewModel job)
     {
-        _navigationService.NavigateTo(PageType.Library);
-        
-        // Find track in current view
-        // Ideally we search globally but simplified for now:
-        var track = _libraryViewModel.Tracks.CurrentProjectTracks.FirstOrDefault(t => t.GlobalId == job.TrackHash)
-                    ?? _libraryViewModel.Tracks.FilteredTracks.FirstOrDefault(t => t.GlobalId == job.TrackHash);
-                    
-        // If not found in current lists, we might need to load it or switch project? 
-        // For now, only works if visible.
-             
-        if (track != null)
-        {
-             _libraryViewModel.ToggleInspectorCommand.Execute(track);
-        }
+        // Operation Glass Console: No more page flipping, no more "broken sidecar"
+        _ = _intelligenceCenter.OpenAsync(job.TrackHash, IntelligenceViewState.Console);
+    }
+
+    private void InspectLibraryEntry(LibraryEntry entry)
+    {
+        if (entry == null || string.IsNullOrEmpty(entry.UniqueHash)) return;
+        _ = _intelligenceCenter.OpenAsync(entry.UniqueHash, IntelligenceViewState.Console);
     }
 
     /// <summary>
@@ -359,32 +418,10 @@ public class AnalysisQueueViewModel : ReactiveObject, IDisposable
     /// Reuses existing ViewModel if same track to avoid reloading heavy resources.
     /// </summary>
     public async Task OpenTrackInLab(string trackHash)
-    {
-        // If already loaded, just show it
-        if (LabViewModel?.TrackUniqueHash == trackHash)
-        {
-            IsLabModeActive = true;
-            return;
-        }
-
-        // Dispose previous heavy resources (bitmaps, etc.)
-        LabViewModel?.Dispose();
-
-        // Create and load new ViewModel
-        var vm = new ForensicLabViewModel(_eventBus, _libraryService);
-        
-        try
-        {
-            await vm.LoadTrackAsync(trackHash);
-            LabViewModel = vm;
-            IsLabModeActive = true;
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Failed to load track in Forensic Lab: {Hash}", trackHash);
-            vm.Dispose();
-        }
-    }
+{
+    // Operation Glass Console: Redirect to unified Intelligence Center
+    await _intelligenceCenter.OpenAsync(trackHash, IntelligenceViewState.Console);
+}
 
     private void OnAnalysisStarted(TrackAnalysisStartedEvent evt)
     {
@@ -403,6 +440,9 @@ public class AnalysisQueueViewModel : ReactiveObject, IDisposable
         {
             job.Step = evt.CurrentStep;
             job.ProgressPercent = evt.ProgressPercent;
+            job.BpmConfidence = evt.BpmConfidence;
+            job.KeyConfidence = evt.KeyConfidence;
+            job.IntegrityScore = evt.IntegrityScore;
         }
     }
 
@@ -541,7 +581,11 @@ public class AnalysisQueueViewModel : ReactiveObject, IDisposable
         
         try
         {
-            await _queueService.PerformDemoPrepAsync();
+            if (_queueService != null)
+            {
+                await _queueService.RestoreQueueOrphansAsync();
+            }
+            // await _queueService.PerformDemoPrepAsync(); // Removed duplicate legacy call
             PrepStatus = "Demo Prep started - tracks enqueued";
         }
         catch (Exception ex)
@@ -552,6 +596,23 @@ public class AnalysisQueueViewModel : ReactiveObject, IDisposable
         {
             IsPrepRunning = false;
         }
+    }
+
+    private void PurgeStuckJobs()
+    {
+        // Identify jobs older than 10 minutes (likely stuck if not Tier 3)
+        var stuckJobs = ActiveJobs.Where(j => (DateTime.Now - j.Timestamp).TotalMinutes > 10).ToList();
+        foreach (var job in stuckJobs)
+        {
+            ActiveJobs.Remove(job);
+            
+            // Also add to Failed so we have a record
+            job.Status = "Purged";
+            job.Error = "Manually purged (Stuck > 10m)";
+            FailedJobs.Insert(0, job);
+        }
+        
+        _logger.LogInformation("Purged {Count} stuck jobs", stuckJobs.Count);
     }
 
     private void OnAnalysisFailed(TrackAnalysisFailedEvent evt)

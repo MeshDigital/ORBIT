@@ -431,5 +431,10 @@
         <controls:BulkOperationProgressModal Grid.RowSpan="3"
                                             DataContext="{Binding BulkOperationViewModel}"
                                             ZIndex="2000"/>
+
+        <!-- Operation Glass Console Overlay -->
+        <views:IntelligenceCenterView Grid.RowSpan="3"
+                                    DataContext="{Binding IntelligenceCenter}"
+                                    ZIndex="2500"/>
     </Grid>
 </Window>

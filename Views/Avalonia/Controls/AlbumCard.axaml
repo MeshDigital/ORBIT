@@ -7,39 +7,41 @@
              x:Class="SLSKDONET.Views.Avalonia.Controls.AlbumCard"
              x:DataType="vm:AlbumNode">
     
+    <!-- Shared Context Menu for entire card -->
+    <UserControl.ContextMenu>
+        <ContextMenu>
+            <MenuItem Header="Analyze Album">
+                <MenuItem.Icon>
+                    <TextBlock Text="🔬"/>
+                </MenuItem.Icon>
+                <MenuItem Header="Tier 1: Basic (Fast)" Command="{Binding AnalyzeAlbumT1Command}" />
+                <MenuItem Header="Tier 2: Detailed" Command="{Binding AnalyzeAlbumT2Command}" />
+                <MenuItem Header="Tier 3: Specialized (Deep)" Command="{Binding AnalyzeAlbumT3Command}" />
+            </MenuItem>
+            <MenuItem Header="Download Album" Command="{Binding DownloadAlbumCommand}">
+                <MenuItem.Icon>
+                    <TextBlock Text="⬇️"/>
+                </MenuItem.Icon>
+            </MenuItem>
+        </ContextMenu>
+    </UserControl.ContextMenu>
+    
     <Border Width="180" Background="Transparent">
-        <Border.ContextMenu>
-            <ContextMenu>
-                <MenuItem Header="Analyze Album">
-                    <MenuItem.Icon>
-                        <TextBlock Text="🔬"/>
-                    </MenuItem.Icon>
-                    <MenuItem Header="Tier 1: Basic (Fast)" Command="{Binding AnalyzeAlbumT1Command}" CommandParameter="{Binding}" />
-                    <MenuItem Header="Tier 2: Detailed" Command="{Binding AnalyzeAlbumT2Command}" CommandParameter="{Binding}" />
-                    <MenuItem Header="Tier 3: Specialized (Deep)" Command="{Binding AnalyzeAlbumT3Command}" CommandParameter="{Binding}" />
-                </MenuItem>
-                <MenuItem Header="Download Album" Command="{Binding DownloadAlbumCommand}">
-                    <MenuItem.Icon>
-                        <TextBlock Text="⬇️"/>
-                    </MenuItem.Icon>
-                </MenuItem>
-            </ContextMenu>
-        </Border.ContextMenu>
         <StackPanel Spacing="8">
             <!-- Cover Art Container -->
             <Border Width="180" Height="180" CornerRadius="8" ClipToBounds="True" Background="#1A1A1A">
                 <Grid>
                     <!-- Fallback Layer (Visible if no artwork) -->
                     <Panel Background="{Binding FallbackBrush}" 
-                           IsVisible="{Binding ArtworkBitmap, Converter={x:Static ObjectConverters.IsNull}}">
+                           IsVisible="{Binding Artwork.Image, Converter={x:Static ObjectConverters.IsNull}}">
                         <TextBlock Text="{Binding FallbackLetter}" 
                                    FontSize="64" FontWeight="Bold" Foreground="White" Opacity="0.5"
                                    HorizontalAlignment="Center" VerticalAlignment="Center"/>
                     </Panel>
                     
                     <!-- Artwork Layer -->
-                    <Image Source="{Binding ArtworkBitmap}" Stretch="UniformToFill" 
-                           IsVisible="{Binding ArtworkBitmap, Converter={x:Static ObjectConverters.IsNotNull}}"/>
+                    <Image Source="{Binding Artwork.Image}" Stretch="UniformToFill" 
+                           IsVisible="{Binding Artwork.Image, Converter={x:Static ObjectConverters.IsNotNull}}"/>
                            
                     <!-- Hover Play Overlay -->
                     <Grid Name="HoverOverlay" 

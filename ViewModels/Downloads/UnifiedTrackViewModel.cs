@@ -225,7 +225,38 @@ public class UnifiedTrackViewModel : ReactiveObject, IDisplayableTrack, IDisposa
         {
             this.RaiseAndSetIfChanged(ref _failureReason, value);
             this.RaisePropertyChanged(nameof(StatusText));
+            this.RaisePropertyChanged(nameof(DetailedStatusText));
         }
+    }
+
+    private DownloadFailureReason _failureEnum;
+    public DownloadFailureReason FailureEnum
+    {
+        get => _failureEnum;
+        set
+        {
+            this.RaiseAndSetIfChanged(ref _failureEnum, value);
+            this.RaisePropertyChanged(nameof(FailureDisplayMessage));
+            this.RaisePropertyChanged(nameof(FailureActionSuggestion));
+        }
+    }
+
+    public string FailureDisplayMessage => FailureEnum.ToDisplayMessage();
+    public string FailureActionSuggestion => FailureEnum.ToActionableSuggestion();
+
+    // Phase 0.5: Search Diagnostics
+    private System.Collections.ObjectModel.ObservableCollection<RejectedResult>? _rejectionDetails;
+    public System.Collections.ObjectModel.ObservableCollection<RejectedResult>? RejectionDetails
+    {
+        get => _rejectionDetails;
+        set => this.RaiseAndSetIfChanged(ref _rejectionDetails, value);
+    }
+
+    private bool _hasRejectionDetails;
+    public bool HasRejectionDetails
+    {
+        get => _hasRejectionDetails;
+        set => this.RaiseAndSetIfChanged(ref _hasRejectionDetails, value);
     }
 
     public string CompletedAtDisplay => Model.CompletedAt?.ToString("g") ?? Model.AddedAt.ToString("g");
@@ -269,7 +300,20 @@ public class UnifiedTrackViewModel : ReactiveObject, IDisplayableTrack, IDisposa
     public Avalonia.Media.IBrush QualityColor => TierColor;
     
     public string BpmDisplay => Model.BPM.HasValue ? $"{Model.BPM:0}" : "—";
-    public string KeyDisplay => Model.MusicalKey ?? "—";
+    public string KeyDisplay
+    {
+        get
+        {
+            if (string.IsNullOrEmpty(Model.MusicalKey)) return "—";
+            
+            var camelot = Utils.KeyConverter.ToCamelot(Model.MusicalKey);
+            // Show both: "G minor (6A)" or just "6A" if already in Camelot format
+            if (camelot == Model.MusicalKey)
+                return camelot; // Already Camelot
+            
+            return $"{Model.MusicalKey} ({camelot})";
+        }
+    }
     public string YearDisplay => Model.ReleaseDate.HasValue ? Model.ReleaseDate.Value.Year.ToString() : "";
     
     // Technical Audio Display
@@ -405,6 +449,20 @@ public class UnifiedTrackViewModel : ReactiveObject, IDisplayableTrack, IDisposa
         System.Diagnostics.Debug.WriteLine($"[UnifiedTrackVM] {GlobalId} State Changed: {e.State} (Error: {e.Error})");
         State = e.State;
         FailureReason = e.Error;
+        FailureEnum = e.FailureReason;
+        
+        // Phase 0.5: Populate Search Diagnostics
+        if (e.SearchLog != null && e.SearchLog.Top3RejectedResults.Any())
+        {
+             RejectionDetails = new System.Collections.ObjectModel.ObservableCollection<RejectedResult>(e.SearchLog.Top3RejectedResults);
+             HasRejectionDetails = true;
+        }
+        else if (State == PlaylistTrackState.Pending || State == PlaylistTrackState.Searching)
+        {
+             // Clear diagnostics on retry/restart
+             RejectionDetails = null;
+             HasRejectionDetails = false;
+        }
     }
 
     private void OnProgressChanged(TrackProgressChangedEvent e)

@@ -294,6 +294,31 @@ public class EssentiaAnalyzerService : IAudioIntelligenceService, IDisposable
                     }
                 }
 
+                // Helper to extract probability from either standard property or ExtensionData
+                float GetProb(ModelPrediction? pred, string modelKey, string classKey) 
+                {
+                    if (pred?.All != null) 
+                    {
+                        // Map standard class names if needed, or rely on caller to check All properties??
+                        // Simpler: Just rely on ExtensionData fallback if standard is missing/zero
+                        // But standard property "Danceability" might be populated if model name matched "danceability"
+                        // checks:
+                        if (classKey == "danceable" && pred.All.Danceable > 0) return pred.All.Danceable;
+                        if (classKey == "happy" && pred.All.Happy > 0) return pred.All.Happy;
+                        if (classKey == "aggressive" && pred.All.Aggressive > 0) return pred.All.Aggressive;
+                        if (classKey == "sad" && pred.All.Sad > 0) return pred.All.Sad;
+                        if (classKey == "voice" && pred.All.Voice > 0) return pred.All.Voice;
+                    }
+                    return ExtractModelProbability(data.HighLevel?.ExtensionData, modelKey, classKey);
+                }
+
+                // Tier 1 Models (discogs-effnet) often land in ExtensionData
+                float danceProb = GetProb(data.HighLevel?.Danceability, "danceability-discogs-effnet-1", "danceable");
+                float voiceProb = GetProb(data.HighLevel?.VoiceInstrumental, "voice_instrumental-msd-musicnn-1", "voice");
+                float happyProb = GetProb(data.HighLevel?.MoodHappy, "mood_happy-discogs-effnet-1", "happy"); // EffNet often uses "happy"/"not_happy" or similar? Need to verify class naming for "mood_happy" model. 
+                // Metadata for mood_happy-discogs-effnet-1.json likely says "happy", "not_happy"
+                float aggressiveProb = GetProb(data.HighLevel?.MoodAggressive, "mood_aggressive-discogs-effnet-1", "aggressive");
+
                 // DEBUG: Log extracted data to verify what Essentia produced
                 _logger.LogInformation("🎵 ESSENTIA EXTRACTION SUCCESS for {File}:", Path.GetFileName(filePath));
                 _logger.LogInformation("   ├─ BPM: {Bpm} (confidence: {Conf})", 
@@ -302,12 +327,8 @@ public class EssentiaAnalyzerService : IAudioIntelligenceService, IDisposable
                     data.Tonal?.KeyEdma?.Key ?? "Unknown", 
                     data.Tonal?.KeyEdma?.Scale ?? "Unknown",
                     data.Tonal?.KeyEdma?.Strength ?? 0);
-                _logger.LogInformation("   ├─ Danceability: {Dance} | Voice/Instrumental: {Voice}",
-                    data.HighLevel?.Danceability?.All?.Danceable ?? 0,
-                    data.HighLevel?.VoiceInstrumental?.All?.Voice ?? 0);
-                _logger.LogInformation("   └─ Moods - Happy: {Happy} | Aggressive: {Aggressive}",
-                    data.HighLevel?.MoodHappy?.All?.Happy ?? 0,
-                    data.HighLevel?.MoodAggressive?.All?.Aggressive ?? 0);
+                _logger.LogInformation("   ├─ Danceability: {Dance:F2} | Voice: {Voice:F2}", danceProb, voiceProb);
+                _logger.LogInformation("   └─ Moods - Happy: {Happy:F2} | Aggressive: {Aggressive:F2}", happyProb, aggressiveProb);
 
                 // Map to AudioFeaturesEntity
                 var entity = new AudioFeaturesEntity
@@ -323,14 +344,12 @@ public class EssentiaAnalyzerService : IAudioIntelligenceService, IDisposable
                     CamelotKey = string.Empty, // Will be calculated by KeyConverter in Phase 4.3
                     
                     // Sonic Characteristics
-                    // Phase 13A: Improved Energy mapping (combines RMS intensity and Loudness)
-                    // Clamp to 0-1 to prevent UI overflow (e.g., 112%)
+                    // Phase 13A: Improved Energy mapping
+                    // Refined for DnB: Mean * 5 (down from 10) and shifted loudness thresholds
                     Energy = Math.Clamp(
-                        data.LowLevel?.Rms?.Mean * 10 ?? (data.LowLevel?.AverageLoudness > -8 ? 0.9f : (data.LowLevel?.AverageLoudness > -12 ? 0.7f : 0.5f)),
+                        data.LowLevel?.Rms?.Mean * 5 ?? (data.LowLevel?.AverageLoudness > -7 ? 0.85f : (data.LowLevel?.AverageLoudness > -11 ? 0.7f : 0.5f)),
                         0f, 1f),
-                    Danceability = Math.Clamp(
-                        data.HighLevel?.Danceability?.All?.Danceable ?? data.Rhythm?.Danceability ?? 0,
-                        0f, 1f),
+                    Danceability = Math.Clamp(danceProb > 0 ? danceProb : (data.Rhythm?.Danceability ?? 0), 0f, 1f),
                     // NEW: Intensity metric (composite of onset rate + spectral complexity)
                     Intensity = Math.Clamp(
                         ((data.Rhythm?.OnsetRate ?? 0) / 15f * 0.5f) + ((data.LowLevel?.SpectralComplexity?.Mean ?? 0) / 100f * 0.5f),
@@ -348,14 +367,17 @@ public class EssentiaAnalyzerService : IAudioIntelligenceService, IDisposable
                         data.LowLevel?.AverageLoudness ?? 0),
 
                     // Phase 13C: AI Layer (Vocals & Mood)
-                    // TF models may not be loaded - use heuristic fallback based on spectral features
-                    InstrumentalProbability = data.HighLevel?.VoiceInstrumental?.All?.Instrumental 
-                        ?? EstimateInstrumentalProbability(data.LowLevel, data.Rhythm),
+                    // Phase 13C: AI Layer (Vocals & Mood)
+                    // Fix: Use heuristic if voice model returned 0 (likely missing)
+                    InstrumentalProbability = voiceProb > 0 
+                        ? 1.0f - voiceProb
+                        : EstimateInstrumentalProbability(data.LowLevel, data.Rhythm),
                     MoodTag = DetermineMoodTag(data.HighLevel),
                     MoodConfidence = CalculateMoodConfidence(data.HighLevel),
                     
                     // Phase 21: AI Brain
                     Sadness = data.HighLevel?.MoodSad?.All?.Sad, // Directly capture Sad probability
+                    Valence = 0.5f, // Neutral default
 
                     // Advanced Harmonic Mixing
                     // ChordProgression = FormatChordProgression(data.Tonal?.ChordsKey), // Commented out - ChordsKey now JsonElement
@@ -605,8 +627,9 @@ public class EssentiaAnalyzerService : IAudioIntelligenceService, IDisposable
         else if (complexity < 15) instrumental -= 0.1f;
         
         // Onset Rate: Vocals have fewer distinct onsets than drums/synths
+        // Increased threshold for DnB (usually 15-20)
         var onsets = rhythm?.OnsetRate ?? 0;
-        if (onsets > 8) instrumental += 0.1f;   // Busy = instrumental
+        if (onsets > 15) instrumental += 0.1f;   // Very Busy = instrumental
         else if (onsets < 3) instrumental -= 0.05f; // Sparse = possibly vocal ballad
         
         return Math.Clamp(instrumental, 0.0f, 1.0f);
@@ -767,11 +790,14 @@ public class EssentiaAnalyzerService : IAudioIntelligenceService, IDisposable
             {
                 float arousal = TryGetFloat(allProp, "arousal") ?? 5f;
                 float valence = TryGetFloat(allProp, "valence") ?? 5f;
-                return (arousal, valence);
+                
+                // Muse dataset uses 1-9 scale. Normalize to 0-1.
+                // 1=Low, 5=Neutral, 9=High
+                return ((arousal - 1f) / 8f, (valence - 1f) / 8f);
             }
         }
         catch { }
-        return (5f, 5f); // Neutral default
+        return (0.5f, 0.5f); // Neutral default (Normalized)
     }
 
     /// <summary>
@@ -884,6 +910,46 @@ public class EssentiaAnalyzerService : IAudioIntelligenceService, IDisposable
         }
         catch { }
         return null;
+    }
+
+
+    /// <summary>
+    /// Extracts probability of a specific class from a model output in ExtensionData.
+    /// Used when model names don't match standard properties (e.g. danceability-discogs-effnet-1).
+    /// </summary>
+    private static float ExtractModelProbability(
+        Dictionary<string, System.Text.Json.JsonElement>? extensionData, 
+        string modelKeyFragment, 
+        string classKey)
+    {
+        if (extensionData == null) return 0f;
+
+        try
+        {
+            // Find key containing the fragment (e.g. "danceability-discogs-effnet-1")
+            var match = extensionData.FirstOrDefault(k => k.Key.Contains(modelKeyFragment, StringComparison.OrdinalIgnoreCase));
+            if (match.Key == null) return 0f;
+
+            var element = match.Value;
+
+            // Structure usually: { "all": { "classA": 0.X, "classB": 0.Y }, ... }
+            if (element.TryGetProperty("all", out var allProp))
+            {
+                if (allProp.TryGetProperty(classKey, out var probProp) && probProp.TryGetSingle(out var prob))
+                {
+                    return prob;
+                }
+            }
+            
+            // Or maybe direct?
+            if (element.TryGetProperty(classKey, out var directProp) && directProp.TryGetSingle(out var directProb))
+            {
+                return directProb;
+            }
+        }
+        catch { }
+
+        return 0f;
     }
 
 

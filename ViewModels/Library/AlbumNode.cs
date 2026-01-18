@@ -17,8 +17,9 @@ namespace SLSKDONET.ViewModels.Library;
 public class AlbumNode : ILibraryNode, INotifyPropertyChanged
 {
     private readonly DownloadManager? _downloadManager;
-    
     private readonly AnalysisQueueService? _analysisQueueService;
+    private readonly ArtworkCacheService? _artworkCacheService;
+    private ArtworkProxy? _artwork;
     
     public string? AlbumTitle { get; set; }
     public string? Artist { get; set; }
@@ -68,20 +69,21 @@ public class AlbumNode : ILibraryNode, INotifyPropertyChanged
     public ICommand PlayAlbumCommand { get; } 
     public ICommand AnalyzeAlbumCommand { get; }
 
-    // UI State
-    private bool _isLoading = false;
-    public bool IsLoading
+    public bool IsLoading => false; // Obsolete with proxy
+
+    public ArtworkProxy? Artwork
     {
-        get => _isLoading;
-        set { if (_isLoading != value) { _isLoading = value; OnPropertyChanged(); } }
+        get
+        {
+            if (_artwork == null && !string.IsNullOrEmpty(AlbumArtPath) && _artworkCacheService != null)
+            {
+                _artwork = new ArtworkProxy(_artworkCacheService, AlbumArtPath);
+            }
+            return _artwork;
+        }
     }
 
-    private Bitmap? _artworkBitmap;
-    public Bitmap? ArtworkBitmap
-    {
-        get => _artworkBitmap;
-        set { if (_artworkBitmap != value) { _artworkBitmap = value; OnPropertyChanged(); } }
-    }
+    public Bitmap? ArtworkBitmap => Artwork?.Image; // Keep for XAML binding compatibility if needed, but we'll update XAML too
 
     public IBrush FallbackBrush => GenerateColorFromHash(AlbumTitle ?? "?");
     public string FallbackLetter => !string.IsNullOrEmpty(AlbumTitle) ? AlbumTitle.Substring(0, 1).ToUpper() : "?";
@@ -105,12 +107,13 @@ public class AlbumNode : ILibraryNode, INotifyPropertyChanged
         return new SolidColorBrush(Color.FromRgb(r, g, b));
     }
 
-    public AlbumNode(string? albumTitle, string? artist, DownloadManager? downloadManager = null, AnalysisQueueService? analysisQueueService = null)
+    public AlbumNode(string? albumTitle, string? artist, DownloadManager? downloadManager = null, AnalysisQueueService? analysisQueueService = null, ArtworkCacheService? artworkCacheService = null)
     {
         AlbumTitle = albumTitle;
         Artist = artist;
         _downloadManager = downloadManager;
         _analysisQueueService = analysisQueueService;
+        _artworkCacheService = artworkCacheService;
         
         DownloadAlbumCommand = new RelayCommand(DownloadAlbum);
         AnalyzeAlbumT1Command = new RelayCommand(() => AnalyzeAlbum(AnalysisTier.Tier1));
@@ -118,12 +121,6 @@ public class AlbumNode : ILibraryNode, INotifyPropertyChanged
         AnalyzeAlbumT3Command = new RelayCommand(() => AnalyzeAlbum(AnalysisTier.Tier3));
         PlayAlbumCommand = new RelayCommand<object>(_ => PlayAlbum());
         AnalyzeAlbumCommand = new RelayCommand<object>(_ => AnalyzeAlbum());
-        
-        // Use async loading for bitmap if path exists
-        if (!string.IsNullOrEmpty(AlbumArtPath))
-        {
-             LoadArtworkAsync();
-        }
         
         Tracks.CollectionChanged += (s, e) => {
             if (e.NewItems != null)
@@ -178,31 +175,6 @@ public class AlbumNode : ILibraryNode, INotifyPropertyChanged
         }
     }
 
-    private async void LoadArtworkAsync()
-    {
-        if (string.IsNullOrEmpty(AlbumArtPath)) return;
-        
-        IsLoading = true;
-        try 
-        {
-             await Task.Run(() => 
-             {
-                 if (System.IO.File.Exists(AlbumArtPath))
-                 {
-                     // Simple load, cache service would be better
-                     try {
-                        var bmp = new Bitmap(AlbumArtPath);
-                        Avalonia.Threading.Dispatcher.UIThread.Post(() => ArtworkBitmap = bmp);
-                     } catch {}
-                 }
-             });
-        }
-        finally
-        {
-            Avalonia.Threading.Dispatcher.UIThread.Post(() => IsLoading = false);
-        }
-    }
-
     private void UpdateAlbumArt()
     {
         // Use the art from the first track that has it
@@ -210,7 +182,14 @@ public class AlbumNode : ILibraryNode, INotifyPropertyChanged
         if (art != AlbumArtPath)
         {
             AlbumArtPath = art;
-            LoadArtworkAsync(); // Reload bitmap when path changes
+            // Refresh proxy
+            _artwork = null;
+            if (!string.IsNullOrEmpty(AlbumArtPath) && _artworkCacheService != null)
+            {
+                _artwork = new ArtworkProxy(_artworkCacheService, AlbumArtPath);
+            }
+            OnPropertyChanged(nameof(Artwork));
+            OnPropertyChanged(nameof(ArtworkBitmap));
         }
     }
 

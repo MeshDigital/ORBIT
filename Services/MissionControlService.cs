@@ -6,6 +6,8 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using SLSKDONET.Models;
+using SLSKDONET.Data;
+using SLSKDONET.Configuration;
 
 namespace SLSKDONET.Services
 {
@@ -20,6 +22,10 @@ namespace SLSKDONET.Services
         
         private readonly CancellationTokenSource _cts = new();
         private int _lastHash = 0;
+        private readonly IAudioIntelligenceService _essentia;
+        private readonly AnalysisQueueService _analysisQueue;
+        private readonly IForensicLockdownService _lockdown;
+        private readonly ConfigManager _configManager;
         private Task? _monitorTask;
 
         // Caching for expensive stats
@@ -28,11 +34,15 @@ namespace SLSKDONET.Services
         private int _tickCounter = 0;
 
         public MissionControlService(
-            IEventBus eventBus,
+            IEventBus eventBus, 
             DownloadManager downloadManager,
             CrashRecoveryJournal crashJournal,
             SearchOrchestrationService searchOrchestrator,
             LibraryEnrichmentWorker enrichmentWorker,
+            IAudioIntelligenceService essentia,
+            AnalysisQueueService analysisQueue,
+            IForensicLockdownService lockdown,
+            ConfigManager configManager,
             ILogger<MissionControlService> logger)
         {
             _eventBus = eventBus;
@@ -40,6 +50,10 @@ namespace SLSKDONET.Services
             _crashJournal = crashJournal;
             _searchOrchestrator = searchOrchestrator;
             _enrichmentWorker = enrichmentWorker;
+            _essentia = essentia;
+            _analysisQueue = analysisQueue;
+            _lockdown = lockdown;
+            _configManager = configManager;
             _logger = logger;
         }
 
@@ -51,8 +65,8 @@ namespace SLSKDONET.Services
 
         private async Task ProcessThrottledUpdatesAsync()
         {
-            // 4 FPS = 250ms
-            var timer = new PeriodicTimer(TimeSpan.FromMilliseconds(250));
+            // 2 FPS = 500ms (Decreased from 4 FPS to prioritize audio stability)
+            var timer = new PeriodicTimer(TimeSpan.FromMilliseconds(500));
             
             // Initial load of expensive stats
             await UpdateExpensiveStatsAsync();
@@ -120,14 +134,45 @@ namespace SLSKDONET.Services
             }
 
             // Build Active Operations List (Cheap memory scan)
-            var operations = new List<string>();
+            var operations = new List<MissionOperation>();
             foreach (var dl in activeDownloads.Take(10)) 
             {
-                operations.Add($"⬇️ Downloading: {dl.Model.Artist} - {dl.Model.Title} ({dl.Progress:P0})");
+                operations.Add(new MissionOperation 
+                {
+                    Id = dl.GlobalId,
+                    Type = SLSKDONET.Models.OperationType.Download,
+                    Title = $"{dl.Model.Artist} - {dl.Model.Title}",
+                    Subtitle = dl.State.ToString(),
+                    Progress = dl.Progress / 100.0, // DownloadContext progress is 0-100
+                    StatusText = $"{dl.Progress:F0}% Complete",
+                    CanCancel = dl.IsActive
+                });
             }
             if (_searchOrchestrator.GetActiveSearchCount() > 0)
             {
-                operations.Add($"🔍 Searching: {_searchOrchestrator.GetActiveSearchCount()} active queries");
+                operations.Add(new MissionOperation
+                {
+                    Type = SLSKDONET.Models.OperationType.Search,
+                    Title = "Active Search Queries",
+                    Subtitle = $"{_searchOrchestrator.GetActiveSearchCount()} queries in progress",
+                    Progress = 0.5, // Indeterminate or mockup
+                    StatusText = "Searching..."
+                });
+            }
+            
+            // Add Analysis Operations
+            foreach (var thread in _analysisQueue.ActiveThreads.Where(t => t.Status != "Idle"))
+            {
+                operations.Add(new MissionOperation
+                {
+                    Id = thread.ThreadId.ToString(),
+                    Type = SLSKDONET.Models.OperationType.Analysis,
+                    Title = thread.CurrentTrack,
+                    Subtitle = thread.Status,
+                    Progress = thread.Progress / 100.0,
+                    StatusText = $"{thread.Progress:F0}% analyzed",
+                    Track = thread // Link to full telemetry
+                });
             }
 
             // Resilience Log
@@ -150,7 +195,9 @@ namespace SLSKDONET.Services
                 RecoveredFileCount = healthStats.RecoveredCount,
                 ZombieProcessCount = zombieCount,
                 ActiveOperations = operations,
-                ResilienceLog = resilienceLog
+                ResilienceLog = resilienceLog,
+                IsForensicLockdownActive = _lockdown.IsLockdownActive,
+                CurrentCpuLoad = _lockdown.CurrentCpuLoad
             };
         }
 

@@ -824,6 +824,7 @@ public class LibraryService : ILibraryService
             SortOrder = entity.SortOrder,
             PreferredFormats = entity.PreferredFormats,
             MinBitrateOverride = entity.MinBitrateOverride,
+            Format = entity.Format,
             
             // Spotify Metadata
             SpotifyTrackId = entity.SpotifyTrackId,
@@ -909,6 +910,7 @@ public class LibraryService : ILibraryService
             SortOrder = track.SortOrder,
             PreferredFormats = track.PreferredFormats,
             MinBitrateOverride = track.MinBitrateOverride,
+            Format = track.Format,
             
             // Spotify Metadata
             SpotifyTrackId = track.SpotifyTrackId,

@@ -110,6 +110,12 @@
   - Stage-based event categorization
   - Forensic Timeline UI integration
   - Debugging workflows and performance profiling
+- **[DOCS/ANALYSIS_QUEUE_DESIGN.md](DOCS/ANALYSIS_QUEUE_DESIGN.md)** - End-to-end analysis queue architecture ⭐ NEW (Jan 2026) 🚀
+  - Multi-threaded producer-consumer pipeline
+  - Essentia & FFmpeg integration details
+  - Batching and persistence strategies
+  - Visual, Musical, and Technical analysis stages
+  - Forensic auditing and resilience mechanisms
 
 #### Audit & Quality Assurance ⭐ NEW (Dec 28, 2025)
 - **[DOCS/UNDOCUMENTED_FEATURES_AUDIT.md](DOCS/UNDOCUMENTED_FEATURES_AUDIT.md)** - Comprehensive feature audit 📋

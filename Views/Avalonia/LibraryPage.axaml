@@ -38,6 +38,11 @@
         <!-- Fluidity Shortcuts -->
         <KeyBinding Gesture="Space" Command="{Binding QuickLookCommand}"/>
         <KeyBinding Gesture="Escape" Command="{Binding SmartEscapeCommand}"/>
+        
+        <!-- Quick Actions (Operation Glass Console) -->
+        <KeyBinding Gesture="P" Command="{Binding Operations.PlayTrackCommand}" CommandParameter="{Binding Tracks.LeadSelectedTrack}"/>
+        <KeyBinding Gesture="L" Command="{Binding Operations.OpenFolderCommand}" CommandParameter="{Binding Tracks.LeadSelectedTrack}"/>
+        <KeyBinding Gesture="A" Command="{Binding AnalyzeTrackCommand}" CommandParameter="{Binding Tracks.LeadSelectedTrack}"/>
     </UserControl.KeyBindings>
 
     <Grid>
@@ -46,409 +51,373 @@
               Effect="{Binding IsForensicLabVisible, Converter={StaticResource BoolBlurConverter}}">
         
             <!-- LEFT PANEL: Playlist List -->
-        <Border Grid.Column="0" Background="#202020" BorderBrush="#3E3E3E" BorderThickness="0,0,1,0">
-            <Grid RowDefinitions="Auto,*,Auto">
-                
-                <!-- Header / Tools -->
-                <Grid Grid.Row="0" Margin="12,16,12,8" ColumnDefinitions="*,Auto">
-                     <TextBlock Text="LIBRARY" FontSize="12" FontWeight="Bold" Foreground="#888" VerticalAlignment="Center"/>
-                     
-                     <DropDownButton Content="Tools" Classes="tool" CornerRadius="4" Padding="8,4" FontSize="12">
-                         <DropDownButton.Flyout>
-                             <MenuFlyout>
-                                 <MenuItem Header="Import History" Command="{Binding ViewHistoryCommand}">
-                                     <MenuItem.Icon><TextBlock Text="📜"/></MenuItem.Icon>
-                                 </MenuItem>
-                                 <MenuItem Header="Upgrade Scout" Command="{Binding ToggleUpgradeScoutCommand}">
-                                     <MenuItem.Icon><TextBlock Text="💎"/></MenuItem.Icon>
-                                 </MenuItem>
-                                 <Separator/>
-                                 <MenuItem Header="Manage Sources" Command="{Binding OpenSourcesCommand}">
-                                     <MenuItem.Icon><TextBlock Text="📁"/></MenuItem.Icon>
-                                 </MenuItem>
-                                 <MenuItem Header="New Smart Playlist" Command="{Binding CreateSmartPlaylistCommand}">
-                                     <MenuItem.Icon><TextBlock Text="⚡"/></MenuItem.Icon>
-                                 </MenuItem>
-                                 <MenuItem Header="Retry Offline Tracks" Command="{Binding Operations.RetryOfflineTracksCommand}">
-                                     <MenuItem.Icon><TextBlock Text="🔄"/></MenuItem.Icon>
-                                 </MenuItem>
-                                 <Separator/>
-                                 <MenuItem Header="Export Monthly Drop" Command="{Binding ExportMonthlyDropCommand}">
-                                     <MenuItem.Icon><TextBlock Text="📂"/></MenuItem.Icon>
-                                 </MenuItem>
-                             </MenuFlyout>
-                         </DropDownButton.Flyout>
-                     </DropDownButton>
-                </Grid>
+            <Border Grid.Column="0" Background="#202020" BorderBrush="#3E3E3E" BorderThickness="0,0,1,0">
+                <Grid RowDefinitions="Auto,*,Auto">
+                    
+                    <!-- Header / Tools -->
+                    <Grid Grid.Row="0" Margin="12,16,12,8" ColumnDefinitions="*,Auto">
+                         <TextBlock Text="LIBRARY" FontSize="12" FontWeight="Bold" Foreground="#888" VerticalAlignment="Center"/>
+                         
+                         <DropDownButton Content="Tools" Classes="tool" CornerRadius="4" Padding="8,4" FontSize="12">
+                             <DropDownButton.Flyout>
+                                 <MenuFlyout>
+                                     <MenuItem Header="Import History" Command="{Binding ViewHistoryCommand}">
+                                         <MenuItem.Icon><TextBlock Text="📜"/></MenuItem.Icon>
+                                     </MenuItem>
+                                     <MenuItem Header="Upgrade Scout" Command="{Binding ToggleUpgradeScoutCommand}">
+                                         <MenuItem.Icon><TextBlock Text="💎"/></MenuItem.Icon>
+                                     </MenuItem>
+                                     <Separator/>
+                                     <MenuItem Header="Manage Sources" Command="{Binding OpenSourcesCommand}">
+                                         <MenuItem.Icon><TextBlock Text="📁"/></MenuItem.Icon>
+                                     </MenuItem>
+                                     <MenuItem Header="New Smart Playlist" Command="{Binding CreateSmartPlaylistCommand}">
+                                         <MenuItem.Icon><TextBlock Text="⚡"/></MenuItem.Icon>
+                                     </MenuItem>
+                                     <MenuItem Header="Retry Offline Tracks" Command="{Binding Operations.RetryOfflineTracksCommand}">
+                                         <MenuItem.Icon><TextBlock Text="🔄"/></MenuItem.Icon>
+                                     </MenuItem>
+                                     <Separator/>
+                                     <MenuItem Header="Export Monthly Drop" Command="{Binding ExportMonthlyDropCommand}">
+                                         <MenuItem.Icon><TextBlock Text="📂"/></MenuItem.Icon>
+                                     </MenuItem>
+                                 </MenuFlyout>
+                             </DropDownButton.Flyout>
+                         </DropDownButton>
+                    </Grid>
 
-                <!-- Navigation List -->
-                <ScrollViewer Grid.Row="1">
-                    <StackPanel Spacing="2">
-                        <!-- Pinned / Special -->
-                        <ListBox ItemsSource="{Binding SmartPlaylists.SmartPlaylists}"
-                                 SelectedItem="{Binding SmartPlaylists.SelectedSmartPlaylist, Mode=TwoWay}"
-                                 Background="Transparent" BorderThickness="0" Padding="0" Margin="0,0,0,8">
-                            <ListBox.Styles>
-                                <Style Selector="ListBoxItem">
-                                    <Setter Property="Padding" Value="12,8"/>
-                                    <Setter Property="CornerRadius" Value="4"/>
-                                    <Setter Property="Margin" Value="8,0"/>
-                                </Style>
-                            </ListBox.Styles>
-                            <ListBox.ItemTemplate>
-                                <DataTemplate>
-                                    <StackPanel Orientation="Horizontal" Spacing="12">
-                                        <Border Width="24" Height="24" CornerRadius="4" Background="#333" VerticalAlignment="Center">
-                                            <TextBlock Text="{Binding Icon}" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                    <!-- Navigation List -->
+                    <ScrollViewer Grid.Row="1">
+                        <StackPanel Spacing="2">
+                            <!-- Pinned / Special -->
+                            <ListBox ItemsSource="{Binding SmartPlaylists.SmartPlaylists}"
+                                     SelectedItem="{Binding SmartPlaylists.SelectedSmartPlaylist, Mode=TwoWay}"
+                                     Background="Transparent" BorderThickness="0" Padding="0" Margin="0,0,0,8">
+                                <ListBox.Styles>
+                                    <Style Selector="ListBoxItem">
+                                        <Setter Property="Padding" Value="12,8"/>
+                                        <Setter Property="CornerRadius" Value="4"/>
+                                        <Setter Property="Margin" Value="8,0"/>
+                                    </Style>
+                                </ListBox.Styles>
+                                <ListBox.ItemTemplate>
+                                    <DataTemplate>
+                                        <StackPanel Orientation="Horizontal" Spacing="12">
+                                            <Border Width="24" Height="24" CornerRadius="4" Background="#333" VerticalAlignment="Center">
+                                                <TextBlock Text="{Binding Icon}" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                            </Border>
+                                            <TextBlock Text="{Binding Name}" VerticalAlignment="Center" FontSize="13"/>
+                                        </StackPanel>
+                                    </DataTemplate>
+                                </ListBox.ItemTemplate>
+                            </ListBox>
+                            
+                            <!-- Actions as List Items -->
+                            <Button Command="{Binding Projects.ImportLikedSongsCommand}" Classes="nav-item" Margin="8,0">
+                                <StackPanel Orientation="Horizontal" Spacing="12">
+                                    <Border Width="24" Height="24" CornerRadius="4" Background="#281111" VerticalAlignment="Center">
+                                        <TextBlock Text="❤️" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                    </Border>
+                                    <TextBlock Text="Liked Songs" VerticalAlignment="Center"/>
+                                </StackPanel>
+                            </Button>
+                            
+                            <Button Command="{Binding Projects.LoadAllTracksCommand}" Classes="nav-item" Margin="8,0">
+                                <StackPanel Orientation="Horizontal" Spacing="12">
+                                    <Border Width="24" Height="24" CornerRadius="4" Background="#111128" VerticalAlignment="Center">
+                                        <TextBlock Text="📚" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                    </Border>
+                                    <TextBlock Text="All Tracks" VerticalAlignment="Center"/>
+                                </StackPanel>
+                            </Button>
+
+                            <Separator Height="1" Background="#333" Margin="12,8"/>
+
+                            <!-- Project Search -->
+                            <Border Background="#2D2D2D" BorderBrush="#333" BorderThickness="1" CornerRadius="8" Margin="8,8,8,12" Padding="10,2">
+                                <Grid ColumnDefinitions="Auto,*">
+                                    <TextBlock Grid.Column="0" Text="🔍" FontSize="12" VerticalAlignment="Center" Foreground="#666"/>
+                                    <TextBox Grid.Column="1" Text="{Binding Projects.SearchText, Mode=TwoWay}" Watermark="Filter projects..." Background="Transparent" BorderThickness="0" FontSize="12" Padding="8,6" Foreground="White"/>
+                                </Grid>
+                            </Border>
+
+                            <!-- User Playlists -->
+                            <TextBlock Text="PLAYLISTS" FontSize="11" FontWeight="Bold" Foreground="#666" Margin="16,0,16,8"/>
+                            
+                            <ListBox ItemsSource="{Binding Projects.FilteredProjects}" SelectedItem="{Binding Projects.SelectedProject, Mode=TwoWay}" Background="Transparent" BorderThickness="0" Padding="0">
+                                <ListBox.Styles>
+                                    <Style Selector="ListBoxItem">
+                                        <Setter Property="Padding" Value="0"/>
+                                        <Setter Property="Margin" Value="8,2"/>
+                                        <Setter Property="CornerRadius" Value="6"/>
+                                    </Style>
+                                </ListBox.Styles>
+                                <ListBox.ItemTemplate>
+                                    <DataTemplate>
+                                        <Border Background="Transparent">
+                                            <Border.ContextMenu>
+                                                <ContextMenu>
+                                                    <MenuItem Header="Export to Rekordbox XML" Command="{Binding $parent[UserControl].DataContext.ExportPlaylistCommand}" CommandParameter="{Binding}">
+                                                        <MenuItem.Icon><TextBlock Text="📂"/></MenuItem.Icon>
+                                                    </MenuItem>
+                                                    <MenuItem Header="Delete Playlist" Command="{Binding $parent[UserControl].DataContext.DeleteProjectCommand}" CommandParameter="{Binding}" InputGesture="Delete">
+                                                        <MenuItem.Icon><TextBlock Text="🗑️"/></MenuItem.Icon>
+                                                    </MenuItem>
+                                                    <Separator/>
+                                                    <MenuItem Header="Rename Playlist" Command="{Binding $parent[UserControl].DataContext.RenameProjectCommand}" CommandParameter="{Binding}">
+                                                        <MenuItem.Icon><TextBlock Text="✏️"/></MenuItem.Icon>
+                                                    </MenuItem>
+                                                </ContextMenu>
+                                            </Border.ContextMenu>
+                                            <controls:CompactPlaylistTemplate/>
                                         </Border>
-                                        <TextBlock Text="{Binding Name}" VerticalAlignment="Center" FontSize="13"/>
-                                    </StackPanel>
-                                </DataTemplate>
-                            </ListBox.ItemTemplate>
-                        </ListBox>
-                        
-                        <!-- Actions as List Items -->
-                        <Button Command="{Binding Projects.ImportLikedSongsCommand}" Classes="nav-item" Margin="8,0">
-                            <StackPanel Orientation="Horizontal" Spacing="12">
-                                <Border Width="24" Height="24" CornerRadius="4" Background="#281111" VerticalAlignment="Center">
-                                    <TextBlock Text="❤️" HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                                </Border>
-                                <TextBlock Text="Liked Songs" VerticalAlignment="Center"/>
+                                    </DataTemplate>
+                                </ListBox.ItemTemplate>
+                            </ListBox>
+                        </StackPanel>
+                    </ScrollViewer>
+
+                    <!-- Bottom Actions -->
+                    <StackPanel Grid.Row="2" Margin="12,12" Spacing="8">
+                        <Button Command="{Binding Projects.AddPlaylistCommand}" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center">
+                            <StackPanel Orientation="Horizontal" Spacing="6">
+                                <TextBlock Text="➕"/>
+                                <TextBlock Text="New Playlist"/>
                             </StackPanel>
                         </Button>
-                        
-                        <Button Command="{Binding Projects.LoadAllTracksCommand}" Classes="nav-item" Margin="8,0">
-                            <StackPanel Orientation="Horizontal" Spacing="12">
-                                <Border Width="24" Height="24" CornerRadius="4" Background="#111128" VerticalAlignment="Center">
-                                    <TextBlock Text="📚" HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                                </Border>
-                                <TextBlock Text="All Tracks" VerticalAlignment="Center"/>
-                            </StackPanel>
+                        <Button Command="{Binding DeleteProjectCommand}" CommandParameter="{Binding SelectedProject}" Classes="danger" IsVisible="{Binding !!SelectedProject}" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center">
+                             <TextBlock Text="Delete Project"/>
                         </Button>
+                    </StackPanel>
+                </Grid>
+            </Border>
 
-                        <Separator Height="1" Background="#333" Margin="12,8"/>
-
-                        <!-- Project Search -->
-                        <Border Background="#2D2D2D" BorderBrush="#333" BorderThickness="1" CornerRadius="8" Margin="8,8,8,12" Padding="10,2">
-                            <Grid ColumnDefinitions="Auto,*">
-                                <TextBlock Grid.Column="0" Text="🔍" FontSize="12" VerticalAlignment="Center" Foreground="#666"/>
-                                <TextBox Grid.Column="1" Text="{Binding Projects.SearchText, Mode=TwoWay}" Watermark="Filter projects..." Background="Transparent" BorderThickness="0" FontSize="12" Padding="8,6" Foreground="White"/>
-                            </Grid>
-                        </Border>
-
-                        <!-- User Playlists -->
-                        <TextBlock Text="PLAYLISTS" FontSize="11" FontWeight="Bold" Foreground="#666" Margin="16,0,16,8"/>
+            <!-- Sidebar Splitter -->
+            <GridSplitter Grid.Column="1" Width="1" Background="#3E3E3E" HorizontalAlignment="Center"/>
+            
+            <!-- RIGHT PANEL: Track List -->
+            <Grid Grid.Column="2" RowDefinitions="Auto,Auto,Auto,*">
+                <Border Grid.Row="0" Background="#252526" BorderBrush="#3E3E3E" BorderThickness="0,0,0,1" Padding="20,16">
+                    <Grid ColumnDefinitions="*,Auto">
+                        <Grid Grid.Column="0" ColumnDefinitions="*,Auto">
+                            <Border Grid.Column="0" Background="#2D2D2D" BorderBrush="#3E3E3E" BorderThickness="1" CornerRadius="8" Padding="12,0" HorizontalAlignment="Stretch" MaxWidth="600" Margin="0,0,16,0">
+                                <Grid ColumnDefinitions="Auto,*">
+                                    <TextBlock Grid.Column="0" Text="🔍" FontSize="14" VerticalAlignment="Center" Margin="0,0,8,0" Foreground="#888"/>
+                                    <TextBox Grid.Column="1" Text="{Binding Tracks.SearchText, Mode=TwoWay}" Watermark="Search tracks..." Background="Transparent" BorderThickness="0" Padding="0,10" Foreground="White"/>
+                                </Grid>
+                            </Border>
+                            <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8">
+                                <ToggleButton Content="All" IsChecked="{Binding Tracks.IsFilterAll, Mode=TwoWay}" Classes="chip" Padding="16,8"/>
+                                <ToggleButton Content="Downloaded" IsChecked="{Binding Tracks.IsFilterDownloaded, Mode=TwoWay}" Classes="chip" Padding="16,8"/>
+                                <ToggleButton Content="Pending" IsChecked="{Binding Tracks.IsFilterPending, Mode=TwoWay}" Classes="chip" Padding="16,8"/>
+                                <ToggleButton Content="Needs Review" IsChecked="{Binding Tracks.IsFilterNeedsReview, Mode=TwoWay}" Classes="chip danger" Padding="16,8"/>
+                                <ItemsControl ItemsSource="{Binding Tracks.StyleFilters}">
+                                    <ItemsControl.ItemsPanel><ItemsPanelTemplate><StackPanel Orientation="Horizontal" Spacing="8"/></ItemsPanelTemplate></ItemsControl.ItemsPanel>
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate>
+                                            <ToggleButton Content="{Binding Style.Name}" IsChecked="{Binding IsSelected, Mode=TwoWay}" Classes="chip" Padding="16,8" BorderBrush="{Binding ColorBrush}" BorderThickness="0,0,0,2"/>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                            </StackPanel>
+                        </Grid>
+                        <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8">
+                            <DropDownButton Content="Bulk Analyze" IsVisible="{Binding Tracks.HasMultiSelection}" Classes="chip danger" CornerRadius="4" Padding="12,6" FontSize="12">
+                                <DropDownButton.Flyout>
+                                    <MenuFlyout>
+                                        <MenuItem Header="Tier 1: Basic (Fast)" Command="{Binding Tracks.BulkReAnalyzeT1Command}" />
+                                        <MenuItem Header="Tier 2: Detailed" Command="{Binding Tracks.BulkReAnalyzeT2Command}" />
+                                        <MenuItem Header="Tier 3: Specialized (Deep)" Command="{Binding Tracks.BulkReAnalyzeT3Command}" />
+                                    </MenuFlyout>
+                                </DropDownButton.Flyout>
+                            </DropDownButton>
+                            <Button Command="{Binding Tracks.SelectAllTracksCommand}" Classes="icon-button" IsVisible="{Binding Tracks.FilteredTracks.Count}" ToolTip.Tip="Select All"><TextBlock Text="☑️" FontSize="16"/></Button>
+                            <Button Command="{Binding Tracks.DeselectAllTracksCommand}" Classes="icon-button" IsVisible="{Binding Tracks.HasSelectedTracks}" ToolTip.Tip="Deselect All"><TextBlock Text="✖" FontSize="16"/></Button>
+                            <Button Command="{Binding ToggleEditModeCommand}" Classes="icon-button" ToolTip.Tip="Toggle Edit Mode"><TextBlock Text="✏️" FontSize="16"/></Button>
+                            <Button Command="{Binding RefreshLibraryCommand}" Classes="icon-button" ToolTip.Tip="Refresh Library"><TextBlock Text="🔄" FontSize="16"/></Button>
+                        </StackPanel>
+                    </Grid>
+                </Border>
+                
+                <!-- View Settings Toolbar -->
+                <Border Grid.Row="1" Background="#1E1E1E" BorderBrush="#3E3E3E" BorderThickness="0,0,0,1" Padding="12,6">
+                    <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                        <TextBlock Text="View:" FontWeight="SemiBold" FontSize="11" Foreground="#888" VerticalAlignment="Center" Margin="0,0,8,0"/>
                         
-                        <ListBox ItemsSource="{Binding Projects.FilteredProjects}" SelectedItem="{Binding Projects.SelectedProject, Mode=TwoWay}" Background="Transparent" BorderThickness="0" Padding="0">
+                        <ToggleButton IsChecked="{Binding ViewSettings.ShowQualityBar}" Classes="icon-button" ToolTip.Tip="Quality Bar">
+                            <TextBlock Text="🎨" FontSize="14"/>
+                        </ToggleButton>
+                        
+                        <ToggleButton IsChecked="{Binding ViewSettings.ShowStatusInfo}" Classes="icon-button" ToolTip.Tip="Status Info">
+                            <TextBlock Text="📊" FontSize="14"/>
+                        </ToggleButton>
+                        
+                        <ToggleButton IsChecked="{Binding ViewSettings.ShowBadges}" Classes="icon-button" ToolTip.Tip="Badges">
+                            <TextBlock Text="⭐" FontSize="14"/>
+                        </ToggleButton>
+                        
+                        <ToggleButton IsChecked="{Binding ViewSettings.ShowTechnicalDetails}" Classes="icon-button" ToolTip.Tip="Technical Info">
+                            <TextBlock Text="🔧" FontSize="14"/>
+                        </ToggleButton>
+                        
+                        <ToggleButton IsChecked="{Binding ViewSettings.ShowBpmKey}" Classes="icon-button" ToolTip.Tip="BPM &amp; Key">
+                            <TextBlock Text="🎵" FontSize="14"/>
+                        </ToggleButton>
+                        
+                        <ToggleButton IsChecked="{Binding ViewSettings.ShowReleaseYear}" Classes="icon-button" ToolTip.Tip="Release Year">
+                            <TextBlock Text="📅" FontSize="14"/>
+                        </ToggleButton>
+                        
+                        <ToggleButton IsChecked="{Binding ViewSettings.ShowVibePills}" Classes="icon-button" ToolTip.Tip="Vibe Pills">
+                            <TextBlock Text="✨" FontSize="14"/>
+                        </ToggleButton>
+                        
+                        <Separator Width="1" Height="16" Background="#444" Margin="8,0"/>
+                        
+                        <RadioButton IsChecked="{Binding ViewSettings.ViewMode, Mode=TwoWay, Converter={StaticResource EnumToBoolConverter}, ConverterParameter={x:Static models:TrackViewMode.List}}" 
+                                     Classes="icon-button" ToolTip.Tip="List View">
+                            <TextBlock Text="≡" FontSize="16"/>
+                        </RadioButton>
+                        <RadioButton IsChecked="{Binding ViewSettings.ViewMode, Mode=TwoWay, Converter={StaticResource EnumToBoolConverter}, ConverterParameter={x:Static models:TrackViewMode.Cards}}" 
+                                     Classes="icon-button" ToolTip.Tip="Card View">
+                            <TextBlock Text="⠿" FontSize="16"/>
+                        </RadioButton>
+                    </StackPanel>
+                </Border>
+                
+                <Border Grid.Row="2" Background="#252526" BorderBrush="#3E3E3E" BorderThickness="0,0,0,1" Padding="16,12" IsVisible="{Binding IsActiveDownloadsVisible}">
+                    <Grid RowDefinitions="Auto,Auto">
+                        <Grid ColumnDefinitions="*,Auto" Grid.Row="0">
+                            <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="16" VerticalAlignment="Center">
+                                <TextBlock Text="⬇️ Downloads" FontWeight="Bold" FontSize="14" Foreground="White"/>
+                                <Border Background="#333" CornerRadius="10" Padding="8,2"><TextBlock FontSize="12"><Run Text="{Binding MainViewModel.TodoCount}" Foreground="#4EC9B0" FontWeight="Bold"/><Run Text=" active" Foreground="#AAA"/></TextBlock></Border>
+                                <Border Background="#333" CornerRadius="10" Padding="8,2" IsVisible="{Binding MainViewModel.FailedCount}"><TextBlock FontSize="12"><Run Text="{Binding MainViewModel.FailedCount}" Foreground="#F44336" FontWeight="Bold"/><Run Text=" failed" Foreground="#AAA"/></TextBlock></Border>
+                                <TextBlock Text="{Binding MainViewModel.DownloadProgressPercentage, StringFormat='{}{0:F0}%'}" Foreground="#888" VerticalAlignment="Center" FontSize="12"/>
+                            </StackPanel>
+                            <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8">
+                                <Button Command="{Binding MainViewModel.ResumeAllDownloadsCommand}" Background="#2E7D32" Foreground="White" Padding="12,6" CornerRadius="4" ToolTip.Tip="Resume All Downloads" FontSize="12"><StackPanel Orientation="Horizontal" Spacing="6"><TextBlock Text="▶"/><TextBlock Text="Resume"/></StackPanel></Button>
+                                <Button Command="{Binding MainViewModel.PauseAllDownloadsCommand}" Background="#EF6C00" Foreground="White" Padding="12,6" CornerRadius="4" ToolTip.Tip="Pause All Downloads" FontSize="12"><StackPanel Orientation="Horizontal" Spacing="6"><TextBlock Text="⏸"/><TextBlock Text="Pause"/></StackPanel></Button>
+                                <Border Width="1" Height="16" Background="#444" Margin="4,0"/>
+                                <Button Command="{Binding ToggleActiveDownloadsCommand}" Background="Transparent" Padding="8,6" Foreground="#888" ToolTip.Tip="Hide Panel"><TextBlock Text="✖"/></Button>
+                            </StackPanel>
+                        </Grid>
+                        <ProgressBar Grid.Row="1" Margin="0,12,0,0" Value="{Binding MainViewModel.DownloadProgressPercentage}" Maximum="100" Height="4" Background="#333" Foreground="#4EC9B0" CornerRadius="2"/>
+                    </Grid>
+                </Border>
+
+                <Grid Grid.Row="3" RowDefinitions="*, Auto, Auto">
+                    <Panel Grid.Row="0">
+                        <!-- Standard List View -->
+                        <ListBox ItemsSource="{Binding Tracks.FilteredTracks}" 
+                                 IsVisible="{Binding ViewSettings.ViewMode, Converter={StaticResource EnumToBoolConverter}, ConverterParameter={x:Static models:TrackViewMode.List}}"
+                                 SelectionMode="Multiple" SelectedItems="{Binding Tracks.SelectedTracks}" Background="Transparent" BorderThickness="0">
+                            <ListBox.ItemsPanel><ItemsPanelTemplate><VirtualizingStackPanel/></ItemsPanelTemplate></ListBox.ItemsPanel>
                             <ListBox.Styles>
                                 <Style Selector="ListBoxItem">
-                                    <Setter Property="Padding" Value="0"/>
-                                    <Setter Property="Margin" Value="8,2"/>
-                                    <Setter Property="CornerRadius" Value="6"/>
+                                    <Setter Property="Padding" Value="4"/><Setter Property="MinHeight" Value="72"/><Setter Property="HorizontalContentAlignment" Value="Stretch"/><Setter Property="Background" Value="Transparent"/><Setter Property="BorderThickness" Value="0,0,0,1"/><Setter Property="BorderBrush" Value="#22FFFFFF"/>
+                                    <Setter Property="IsSelected" Value="{Binding IsSelected, Mode=TwoWay}"/>
                                 </Style>
+                                <Style Selector="ListBoxItem:selected /template/ ContentPresenter"><Setter Property="Background" Value="#1AFFFFFF"/></Style>
                             </ListBox.Styles>
                             <ListBox.ItemTemplate>
-                                <DataTemplate>
-                                    <Border Background="Transparent">
+                                <DataTemplate DataType="vm:PlaylistTrackViewModel">
+                                    <Border Background="Transparent" Padding="8,6">
                                         <Border.ContextMenu>
                                             <ContextMenu>
-                                                <MenuItem Header="Export to Rekordbox XML" Command="{Binding $parent[UserControl].DataContext.ExportPlaylistCommand}" CommandParameter="{Binding}">
-                                                    <MenuItem.Icon><TextBlock Text="📂"/></MenuItem.Icon>
+                                                <MenuItem Header="Play" Command="{Binding $parent[UserControl].DataContext.Operations.PlayTrackCommand}" CommandParameter="{Binding}"><MenuItem.Icon><TextBlock Text="▶️"/></MenuItem.Icon></MenuItem>
+                                                <MenuItem Header="Separate Stems" Command="{Binding SeparateStemsCommand}" IsVisible="{Binding IsCompleted}">
+                                                    <MenuItem.Icon><TextBlock Text="🎹"/></MenuItem.Icon>
                                                 </MenuItem>
-                                                <MenuItem Header="Delete Playlist" Command="{Binding $parent[UserControl].DataContext.DeleteProjectCommand}" CommandParameter="{Binding}" InputGesture="Delete">
-                                                    <MenuItem.Icon><TextBlock Text="🗑️"/></MenuItem.Icon>
+                                                <MenuItem Header="Analyze Track" IsVisible="{Binding !$parent[UserControl].DataContext.Tracks.HasMultiSelection}">
+                                                    <MenuItem.Icon><TextBlock Text="🔬"/></MenuItem.Icon>
+                                                    <MenuItem Header="Tier 1: Basic (Fast)" Command="{Binding $parent[UserControl].DataContext.AnalyzeTrackT1Command}" CommandParameter="{Binding}" />
+                                                    <MenuItem Header="Tier 2: Detailed" Command="{Binding $parent[UserControl].DataContext.AnalyzeTrackT2Command}" CommandParameter="{Binding}" />
+                                                    <MenuItem Header="Tier 3: Specialized (Deep)" Command="{Binding $parent[UserControl].DataContext.AnalyzeTrackT3Command}" CommandParameter="{Binding}" />
                                                 </MenuItem>
+                                                <MenuItem Header="Analyze Selected (Bulk)" IsVisible="{Binding $parent[UserControl].DataContext.Tracks.HasMultiSelection}">
+                                                    <MenuItem.Icon><TextBlock Text="🧪"/></MenuItem.Icon>
+                                                    <MenuItem Header="Tier 1: Basic (Fast)" Command="{Binding $parent[UserControl].DataContext.Tracks.BulkReAnalyzeT1Command}" />
+                                                    <MenuItem Header="Tier 2: Detailed" Command="{Binding $parent[UserControl].DataContext.Tracks.BulkReAnalyzeT2Command}" />
+                                                    <MenuItem Header="Tier 3: Specialized (Deep)" Command="{Binding $parent[UserControl].DataContext.Tracks.BulkReAnalyzeT3Command}" />
+                                                </MenuItem>
+                                                <MenuItem Header="Open in Forensic Lab" 
+                                                          Command="{Binding $parent[UserControl].DataContext.SwitchWorkspaceCommand}" 
+                                                          CommandParameter="{x:Static vm:ActiveWorkspace.Forensic}">
+                                                    <MenuItem.Icon><TextBlock Text="🕵️"/></MenuItem.Icon>
+                                                </MenuItem>
+                                                <MenuItem Header="Industrial Prep (Bulk)" Command="{Binding $parent[UserControl].DataContext.Operations.IndustrialPrepCommand}" CommandParameter="{Binding $parent[UserControl].DataContext.Tracks.SelectedTracks}"><MenuItem.Icon><TextBlock Text="🏭"/></MenuItem.Icon></MenuItem>
+                                                <MenuItem Header="Open File Location" Command="{Binding $parent[UserControl].DataContext.Operations.OpenFolderCommand}" CommandParameter="{Binding}"><MenuItem.Icon><TextBlock Text="📁"/></MenuItem.Icon></MenuItem>
+                                                <MenuItem Header="Add to Another Project..." Command="{Binding $parent[UserControl].DataContext.Operations.AddToProjectCommand}" CommandParameter="{Binding}"><MenuItem.Icon><TextBlock Text="➕"/></MenuItem.Icon></MenuItem>
+                                                <MenuItem Header="Create Independent Physical Copy" Command="{Binding $parent[UserControl].DataContext.Operations.CloneTrackCommand}" CommandParameter="{Binding}" ToolTip.Tip="Create a physical copy of this file with independent cues"><MenuItem.Icon><TextBlock Text="📄"/></MenuItem.Icon></MenuItem>
                                                 <Separator/>
-                                                <MenuItem Header="Rename Playlist" Command="{Binding $parent[UserControl].DataContext.RenameProjectCommand}" CommandParameter="{Binding}">
-                                                    <MenuItem.Icon><TextBlock Text="✏️"/></MenuItem.Icon>
-                                                </MenuItem>
+                                                <MenuItem Header="Retry Download" Command="{Binding $parent[UserControl].DataContext.Operations.HardRetryCommand}" CommandParameter="{Binding}" IsVisible="{Binding CanHardRetry}"><MenuItem.Icon><TextBlock Text="🔄"/></MenuItem.Icon></MenuItem>
+                                                <MenuItem Header="Cancel" Command="{Binding CancelCommand}" IsVisible="{Binding CanCancel}"><MenuItem.Icon><TextBlock Text="✖"/></MenuItem.Icon></MenuItem>
+                                                <Separator/>
+                                                <MenuItem Header="Remove from Library" Command="{Binding $parent[UserControl].DataContext.Operations.RemoveTrackCommand}" CommandParameter="{Binding}" InputGesture="Delete"><MenuItem.Icon><TextBlock Text="🗑️"/></MenuItem.Icon></MenuItem>
+                                                <MenuItem Header="Delete &amp; Ban (Forensic)" Command="{Binding $parent[UserControl].DataContext.Operations.DeleteAndBlacklistCommand}" CommandParameter="{Binding}"><MenuItem.Icon><TextBlock Text="💀"/></MenuItem.Icon></MenuItem>
                                             </ContextMenu>
                                         </Border.ContextMenu>
-                                        <controls:CompactPlaylistTemplate/>
+                                        <controls:StandardTrackRow/>
                                     </Border>
                                 </DataTemplate>
                             </ListBox.ItemTemplate>
                         </ListBox>
-                    </StackPanel>
-                </ScrollViewer>
 
-                <!-- Bottom Actions -->
-                <StackPanel Grid.Row="2" Margin="12,12" Spacing="8">
-                    <Button Command="{Binding Projects.AddPlaylistCommand}" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center">
-                        <StackPanel Orientation="Horizontal" Spacing="6">
-                            <TextBlock Text="➕"/>
-                            <TextBlock Text="New Playlist"/>
-                        </StackPanel>
-                    </Button>
-                    <Button Command="{Binding DeleteProjectCommand}" CommandParameter="{Binding SelectedProject}" Classes="danger" IsVisible="{Binding !!SelectedProject}" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center">
-                         <TextBlock Text="Delete Project"/>
-                    </Button>
-                </StackPanel>
-            </Grid>
-        </Border>
+                        <!-- Card View -->
+                        <ListBox IsVisible="{Binding ViewSettings.ViewMode, Converter={StaticResource EnumToBoolConverter}, ConverterParameter={x:Static models:TrackViewMode.Cards}}" 
+                             ItemsSource="{Binding Tracks.LimitedTracks}" 
+                             SelectionMode="Multiple" 
+                             Background="Transparent"
+                             BorderThickness="0">
+                             <ListBox.Styles>
+                                <Style Selector="ListBoxItem">
+                                    <Setter Property="IsSelected" Value="{Binding IsSelected, Mode=TwoWay}"/>
+                                    <Setter Property="Padding" Value="0"/>
+                                    <Setter Property="Background" Value="Transparent"/>
+                                </Style>
+                             </ListBox.Styles>
+                             <ListBox.ItemsPanel>
+                                <ItemsPanelTemplate>
+                                    <!-- Note: WrapPanel is not virtualized, but okay for small pages -->
+                                    <WrapPanel/> 
+                                </ItemsPanelTemplate>
+                            </ListBox.ItemsPanel>
+                            <ListBox.ItemTemplate>
+                                <DataTemplate DataType="vm:PlaylistTrackViewModel">
+                                    <controls:TrackCard/>
+                                </DataTemplate>
+                            </ListBox.ItemTemplate>
+                        </ListBox>
+                    </Panel>
 
-        <!-- Sidebar Splitter -->
-        <GridSplitter Grid.Column="1" Width="1" Background="#3E3E3E" HorizontalAlignment="Center"/>
-        
-        <!-- RIGHT PANEL: Track List -->
-        <Grid Grid.Column="2" RowDefinitions="Auto,Auto,Auto,*">
-            <Border Grid.Row="0" Background="#252526" BorderBrush="#3E3E3E" BorderThickness="0,0,0,1" Padding="20,16">
-                <Grid ColumnDefinitions="*,Auto">
-                    <Grid Grid.Column="0" ColumnDefinitions="*,Auto">
-                        <Border Grid.Column="0" Background="#2D2D2D" BorderBrush="#3E3E3E" BorderThickness="1" CornerRadius="8" Padding="12,0" HorizontalAlignment="Stretch" MaxWidth="600" Margin="0,0,16,0">
-                            <Grid ColumnDefinitions="Auto,*">
-                                <TextBlock Grid.Column="0" Text="🔍" FontSize="14" VerticalAlignment="Center" Margin="0,0,8,0" Foreground="#888"/>
-                                <TextBox Grid.Column="1" Text="{Binding Tracks.SearchText, Mode=TwoWay}" Watermark="Search tracks..." Background="Transparent" BorderThickness="0" Padding="0,10" Foreground="White"/>
-                            </Grid>
-                        </Border>
-                        <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8">
-                            <ToggleButton Content="All" IsChecked="{Binding Tracks.IsFilterAll, Mode=TwoWay}" Classes="chip" Padding="16,8"/>
-                            <ToggleButton Content="Downloaded" IsChecked="{Binding Tracks.IsFilterDownloaded, Mode=TwoWay}" Classes="chip" Padding="16,8"/>
-                            <ToggleButton Content="Pending" IsChecked="{Binding Tracks.IsFilterPending, Mode=TwoWay}" Classes="chip" Padding="16,8"/>
-                            <ToggleButton Content="Needs Review" IsChecked="{Binding Tracks.IsFilterNeedsReview, Mode=TwoWay}" Classes="chip danger" Padding="16,8"/>
-                            <ItemsControl ItemsSource="{Binding Tracks.StyleFilters}">
-                                <ItemsControl.ItemsPanel><ItemsPanelTemplate><StackPanel Orientation="Horizontal" Spacing="8"/></ItemsPanelTemplate></ItemsControl.ItemsPanel>
-                                <ItemsControl.ItemTemplate>
-                                    <DataTemplate>
-                                        <ToggleButton Content="{Binding Style.Name}" IsChecked="{Binding IsSelected, Mode=TwoWay}" Classes="chip" Padding="16,8" BorderBrush="{Binding ColorBrush}" BorderThickness="0,0,0,2"/>
-                                    </DataTemplate>
-                                </ItemsControl.ItemTemplate>
-                            </ItemsControl>
-                        </StackPanel>
-                    </Grid>
-                    <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8">
-                        <Button Command="{Binding Tracks.SelectAllTracksCommand}" Classes="icon-button" IsVisible="{Binding Tracks.FilteredTracks.Count}" ToolTip.Tip="Select All"><TextBlock Text="☑️" FontSize="16"/></Button>
-                        <Button Command="{Binding Tracks.DeselectAllTracksCommand}" Classes="icon-button" IsVisible="{Binding Tracks.HasSelectedTracks}" ToolTip.Tip="Deselect All"><TextBlock Text="✖" FontSize="16"/></Button>
-                        <Button Command="{Binding ToggleEditModeCommand}" Classes="icon-button" ToolTip.Tip="Toggle Edit Mode"><TextBlock Text="✏️" FontSize="16"/></Button>
-                        <Button Command="{Binding RefreshLibraryCommand}" Classes="icon-button" ToolTip.Tip="Refresh Library"><TextBlock Text="🔄" FontSize="16"/></Button>
-                    </StackPanel>
-                </Grid>
-            </Border>
-            
-            <!-- View Settings Toolbar -->
-            <Border Grid.Row="1" Background="#1E1E1E" BorderBrush="#3E3E3E" BorderThickness="0,0,0,1" Padding="12,6">
-                <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
-                    <TextBlock Text="View:" FontWeight="SemiBold" FontSize="11" Foreground="#888" VerticalAlignment="Center" Margin="0,0,8,0"/>
-                    
-                    <ToggleButton IsChecked="{Binding ViewSettings.ShowQualityBar}" Classes="icon-button" ToolTip.Tip="Quality Bar">
-                        <TextBlock Text="🎨" FontSize="14"/>
-                    </ToggleButton>
-                    
-                    <ToggleButton IsChecked="{Binding ViewSettings.ShowStatusInfo}" Classes="icon-button" ToolTip.Tip="Status Info">
-                        <TextBlock Text="📊" FontSize="14"/>
-                    </ToggleButton>
-                    
-                    <ToggleButton IsChecked="{Binding ViewSettings.ShowBadges}" Classes="icon-button" ToolTip.Tip="Badges">
-                        <TextBlock Text="⭐" FontSize="14"/>
-                    </ToggleButton>
-                    
-                    <ToggleButton IsChecked="{Binding ViewSettings.ShowTechnicalDetails}" Classes="icon-button" ToolTip.Tip="Technical Info">
-                        <TextBlock Text="🔧" FontSize="14"/>
-                    </ToggleButton>
-                    
-                    <ToggleButton IsChecked="{Binding ViewSettings.ShowBpmKey}" Classes="icon-button" ToolTip.Tip="BPM &amp; Key">
-                        <TextBlock Text="🎵" FontSize="14"/>
-                    </ToggleButton>
-                    
-                    <ToggleButton IsChecked="{Binding ViewSettings.ShowReleaseYear}" Classes="icon-button" ToolTip.Tip="Release Year">
-                        <TextBlock Text="📅" FontSize="14"/>
-                    </ToggleButton>
-                    
-                    <ToggleButton IsChecked="{Binding ViewSettings.ShowVibePills}" Classes="icon-button" ToolTip.Tip="Vibe Pills">
-                        <TextBlock Text="✨" FontSize="14"/>
-                    </ToggleButton>
-                    
-                    <Separator Width="1" Height="16" Background="#444" Margin="8,0"/>
-                    
-                    <RadioButton IsChecked="{Binding ViewSettings.ViewMode, Mode=TwoWay, Converter={StaticResource EnumToBoolConverter}, ConverterParameter={x:Static models:TrackViewMode.List}}" 
-                                 Classes="icon-button" ToolTip.Tip="List View">
-                        <TextBlock Text="≡" FontSize="16"/>
-                    </RadioButton>
-                    <RadioButton IsChecked="{Binding ViewSettings.ViewMode, Mode=TwoWay, Converter={StaticResource EnumToBoolConverter}, ConverterParameter={x:Static models:TrackViewMode.Cards}}" 
-                                 Classes="icon-button" ToolTip.Tip="Card View">
-                        <TextBlock Text="⠿" FontSize="16"/>
-                    </RadioButton>
-                </StackPanel>
-            </Border>
-            
-            <Border Grid.Row="2" Background="#252526" BorderBrush="#3E3E3E" BorderThickness="0,0,0,1" Padding="16,12" IsVisible="{Binding IsActiveDownloadsVisible}">
-                <Grid RowDefinitions="Auto,Auto">
-                    <Grid ColumnDefinitions="*,Auto" Grid.Row="0">
-                        <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="16" VerticalAlignment="Center">
-                            <TextBlock Text="⬇️ Downloads" FontWeight="Bold" FontSize="14" Foreground="White"/>
-                            <Border Background="#333" CornerRadius="10" Padding="8,2"><TextBlock FontSize="12"><Run Text="{Binding MainViewModel.TodoCount}" Foreground="#4EC9B0" FontWeight="Bold"/><Run Text=" active" Foreground="#AAA"/></TextBlock></Border>
-                            <Border Background="#333" CornerRadius="10" Padding="8,2" IsVisible="{Binding MainViewModel.FailedCount}"><TextBlock FontSize="12"><Run Text="{Binding MainViewModel.FailedCount}" Foreground="#F44336" FontWeight="Bold"/><Run Text=" failed" Foreground="#AAA"/></TextBlock></Border>
-                            <TextBlock Text="{Binding MainViewModel.DownloadProgressPercentage, StringFormat='{}{0:F0}%'}" Foreground="#888" VerticalAlignment="Center" FontSize="12"/>
-                        </StackPanel>
-                        <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8">
-                            <Button Command="{Binding MainViewModel.ResumeAllDownloadsCommand}" Background="#2E7D32" Foreground="White" Padding="12,6" CornerRadius="4" ToolTip.Tip="Resume All Downloads" FontSize="12"><StackPanel Orientation="Horizontal" Spacing="6"><TextBlock Text="▶"/><TextBlock Text="Resume"/></StackPanel></Button>
-                            <Button Command="{Binding MainViewModel.PauseAllDownloadsCommand}" Background="#EF6C00" Foreground="White" Padding="12,6" CornerRadius="4" ToolTip.Tip="Pause All Downloads" FontSize="12"><StackPanel Orientation="Horizontal" Spacing="6"><TextBlock Text="⏸"/><TextBlock Text="Pause"/></StackPanel></Button>
-                            <Border Width="1" Height="16" Background="#444" Margin="4,0"/>
-                            <Button Command="{Binding ToggleActiveDownloadsCommand}" Background="Transparent" Padding="8,6" Foreground="#888" ToolTip.Tip="Hide Panel"><TextBlock Text="✖"/></Button>
-                        </StackPanel>
-                    </Grid>
-                    <ProgressBar Grid.Row="1" Margin="0,12,0,0" Value="{Binding MainViewModel.DownloadProgressPercentage}" Maximum="100" Height="4" Background="#333" Foreground="#4EC9B0" CornerRadius="2"/>
-                </Grid>
-            </Border>
+                    <GridSplitter Grid.Row="1" Height="2" HorizontalAlignment="Stretch" Background="#33FFFFFF" IsVisible="{Binding IsDiscoveryLaneVisible}">
+                         <GridSplitter.Styles><Style Selector="GridSplitter:pointerover"><Setter Property="Background" Value="#4EC9B0"/><Setter Property="Height" Value="4"/></Style></GridSplitter.Styles>
+                    </GridSplitter>
 
-            <Grid Grid.Row="3" RowDefinitions="*, Auto, Auto">
-                <Panel Grid.Row="0">
-                    <!-- Standard List View -->
-                    <ListBox ItemsSource="{Binding Tracks.FilteredTracks}" 
-                             IsVisible="{Binding ViewSettings.ViewMode, Converter={StaticResource EnumToBoolConverter}, ConverterParameter={x:Static models:TrackViewMode.List}}"
-                             SelectionMode="Multiple" SelectedItems="{Binding Tracks.SelectedTracks}" Background="Transparent" BorderThickness="0">
+                    <ListBox Grid.Row="2" Height="{Binding DiscoveryLaneHeight, Mode=TwoWay}" IsVisible="{Binding IsDiscoveryLaneVisible}" ItemsSource="{Binding HarmonicMatches}" SelectionMode="Single" Background="#11000000" BorderThickness="0,1,0,0" BorderBrush="#334EC9B0">
                         <ListBox.ItemsPanel><ItemsPanelTemplate><VirtualizingStackPanel/></ItemsPanelTemplate></ListBox.ItemsPanel>
-                        <ListBox.Styles>
-                            <Style Selector="ListBoxItem">
-                                <Setter Property="Padding" Value="4"/><Setter Property="MinHeight" Value="72"/><Setter Property="HorizontalContentAlignment" Value="Stretch"/><Setter Property="Background" Value="Transparent"/><Setter Property="BorderThickness" Value="0,0,0,1"/><Setter Property="BorderBrush" Value="#22FFFFFF"/>
-                            </Style>
-                            <Style Selector="ListBoxItem:selected /template/ ContentPresenter"><Setter Property="Background" Value="#1AFFFFFF"/></Style>
-                        </ListBox.Styles>
-                        <ListBox.ItemTemplate>
-                            <DataTemplate DataType="vm:PlaylistTrackViewModel">
-                                <Border Background="Transparent" Padding="8,6">
-                                    <Border.ContextMenu>
-                                        <ContextMenu>
-                                            <MenuItem Header="Play" Command="{Binding $parent[UserControl].DataContext.Operations.PlayTrackCommand}" CommandParameter="{Binding}"><MenuItem.Icon><TextBlock Text="▶️"/></MenuItem.Icon></MenuItem>
-                                            <MenuItem Header="Separate Stems" Command="{Binding SeparateStemsCommand}" IsVisible="{Binding IsCompleted}">
-                                                <MenuItem.Icon><TextBlock Text="🎹"/></MenuItem.Icon>
-                                            </MenuItem>
-                                            <MenuItem Header="Analyze Track">
-                                                <MenuItem.Icon><TextBlock Text="🔬"/></MenuItem.Icon>
-                                                <MenuItem Header="Tier 1: Basic (Fast)" Command="{Binding $parent[UserControl].DataContext.AnalyzeTrackT1Command}" CommandParameter="{Binding}" />
-                                                <MenuItem Header="Tier 2: Detailed" Command="{Binding $parent[UserControl].DataContext.AnalyzeTrackT2Command}" CommandParameter="{Binding}" />
-                                                <MenuItem Header="Tier 3: Specialized (Deep)" Command="{Binding $parent[UserControl].DataContext.AnalyzeTrackT3Command}" CommandParameter="{Binding}" />
-                                            </MenuItem>
-                                            <MenuItem Header="Open in Forensic Lab" 
-                                                      Command="{Binding $parent[UserControl].DataContext.SwitchWorkspaceCommand}" 
-                                                      CommandParameter="{x:Static vm:ActiveWorkspace.Forensic}">
-                                                <MenuItem.Icon><TextBlock Text="🕵️"/></MenuItem.Icon>
-                                            </MenuItem>
-                                            <MenuItem Header="Industrial Prep (Bulk)" Command="{Binding $parent[UserControl].DataContext.Operations.IndustrialPrepCommand}" CommandParameter="{Binding $parent[UserControl].DataContext.Tracks.SelectedTracks}"><MenuItem.Icon><TextBlock Text="🏭"/></MenuItem.Icon></MenuItem>
-                                            <MenuItem Header="Open File Location" Command="{Binding $parent[UserControl].DataContext.Operations.OpenFolderCommand}" CommandParameter="{Binding}"><MenuItem.Icon><TextBlock Text="📁"/></MenuItem.Icon></MenuItem>
-                                            <MenuItem Header="Add to Another Project..." Command="{Binding $parent[UserControl].DataContext.Operations.AddToProjectCommand}" CommandParameter="{Binding}"><MenuItem.Icon><TextBlock Text="➕"/></MenuItem.Icon></MenuItem>
-                                            <MenuItem Header="Create Independent Physical Copy" Command="{Binding $parent[UserControl].DataContext.Operations.CloneTrackCommand}" CommandParameter="{Binding}" ToolTip.Tip="Create a physical copy of this file with independent cues"><MenuItem.Icon><TextBlock Text="📄"/></MenuItem.Icon></MenuItem>
-                                            <Separator/>
-                                            <MenuItem Header="Retry Download" Command="{Binding $parent[UserControl].DataContext.Operations.HardRetryCommand}" CommandParameter="{Binding}" IsVisible="{Binding CanHardRetry}"><MenuItem.Icon><TextBlock Text="🔄"/></MenuItem.Icon></MenuItem>
-                                            <MenuItem Header="Cancel" Command="{Binding CancelCommand}" IsVisible="{Binding CanCancel}"><MenuItem.Icon><TextBlock Text="✖"/></MenuItem.Icon></MenuItem>
-                                            <Separator/>
-                                            <MenuItem Header="Remove from Library" Command="{Binding $parent[UserControl].DataContext.Operations.RemoveTrackCommand}" CommandParameter="{Binding}" InputGesture="Delete"><MenuItem.Icon><TextBlock Text="🗑️"/></MenuItem.Icon></MenuItem>
-                                            <MenuItem Header="Delete &amp; Ban (Forensic)" Command="{Binding $parent[UserControl].DataContext.Operations.DeleteAndBlacklistCommand}" CommandParameter="{Binding}"><MenuItem.Icon><TextBlock Text="💀"/></MenuItem.Icon></MenuItem>
-                                        </ContextMenu>
-                                    </Border.ContextMenu>
-                                    <controls:StandardTrackRow/>
-                                </Border>
-                            </DataTemplate>
-                        </ListBox.ItemTemplate>
+                        <ListBox.Styles><Style Selector="ListBoxItem"><Setter Property="Padding" Value="4"/><Setter Property="MinHeight" Value="72"/><Setter Property="HorizontalContentAlignment" Value="Stretch"/></Style></ListBox.Styles>
+                         <ListBox.ItemTemplate><DataTemplate><controls:StandardTrackRow/></DataTemplate></ListBox.ItemTemplate>
                     </ListBox>
+                </Grid>
 
-                    <!-- Card View -->
-                    <ListBox IsVisible="{Binding ViewSettings.ViewMode, Converter={StaticResource EnumToBoolConverter}, ConverterParameter={x:Static models:TrackViewMode.Cards}}" 
-                         ItemsSource="{Binding Tracks.LimitedTracks}" 
-                         SelectionMode="Multiple" 
-                         Background="Transparent"
- BorderThickness="0">
-                        <ListBox.ItemsPanel>
-                            <ItemsPanelTemplate>
-                                <!-- Note: WrapPanel is not virtualized, but okay for small pages -->
-                                <WrapPanel/> 
-                            </ItemsPanelTemplate>
-                        </ListBox.ItemsPanel>
-                        <ListBox.ItemTemplate>
-                            <DataTemplate DataType="vm:PlaylistTrackViewModel">
-                                <controls:TrackCard/>
-                            </DataTemplate>
-                        </ListBox.ItemTemplate>
-                    </ListBox>
-                </Panel>
+                <!-- RIGHT PANEL SPLITTER -->
+                <GridSplitter Grid.Column="3" Width="1" Background="#3E3E3E" 
+                              IsVisible="{Binding IsRightPanelVisible}"/>
 
-                <GridSplitter Grid.Row="1" Height="2" HorizontalAlignment="Stretch" Background="#33FFFFFF" IsVisible="{Binding IsDiscoveryLaneVisible}">
-                     <GridSplitter.Styles><Style Selector="GridSplitter:pointerover"><Setter Property="Background" Value="#4EC9B0"/><Setter Property="Height" Value="4"/></Style></GridSplitter.Styles>
-                </GridSplitter>
-
-                <ListBox Grid.Row="2" Height="{Binding DiscoveryLaneHeight, Mode=TwoWay}" IsVisible="{Binding IsDiscoveryLaneVisible}" ItemsSource="{Binding HarmonicMatches}" SelectionMode="Single" Background="#11000000" BorderThickness="0,1,0,0" BorderBrush="#334EC9B0">
-                    <ListBox.ItemsPanel><ItemsPanelTemplate><VirtualizingStackPanel/></ItemsPanelTemplate></ListBox.ItemsPanel>
-                    <ListBox.Styles><Style Selector="ListBoxItem"><Setter Property="Padding" Value="4"/><Setter Property="MinHeight" Value="72"/><Setter Property="HorizontalContentAlignment" Value="Stretch"/></Style></ListBox.Styles>
-                     <ListBox.ItemTemplate><DataTemplate><controls:StandardTrackRow/></DataTemplate></ListBox.ItemTemplate>
-                </ListBox>
+                <!-- RIGHT PANEL: Mix Helper -->
+                <Border Grid.Column="4" Background="#202020" 
+                        Width="320"
+                        IsVisible="{Binding IsMixHelperVisible}">
+                    <views:MixHelperView/>
+                </Border>
             </Grid>
         </Grid>
 
-        <!-- OVERLAYS (Outside the main grid but inside the UserControl stack) -->
-        <!-- QUICK LOOK OVERLAY (Phase 4+) -->
-        <Grid Grid.ColumnSpan="5" IsVisible="{Binding IsQuickLookVisible}" ZIndex="150">
-            <!-- Blur / Dim Background -->
-            <Border Background="#80000000" IsHitTestVisible="True">
-                 <!-- Close on background click -->
-                <interactivity:Interaction.Behaviors>
-                    <ia:EventTriggerBehavior EventName="PointerPressed">
-                        <ia:InvokeCommandAction Command="{Binding QuickLookCommand}"/>
-                    </ia:EventTriggerBehavior>
-                </interactivity:Interaction.Behaviors>
-            </Border>
-
-            <!-- Centered Card -->
-            <Border VerticalAlignment="Center" HorizontalAlignment="Center" 
-                    Width="800" Height="500"
-                    Background="#1E1E1E"
-                    BorderBrush="#3E3E3E"
-                    BorderThickness="1"
-                    CornerRadius="12" BoxShadow="0 10 50 0 #A0000000">
-                <Grid RowDefinitions="Auto, *, Auto">
-                    <!-- Header -->
-                    <Grid Grid.Row="0" Margin="24" ColumnDefinitions="*, Auto">
-                        <StackPanel>
-                            <TextBlock Text="{Binding Tracks.LeadSelectedTrack.Title}" FontSize="24" FontWeight="Bold"/>
-                            <TextBlock Text="{Binding Tracks.LeadSelectedTrack.Artist}" FontSize="18" Foreground="#AAA"/>
-                        </StackPanel>
-                        
-                        <!-- Integrity Seal -->
-                        <Border Grid.Column="1" Background="#114EC9B0" BorderBrush="#4EC9B0" BorderThickness="1" CornerRadius="4" Padding="8,4" 
-                                IsVisible="{Binding Tracks.LeadSelectedTrack.IntegrityBadge, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
-                            <StackPanel Orientation="Horizontal" Spacing="6">
-                                <TextBlock Text="🛡️" VerticalAlignment="Center"/>
-                                <TextBlock Text="VERIFIED SOURCE" Foreground="#4EC9B0" FontWeight="Bold" FontSize="11" VerticalAlignment="Center"/>
-                            </StackPanel>
-                        </Border>
-                    </Grid>
-
-                    <!-- Body (Waveform) -->
-                    <Border Grid.Row="1" Margin="24,0" Background="#111" CornerRadius="8" ClipToBounds="True">
-                        <controls:WaveformControl DataContext="{Binding Tracks.LeadSelectedTrack}"
-                                                 Margin="0,20"/>
-                    </Border>
-                    
-                    <!-- Footer -->
-                    <Grid Grid.Row="2" Margin="24" ColumnDefinitions="*,Auto">
-                         <StackPanel Orientation="Horizontal" Spacing="24">
-                            <StackPanel>
-                                <TextBlock Text="KEY" FontSize="10" Foreground="#666"/>
-                                <TextBlock Text="{Binding Tracks.LeadSelectedTrack.KeyDisplay}" FontSize="14" FontWeight="Bold" Foreground="#4EC9B0"/>
-                            </StackPanel>
-                            <StackPanel>
-                                <TextBlock Text="BPM" FontSize="10" Foreground="#666"/>
-                                <TextBlock Text="{Binding Tracks.LeadSelectedTrack.BpmDisplay}" FontSize="14" FontWeight="Bold" Foreground="#CCC"/>
-                            </StackPanel>
-                        </StackPanel>
-                        
-                        <TextBlock Grid.Column="1" Text="Press ESC to close" Foreground="#666" FontSize="11" VerticalAlignment="Center"/>
-                    </Grid>
-                </Grid>
-                
-                <Border.Transitions>
-                    <Transitions>
-                        <DoubleTransition Property="Opacity" Duration="0:0:0.2"/>
-                        <TransformOperationsTransition Property="RenderTransform" Duration="0:0:0.2" Easing="CubicEaseOut"/>
-                    </Transitions>
-                </Border.Transitions>
-            </Border>
-        </Grid>
-
-        </Grid>
+        <!-- OVERLAYS (Outside the main layout grids) -->
 
         <!-- REMOVAL HISTORY OVERLAY -->
-        <Border Grid.ColumnSpan="1" 
-                Background="#CC000000" 
+        <Border Background="#CC000000" 
                 IsVisible="{Binding IsRemovalHistoryVisible}"
                 ZIndex="100">
             <Border Background="#252526" 
@@ -467,8 +436,7 @@
                             <TextBlock Text="Removal History" FontSize="18" FontWeight="SemiBold" VerticalAlignment="Center"/>
                         </StackPanel>
                         <Button Grid.Column="1" 
-                                Command="{Binding RelayCommand}" 
-                                CommandParameter="{Binding $parent[UserControl].DataContext}"
+                                Command="{Binding SmartEscapeCommand}" 
                                 Background="Transparent" Padding="8">
                             <TextBlock Text="✖" FontSize="16"/>
                         </Button>
@@ -486,7 +454,7 @@
                                             </Border>
                                             <StackPanel Grid.Column="1" VerticalAlignment="Center">
                                                 <TextBlock Text="{Binding SourceTitle}" FontWeight="Medium" FontSize="14"/>
-                                                <TextBlock Text="{Binding DeletedAt, StringFormat='Deleted on {0:MMM dd, yyyy}'}" FontSize="12" Foreground="#888"/>
+                                                <TextBlock Text="{Binding DeletedAt, StringFormat='{}Deleted on {0:MMM dd, yyyy}'}" FontSize="12" Foreground="#888"/>
                                             </StackPanel>
                                             <Button Grid.Column="2" 
                                                     Classes="primary" 
@@ -514,27 +482,8 @@
             </Border>
         </Border>
 
-        <!-- RIGHT PANEL SPLITTER -->
-        <GridSplitter Grid.Column="3" Width="1" Background="#3E3E3E" 
-                      IsVisible="{Binding IsRightPanelVisible}"/>
-
-        <!-- RIGHT PANEL: Inspector / Mix Helper -->
-        <Border Grid.Column="4" Background="#202020" 
-                Width="320"
-                IsVisible="{Binding IsRightPanelVisible}">
-            <Grid>
-                <!-- Track Inspector -->
-                <views:TrackInspectorView DataContext="{Binding TrackInspector}"
-                                         IsVisible="{Binding IsInspectorOpen}"/>
-                
-                <!-- Mix Helper (Harmonic Matching) -->
-                <views:MixHelperView IsVisible="{Binding IsMixHelperVisible}"/>
-            </Grid>
-        </Border>
-
         <!-- Sources Overlay -->
-        <Grid Grid.ColumnSpan="1" 
-              Background="#BB000000"
+        <Grid Background="#BB000000"
               IsVisible="{Binding IsSourcesOpen}"
               ZIndex="300">
             <!-- Click background to close -->
@@ -564,24 +513,26 @@
                     Command="{Binding OpenSourcesCommand}" CommandParameter="Close"/>
         </Grid>
 
-        <!-- FORENSIC LAB OVERLAY (Phase 5) -->
-        <Grid Grid.ColumnSpan="1" IsVisible="{Binding IsForensicLabVisible}" 
-              Background="#CC000000"
-              ZIndex="400">
-            <!-- Click background to close (Escape hatch) -->
-            <Button HorizontalAlignment="Stretch" VerticalAlignment="Stretch"
-                    Background="Transparent"
-                    Command="{Binding ToggleInspectorCommand}" 
-                    CommandParameter="CloseForensic">
-                <Button.Template>
-                    <ControlTemplate>
-                        <Panel Background="Transparent"/>
-                    </ControlTemplate>
-                </Button.Template>
-            </Button>
-            
-            <controls:ForensicLabDashboard Margin="40" 
-                                           DataContext="{Binding ForensicLab}"/>
+        <!-- FORENSIC LAB OVERLAY (Restored) -->
+        <Border Grid.Row="1" Grid.Column="1" Grid.ColumnSpan="2"
+                IsVisible="{Binding IsForensicLabVisible}"
+                Background="Transparent"
+                ZIndex="50">
+            <controls:ForensicLabDashboard DataContext="{Binding ForensicLab}"/>
+        </Border>
+
+        <!-- UPGRADE SCOUT OVERLAY -->
+        <Grid IsVisible="{Binding IsUpgradeScoutVisible}" ZIndex="500">
+            <Border Background="#AA000000" IsHitTestVisible="True">
+                 <interactivity:Interaction.Behaviors>
+                    <ia:EventTriggerBehavior EventName="PointerPressed">
+                        <ia:InvokeCommandAction Command="{Binding ToggleUpgradeScoutCommand}"/>
+                    </ia:EventTriggerBehavior>
+                </interactivity:Interaction.Behaviors>
+            </Border>
+            <views:UpgradeScoutView DataContext="{Binding UpgradeScout}" 
+                                   Width="800" Height="600"
+                                   VerticalAlignment="Center" HorizontalAlignment="Center"/>
         </Grid>
     </Grid>
 </UserControl>

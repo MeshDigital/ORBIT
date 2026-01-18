@@ -58,6 +58,7 @@ public partial class LibraryViewModel
     public ICommand SwitchWorkspaceCommand { get; set; } = null!;
     public ICommand QuickLookCommand { get; set; } = null!;
     public ICommand SmartEscapeCommand { get; set; } = null!;
+    public ICommand ToggleUpgradeScoutCommand { get; set; } = null!;
 
 
     // Export Specific Properties
@@ -124,28 +125,35 @@ public partial class LibraryViewModel
         {
              if (param?.ToString() == "Close") 
              {
-                 IsInspectorOpen = false;
+                 _intelligenceCenter.Close();
              }
              else if (param?.ToString() == "OpenExpert")
              {
-                  // Force selection of first track if none selected?
-                  if (!Tracks.SelectedTracks.Any() && Tracks.FilteredTracks.Any())
-                  {
-                      Tracks.SelectedTracks.Add(Tracks.FilteredTracks.First());
-                  }
-                  IsInspectorOpen = true;
+                  // Operation Glass Console: Open Full View
+                  string? hash = Tracks.SelectedTracks.FirstOrDefault()?.Model.TrackUniqueHash;
+                  if (hash != null) _ = _intelligenceCenter.OpenAsync(hash, IntelligenceViewState.Console);
              }
-             else if (param?.ToString() == "CloseForensic")
+             else if (param is PlaylistTrackViewModel trackVM)
              {
-                  IsForensicLabVisible = false;
+                  // Operation Glass Console: Toggle Blade for specific track
+                  if (_intelligenceCenter.SelectedTrackHash == trackVM.Model.TrackUniqueHash && _intelligenceCenter.IsVisible)
+                      _intelligenceCenter.Close();
+                  else
+                      _intelligenceCenter.OpenAsync(trackVM.Model.TrackUniqueHash, IntelligenceViewState.Blade);
              }
              else
              {
-                 IsInspectorOpen = !IsInspectorOpen;
+                  // Default toggle based on selection
+                  string? hash = Tracks.SelectedTracks.FirstOrDefault()?.Model.TrackUniqueHash;
+                  if (hash != null)
+                  {
+                      if (_intelligenceCenter.IsVisible) _intelligenceCenter.Close();
+                      else _intelligenceCenter.OpenAsync(hash, IntelligenceViewState.Blade);
+                  }
              }
         });
 
-        CloseInspectorCommand = new RelayCommand(() => IsInspectorOpen = false);
+        CloseInspectorCommand = new RelayCommand(() => _intelligenceCenter.Close());
         AnalyzeAlbumCommand = new AsyncRelayCommand<object>(ExecuteAnalyzeAlbumAsync);
         AnalyzeTrackCommand = new RelayCommand<object>(ExecuteAnalyzeTrack);
         AnalyzeTrackT1Command = new RelayCommand<PlaylistTrackViewModel>(t => ExecuteAnalyzeTrackTier(t, AnalysisTier.Tier1));
@@ -162,8 +170,27 @@ public partial class LibraryViewModel
 
         // Fluidity
         SwitchWorkspaceCommand = new RelayCommand<ActiveWorkspace>(ws => CurrentWorkspace = ws);
-        QuickLookCommand = new RelayCommand(() => IsQuickLookVisible = !IsQuickLookVisible);
+        QuickLookCommand = new RelayCommand(() => 
+        {
+            if (Tracks.LeadSelectedTrack is { } selectedTrack)
+            {
+                // Operation Glass Console: Switch to unified intelligence hub
+                _ = _intelligenceCenter.OpenAsync(selectedTrack.GlobalId, IntelligenceViewState.Console);
+            }
+        });
         SmartEscapeCommand = new RelayCommand(ExecuteSmartEscape);
+
+        ToggleUpgradeScoutCommand = new AsyncRelayCommand(async () => 
+        {
+            IsUpgradeScoutVisible = !IsUpgradeScoutVisible;
+            if (IsUpgradeScoutVisible)
+            {
+                if (UpgradeScout.ScoutCommand is AsyncRelayCommand asyncCmd)
+                {
+                    await asyncCmd.ExecuteAsync(null);
+                }
+            }
+        });
 
         SetViewModeCommand = new RelayCommand<TrackViewMode>(mode => ViewSettings.ViewMode = mode);
     }
@@ -516,9 +543,9 @@ public partial class LibraryViewModel
         {
             IsDiscoveryLaneVisible = false;
         }
-        else if (IsInspectorOpen || IsMixHelperVisible)
+        else if (_intelligenceCenter.IsVisible || IsMixHelperVisible)
         {
-            IsInspectorOpen = false;
+            _intelligenceCenter.Close();
             IsMixHelperVisible = false;
         }
         else

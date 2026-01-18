@@ -724,7 +724,11 @@ namespace SLSKDONET.ViewModels
             // Phase 4: Notify Vibe Radar to refresh with forensic truths
             OnPropertyChanged(nameof(VibeEnergy));
             OnPropertyChanged(nameof(VibeDance));
+            OnPropertyChanged(nameof(VibeEnergy));
+            OnPropertyChanged(nameof(VibeDance));
             OnPropertyChanged(nameof(VibeMood));
+            OnPropertyChanged(nameof(MoodTag));
+            OnPropertyChanged(nameof(HasMood));
 
             // Phase 10.5: Diff View Notifications
             OnPropertyChanged(nameof(CurationConfidence));
@@ -738,6 +742,9 @@ namespace SLSKDONET.ViewModels
         public double Energy => Track?.Energy ?? 0;
         public double Danceability => Track?.Danceability ?? 0;
         public double Valence => Track?.Valence ?? 0;
+        
+        public string MoodTag => AudioFeatures?.MoodTag ?? Track?.MoodTag ?? "Neutral";
+        public bool HasMood => !string.IsNullOrEmpty(MoodTag) && MoodTag != "Neutral";
 
         // Audio Analysis Properties
         public string LoudnessLabel => _analysis != null ? $"{_analysis.LoudnessLufs:F1} LUFS" : "--";
@@ -819,7 +826,18 @@ namespace SLSKDONET.ViewModels
 
         public bool HasTrack => Track != null;
 
-        public string CamelotKey => MapToCamelot(Track?.Key);
+        public string CamelotKey 
+        {
+            get
+            {
+                var metaKey = MapToCamelot(Track?.Key);
+                if ((string.IsNullOrEmpty(metaKey) || metaKey == "??") && !string.IsNullOrEmpty(EssentiaCamelotKey))
+                {
+                    return EssentiaCamelotKey;
+                }
+                return metaKey;
+            }
+        }
 
         public string BitrateLabel => Track?.Bitrate > 0 ? $"{Track.Bitrate} kbps" : "Unknown Bitrate";
 
@@ -842,7 +860,15 @@ namespace SLSKDONET.ViewModels
         
         // Phase 4: Musical Intelligence Properties (from Essentia via AudioFeaturesEntity)
         public float? EssentiaBpm => _audioFeatures?.Bpm > 0 ? _audioFeatures.Bpm : null;
-        public string BpmLabel => Track?.BPM > 0 ? $"{Track.BPM:F1} BPM" : "--";
+        public string BpmLabel 
+        {
+            get
+            {
+                if ((Track?.BPM ?? 0) > 0) return $"{Track.BPM:F1} BPM";
+                if (EssentiaBpm > 0) return $"{EssentiaBpm:F1} BPM (Est.)";
+                return "--";
+            }
+        }
         public float? BpmConfidence => _audioFeatures?.BpmConfidence;
         public string BpmConfidenceLabel => BpmConfidence.HasValue ? $"({BpmConfidence.Value:P0})" : "";
         
@@ -881,8 +907,7 @@ namespace SLSKDONET.ViewModels
         public bool HasMusicalIntelligence => _audioFeatures != null;
         public bool HasCuePoints => _audioFeatures != null && (_audioFeatures.DropTimeSeconds.HasValue || _audioFeatures.CuePhraseStart.HasValue);
         
-        public string MoodTag => _audioFeatures?.MoodTag ?? "";
-        public bool HasMood => !string.IsNullOrEmpty(MoodTag);
+
         
         public bool IsDjTool => _audioFeatures?.IsDjTool ?? false;
         

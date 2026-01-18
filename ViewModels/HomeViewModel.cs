@@ -113,6 +113,10 @@ public class HomeViewModel : INotifyPropertyChanged, IDisposable
     public ICommand ClearDeadLettersCommand { get; } // Phase 3B
     public ICommand NavigateLibraryCommand { get; }
     public ICommand ViewPlaylistCommand { get; }
+    public ICommand UpgradeBronzeCommand { get; }
+    public ICommand ViewBronzeCommand { get; }
+    public ICommand ExecuteVibeSearchCommand { get; }
+    public ObservableCollection<GenrePlanetViewModel> TopGenres { get; } = new();
 
     private readonly MissionControlService _missionControl;
     private DashboardSnapshot _currentSnapshot = new();
@@ -124,8 +128,15 @@ public class HomeViewModel : INotifyPropertyChanged, IDisposable
         set => SetProperty(ref _currentSnapshot, value);
     }
 
-    public ObservableCollection<string> ActiveOperations { get; } = new();
+    public ObservableCollection<MissionOperation> ActiveOperations { get; } = new();
     public ObservableCollection<string> ResilienceLog { get; } = new();
+
+    private string _vibeSearchText = string.Empty;
+    public string VibeSearchText
+    {
+        get => _vibeSearchText;
+        set => SetProperty(ref _vibeSearchText, value);
+    }
 
     public string HealthColor => CurrentSnapshot.SystemHealth switch
     {
@@ -135,6 +146,10 @@ public class HomeViewModel : INotifyPropertyChanged, IDisposable
         SystemHealth.Critical => "#FF5252",  // Red
         _ => "#808080"
     };
+
+    public bool IsLockdownActive => CurrentSnapshot.IsForensicLockdownActive;
+    public double CurrentCpuLoad => CurrentSnapshot.CurrentCpuLoad;
+    public string LockdownStatusText => IsLockdownActive ? "🛡️ ACTIVE" : "✅ NOMINAL";
 
     public HomeViewModel(
         ILogger<HomeViewModel> logger,
@@ -184,8 +199,13 @@ public class HomeViewModel : INotifyPropertyChanged, IDisposable
                 LibraryHealth.HealthStatus = snapshot.SystemHealth.ToString();
                 LibraryHealth.IssuesCount = snapshot.DeadLetterCount;
                 
-                // Trigger HealthColor update
+                // Trigger visuals
                 OnPropertyChanged(nameof(HealthColor));
+                OnPropertyChanged(nameof(IsLockdownActive));
+                OnPropertyChanged(nameof(CurrentCpuLoad));
+                OnPropertyChanged(nameof(LockdownStatusText));
+
+                UpdateTopGenres(LibraryHealth?.TopGenresJson);
             });
         });
 
@@ -196,6 +216,22 @@ public class HomeViewModel : INotifyPropertyChanged, IDisposable
         ViewPlaylistCommand = new RelayCommand<PlaylistCardViewModel>(ExecuteViewPlaylist);
         QuickSearchCommand = new AsyncRelayCommand<SpotifyTrackViewModel>(ExecuteQuickSearchAsync);
         ClearDeadLettersCommand = new AsyncRelayCommand(ClearDeadLettersAsync);
+        
+        UpgradeBronzeCommand = new RelayCommand(() => 
+        {
+            _navigationService.NavigateTo("Library");
+            _libraryViewModel.ToggleUpgradeScoutCommand.Execute(null);
+        });
+
+        ViewBronzeCommand = new RelayCommand(() =>
+        {
+            _navigationService.NavigateTo("Library");
+            // Set filter for Low Quality tracks
+            _libraryViewModel.Tracks.IsFilterNeedsReview = true;
+            _libraryViewModel.Tracks.SearchText = ""; // Clear search
+        });
+
+        ExecuteVibeSearchCommand = new RelayCommand(ExecuteVibeSearch);
 
         _connectionChangedHandler = (s, e) =>
         {
@@ -213,15 +249,62 @@ public class HomeViewModel : INotifyPropertyChanged, IDisposable
         _ = RefreshDashboardAsync();
     }
 
-    private void UpdateOperationsList(List<string> newOperations)
+    private void UpdateOperationsList(List<MissionOperation> newOperations)
     {
-        // Simple synchronization to avoid flicker
-        // For very large lists, we might want a smarter diff, but for <50 items this is fast enough
-        // If items are same count and content, skip
-        if (ActiveOperations.SequenceEqual(newOperations)) return;
+        // 1. Remove items that are no longer present
+        var toRemove = ActiveOperations.Where(existing => !newOperations.Any(n => n.Id == existing.Id)).ToList();
+        foreach (var item in toRemove) ActiveOperations.Remove(item);
 
-        ActiveOperations.Clear();
-        foreach (var op in newOperations) ActiveOperations.Add(op);
+        // 2. Add or Update items
+        for (int i = 0; i < newOperations.Count; i++)
+        {
+            var newData = newOperations[i];
+            var existing = ActiveOperations.FirstOrDefault(a => a.Id == newData.Id);
+
+            if (existing == null)
+            {
+                // New item - Add it at the correct position if possible, or just append
+                // Resolve Track ViewModel for rich UI interaction
+                if (newData.Type == Models.OperationType.Download)
+                {
+                    newData.Track = _downloadCenter.ActiveDownloads.FirstOrDefault(d => d.GlobalId == newData.Id) ??
+                                    _downloadCenter.OngoingDownloads.FirstOrDefault(d => d.GlobalId == newData.Id);
+                }
+                
+                if (i < ActiveOperations.Count)
+                    ActiveOperations.Insert(i, newData);
+                else
+                    ActiveOperations.Add(newData);
+            }
+            else
+            {
+                // Existing item - Surgery!
+                // Reorder if necessary to match the sorted list from MissionControl
+                var existingIndex = ActiveOperations.IndexOf(existing);
+                if (existingIndex != i)
+                {
+                    ActiveOperations.Move(existingIndex, i);
+                }
+
+                // Update properties - MissionOperation now implements INotifyPropertyChanged
+                existing.Title = newData.Title;
+                existing.Subtitle = newData.Subtitle;
+                existing.Progress = newData.Progress;
+                existing.StatusText = newData.StatusText;
+                existing.CanCancel = newData.CanCancel;
+                
+                // Keep track reference updated if it was missing
+                if (existing.Track == null && newData.Track != null)
+                {
+                    existing.Track = newData.Track;
+                }
+                else if (existing.Track == null && newData.Type == Models.OperationType.Download)
+                {
+                    existing.Track = _downloadCenter.ActiveDownloads.FirstOrDefault(d => d.GlobalId == newData.Id) ??
+                                    _downloadCenter.OngoingDownloads.FirstOrDefault(d => d.GlobalId == newData.Id);
+                }
+            }
+        }
     }
     
     private void UpdateResilienceLog(List<string> newLog)
@@ -406,6 +489,61 @@ public class HomeViewModel : INotifyPropertyChanged, IDisposable
         _isDisposed = true;
     }
 
+    private void ExecuteVibeSearch()
+    {
+        if (string.IsNullOrWhiteSpace(VibeSearchText)) return;
+
+        _logger.LogInformation("✨ Processing Vibe Search: {Query}", VibeSearchText);
+        
+        // Phase 12.8: Simple Keyword Analysis
+        double? targetEnergy = null;
+        double? targetValence = null;
+        
+        var query = VibeSearchText.ToLower();
+        if (query.Contains("chill") || query.Contains("relaxed") || query.Contains("ambient")) targetEnergy = 0.3;
+        if (query.Contains("dark") || query.Contains("heavy") || query.Contains("aggressive")) targetEnergy = 0.9;
+        
+        if (query.Contains("happy") || query.Contains("sunny") || query.Contains("bright")) targetValence = 0.8;
+        if (query.Contains("dark") || query.Contains("sad") || query.Contains("moody")) targetValence = 0.2;
+
+        _notificationService.Show("Vibe Analyzed", $"Filtering library for your vibe...", NotificationType.Information);
+        
+        // Navigate to Library
+        _navigationService.NavigateTo("Library");
+        
+        // Clear project selection
+        _libraryViewModel.Projects.SelectedProject = null;
+        
+        // Phase 12.8: Set filters (if we had Energy/Valence filters in Library UI)
+        // For now, let's just put the text in the search bar
+        _libraryViewModel.Tracks.SearchText = VibeSearchText;
+    }
+
+    private void UpdateTopGenres(string? json)
+    {
+        if (string.IsNullOrEmpty(json)) return;
+        try
+        {
+            var genres = System.Text.Json.JsonSerializer.Deserialize<List<GenreData>>(json);
+            if (genres == null) return;
+
+            TopGenres.Clear();
+            foreach (var g in genres)
+            {
+                TopGenres.Add(new GenrePlanetViewModel { Name = g.Genre, Count = g.Count });
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to parse top genres JSON");
+        }
+    }
+
+    private class GenreData
+    {
+        public string Genre { get; set; } = string.Empty;
+        public int Count { get; set; }
+    }
 
     protected void OnPropertyChanged([CallerMemberName] string? propertyName = null)
     {
@@ -419,4 +557,12 @@ public class HomeViewModel : INotifyPropertyChanged, IDisposable
         OnPropertyChanged(propertyName);
         return true;
     }
+}
+
+public class GenrePlanetViewModel
+{
+    public string Name { get; set; } = string.Empty;
+    public int Count { get; set; }
+    public double Size => 40 + (Math.Min(Count, 100) * 0.5);
+    public string Color => "#00A3FF"; // Could be dynamic based on purity later
 }

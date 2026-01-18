@@ -1,0 +1,10 @@
+// Database Migration Note
+// 
+// The Rating, IsLiked, PlayCount, and LastPlayedAt columns are already defined
+// in PlaylistTrackEntity.cs. EF Core will automatically add these columns
+// when the database is recreated or when EnsureCreated() is called.
+//
+// For existing databases, users should delete library.db to get the new schema,
+// or we can add explicit migration code if needed.
+//
+// Location: %AppData%\SLSKDONET\library.db

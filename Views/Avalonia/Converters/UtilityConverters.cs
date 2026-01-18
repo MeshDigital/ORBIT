@@ -1,6 +1,7 @@
 using Avalonia.Data.Converters;
 using System;
 using System.Globalization;
+using Avalonia;
 
 namespace SLSKDONET.Views.Avalonia.Converters
 {
@@ -27,11 +28,32 @@ namespace SLSKDONET.Views.Avalonia.Converters
         }
     }
 
-    public class EqualityConverter : IValueConverter
+    public class EqualityConverter : IValueConverter, IMultiValueConverter
     {
         public object? Convert(object? value, Type targetType, object? parameter, CultureInfo culture)
         {
             return value?.Equals(parameter) ?? false;
+        }
+
+        public object? Convert(System.Collections.Generic.IList<object?> values, Type targetType, object? parameter, CultureInfo culture)
+        {
+            if (values == null || values.Count < 2) return false;
+
+            // 1. Evaluate Equality
+            bool isEqual = Equals(values[0], values[1]);
+
+            // 2. Return Result based on count
+            // Case A: Just equality check (2 inputs) -> return bool
+            if (values.Count == 2) return isEqual;
+
+            // Case B: Conditional return (3 inputs) -> if equal return [2], else unset
+            if (values.Count == 3) return isEqual ? values[2] : AvaloniaProperty.UnsetValue;
+
+
+            // Case C: Ternary (4 inputs) -> if equal return [2], else return [3]
+            if (values.Count >= 4) return isEqual ? values[2] : values[3];
+
+            return false;
         }
 
         public object? ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture)

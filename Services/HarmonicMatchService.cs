@@ -191,7 +191,8 @@ public class HarmonicMatchService
             return compatibleKeys;
         }
 
-        _logger.LogWarning("Unknown Camelot key: {Key}", seedKey);
+        // Reduce noise for unanalyzed/raw keys
+        _logger.LogDebug("Unknown Camelot key: {Key}", seedKey);
         return new HashSet<string> { seedKey }; // Fallback: only exact match
     }
 

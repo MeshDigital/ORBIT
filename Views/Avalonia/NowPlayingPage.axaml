@@ -128,7 +128,7 @@
                                              Progress="{Binding Position}"
                                              Background="#01000000"
                                              PlayheadBrush="#1DB954"
-                                             IsRolling="True"
+                                             IsRolling="False"
                                              SeekCommand="{Binding SeekCommand}"
                                              VerticalAlignment="Stretch"
                                              HorizontalAlignment="Stretch"/>

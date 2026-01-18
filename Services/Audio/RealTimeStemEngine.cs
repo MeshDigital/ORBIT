@@ -17,7 +17,6 @@ public class RealTimeStemEngine : IDisposable
     private readonly Dictionary<StemType, StemProcessingChain> _processors = new();
     private IWavePlayer? _outputDevice;
     private MixingSampleProvider? _mixer;
-    private bool _isPlaying;
     
     // Global lock for thread safety
     private readonly object _lock = new();
@@ -92,7 +91,6 @@ public class RealTimeStemEngine : IDisposable
             if (_outputDevice != null && _outputDevice.PlaybackState != PlaybackState.Playing)
             {
                 _outputDevice.Play();
-                _isPlaying = true;
             }
         }
     }
@@ -104,7 +102,6 @@ public class RealTimeStemEngine : IDisposable
             if (_outputDevice != null && _outputDevice.PlaybackState == PlaybackState.Playing)
             {
                 _outputDevice.Pause();
-                _isPlaying = false;
             }
         }
     }

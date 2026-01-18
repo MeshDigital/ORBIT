@@ -1,0 +1,313 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:vm="clr-namespace:SLSKDONET.ViewModels"
+             xmlns:controls="clr-namespace:SLSKDONET.Views.Avalonia.Controls"
+             xmlns:views="clr-namespace:SLSKDONET.Views.Avalonia"
+             mc:Ignorable="d" d:DesignWidth="1200" d:DesignHeight="800"
+             x:Class="SLSKDONET.Views.Avalonia.IntelligenceCenterView"
+             IsVisible="{Binding IsVisible}">
+
+    <Design.DataContext>
+        <!-- Mock DataContext for Designer -->
+    </Design.DataContext>
+
+    <Grid>
+        <!-- DARK BLUR BACKGROUND (Click to close) -->
+        <Border Background="#CC000000" Opacity="0.5">
+            <Button Command="{Binding CloseCommand}" Background="Transparent" 
+                    HorizontalAlignment="Stretch" VerticalAlignment="Stretch">
+                <Button.Template>
+                    <ControlTemplate><Panel/></ControlTemplate>
+                </Button.Template>
+            </Button>
+        </Border>
+
+        <!-- MAIN GLASS CONSOLE -->
+        <Border Margin="0"
+                BoxShadow="0 0 50 0 #66000000"
+                Classes.blade="{Binding ViewState, Converter={StaticResource EnumToBoolConverter}, ConverterParameter=Blade}"
+                Classes.console="{Binding ViewState, Converter={StaticResource EnumToBoolConverter}, ConverterParameter=Console}">
+            <Border.Styles>
+                <Style Selector="Border">
+                  <Setter Property="Background" Value="Transparent"/>
+                  <Setter Property="Transitions">
+                    <Transitions>
+                      <DoubleTransition Property="Width" Duration="0:0:0.4" Easing="QuarticEaseOut"/>
+                      <ThicknessTransition Property="Margin" Duration="0:0:0.4" Easing="QuarticEaseOut"/>
+                    </Transitions>
+                  </Setter>
+                </Style>
+                
+                <Style Selector="Border.blade">
+                    <Setter Property="HorizontalAlignment" Value="Right"/>
+                    <Setter Property="Width" Value="380"/>
+                    <Setter Property="Margin" Value="0,10,10,10"/>
+                </Style>
+                <Style Selector="Border.console">
+                    <Setter Property="HorizontalAlignment" Value="Center"/>
+                    <Setter Property="Width" Value="1100"/>
+                    <Setter Property="Margin" Value="0"/>
+                </Style>
+
+                <Style Selector="Button.toggle">
+                    <Setter Property="FontSize" Value="11"/>
+                    <Setter Property="FontWeight" Value="SemiBold"/>
+                    <Setter Property="Padding" Value="12,6"/>
+                    <Setter Property="BorderThickness" Value="1"/>
+                    <Setter Property="BorderBrush" Value="#444"/>
+                    <Setter Property="CornerRadius" Value="4"/>
+                </Style>
+            </Border.Styles>
+
+            <ExperimentalAcrylicBorder CornerRadius="0">
+                <ExperimentalAcrylicBorder.Material>
+                    <ExperimentalAcrylicMaterial
+                        TintColor="#000000"
+                        TintOpacity="0.8"
+                        MaterialOpacity="0.85"
+                        FallbackColor="#1A1A1A" />
+                </ExperimentalAcrylicBorder.Material>
+                
+                <Grid RowDefinitions="Auto,*,Auto">
+                    <!-- HEADER / STRIP -->
+                    <Border Grid.Row="0" Height="80" BorderBrush="#333" BorderThickness="0,0,0,1" Padding="20,0">
+                        <Grid ColumnDefinitions="*,Auto,Auto">
+                            <!-- Track Metadata -->
+                            <StackPanel VerticalAlignment="Center" Spacing="4">
+                                <StackPanel Orientation="Horizontal" Spacing="8">
+                                    <Border Background="#2A2A2A" CornerRadius="4" Padding="6,2">
+                                        <TextBlock Text="{Binding Lab.ElectronicSubgenre}" FontSize="9" FontWeight="Black" Foreground="#4EC9B0" LetterSpacing="1"/>
+                                    </Border>
+                                    <TextBlock Text="{Binding SelectedTrackHash}" FontSize="9" Foreground="#444" VerticalAlignment="Center" FontFamily="{StaticResource CodeFont}"/>
+                                </StackPanel>
+                                <TextBlock Text="{Binding Inspector.Track.Title}" FontSize="22" FontWeight="Black" Foreground="White" TextTrimming="CharacterEllipsis"/>
+                                <TextBlock Text="{Binding Inspector.Track.Artist}" FontSize="13" Foreground="#888" FontWeight="SemiBold"/>
+                            </StackPanel>
+
+                            <!-- Confidence Radars (Header Integration) -->
+                            <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="20" VerticalAlignment="Center" Margin="30,0">
+                                <controls:ConfidenceRadar Width="60" Height="60" 
+                                                         Value="{Binding Lab.BpmConfidence}" 
+                                                         Label="Tempo" 
+                                                         Color="#4EC9B0"/>
+                                <controls:ConfidenceRadar Width="60" Height="60" 
+                                                         Value="{Binding Lab.KeyConfidence}" 
+                                                         Label="Harmonics" 
+                                                         Color="#1E88E5"/>
+                            </StackPanel>
+
+                            <!-- Window Controls & View Toggle -->
+                            <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="10" VerticalAlignment="Center" Margin="20,0">
+                                
+                                <!-- Priority Upgrade Button -->
+                                <Button Command="{Binding UpgradeAnalysisCommand}"
+                                        ToolTip.Tip="Upgrade to Priority Analysis (Tier 3)"
+                                        IsEnabled="{Binding SelectedTrackHash, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"
+                                        Background="Transparent" BorderThickness="0" Padding="8">
+                                    <StackPanel Orientation="Horizontal" Spacing="6">
+                                        <PathIcon Data="{StaticResource arrow_up_circle_regular}" Foreground="#FFD700" Width="16" Height="16"/>
+                                        <TextBlock Text="UPGRADE" FontSize="10" FontWeight="Bold" Foreground="#FFD700" VerticalAlignment="Center"/>
+                                    </StackPanel>
+                                </Button>
+                                
+                                <Border Background="#1A1A1A" CornerRadius="6" Padding="4">
+                                    <StackPanel Orientation="Horizontal" Spacing="4">
+                                        <Button Classes="toggle"
+                                                Content="BLADE"
+                                                Background="{Binding ViewState, Converter={StaticResource EnumToColorConverter}, ConverterParameter=Blade;#334EC9B0;Transparent}"
+                                                Command="{Binding SwitchToBladeCommand}"/>
+                                        
+                                        <Button Classes="toggle"
+                                                Content="CONSOLE"
+                                                Background="{Binding ViewState, Converter={StaticResource EnumToColorConverter}, ConverterParameter=Console;#334EC9B0;Transparent}"
+                                                Command="{Binding SwitchToConsoleCommand}"/>
+                                    </StackPanel>
+                                </Border>
+                                
+                                <Button Content="✕" 
+                                        Command="{Binding CloseCommand}"
+                                        Background="Transparent" 
+                                        Width="40" Height="40" 
+                                        BorderThickness="0"
+                                        FontSize="18"
+                                        Foreground="#666"/>
+                            </StackPanel>
+                        </Grid>
+                    </Border>
+
+                    <!-- CONTENT AREA -->
+                    <Grid Grid.Row="1">
+                        <!-- BLADE VIEW (Library Sidecar) -->
+                        <ScrollViewer IsVisible="{Binding ViewState, Converter={StaticResource EnumToBoolConverter}, ConverterParameter=Blade}">
+                            <StackPanel Spacing="30" Margin="24">
+                                <!-- AI Mood Breakdown -->
+                                <StackPanel Spacing="15">
+                                     <TextBlock Text="AI VIBE BREAKDOWN" FontSize="10" FontWeight="Black" Foreground="#444" LetterSpacing="1"/>
+                                     <Border Background="#0A0A0A" CornerRadius="12" Padding="20">
+                                          <StackPanel Spacing="12">
+                                              <!-- Energy / Intensity / Danceability -->
+                                               <Grid ColumnDefinitions="*,*,*">
+                                                   <StackPanel Spacing="6" Margin="0,0,10,0">
+                                                       <TextBlock Text="ENERGY" FontSize="9" Foreground="#666" HorizontalAlignment="Center"/>
+                                                       <ProgressBar Value="{Binding Lab.Energy}" Minimum="0" Maximum="1" Height="4" Foreground="#FF5252"/>
+                                                   </StackPanel>
+                                                   <StackPanel Grid.Column="1" Spacing="6" Margin="0,0,10,0">
+                                                       <TextBlock Text="DANCE" FontSize="9" Foreground="#666" HorizontalAlignment="Center"/>
+                                                       <ProgressBar Value="{Binding Lab.Danceability}" Minimum="0" Maximum="1" Height="4" Foreground="#4EC9B0"/>
+                                                   </StackPanel>
+                                                   <StackPanel Grid.Column="2" Spacing="6">
+                                                       <TextBlock Text="GROOVE" FontSize="9" Foreground="#666" HorizontalAlignment="Center"/>
+                                                       <ProgressBar Value="{Binding Lab.Valence}" Minimum="0" Maximum="1" Height="4" Foreground="#FFD700"/>
+                                                   </StackPanel>
+                                               </Grid>
+                                              
+                                              <Separator Background="#222" Margin="0,5"/>
+                                              
+                                              <TextBlock Text="{Binding Lab.MoodTag}" FontSize="18" FontWeight="Bold" Foreground="White" HorizontalAlignment="Center"/>
+                                          </StackPanel>
+                                     </Border>
+                                </StackPanel>
+
+                                <!-- Pulse Waveform -->
+                                <StackPanel Spacing="15">
+                                    <TextBlock Text="ENERGY FLOW (PULSE)" FontSize="10" FontWeight="Black" Foreground="#444" LetterSpacing="1"/>
+                                    <Border Height="120" Background="#0A0A0A" CornerRadius="12" ClipToBounds="True" BorderBrush="#222" BorderThickness="1">
+                                        <controls:WaveformControl WaveformData="{Binding Lab.WaveformData}"
+                                                                  LowBand="{Binding Lab.LowData}"
+                                                                  MidBand="{Binding Lab.MidData}"
+                                                                  HighBand="{Binding Lab.HighData}"/>
+                                    </Border>
+                                </StackPanel>
+
+                                <!-- Vibe Pills -->
+                                <StackPanel Spacing="15">
+                                     <TextBlock Text="SEMANTIC ATTRIBUTES" FontSize="10" FontWeight="Black" Foreground="#444" LetterSpacing="1"/>
+                                     <controls:VibePillContainer Items="{Binding Inspector.VibePills}" Height="80"/>
+                                </StackPanel>
+                            </StackPanel>
+                        </ScrollViewer>
+
+                        <!-- CONSOLE VIEW (Deep Forensic) -->
+                        <Grid Grid.Row="1" IsVisible="{Binding ViewState, Converter={StaticResource EnumToBoolConverter}, ConverterParameter=Console}">
+                             <!-- The Console is a complex 3-panel layout -->
+                              <Grid ColumnDefinitions="300,*,320" Margin="20">
+                                  <!-- Left: AI & Signal -->
+                                 <StackPanel Grid.Column="0" Spacing="20" Margin="0,0,20,0">
+                                      <Border Background="#111" CornerRadius="12" Padding="20" BoxShadow="0 4 10 0 #44000000">
+                                           <StackPanel Spacing="15">
+                                               <TextBlock Text="SIGNAL INTEGRITY" FontSize="10" FontWeight="Black" Foreground="#444" LetterSpacing="1"/>
+                                               
+                                               <StackPanel Spacing="8">
+                                                    <TextBlock Text="{Binding Lab.BitrateVerificationLabel}" Foreground="#4EC9B0" FontWeight="Bold" FontSize="13"/>
+                                                    <TextBlock Text="{Binding Inspector.TechDetailsLabel}" Foreground="#888" FontSize="11"/>
+                                                    <TextBlock Text="{Binding Inspector.FileSizeLabel}" Foreground="#666" FontSize="10"/>
+                                               </StackPanel>
+
+                                               <Separator Background="#222"/>
+
+                                               <StackPanel Spacing="8">
+                                                    <TextBlock Text="SPECTRAL PURITY" FontSize="9" Foreground="#444" FontWeight="Bold"/>
+                                                    <TextBlock Text="{Binding Lab.DynamicRangeLabel}" Foreground="#FFD700" FontSize="11" FontWeight="SemiBold"/>
+                                                    <StackPanel Orientation="Horizontal" Spacing="8">
+                                                         <TextBlock Text="CUTOFF:" FontSize="9" Foreground="#555" VerticalAlignment="Center"/>
+                                                         <TextBlock Text="{Binding Lab.FrequencyCutoff, StringFormat='{}{0} Hz'}" Foreground="#9CDCFE" FontSize="11" FontFamily="{StaticResource CodeFont}"/>
+                                                    </StackPanel>
+                                               </StackPanel>
+                                           </StackPanel>
+                                      </Border>
+
+                                      <Border Background="#111" CornerRadius="12" Padding="20" BoxShadow="0 4 10 0 #44000000">
+                                          <StackPanel Spacing="15">
+                                               <TextBlock Text="MOOD RADAR" FontSize="10" FontWeight="Black" Foreground="#444" LetterSpacing="1"/>
+                                               
+                                               <Grid RowDefinitions="Auto,Auto" ColumnDefinitions="Auto,*">
+                                                    <Border Grid.RowSpan="2" Width="40" Height="40" Background="#1A1A1A" CornerRadius="20" Margin="0,0,15,0">
+                                                         <PathIcon Data="{StaticResource mic_regular}" Foreground="#CE9178" Width="20" Height="20"/>
+                                                    </Border>
+                                                    <TextBlock Grid.Column="1" Text="VOCAL PRESENCE" FontSize="9" Foreground="#666"/>
+                                                    <TextBlock Grid.Row="1" Grid.Column="1" Text="{Binding Lab.VocalPresenceLabel}" Foreground="White" FontWeight="Bold" FontSize="14"/>
+                                               </Grid>
+
+                                               <StackPanel Spacing="8" Margin="0,10,0,0">
+                                                    <TextBlock Text="SONIC ATTRIBUTES" FontSize="9" Foreground="#444" FontWeight="Bold"/>
+                                                    <TextBlock Text="{Binding Lab.MoodTag}" Foreground="#DCDCAA" FontSize="12" FontWeight="SemiBold"/>
+                                                    <TextBlock Text="{Binding Lab.ElectronicSubgenre}" Foreground="#569CD6" FontSize="11"/>
+                                               </StackPanel>
+                                          </StackPanel>
+                                      </Border>
+                                 </StackPanel>
+
+                                  <!-- Center: Spectrogram (The Hero) -->
+                                  <Border Grid.Column="1" x:Name="SpectrogramBorder" Background="#050505" Margin="0,0,20,0" CornerRadius="12" BorderBrush="#333" BorderThickness="1" ClipToBounds="True" PointerPressed="Spectrogram_PointerPressed">
+                                       <Grid VerticalAlignment="Stretch">
+                                            <Image Source="{Binding Lab.SpectrogramImage}" Stretch="Uniform" Opacity="0.8"/>
+                                            
+                                            <!-- Spectral Crosshair / Scanline -->
+                                            <Canvas HorizontalAlignment="Stretch" VerticalAlignment="Stretch" IsHitTestVisible="False">
+                                                <Line x:Name="ScanLineLine" StartPoint="0,0" EndPoint="0,800" Stroke="#4EC9B0" StrokeThickness="1" StrokeDashArray="2,2" Opacity="0.5">
+                                                    <Line.RenderTransform>
+                                                        <TranslateTransform X="0"/>
+                                                    </Line.RenderTransform>
+                                                </Line>
+                                            </Canvas>
+
+                                            <Border Background="#AA000000" VerticalAlignment="Top" HorizontalAlignment="Left" Margin="20" Padding="12,6" CornerRadius="4">
+                                                <StackPanel Orientation="Horizontal" Spacing="10">
+                                                    <TextBlock Text="HIGH-RESOLUTION SPECTRAL COMPOSITION" FontSize="10" FontWeight="Black" Foreground="#666" LetterSpacing="2"/>
+                                                    <Border Background="#224EC9B0" CornerRadius="2" Padding="4,1">
+                                                        <TextBlock Text="22.1 kHz SCAN" FontSize="9" Foreground="#4EC9B0" FontWeight="Bold"/>
+                                                    </Border>
+                                                </StackPanel>
+                                            </Border>
+                                       </Grid>
+                                  </Border>
+
+                                 <!-- Right: Metadata & Cues -->
+                                 <Border Grid.Column="2" Background="#111" CornerRadius="12" Padding="20">
+                                      <StackPanel Spacing="15">
+                                           <TextBlock Text="TECHNICAL BREADCRUMBS" FontSize="10" FontWeight="Black" Foreground="#444" LetterSpacing="1"/>
+                                           <ScrollViewer>
+                                                <ItemsControl ItemsSource="{Binding Inspector.Cues}">
+                                                    <ItemsControl.ItemTemplate>
+                                                        <DataTemplate>
+                                                            <Button Background="Transparent" BorderThickness="0" Padding="0" HorizontalAlignment="Stretch"
+                                                                    Command="{Binding $parent[UserControl].DataContext.SeekToCueCommand}"
+                                                                    CommandParameter="{Binding}">
+                                                                <Button.Styles>
+                                                                    <Style Selector="Button:pointerover Border#CueMain">
+                                                                        <Setter Property="Background" Value="#2A2A2A"/>
+                                                                        <Setter Property="BorderBrush" Value="#444"/>
+                                                                    </Style>
+                                                                </Button.Styles>
+                                                                <Border x:Name="CueMain" Background="#1A1A1A" CornerRadius="6" Padding="12,8" Margin="0,0,0,8" BorderBrush="#222" BorderThickness="1">
+                                                                     <Grid ColumnDefinitions="Auto,*,Auto">
+                                                                        <Border Width="4" Height="24" Background="{Binding Color}" CornerRadius="2" Margin="0,0,12,0"/>
+                                                                        <StackPanel Grid.Column="1" VerticalAlignment="Center" Margin="0,0,12,0">
+                                                                             <TextBlock Text="{Binding Name}" FontSize="12" FontWeight="Bold" Foreground="White"/>
+                                                                             <TextBlock Text="{Binding Role}" FontSize="9" Foreground="#666" TextTrimming="CharacterEllipsis"/>
+                                                                        </StackPanel>
+                                                                        <TextBlock Grid.Column="2" Text="{Binding Timestamp, StringFormat='{}{0:F1}s'}" FontSize="11" Foreground="#4EC9B0" VerticalAlignment="Center" FontFamily="{StaticResource CodeFont}"/>
+                                                                     </Grid>
+                                                                </Border>
+                                                            </Button>
+                                                        </DataTemplate>
+                                                    </ItemsControl.ItemTemplate>
+                                                </ItemsControl>
+                                           </ScrollViewer>
+                                      </StackPanel>
+                                 </Border>
+                              </Grid>
+                        </Grid>
+                    </Grid>
+
+                    <!-- BOTTOM BAR: BLACK BOX TERMINAL -->
+                    <Border Grid.Row="2" Height="180" IsVisible="{Binding ViewState, Converter={StaticResource EnumToBoolConverter}, ConverterParameter=Console}" BorderBrush="#333" BorderThickness="0,1,0,0">
+                         <controls:BlackBoxTerminal Margin="20,10"/>
+                    </Border>
+                </Grid>
+            </ExperimentalAcrylicBorder>
+        </Border>
+    </Grid>
+</UserControl>

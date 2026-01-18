@@ -29,12 +29,14 @@ public class HierarchicalLibraryViewModel
     public ITreeDataGridRowSelectionModel<ILibraryNode>? Selection => Source.RowSelection;
 
     private readonly AnalysisQueueService _analysisQueueService;
+    private readonly ArtworkCacheService _artworkCacheService;
 
-    public HierarchicalLibraryViewModel(AppConfig config, DownloadManager downloadManager, AnalysisQueueService analysisQueueService)
+    public HierarchicalLibraryViewModel(AppConfig config, DownloadManager downloadManager, AnalysisQueueService analysisQueueService, ArtworkCacheService artworkCacheService)
     {
         _config = config;
         _downloadManager = downloadManager;
         _analysisQueueService = analysisQueueService;
+        _artworkCacheService = artworkCacheService;
         Source = new HierarchicalTreeDataGridSource<ILibraryNode>(_albums);
         Source.RowSelection!.SingleSelect = false;
 
@@ -128,17 +130,7 @@ public class HierarchicalLibraryViewModel
             Background = Brush.Parse("#2D2D2D"),
             Margin = new Thickness(4),
             Child = new Image { 
-                [!Image.SourceProperty] = new Binding(nameof(ILibraryNode.AlbumArtPath))
-                {
-                    Converter = new FuncValueConverter<string?, IImage?>(path => 
-                    {
-                        if (string.IsNullOrEmpty(path)) return null;
-                        try {
-                            if (System.IO.File.Exists(path)) return new Avalonia.Media.Imaging.Bitmap(path);
-                        } catch {} // Ignore errors
-                        return null;
-                    })
-                },
+                [!Image.SourceProperty] = new Binding("Artwork.Image"),
                 Stretch = Stretch.UniformToFill
             }
         };
@@ -255,7 +247,7 @@ public class HierarchicalLibraryViewModel
             else
             {
                 var firstTrack = group.First();
-                var albumNode = new AlbumNode(group.Key, firstTrack.Artist, _downloadManager, _analysisQueueService)
+                var albumNode = new AlbumNode(group.Key, firstTrack.Artist, _downloadManager, _analysisQueueService, _artworkCacheService)
                 {
                     AlbumArtPath = firstTrack.AlbumArtPath
                 };

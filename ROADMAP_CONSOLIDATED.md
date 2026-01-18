@@ -35,6 +35,8 @@
 - [x] **Event-Driven Refresh**: Track Inspector auto-updates on analysis completion
 - [x] **Glass Box Queue**: Observable service with 45s timeout watchdog, pause/resume capability
 - [x] **Global Status Bar**: Animated queue visibility in MainWindow with ETA calculation
+- [ ] **Forensic Monitor**: "Human-in-the-loop" UI to explain AI rankings and allow manual score overrides
+- [ ] **Forensic Lockdown**: UI "Safe Mode" to auto-throttle heavy AI tasks during active DJ sets/playback
 
 ---
 
@@ -77,6 +79,7 @@
 - [x] **Harmonic Sidebar**: Key/BPM compatibility visualization
 - [ ] **Column Reordering**: Draggable TreeDataGrid columns with persistence
 - [ ] **UI Virtualization**: VirtualizingStackPanel for 50k+ track libraries (CRITICAL)
+- [ ] **Virtualization 2.0**: Shimmer loading, asynchronous prefetching, and delta-updates for viewport-only data flow
 
 ### Player & Playback
 - [x] **NAudio Engine**: ASIO/WASAPI support replacing LibVLC
@@ -149,6 +152,9 @@
 - [ ] **Smart Empty States**: Contextual messages with action buttons
 - [ ] **Health Dashboard**: Live DeadLetter status with one-click recovery
 - [ ] **Performance Overlay**: Debug mode FPS/memory/query monitor (Ctrl+Shift+P)
+- [ ] **Glass Engine Dashboard**: Visual "Vibe Clusters" showing real-time batch progress with glowing 60fps animations
+- [ ] **Semantic Theming**: Dynamic row colors based on AI Confidence Scores (High Confidence = Green, Review Needed = Amber)
+- [ ] **Command Bar (Ctrl+K)**: Command palette for power-user library management (e.g., "Analyze last import", "Boost priority")
 
 ---
 
@@ -160,6 +166,8 @@
 - [ ] **Uploader Trust Scoring**: Queue length + free slot prioritization
 - [ ] **Confident Metadata**: Store 0.0-1.0 confidence scores
 - [ ] **Genre Galaxy**: Visualization of library by genres
+- [ ] **Spectrogram Comparison**: Forensic view for deep-diving into AI detection logic vs. raw audio signal
+- [ ] **Haptic/Audio Feedback**: Subtle auditory cues when large analysis batches complete
 
 ### Architectural
 - [ ] **Unified Pipeline Orchestrator**: 8-stage download coordination
@@ -167,6 +175,7 @@
 - [ ] **Profile-Based Tuning**: Audiophile/DJ/Balanced scoring presets
 - [ ] **Command Pattern**: Undo/Redo for library operations (Ctrl+Z)
 - [ ] **State Pattern**: Download state machine for cleaner transitions
+- [ ] **Headless Worker**: Decouple `AnalysisQueueService` into a process that survives UI crashes
 
 ### Testing & Stability
 - [ ] **Automated Stress Tests**: 500-track import, network drops, corrupt files

@@ -45,12 +45,14 @@ public record DownloadAlbumRequestEvent(object Album); // object to handle Album
 
 public record AddToProjectRequestEvent(System.Collections.Generic.IEnumerable<PlaylistTrack> Tracks); // Phase 12.7: Context Menu Actions
 public record RevealFileRequestEvent(string FilePath);
+public record SeekRequestEvent(double PositionPercent); // 0.0 to 1.0
+public record SeekToSecondsRequestEvent(double Seconds);
 
 // Explicit Track Events (missing in record list but used in code)
 public record TrackAddedEvent(PlaylistTrack TrackModel, PlaylistTrackState? InitialState = null);
 public record TrackRemovedEvent(string TrackGlobalId);
 public record TrackMovedEvent(string TrackGlobalId, Guid OldProjectId, Guid NewProjectId);
-public record TrackStateChangedEvent(string TrackGlobalId, Guid ProjectId, PlaylistTrackState State, string? Error);
+public record TrackStateChangedEvent(string TrackGlobalId, Guid ProjectId, PlaylistTrackState State, DownloadFailureReason FailureReason = DownloadFailureReason.None, string? Error = null, SearchAttemptLog? SearchLog = null);
 // Phase 2.5: Enhanced with byte-level progress tracking
 public record TrackProgressChangedEvent(string TrackGlobalId, double Progress, long BytesReceived, long TotalBytes);
 public record TrackMetadataUpdatedEvent(string TrackGlobalId);
@@ -61,7 +63,7 @@ public record TrackAnalysisStartedEvent(string TrackGlobalId, string FileName);
 
 // Phase 24: Stem Workspace Communication
 public record OpenStemWorkspaceRequestEvent(string TrackGlobalId);
-public record AnalysisProgressEvent(string TrackGlobalId, string CurrentStep, int ProgressPercent);
+public record AnalysisProgressEvent(string TrackGlobalId, string CurrentStep, int ProgressPercent, float BpmConfidence = 0, float KeyConfidence = 0, float IntegrityScore = 0);
 public record TrackAnalysisFailedEvent(string TrackGlobalId, string Error);
 public record TrackAnalysisRequestedEvent(string TrackGlobalId, AnalysisTier Tier = AnalysisTier.Tier1); // New Trigger Event
 public record StemSeparationRequestedEvent(string TrackGlobalId, string FilePath);

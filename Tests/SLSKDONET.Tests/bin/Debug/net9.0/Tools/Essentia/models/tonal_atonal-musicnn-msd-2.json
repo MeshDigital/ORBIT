@@ -1,0 +1,87 @@
+{
+    "name": "tonal/atonal",
+    "type": "multi-class classifier",
+    "link": "https://essentia.upf.edu/models/classifiers/tonal_atonal/tonal_atonal-musicnn-msd-2.pb",
+    "version": "1",
+    "description": "classification of music by tonality (tonal/atonal)",
+    "author": "Pablo Alonso",
+    "email": "pablo.alonso@upf.edu",
+    "release_date": "2020-07-07",
+    "framework": "tensorflow",
+    "framework_version": "1.15.0",
+    "classes": [
+        "atonal",
+        "tonal"
+    ],
+    "model_types": [
+        "frozen_model"
+    ],
+    "dataset": {
+        "name": "In-house MTG collection",
+        "size": "345 track excerpts, 145/200 per class",
+        "metrics": {
+            "5-fold_cross_validation_normalized_accuracy": 0.6
+        }
+    },
+    "schema": {
+        "inputs": [
+            {
+                "name": "model/Placeholder",
+                "type": "float",
+                "shape": [
+                    187,
+                    96
+                ]
+            }
+        ],
+        "outputs": [
+            {
+                "name": "model/Sigmoid",
+                "type": "float",
+                "shape": [
+                    1,
+                    2
+                ],
+                "op": "Sigmoid",
+                "output_purpose": "predictions"
+            },
+            {
+                "name": "model/dense_2/BiasAdd",
+                "type": "float",
+                "shape": [
+                    1,
+                    2
+                ],
+                "op": "fully connected",
+                "description": "logits",
+                "output_purpose": ""
+            },
+            {
+                "name": "model/dense_1/BiasAdd",
+                "type": "float",
+                "shape": [
+                    1,
+                    100
+                ],
+                "op": "fully connected",
+                "description": "penultimate layer",
+                "output_purpose": ""
+            },
+            {
+                "name": "model/dense/BiasAdd",
+                "type": "float",
+                "shape": [
+                    1,
+                    200
+                ],
+                "op": "fully connected",
+                "output_purpose": "embeddings"
+            }
+        ]
+    },
+    "citation": "@inproceedings{alonso2020tensorflow,\n  title={Tensorflow Audio Models in Essentia},\n  author={Alonso-Jim{\\'e}nez, Pablo and Bogdanov, Dmitry and Pons, Jordi and Serra, Xavier},\n  booktitle={IEEE International Conference on Acoustics, Speech and Signal Processing (ICASSP)},\n  year={2020}\n}",
+    "inference": {
+        "sample_rate": 16000,
+        "algorithm": "TensorflowPredictMusiCNN"
+    }
+}

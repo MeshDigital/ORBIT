@@ -19,6 +19,7 @@ public class DatabaseService
     private readonly ILogger<DatabaseService> _logger;
     private readonly SchemaMigratorService _schemaMigrator;
     private readonly Repositories.ITrackRepository _trackRepository;
+    private readonly Services.IO.IFileWriteService _fileWriteService;
     
     // Semaphore to serialize database write operations and prevent SQLite locking issues
     private static readonly SemaphoreSlim _writeSemaphore = new SemaphoreSlim(1, 1);
@@ -26,11 +27,13 @@ public class DatabaseService
     public DatabaseService(
         ILogger<DatabaseService> logger, 
         SchemaMigratorService schemaMigrator,
-        Repositories.ITrackRepository trackRepository)
+        Repositories.ITrackRepository trackRepository,
+        Services.IO.IFileWriteService fileWriteService)
     {
         _logger = logger;
         _schemaMigrator = schemaMigrator;
         _trackRepository = trackRepository;
+        _fileWriteService = fileWriteService;
     }
 
     private Microsoft.EntityFrameworkCore.Storage.IDbContextTransaction? _currentTransaction;
@@ -1406,6 +1409,29 @@ public class DatabaseService
         }
 
         return null;
+    }
+
+    // ===== Backup Methods =====
+
+    public async Task BackupDatabaseAsync(string backupPath)
+    {
+        var dbPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "ORBIT", "library.db");
+        
+        if (!File.Exists(dbPath))
+        {
+            _logger.LogWarning("Database file not found at {Path}, skipping backup", dbPath);
+            return;
+        }
+
+        try
+        {
+            await _fileWriteService.CopyFileAtomicAsync(dbPath, backupPath, preserveTimestamps: true);
+            _logger.LogInformation("✅ Database backup created successfully at {Path}", backupPath);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to create database backup at {Path}", backupPath);
+        }
     }
 }
 

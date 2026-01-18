@@ -7,6 +7,7 @@ namespace SLSKDONET.Services
         bool IsPlaying { get; }
         bool IsInitialized { get; } // Check if LibVLC native libraries loaded successfully
         long Length { get; } // Duration in ms
+        double Duration { get; } // Duration in seconds
         long Time { get; }   // Current time in ms
         float Position { get; set; } // 0.0 to 1.0
         int Volume { get; set; }     // 0 to 100

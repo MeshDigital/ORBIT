@@ -45,7 +45,7 @@ public partial class ProjectPickerDialog : Window, INotifyPropertyChanged
         Close(null);
     }
 
-    public event PropertyChangedEventHandler? PropertyChanged;
+    public new event PropertyChangedEventHandler? PropertyChanged;
 
     protected virtual void OnPropertyChanged([CallerMemberName] string? propertyName = null)
     {

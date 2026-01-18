@@ -1,4 +1,5 @@
 ﻿using System;
+using SLSKDONET.Views;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
@@ -57,7 +58,6 @@ public class DownloadManager : INotifyPropertyChanged, IDisposable
     // private readonly AppConfig _config;
     // private readonly ConfigManager _configManager;
     private readonly CrashRecoveryJournal _crashJournal;
-    private readonly SafeWriteService _safeWrite; // Phase 2A
     private readonly IEnrichmentTaskRepository _enrichmentTaskRepository; // [NEW]
     private readonly IAudioAnalysisService _audioAnalysisService; // Phase 3: Local Audio Analysis
     private readonly AnalysisQueueService _analysisQueue; // Phase 4: Musical Brain Queue
@@ -110,7 +110,6 @@ public class DownloadManager : INotifyPropertyChanged, IDisposable
         PathProviderService pathProvider,
         IFileWriteService fileWriteService,
         CrashRecoveryJournal crashJournal,
-        SafeWriteService safeWrite, // Phase 2A
         IEnrichmentTaskRepository enrichmentTaskRepository,
         IAudioAnalysisService audioAnalysisService,
         AnalysisQueueService analysisQueue,
@@ -128,8 +127,7 @@ public class DownloadManager : INotifyPropertyChanged, IDisposable
         _enrichmentOrchestrator = enrichmentOrchestrator; 
         _pathProvider = pathProvider;
         _fileWriteService = fileWriteService;
-        _crashJournal = crashJournal; // FIX: Missing assignment causing NullReferenceException
-        _safeWrite = safeWrite; // Phase 2A
+        _crashJournal = crashJournal; 
         _enrichmentTaskRepository = enrichmentTaskRepository;
         _audioAnalysisService = audioAnalysisService;
         _analysisQueue = analysisQueue;
@@ -776,7 +774,9 @@ public class DownloadManager : INotifyPropertyChanged, IDisposable
         }
         
         // Publish with ProjectId for targeted updates
-        _eventBus.Publish(new TrackStateChangedEvent(ctx.GlobalId, ctx.Model.PlaylistId, newState, error));
+        // Phase 0.5: Include best search log for diagnostics
+        var bestSearchLog = ctx.SearchAttempts.OrderByDescending(x => x.ResultsCount).FirstOrDefault();
+        _eventBus.Publish(new TrackStateChangedEvent(ctx.GlobalId, ctx.Model.PlaylistId, newState, ctx.FailureReason ?? DownloadFailureReason.None, error, bestSearchLog));
         
         // DB Persistence for critical states
         await SaveTrackToDb(ctx);
@@ -954,7 +954,7 @@ public class DownloadManager : INotifyPropertyChanged, IDisposable
         ctx.CancellationTokenSource = new CancellationTokenSource(); // Reset CTS
         
         // Publish reset event (handled by StateChanged to Pending usually, but verify UI clears error)
-        _eventBus.Publish(new TrackStateChangedEvent(ctx.GlobalId, ctx.Model.PlaylistId, PlaylistTrackState.Pending, null));
+        _eventBus.Publish(new TrackStateChangedEvent(ctx.GlobalId, ctx.Model.PlaylistId, PlaylistTrackState.Pending, DownloadFailureReason.None));
     }
 
     public void CancelTrack(string globalId)
@@ -989,6 +989,12 @@ public class DownloadManager : INotifyPropertyChanged, IDisposable
         {
             ctx.BlacklistedUsers.Add(stalledUser);
             _logger.LogWarning("âš ï¸ Health Monitor: Blacklisting peer {User} for {Track}", stalledUser, ctx.Model.Title);
+            
+            // Notify UI
+            _eventBus.Publish(new NotificationEvent(
+                "Auto-Retry Triggered",
+                $"Stalled download '{ctx.Model.Title}' switched from peer {stalledUser}",
+                NotificationType.Warning));
         }
 
         // 1. Cancel active transfer (stops Soulseek)
@@ -1521,6 +1527,10 @@ public class DownloadManager : INotifyPropertyChanged, IDisposable
         
         // Phase 3B: Track current peer for Health Monitor blacklisting
         ctx.CurrentUsername = bestMatch.Username;
+        
+        // Phase 0.3: Reset Health Metrics for new attempt
+        ctx.StallCount = 0;
+        ctx.CurrentSpeed = 0;
 
         // Phase 2.5: Use PathProviderService for consistent folder structure
         // Create a temporary track object to combine DB (enriched) metadata with search result (technical) info

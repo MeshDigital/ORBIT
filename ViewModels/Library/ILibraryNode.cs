@@ -12,6 +12,7 @@ public interface ILibraryNode
     int Popularity { get; }
     string? Genres { get; }
     string? AlbumArtPath { get; }
+    SLSKDONET.Models.ArtworkProxy? Artwork { get; }
     double Progress { get; }
     
     DateTime AddedAt { get; }

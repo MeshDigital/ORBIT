@@ -13,6 +13,7 @@ using SLSKDONET.Models;
 using SLSKDONET.Services;
 using SLSKDONET.Views;
 using System.Reactive.Disposables;
+using SLSKDONET.Data.Essentia;
 
 using System.Collections.Specialized;
 
@@ -290,7 +291,7 @@ public class TrackListViewModel : ReactiveObject, IDisposable
         get => _selectedTracks;
         private set
         {
-            if (value == null || Equals(_selectedTracks, value)) return;
+            if (value == null || ReferenceEquals(_selectedTracks, value)) return;
 
             if (_selectedTracks != null)
                 _selectedTracks.CollectionChanged -= OnSelectionChanged;
@@ -332,22 +333,37 @@ public class TrackListViewModel : ReactiveObject, IDisposable
         {
             var styles = await _libraryService.GetStyleDefinitionsAsync();
             
+            _logger.LogInformation("Loading {Count} style definitions from database", styles.Count);
+            
+            // Check for duplicates in the source data
+            var duplicates = styles.GroupBy(s => s.Id).Where(g => g.Count() > 1).ToList();
+            if (duplicates.Any())
+            {
+                _logger.LogWarning("Found {Count} duplicate style IDs in database: {Ids}", 
+                    duplicates.Count, 
+                    string.Join(", ", duplicates.Select(g => g.Key)));
+            }
+            
+            // Deduplicate by ID before loading
+            var uniqueStyles = styles.GroupBy(s => s.Id).Select(g => g.First()).ToList();
+            
             // Updates on UI Thread
             Dispatcher.UIThread.Post(() =>
             {
-                // Preserve selection state if possible? 
-                // For simplicity, reset or match by ID. 
-                // Given this happens rarely (create/delete style), full reload is fine.
+                // Detach event handlers before clearing
+                foreach (var item in StyleFilters) 
+                    item.PropertyChanged -= OnStyleFilterChanged;
                 
-                foreach (var item in StyleFilters) item.PropertyChanged -= OnStyleFilterChanged;
                 StyleFilters.Clear();
 
-                foreach (var style in styles)
+                foreach (var style in uniqueStyles)
                 {
                     var item = new StyleFilterItem(style);
                     item.PropertyChanged += OnStyleFilterChanged;
                     StyleFilters.Add(item);
                 }
+                
+                _logger.LogInformation("Loaded {Count} unique style filters into UI", StyleFilters.Count);
             });
         }
         catch (Exception ex)
@@ -363,6 +379,10 @@ public class TrackListViewModel : ReactiveObject, IDisposable
     public System.Windows.Input.ICommand BulkRetryCommand { get; }
     public System.Windows.Input.ICommand BulkCancelCommand { get; }
     public System.Windows.Input.ICommand BulkReEnrichCommand { get; }
+    public System.Windows.Input.ICommand BulkReAnalyzeCommand { get; }
+    public System.Windows.Input.ICommand BulkReAnalyzeT1Command { get; }
+    public System.Windows.Input.ICommand BulkReAnalyzeT2Command { get; }
+    public System.Windows.Input.ICommand BulkReAnalyzeT3Command { get; }
     public System.Windows.Input.ICommand SeparateStemsCommand { get; }
     
     // Phase 18: Sonic Match - Find Similar Vibe
@@ -388,18 +408,55 @@ public class TrackListViewModel : ReactiveObject, IDisposable
         _config = config;
         _bulkCoordinator = bulkCoordinator;
 
-        Hierarchical = new HierarchicalLibraryViewModel(config, downloadManager, analysisQueueService);
+        Hierarchical = new HierarchicalLibraryViewModel(config, downloadManager, analysisQueueService, artworkCache);
         
         SelectAllTracksCommand = ReactiveCommand.Create(() => 
         {
-            // CRITICAL: Create new collection to avoid N notifications from .Add() loop
-            // This replaces the entire selection in one go, preventing UI stack overflow
-            SelectedTracks = new ObservableCollection<PlaylistTrackViewModel>(FilteredTracks);
+            // Update IsSelected property to reflect selection visually
+            // Only select what's currently filtered and visible
+            var tracks = FilteredTracks.ToList();
+            
+            // Batch the collection update
+            _selectedTracks.CollectionChanged -= OnSelectionChanged;
+            try
+            {
+                _selectedTracks.Clear();
+                foreach (var track in tracks)
+                {
+                    track.IsSelected = true;
+                    _selectedTracks.Add(track);
+                }
+            }
+            finally
+            {
+                _selectedTracks.CollectionChanged += OnSelectionChanged;
+                OnSelectionChanged(this, new NotifyCollectionChangedEventArgs(NotifyCollectionChangedAction.Reset));
+            }
+            
+            UpdateSelectionState();
         });
 
         DeselectAllTracksCommand = ReactiveCommand.Create(() => 
         {
-            SelectedTracks = new ObservableCollection<PlaylistTrackViewModel>();
+            _selectedTracks.CollectionChanged -= OnSelectionChanged;
+            try
+            {
+                // CRITICAL: Use ToList() to iterate over a snapshot. 
+                // Updating IsSelected = false will trigger two-way bindings in the UI,
+                // which might otherwise modify the collection during enumeration.
+                foreach (var track in _selectedTracks.ToList())
+                {
+                    track.IsSelected = false;
+                }
+                _selectedTracks.Clear();
+            }
+            finally
+            {
+                _selectedTracks.CollectionChanged += OnSelectionChanged;
+                OnSelectionChanged(this, new NotifyCollectionChangedEventArgs(NotifyCollectionChangedAction.Reset));
+            }
+            
+            UpdateSelectionState();
         });
 
         BulkDownloadCommand = ReactiveCommand.CreateFromTask(ExecuteBulkDownloadAsync);
@@ -407,6 +464,11 @@ public class TrackListViewModel : ReactiveObject, IDisposable
         BulkRetryCommand = ReactiveCommand.CreateFromTask(ExecuteBulkRetryAsync);
         BulkCancelCommand = ReactiveCommand.CreateFromTask(ExecuteBulkCancelAsync);
         BulkReEnrichCommand = ReactiveCommand.CreateFromTask(ExecuteBulkReEnrichAsync);
+        
+        BulkReAnalyzeCommand = ReactiveCommand.CreateFromTask(() => ExecuteBulkReAnalyzeAsync(AnalysisTier.Tier1));
+        BulkReAnalyzeT1Command = ReactiveCommand.CreateFromTask(() => ExecuteBulkReAnalyzeAsync(AnalysisTier.Tier1));
+        BulkReAnalyzeT2Command = ReactiveCommand.CreateFromTask(() => ExecuteBulkReAnalyzeAsync(AnalysisTier.Tier2));
+        BulkReAnalyzeT3Command = ReactiveCommand.CreateFromTask(() => ExecuteBulkReAnalyzeAsync(AnalysisTier.Tier3));
         
         // Phase 18: Find Similar - triggers sonic match search
         FindSimilarCommand = ReactiveCommand.Create<PlaylistTrackViewModel>(ExecuteFindSimilar);
@@ -993,6 +1055,39 @@ public class TrackListViewModel : ReactiveObject, IDisposable
             "Bulk Re-Enrich"
         );
         
+        SelectedTracks.Clear();
+    }
+
+    private async Task ExecuteBulkReAnalyzeAsync(AnalysisTier tier)
+    {
+        var selectedTracks = SelectedTracks.Where(t => t.State == PlaylistTrackState.Completed).ToList();
+        if (!selectedTracks.Any())
+        {
+            _logger.LogWarning("No completed tracks selected for re-analysis");
+            return;
+        }
+
+        if (_bulkCoordinator.IsRunning)
+        {
+             _logger.LogWarning("Another bulk operation is already running");
+             return;
+        }
+
+        await _bulkCoordinator.RunOperationAsync(
+            selectedTracks,
+            async (track, ct) =>
+            {
+                if (track.Model != null && !string.IsNullOrEmpty(track.GlobalId))
+                {
+                    // Publish event to request analysis
+                    _eventBus.Publish(new Models.TrackAnalysisRequestedEvent(track.GlobalId, tier));
+                    return true;
+                }
+                return false;
+            },
+            $"Bulk Re-Analyze ({tier})"
+        );
+
         SelectedTracks.Clear();
     }
 

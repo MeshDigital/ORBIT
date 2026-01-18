@@ -7,6 +7,7 @@ using Microsoft.Extensions.Logging;
 using SLSKDONET.Configuration;
 using SLSKDONET.Models;
 using SLSKDONET.Services;
+using Microsoft.EntityFrameworkCore;
 using SLSKDONET.Data;
 
 namespace SLSKDONET.Services;
@@ -37,20 +38,35 @@ public class LibraryUpgradeScout
     /// </summary>
     public async Task<List<TrackEntity>> GetUpgradeCandidatesAsync()
     {
-        // TODO: Phase 8 Package 3 - Implement when DatabaseService LoadAllTracksAsync is available
-        _logger.LogWarning("LibraryUpgradeScout.GetUpgradeCandidatesAsync() not yet fully implemented");
-        return new List<TrackEntity>();
-        
-        /* Original implementation - requires LoadAllTracksAsync() method
         try
         {
-            _logger.LogInformation("Scouting library for upgrade candidates (Bitrate < {Threshold}kbps)...", _config.UpgradeMinBitrateThreshold);
+            _logger.LogInformation("Scouting library for upgrade candidates (Bitrate < 320kbps)...");
             
-            // 1. Fetch all tracks from DB
-            var allTracks = await _databaseService.LoadAllTracksAsync();
+            using var context = new AppDbContext();
             
-            // 2. Filter for upgrade candidates
-            var candidates = allTracks.Where(t => IsUpgradeCandidate(t)).ToList();
+            // 1. Identify low-quality tracks from the Library
+            var bronzeEntries = await context.LibraryEntries
+                .Where(e => e.Bitrate < 320 && e.Bitrate > 0)
+                .ToListAsync();
+
+            // 2. Filter out those already being processed in the download queue
+            var existingQueueIds = await context.Tracks
+                .Select(t => t.GlobalId)
+                .ToListAsync();
+
+            var candidates = bronzeEntries
+                .Where(e => !existingQueueIds.Contains(e.UniqueHash))
+                .Select(e => new TrackEntity
+                {
+                    GlobalId = e.UniqueHash,
+                    Artist = e.Artist,
+                    Title = e.Title,
+                    Bitrate = e.Bitrate,
+                    State = "Pending",
+                    AddedAt = DateTime.UtcNow,
+                    IsTrustworthy = e.Integrity != IntegrityLevel.None
+                })
+                .ToList();
             
             _logger.LogInformation("Found {Count} potential upgrade candidates.", candidates.Count);
             return candidates;
@@ -60,25 +76,5 @@ public class LibraryUpgradeScout
             _logger.LogError(ex, "Failed to scan library for upgrade candidates.");
             return new List<TrackEntity>();
         }
-        */
     }
-
-    /*
-    private bool IsUpgradeCandidate(TrackEntity track)
-    {
-        // Don't propose tracks that are already in the middle of being upgraded/downloaded
-        if (track.State == "Downloading" || track.State == "Searching") return false;
-        
-        // Don't propose if no file exists (that's a regular missing track)
-        if (string.IsNullOrEmpty(track.Filename)) return false;
-
-        // Condition A: Bitrate is below threshold
-        bool lowBitrate = track.Bitrate.HasValue && track.Bitrate < _config.UpgradeMinBitrateThreshold;
-        
-        // Condition B: Flagged as untrustworthy (fake)
-        bool untrustworthy = track.IsTrustworthy == false;
-
-        return lowBitrate || untrustworthy;
-    }
-    */
 }

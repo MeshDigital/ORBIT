@@ -86,6 +86,16 @@ public class AudioAnalysisService : IAudioAnalysisService
                 // Let's assume bps. 
                 // Wait, typically mediaInfo.Duration.TotalMilliseconds works.
                 analysis.Bitrate = (int)(audioStream.Bitrate / 1000); 
+
+                // Fix for FLAC/VBR where FFmpeg reports 0 bitrate
+                if (analysis.Bitrate <= 0 && mediaInfo.Duration.TotalSeconds > 0)
+                {
+                    // Calculate from file size: (Size in bits) / (Duration in seconds) / 1000 = kbps
+                    var fileSizeBits = mediaInfo.Size * 8;
+                    analysis.Bitrate = (int)(fileSizeBits / mediaInfo.Duration.TotalSeconds / 1000);
+                    _logger.LogInformation("Calculated VBR/FLAC bitrate for {Path}: {Bitrate}kbps", filePath, analysis.Bitrate);
+                }
+
                 analysis.SampleRate = audioStream.SampleRate;
                 analysis.Channels = audioStream.Channels;
                 analysis.Codec = audioStream.Codec;

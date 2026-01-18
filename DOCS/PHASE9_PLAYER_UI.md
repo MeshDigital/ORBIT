@@ -137,6 +137,18 @@ ViewModel Line 147: `public ICommand TogglePlayPauseCommand { get; }`
 
 ---
 
+
+### Phase 9.8: Interactive Spectrogram & Cues (Phase 21 Integration)
+- ✅ Implement `Spectrogram_PointerPressed` in Code-Behind to calculate seek percentage
+- ✅ Add `SeekRequestEvent` and `SeekToSecondsRequestEvent` to EventBus
+- ✅ Update `PlayerViewModel` to handle seek requests from Intelligence Center
+- ✅ Create `SeekToCueCommand` in `IntelligenceCenterViewModel`
+- ✅ Make Cue Items clickable buttons in `IntelligenceCenterView`
+
+**Files**: `IntelligenceCenterView.axaml.cs`, `IntelligenceCenterViewModel.cs`, `PlayerViewModel.cs`
+
+---
+
 ## 📁 Files Modified
 
 | File | Lines Changed | Type |

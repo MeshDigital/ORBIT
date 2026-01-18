@@ -36,58 +36,33 @@ namespace SLSKDONET.Views.Avalonia.Controls
             AffectsMeasure<VibePillContainer>(ItemsProperty);
         }
 
-        protected override Size MeasureOverride(Size availableSize)
+        private struct CachedPill
         {
-            var items = Items;
-            if (items == null) return new Size(0, 0);
-
-            double width = 0;
-            double height = 0;
-            double spacing = 4.0;
-            
-            // Standard pill padding: 8,1 -> height approx 16-18px
-            // Text height ~12px + 2px padding top/bottom
-            double pillHeight = 18.0; 
-
-            foreach (var item in items)
-            {
-                var text = $"{item.Icon} {item.Label}";
-                var formattedText = new FormattedText(
-                    text,
-                    CultureInfo.CurrentCulture,
-                    FlowDirection.LeftToRight,
-                    _typeface,
-                    _fontSize,
-                    Brushes.White
-                );
-
-                width += formattedText.Width + 16; // 8px padding each side
-                width += spacing;
-            }
-
-            if (width > 0) width -= spacing; // Remove last spacing
-            height = pillHeight;
-
-            return new Size(width, height);
+            public FormattedText Text;
+            public IBrush Background;
+            public double Width;
         }
 
-        public override void Render(DrawingContext context)
+        private List<CachedPill>? _cachedPills;
+        private double _cachedWidth;
+
+        private void UpdateCache()
         {
             var items = Items;
-            if (items == null) return;
+            if (items == null)
+            {
+                _cachedPills = null;
+                _cachedWidth = 0;
+                return;
+            }
 
-            double x = 0;
-            double y = 0;
+            _cachedPills = new List<CachedPill>();
+            double totalWidth = 0;
             double spacing = 4.0;
-            double pillHeight = 18.0;
-            double cornerRadius = 9.0; // Fully rounded ends
 
             foreach (var item in items)
             {
                 var text = $"{item.Icon} {item.Label}";
-                
-                IBrush bgBrush = item.Color ?? Brushes.Gray;
-
                 var formattedText = new FormattedText(
                     text,
                     CultureInfo.CurrentCulture,
@@ -98,18 +73,44 @@ namespace SLSKDONET.Views.Avalonia.Controls
                 );
 
                 double pillWidth = formattedText.Width + 16;
-                var rect = new Rect(x, y, pillWidth, pillHeight);
-                
-                // Draw Pill Background
-                context.DrawRectangle(bgBrush, null, rect, cornerRadius, cornerRadius);
+                _cachedPills.Add(new CachedPill
+                {
+                    Text = formattedText,
+                    Background = item.Color ?? Brushes.Gray,
+                    Width = pillWidth
+                });
 
-                // Draw Text
-                // Center vertically: (18 - textHeight) / 2
-                // Center horizontally: 8px padding left
-                double textY = y + (pillHeight - formattedText.Height) / 2;
-                context.DrawText(formattedText, new Point(x + 8, textY));
+                totalWidth += pillWidth + spacing;
+            }
 
-                x += pillWidth + spacing;
+            if (totalWidth > 0) totalWidth -= spacing;
+            _cachedWidth = totalWidth;
+        }
+
+        protected override Size MeasureOverride(Size availableSize)
+        {
+            UpdateCache();
+            return new Size(_cachedWidth, 18.0);
+        }
+
+        public override void Render(DrawingContext context)
+        {
+            if (_cachedPills == null) return;
+
+            double x = 0;
+            double spacing = 4.0;
+            double pillHeight = 18.0;
+            double cornerRadius = 9.0;
+
+            foreach (var pill in _cachedPills)
+            {
+                var rect = new Rect(x, 0, pill.Width, pillHeight);
+                context.DrawRectangle(pill.Background, null, rect, cornerRadius, cornerRadius);
+
+                double textY = (pillHeight - pill.Text.Height) / 2;
+                context.DrawText(pill.Text, new Point(x + 8, textY));
+
+                x += pill.Width + spacing;
             }
         }
     }

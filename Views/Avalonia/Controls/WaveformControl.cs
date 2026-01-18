@@ -229,6 +229,17 @@ namespace SLSKDONET.Views.Avalonia.Controls
             RenderCues(context, width, height);
         }
 
+        private static readonly Pen StaticBasePen = new Pen(Brushes.DimGray, 1);
+        private static readonly Pen StaticPlayedPen = new Pen(Brushes.DeepSkyBlue, 1);
+        
+        // Cache for RGB pens to avoid allocations
+        private static readonly Pen LowBasePen = new Pen(new SolidColorBrush(Color.FromRgb(100, 0, 0), 0.35f * 0.8f), 1);
+        private static readonly Pen LowPlayedPen = new Pen(new SolidColorBrush(Colors.Red, 0.8f), 1);
+        private static readonly Pen MidBasePen = new Pen(new SolidColorBrush(Color.FromRgb(0, 100, 0), 0.35f * 0.7f), 1);
+        private static readonly Pen MidPlayedPen = new Pen(new SolidColorBrush(Colors.Lime, 0.7f), 1);
+        private static readonly Pen HighBasePen = new Pen(new SolidColorBrush(Color.FromRgb(0, 80, 100), 0.35f), 1);
+        private static readonly Pen HighPlayedPen = new Pen(new SolidColorBrush(Colors.DeepSkyBlue, 1.0f), 1);
+
         private void RenderStatic(DrawingContext context, WaveformAnalysisData data, double width, double height, double mid)
         {
             var samples = data.PeakData!.Length;
@@ -238,61 +249,125 @@ namespace SLSKDONET.Views.Avalonia.Controls
             var highData = HighBand ?? data.HighData;
             bool hasRgb = lowData != null && midData != null && highData != null;
 
-            for (int i = 0; i < samples; i++)
+            if (hasRgb)
             {
-                double x = i * step;
-                bool isPlayed = (float)i / samples <= Progress;
-                DrawSample(context, data, i, x, isPlayed, mid, hasRgb, lowData, midData, highData);
+                RenderRgbBands(context, data, width, mid, samples, step, lowData!, midData!, highData!);
             }
+            else
+            {
+                RenderSingleBand(context, data, width, mid, samples, step);
+            }
+        }
+
+        private void RenderSingleBand(DrawingContext context, WaveformAnalysisData data, double width, double mid, int samples, double step)
+        {
+            var playedLimit = (int)(Progress * samples);
+
+            // Draw unplayed part first
+            var baseGeom = new StreamGeometry();
+            using (var ctx = baseGeom.Open())
+            {
+                for (int i = playedLimit; i < samples; i++)
+                {
+                    double x = i * step;
+                    double h = (data.PeakData![i] / 255.0) * mid;
+                    if (h < 0.5) continue;
+                    ctx.BeginFigure(new Point(x, mid - h), false);
+                    ctx.LineTo(new Point(x, mid + h));
+                }
+            }
+            context.DrawGeometry(null, StaticBasePen, baseGeom);
+
+            // Draw played part
+            var playedGeom = new StreamGeometry();
+            using (var ctx = playedGeom.Open())
+            {
+                for (int i = 0; i < playedLimit; i++)
+                {
+                    double x = i * step;
+                    double h = (data.PeakData![i] / 255.0) * mid;
+                    if (h < 0.5) continue;
+                    ctx.BeginFigure(new Point(x, mid - h), false);
+                    ctx.LineTo(new Point(x, mid + h));
+                }
+            }
+            context.DrawGeometry(null, StaticPlayedPen, playedGeom);
+        }
+
+        private void RenderRgbBands(DrawingContext context, WaveformAnalysisData data, double width, double mid, int samples, double step, byte[] low, byte[] midB, byte[] high)
+        {
+            var playedLimit = (int)(Progress * samples);
+            DrawBandBatch(context, low, samples, step, mid, playedLimit, LowBasePen, LowPlayedPen);
+            DrawBandBatch(context, midB, samples, step, mid, playedLimit, MidBasePen, MidPlayedPen);
+            DrawBandBatch(context, high, samples, step, mid, playedLimit, HighBasePen, HighPlayedPen);
+        }
+
+        private void DrawBandBatch(DrawingContext context, byte[] data, int samples, double step, double mid, int playedLimit, Pen basePen, Pen playedPen)
+        {
+            var baseGeom = new StreamGeometry();
+            using (var ctx = baseGeom.Open())
+            {
+                for (int i = playedLimit; i < Math.Min(samples, data.Length); i++)
+                {
+                    double h = (data[i] / 255.0) * mid;
+                    if (h < 0.5) continue;
+                    double x = i * step;
+                    ctx.BeginFigure(new Point(x, mid - h), false);
+                    ctx.LineTo(new Point(x, mid + h));
+                }
+            }
+            context.DrawGeometry(null, basePen, baseGeom);
+
+            var playedGeom = new StreamGeometry();
+            using (var ctx = playedGeom.Open())
+            {
+                for (int i = 0; i < Math.Min(playedLimit, data.Length); i++)
+                {
+                    double h = (data[i] / 255.0) * mid;
+                    if (h < 0.5) continue;
+                    double x = i * step;
+                    ctx.BeginFigure(new Point(x, mid - h), false);
+                    ctx.LineTo(new Point(x, mid + h));
+                }
+            }
+            context.DrawGeometry(null, playedPen, playedGeom);
         }
 
         private void RenderRolling(DrawingContext context, WaveformAnalysisData data, double width, double height, double mid)
         {
-            // Rolling view: Center is current progress. 10 second window.
             double windowSec = 10.0;
             double pixelsPerSec = width / windowSec;
             double currentSec = Progress * data.DurationSeconds;
-            
-            // Calculate range of samples to draw
             double startSec = currentSec - (windowSec / 2);
             double endSec = currentSec + (windowSec / 2);
             
             int samplesPerSec = (int)(data.PeakData!.Length / data.DurationSeconds);
             int startIdx = (int)(startSec * samplesPerSec);
             int endIdx = (int)(endSec * samplesPerSec);
+            int playedLimit = (int)(Progress * data.PeakData.Length);
 
-            for (int i = startIdx; i <= endIdx; i++)
-            {
-                if (i < 0 || i >= data.PeakData.Length) continue;
-                
-                double sampleSec = (double)i / samplesPerSec;
-                double x = (width / 2) + (sampleSec - currentSec) * pixelsPerSec;
-                
-                bool isPlayed = i <= (Progress * data.PeakData.Length);
-                DrawSample(context, data, i, x, isPlayed, mid, LowBand != null, LowBand, MidBand, HighBand);
-            }
-        }
-
-        private void DrawSample(DrawingContext context, WaveformAnalysisData data, int i, double x, bool isPlayed, double mid, bool hasRgb, byte[]? lowData, byte[]? midData, byte[]? highData)
-        {
-            float peak = data.PeakData![i] / 255f;
-            float opacity = isPlayed ? 1.0f : 0.35f;
+            var playedGeom = new StreamGeometry();
+            var baseGeom = new StreamGeometry();
             
-            if (hasRgb && i < lowData!.Length)
+            using (var pCtx = playedGeom.Open())
+            using (var bCtx = baseGeom.Open())
             {
-                double lowH = (lowData[i] / 255f) * mid;
-                double midH = (midData![i] / 255f) * mid;
-                double highH = (highData![i] / 255f) * mid;
-                
-                if (lowH > 0.5) context.DrawLine(new Pen(new SolidColorBrush(isPlayed ? Colors.Red : Color.FromRgb(100,0,0), opacity * 0.8f)), new Point(x, mid - lowH), new Point(x, mid + lowH));
-                if (midH > 0.5) context.DrawLine(new Pen(new SolidColorBrush(isPlayed ? Colors.Lime : Color.FromRgb(0,100,0), opacity * 0.7f)), new Point(x, mid - midH), new Point(x, mid + midH));
-                if (highH > 0.5) context.DrawLine(new Pen(new SolidColorBrush(isPlayed ? Colors.DeepSkyBlue : Color.FromRgb(0,80,100), opacity)), new Point(x, mid - highH), new Point(x, mid + highH));
+                for (int i = startIdx; i <= endIdx; i++)
+                {
+                    if (i < 0 || i >= data.PeakData.Length) continue;
+                    
+                    double sampleSec = (double)i / samplesPerSec;
+                    double x = (width / 2) + (sampleSec - currentSec) * pixelsPerSec;
+                    double h = (data.PeakData[i] / 255.0) * mid;
+
+                    var ctx = i <= playedLimit ? pCtx : bCtx;
+                    ctx.BeginFigure(new Point(x, mid - h), false);
+                    ctx.LineTo(new Point(x, mid + h));
+                }
             }
-            else
-            {
-                double peakH = peak * mid;
-                context.DrawLine(new Pen(new SolidColorBrush(isPlayed ? Colors.DeepSkyBlue : Colors.DimGray, opacity)), new Point(x, mid - peakH), new Point(x, mid + peakH));
-            }
+            
+            context.DrawGeometry(null, StaticPlayedPen, playedGeom);
+            context.DrawGeometry(null, StaticBasePen, baseGeom);
         }
 
         private void RenderCues(DrawingContext context, double width, double height)
@@ -309,6 +384,7 @@ namespace SLSKDONET.Views.Avalonia.Controls
                 var color = Color.Parse(cue.Color ?? "#FFFFFF");
                 context.DrawLine(new Pen(new SolidColorBrush(color, 0.8), 2), new Point(x, 0), new Point(x, height));
                 
+                // FormattedText is still a bit expensive but only for cues
                 var typeface = new Typeface(FontFamily.Default, FontStyle.Normal, FontWeight.Bold);
                 var formattedText = new FormattedText(cue.Name ?? cue.Role.ToString(), System.Globalization.CultureInfo.InvariantCulture, FlowDirection.LeftToRight, typeface, 10, new SolidColorBrush(color));
                 context.DrawRectangle(new SolidColorBrush(Colors.Black, 0.6), null, new Rect(x + 4, 2, formattedText.Width + 4, formattedText.Height));

@@ -41,6 +41,12 @@
         <converters:PercentageToAngleConverter x:Key="PercentageToAngleConverter"/>
         <converters:PlayPauseConverter x:Key="PlayPauseConverter"/>
         <conv_root:ParameterizedBooleanConverter x:Key="BoolParameterConverter"/>
+        <conv_root:ParameterizedBooleanConverter x:Key="ParameterizedBooleanConverter"/>
+        
+        <converters:EnumToBoolConverter x:Key="EnumToBoolConverter"/>
+        <converters:EnumToColorConverter x:Key="EnumToColorConverter"/>
+        <converters:PassThroughConverter x:Key="PassThroughConverter"/>
+        <converters:ForensicLevelToColorConverter x:Key="ForensicLevelToColorConverter"/>
         
         <!-- Phase 18: Sonic Match Visual Converters -->
         <conv_root:EnergyToColorConverter x:Key="EnergyToColorConverter"/>
@@ -59,6 +65,7 @@
         <StreamGeometry x:Key="arrow_counterclockwise_regular">M13,3A9,9 0 0,0 4,12H1L4.89,15.89L8.78,12H6A7,7 0 0,1 13,5A7,7 0 0,1 20,12A7,7 0 0,1 13,19C11.07,19 9.32,18.21 8.06,16.94L6.64,18.36C8.27,20 10.5,21 13,21A9,9 0 0,0 22,12A9,9 0 0,0 13,3Z</StreamGeometry>
         <StreamGeometry x:Key="radar_regular">M12,2A10,10 0 0,0 2,12A10,10 0 0,0 12,22A10,10 0 0,0 22,12A10,10 0 0,0 12,2M12,4A8,8 0 0,1 20,12A8,8 0 0,1 12,20A8,8 0 0,1 4,12A8,8 0 0,1 12,4M12,6A6,6 0 0,0 6,12A6,6 0 0,0 12,18A6,6 0 0,0 18,12A6,6 0 0,0 12,6M12,10A2,2 0 0,1 14,12A2,2 0 0,1 12,14A2,2 0 0,1 10,12A2,2 0 0,1 12,10</StreamGeometry>
         <StreamGeometry x:Key="music_regular">M21,3V15.5A3.5,3.5 0 0,1 17.5,19A3.5,3.5 0 0,1 14,15.5A3.5,3.5 0 0,1 17.5,12C18.04,12 18.55,12.12 19,12.34V6.47L9,8.6V17.5A3.5,3.5 0 0,1 5.5,21A3.5,3.5 0 0,1 2,17.5A3.5,3.5 0 0,1 5.5,14C6.04,14 6.55,14.12 7,14.34V6L21,3Z</StreamGeometry>
+        <StreamGeometry x:Key="mic_regular">M12,2A3,3 0 0,1 15,5V11A3,3 0 0,1 12,14A3,3 0 0,1 9,11V5A3,3 0 0,1 12,2M19,11C19,14.53 16.39,17.44 13,17.93V21H11V17.93C7.61,17.44 5,14.53 5,11H7A5,5 0 0,0 12,16A5,5 0 0,0 17,11H19Z</StreamGeometry>
         <StreamGeometry x:Key="FullScreenData">M7 14H5v5h5v-2H7v-3zm-2-4h2V7h3V5H5v5zm12 7h-3v2h5v-5h-2v3zM14 5v2h3v3h2V5h-5z</StreamGeometry>
     </Application.Resources>
     

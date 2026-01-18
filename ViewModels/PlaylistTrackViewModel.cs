@@ -27,6 +27,21 @@ public class PlaylistTrackViewModel : INotifyPropertyChanged, Library.ILibraryNo
     private string? _coverArtUrl;
     private ArtworkProxy _artwork; // Replaces _artworkBitmap
     private bool _isAnalyzing; // New field for analysis feedback
+    private bool _isSelected;
+    private List<OrbitCue> _cues = new();
+
+    public bool IsSelected
+    {
+        get => _isSelected;
+        set
+        {
+            if (SetProperty(ref _isSelected, value) && value)
+            {
+                // Trigger the lazy-load of waveform data from DB
+                _ = LoadTechnicalDataAsync();
+            }
+        }
+    }
 
     private int _sortOrder;
     public DateTime AddedAt => Model?.AddedAt ?? DateTime.MinValue;
@@ -164,6 +179,19 @@ public class PlaylistTrackViewModel : INotifyPropertyChanged, Library.ILibraryNo
         }
     }
 
+    public string? MoodTag
+    {
+        get => Model.MoodTag;
+        set
+        {
+            Model.MoodTag = value;
+            OnPropertyChanged();
+            OnPropertyChanged(nameof(HasMood));
+        }
+    }
+    
+    public bool HasMood => !string.IsNullOrEmpty(MoodTag) && MoodTag != "Neutral";
+
     public Models.SonicProfileData SonicProfile => new Models.SonicProfileData(
         Energy, 
         Valence, 
@@ -268,15 +296,31 @@ public class PlaylistTrackViewModel : INotifyPropertyChanged, Library.ILibraryNo
         {
             var parts = new List<string>();
             if (Model.Bitrate.HasValue) parts.Add($"{Model.Bitrate}k");
-            if (!string.IsNullOrEmpty(Model.Format)) parts.Add(Model.Format.ToUpper());
+            if (!string.IsNullOrEmpty(Format)) parts.Add(Format.ToUpper());
             if (FileSizeBytes > 0) parts.Add($"{FileSizeBytes / 1024.0 / 1024.0:F1}MB");
             return string.Join(" • ", parts);
         }
     }
 
+    public string Format => Model.Format ?? "Unknown";
+    public IEnumerable<OrbitCue> Cues => _cues;
+
     public string FileSizeDisplay => FileSizeBytes > 0 ? $"{FileSizeBytes / 1024.0 / 1024.0:F1} MB" : "—";
     public string BpmDisplay => Model.BPM.HasValue ? $"{Model.BPM:0}" : "—";
-    public string KeyDisplay => Model.MusicalKey ?? "—";
+    public string KeyDisplay
+    {
+        get
+        {
+            if (string.IsNullOrEmpty(Model.MusicalKey)) return "—";
+            
+            var camelot = Utils.KeyConverter.ToCamelot(Model.MusicalKey);
+            // Show both: "G minor (6A)" or just "6A" if already in Camelot format
+            if (camelot == Model.MusicalKey)
+                return camelot; // Already Camelot
+            
+            return $"{Model.MusicalKey} ({camelot})";
+        }
+    }
     public string DurationDisplay => Model.CanonicalDuration.HasValue ? TimeSpan.FromMilliseconds(Model.CanonicalDuration.Value).ToString(@"mm\:ss") : "—";
 
     // Curation & Trust
@@ -331,13 +375,14 @@ public class PlaylistTrackViewModel : INotifyPropertyChanged, Library.ILibraryNo
             }
 
             // Energy/Mood Pills
-            if (Energy > 0.8) list.Add(new VibePill("⚡", "High Energy", Avalonia.Media.Brushes.Gold));
-            else if (Energy < 0.3 && Energy > 0) list.Add(new VibePill("🌙", "Chill", Avalonia.Media.Brushes.CornflowerBlue));
+            // Refined thresholds (normalized 0-1)
+            if (Energy > 0.85) list.Add(new VibePill("⚡", "High Energy", Avalonia.Media.Brushes.Gold));
+            else if (Energy < 0.3 && Energy > 0.05) list.Add(new VibePill("🌙", "Chill", Avalonia.Media.Brushes.CornflowerBlue));
 
-            if (Valence > 0.7) list.Add(new VibePill("😎", "Positive", Avalonia.Media.Brushes.LimeGreen));
-            else if (Valence < 0.3 && Valence > 0) list.Add(new VibePill("💀", "Dark", Avalonia.Media.Brushes.DarkSlateGray));
+            if (Valence > 0.75) list.Add(new VibePill("😎", "Positive", Avalonia.Media.Brushes.LimeGreen));
+            else if (Valence < 0.25 && Valence > 0.05) list.Add(new VibePill("💀", "Dark", Avalonia.Media.Brushes.DarkSlateGray));
             
-            if (Model.InstrumentalProbability > 0.8)
+            if (Model.InstrumentalProbability > 0.85)
             {
                 list.Add(new VibePill("🎤", "Instrumental", Avalonia.Media.Brushes.DarkCyan));
             }
@@ -346,24 +391,35 @@ public class PlaylistTrackViewModel : INotifyPropertyChanged, Library.ILibraryNo
         }
     }
 
+    private WaveformAnalysisData? _cachedWaveformData;
+
     public WaveformAnalysisData WaveformData
     {
         get
         {
+            if (_cachedWaveformData != null) return _cachedWaveformData;
+
              // Use lazy loaded entity if available, checking cached array logic
-             var waveData = _technicalEntity?.WaveformData ?? Array.Empty<byte>();
+             var waveData = _technicalEntity?.WaveformData ?? Model.WaveformData ?? Array.Empty<byte>();
              
-             return new WaveformAnalysisData 
+             _cachedWaveformData = new WaveformAnalysisData 
              { 
                  PeakData = waveData, 
-                 RmsData = _technicalEntity?.RmsData ?? Array.Empty<byte>(),
-                 LowData = _technicalEntity?.LowData ?? Array.Empty<byte>(),
-                 MidData = _technicalEntity?.MidData ?? Array.Empty<byte>(),
-                 HighData = _technicalEntity?.HighData ?? Array.Empty<byte>(),
+                 RmsData = _technicalEntity?.RmsData ?? Model.RmsData ?? Array.Empty<byte>(),
+                 LowData = _technicalEntity?.LowData ?? Model.LowData ?? Array.Empty<byte>(),
+                 MidData = _technicalEntity?.MidData ?? Model.MidData ?? Array.Empty<byte>(),
+                 HighData = _technicalEntity?.HighData ?? Model.HighData ?? Array.Empty<byte>(),
                  DurationSeconds = (Model.CanonicalDuration ?? 0) / 1000.0
              };
+
+             return _cachedWaveformData;
         }
     }
+
+    // Band extraction for legacy WaveformControl bindings
+    public byte[] LowData => WaveformData.LowData;
+    public byte[] MidData => WaveformData.MidData;
+    public byte[] HighData => WaveformData.HighData;
     
     // Technical Stats
     public int SampleRate => Model.BitrateScore ?? 0; // Or add SampleRate to Model
@@ -518,6 +574,7 @@ public class PlaylistTrackViewModel : INotifyPropertyChanged, Library.ILibraryNo
         {
             State = PlaylistTrackState.Completed;
             Progress = 1.0;
+            LoadFileSizeFromDisk(); // Ensure size is loaded for existing tracks
         }
 
         PauseCommand = new RelayCommand(Pause, () => CanPause);
@@ -608,6 +665,8 @@ public class PlaylistTrackViewModel : INotifyPropertyChanged, Library.ILibraryNo
                      Model.Loudness = updatedTrack.Loudness;
                      Model.TruePeak = updatedTrack.TruePeak;
                      Model.DynamicRange = updatedTrack.DynamicRange;
+                     Model.MoodTag = updatedTrack.MoodTag;
+                     Model.InstrumentalProbability = updatedTrack.InstrumentalProbability;
                      
                      // Update Analysis info if available
                      Model.Popularity = updatedTrack.Popularity;
@@ -637,7 +696,7 @@ public class PlaylistTrackViewModel : INotifyPropertyChanged, Library.ILibraryNo
                           // Refresh proxy
                           _artwork = new ArtworkProxy(_artworkCacheService!, updatedTrack.AlbumArtUrl);
                           OnPropertyChanged(nameof(Artwork));
-                          OnPropertyChanged(nameof(ArtworkBitmap));
+                          OnPropertyChanged(nameof(AlbumArtPath));
                       }
                  }
              }
@@ -649,7 +708,7 @@ public class PlaylistTrackViewModel : INotifyPropertyChanged, Library.ILibraryNo
              OnPropertyChanged(nameof(TrackTitle)); // Alias for StandardTrackRow
              OnPropertyChanged(nameof(AlbumName));  // Alias for StandardTrackRow
              OnPropertyChanged(nameof(CoverArtUrl));
-             OnPropertyChanged(nameof(ArtworkBitmap));
+             OnPropertyChanged(nameof(AlbumArtPath));
              OnPropertyChanged(nameof(SpotifyTrackId));
              OnPropertyChanged(nameof(IsEnriched));
              OnPropertyChanged(nameof(MetadataStatus));
@@ -665,6 +724,9 @@ public class PlaylistTrackViewModel : INotifyPropertyChanged, Library.ILibraryNo
              OnPropertyChanged(nameof(Energy));
              OnPropertyChanged(nameof(Danceability));
              OnPropertyChanged(nameof(Valence));
+             OnPropertyChanged(nameof(MoodTag));
+             OnPropertyChanged(nameof(HasMood));
+             OnPropertyChanged(nameof(Genres));
              OnPropertyChanged(nameof(Genres));
              OnPropertyChanged(nameof(Popularity));
              
@@ -880,20 +942,7 @@ public class PlaylistTrackViewModel : INotifyPropertyChanged, Library.ILibraryNo
         }
     }
 
-    // Phase 0: Album artwork from Spotify metadata
-    private string? _albumArtPath;
-    public string? AlbumArtPath
-    {
-        get => _albumArtPath;
-        private set
-        {
-            if (_albumArtPath != value)
-            {
-                _albumArtPath = value;
-                OnPropertyChanged();
-            }
-        }
-    }
+    public string? AlbumArtPath => Model.AlbumArtUrl;
 
     public string? AlbumArtUrl => Model.AlbumArtUrl;
     
@@ -1091,13 +1140,42 @@ public class PlaylistTrackViewModel : INotifyPropertyChanged, Library.ILibraryNo
         
         try
         {
-            // Fetch from LibraryService (which calls DB)
-             _technicalEntity = await _libraryService.GetTechnicalDetailsAsync(this.Id);
-             
-             _technicalDataLoaded = true;
-             
-             // Notify UI that waveform data is ready
-             OnPropertyChanged(nameof(WaveformData));
+             // Fetch from LibraryService (which calls DB)
+              _technicalEntity = await _libraryService.GetTechnicalDetailsAsync(this.Id);
+              
+            if (_technicalEntity != null)
+            {
+                // Parse Cues
+                if (!string.IsNullOrEmpty(_technicalEntity.CuePointsJson))
+                {
+                    try
+                    {
+                        var cues = System.Text.Json.JsonSerializer.Deserialize<List<OrbitCue>>(_technicalEntity.CuePointsJson);
+                        if (cues != null)
+                        {
+                            _cues = cues;
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        System.Diagnostics.Debug.WriteLine($"Failed to parse cues: {ex.Message}");
+                    }
+                }
+
+                _technicalDataLoaded = true;
+                _cachedWaveformData = null; // Invalidate cache
+
+                // Notify UI
+                OnPropertyChanged(nameof(WaveformData));
+                OnPropertyChanged(nameof(LowData));
+                OnPropertyChanged(nameof(MidData));
+                OnPropertyChanged(nameof(HighData));
+                OnPropertyChanged(nameof(TechnicalSummary));
+                OnPropertyChanged(nameof(Cues));
+                OnPropertyChanged(nameof(FileSizeBytes));
+                OnPropertyChanged(nameof(LoudnessDisplay));
+                OnPropertyChanged(nameof(Format));
+            }
         }
         catch (Exception ex)
         {

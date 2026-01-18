@@ -57,6 +57,9 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
     
     // Phase 24: Stem Workspace
     public ViewModels.Stem.StemWorkspaceViewModel StemWorkspaceViewModel { get; }
+    
+    // Operation Glass Console: Unified Intelligence Center
+    public IntelligenceCenterViewModel IntelligenceCenter { get; }
 
 
     public event PropertyChangedEventHandler? PropertyChanged;
@@ -104,7 +107,8 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
         NativeDependencyHealthService dependencyHealthService,
         IDialogService dialogService,
         ILibraryService libraryService,
-        ViewModels.Stem.StemWorkspaceViewModel stemWorkspaceViewModel)
+        ViewModels.Stem.StemWorkspaceViewModel stemWorkspaceViewModel,
+        IntelligenceCenterViewModel intelligenceCenter)
 
     {
         _logger = logger;
@@ -136,6 +140,7 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
         AnalysisQueueViewModel = analysisQueueViewModel;
         BulkOperationViewModel = bulkOperationViewModel;
         StemWorkspaceViewModel = stemWorkspaceViewModel;
+        IntelligenceCenter = intelligenceCenter;
 
 
         // Initialize commands
@@ -159,6 +164,14 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
         
         // Phase 24: Stem Workspace Toggle
         ToggleStemWorkspaceCommand = new RelayCommand(() => StemWorkspaceViewModel.IsVisible = !StemWorkspaceViewModel.IsVisible);
+        
+        // Operation Glass Console Toggles
+        ToggleIntelligenceCommand = new RelayCommand(() => 
+        {
+            if (IntelligenceCenter.IsVisible) IntelligenceCenter.Close();
+            else IntelligenceCenter.ViewState = IntelligenceViewState.Console;
+        });
+        CloseIntelligenceCommand = new RelayCommand(() => IntelligenceCenter.Close());
 
 
         // Spotify Hub Initialization (TODO: Phase 7 - Implement when needed)
@@ -198,16 +211,13 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
             });
         }));
 
-        // Phase 14: Forensic Lab Navigation
+        // Phase 14: Forensic Lab Navigation (NOW REDIRECTED TO GLASS CONSOLE)
         _disposables.Add(_eventBus.GetEvent<RequestForensicAnalysisEvent>().Subscribe(evt =>
         {
             Dispatcher.UIThread.Post(() =>
             {
-                // 1. Switch to Analysis Queue page
-                NavigateAnalysisQueue();
-                
-                // 2. Open the specific track in Lab Mode
-                _ = this.AnalysisQueueViewModel.OpenTrackInLab(evt.TrackHash);
+                // Operation Glass Console: No more page flipping
+                _ = IntelligenceCenter.OpenAsync(evt.TrackHash, IntelligenceViewState.Console);
             });
         }));
 
@@ -325,6 +335,7 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
             SettingsViewModel?.Dispose();
             HomeViewModel?.Dispose();
             AnalysisQueueViewModel?.Dispose();
+            IntelligenceCenter?.Dispose();
         }
 
         _isDisposed = true;
@@ -598,6 +609,8 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
     public ICommand ExecuteBrainTestCommand { get; }
     public ICommand RetryAllFailedDownloadsCommand { get; }
     public ICommand ToggleStemWorkspaceCommand { get; }
+    public ICommand ToggleIntelligenceCommand { get; }
+    public ICommand CloseIntelligenceCommand { get; }
 
     
     // Downloads Page Commands

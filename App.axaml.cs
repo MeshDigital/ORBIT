@@ -391,6 +391,10 @@ public partial class App : Application
                         // Start Mission Control (Phase 0A)
                         var missionControl = Services.GetRequiredService<MissionControlService>();
                         missionControl.Start();
+
+                        // Start Forensic Lockdown Watchdog (Phase 12.7)
+                        var lockdownService = Services.GetRequiredService<IForensicLockdownService>();
+                        _ = Task.Run(() => lockdownService.MonitorSystemHealthAsync());
                         
                         // AnalysisWorker auto-starts as a hosted service (registered in DI)
                         //  No manual startup required - it begins processing automatically
@@ -609,7 +613,8 @@ public partial class App : Application
         services.AddSingleton<IForensicLogger>(sp => sp.GetRequiredService<TrackForensicLogger>());
         
         // Phase 7: Forensic Duplication (The Immune System)
-        services.AddSingleton<ForensicLockdownService>();
+        services.AddSingleton<IForensicLockdownService, ForensicLockdownService>();
+        services.AddSingleton<ForensicLockdownService>(sp => (ForensicLockdownService)sp.GetRequiredService<IForensicLockdownService>());
         
         // Phase 3: Audio Analysis Services
         services.AddSingleton<WaveformAnalysisService>();
@@ -764,6 +769,7 @@ public partial class App : Application
         
         services.AddSingleton<ViewModels.TrackInspectorViewModel>();
         services.AddSingleton<ViewModels.ForensicLabViewModel>();
+        services.AddSingleton<ViewModels.IntelligenceCenterViewModel>();
     }
 
     /// <summary>

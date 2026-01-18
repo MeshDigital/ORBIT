@@ -43,6 +43,7 @@ namespace SLSKDONET.Services;
 public class AnalysisQueueService : INotifyPropertyChanged
 {
     private readonly Channel<AnalysisRequest> _channel;
+    private readonly Channel<AnalysisRequest> _priorityChannel; // Phase 4 Queue Upgrade
     private readonly IEventBus _eventBus;
     private readonly ILogger<AnalysisQueueService> _logger;
     private readonly IDbContextFactory<AppDbContext> _dbFactory;
@@ -124,15 +125,28 @@ public class AnalysisQueueService : INotifyPropertyChanged
         // - Bounded channel would cause downloads to pause (unacceptable UX)
         // - Memory cost: ~100 bytes per request = 10,000 queued = 1MB (negligible)
         // - Memory cost: ~100 bytes per request = 10,000 queued = 1MB (negligible)
+        // - Memory cost: ~100 bytes per request = 10,000 queued = 1MB (negligible)
         _channel = Channel.CreateUnbounded<AnalysisRequest>();
+        _priorityChannel = Channel.CreateUnbounded<AnalysisRequest>(); // Priority Lane
         
         // Subscribe to manual triggers
         _eventBus.GetEvent<TrackAnalysisRequestedEvent>().Subscribe(OnAnalysisRequested);
     }
 
-    public void QueueAnalysis(string filePath, string trackHash, AnalysisTier tier = AnalysisTier.Tier1)
+    public void QueueAnalysis(string filePath, string trackHash, AnalysisTier tier = AnalysisTier.Tier1, bool highPriority = false)
     {
-        _channel.Writer.TryWrite(new AnalysisRequest(filePath, trackHash, tier));
+        var request = new AnalysisRequest(filePath, trackHash, tier);
+        
+        if (highPriority)
+        {
+            _priorityChannel.Writer.TryWrite(request);
+            _logger.LogInformation("🚀 Priority Analysis Queued for {Hash}", trackHash);
+        }
+        else
+        {
+            _channel.Writer.TryWrite(request);
+        }
+
         Interlocked.Increment(ref _queuedCount);
         OnPropertyChanged(nameof(QueuedCount));
         PublishStatusEvent();
@@ -183,24 +197,45 @@ public class AnalysisQueueService : INotifyPropertyChanged
     }
 
     /// <summary>
-    /// Phase 13A: Demo Prep utility.
-    /// Scans the library for tracks that have not been analyzed and enqueues them.
+    /// Phase 13A: Restoration utility.
+    /// Scans the library for tracks that have not been analyzed or have stalled runs and enqueues them.
     /// </summary>
-    public async Task PerformDemoPrepAsync()
+    public async Task RestoreQueueOrphansAsync()
     {
-        _logger.LogInformation("🚀 Musical Brain: Starting Demo Prep (Scanning library for unanalyzed tracks)...");
+        _logger.LogInformation("🧠 Musical Brain: Restoring Queue Orphans (Scanning library for unanalyzed tracks)...");
 
         try
         {
             using var context = await _dbFactory.CreateDbContextAsync();
             
-            // Find tracks in library that don't have audio features yet
-            // This ensures we have BPM, Energy, Mood etc for the entire library
+            // 1. Find tracks in library that don't have audio features yet
             var unanalyzedTracks = await context.LibraryEntries
                 .Where(le => !context.AudioFeatures.Any(af => af.TrackUniqueHash == le.UniqueHash))
                 .ToListAsync();
 
-            _logger.LogInformation("🧠 Demo Prep: Found {Count} unanalyzed tracks in library.", unanalyzedTracks.Count);
+            // 2. Find Stalled Runs (Processing but app crashed)
+            // If a run is "Processing" but we just started up, it's a crash. Mark as Failed or Re-queue.
+            var stalledRuns = await context.AnalysisRuns
+                .Where(r => r.Status == AnalysisRunStatus.Processing)
+                .ToListAsync();
+
+            if (stalledRuns.Any())
+            {
+                _logger.LogWarning("Found {Count} stalled analysis runs from previous session. Marking as Failed.", stalledRuns.Count);
+                foreach (var run in stalledRuns)
+                {
+                    run.Status = AnalysisRunStatus.Failed;
+                    run.ErrorMessage = "Application crashed / Restarted during analysis";
+                    run.CompletedAt = DateTime.UtcNow;
+                }
+                await context.SaveChangesAsync();
+                
+                // Optional: Re-queue them? For now, let the unanalyzed check below pick them up if they strictly lack AudioFeatures.
+                // If they have AudioFeatures but failed Forensics, the query above won't catch them.
+                // Assuming "Unanalyzed" means missing AudioFeatures for now.
+            }
+
+            _logger.LogInformation("🧠 Queue Restore: Found {Count} unanalyzed tracks in library.", unanalyzedTracks.Count);
 
             int enqueuedCount = 0;
             foreach (var track in unanalyzedTracks)
@@ -212,15 +247,15 @@ public class AnalysisQueueService : INotifyPropertyChanged
                 }
                 else
                 {
-                    _logger.LogWarning("Demo Prep: Skipping missing file {Path}", track.FilePath);
+                    _logger.LogDebug("Queue Restore: Skipping missing file {Path}", track.FilePath);
                 }
             }
 
-            _logger.LogInformation("✅ Demo Prep: Enqueued {Count} tracks for analysis.", enqueuedCount);
+            _logger.LogInformation("✅ Queue Restore: Enqueued {Count} tracks for analysis.", enqueuedCount);
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to perform Demo Prep");
+            _logger.LogError(ex, "Failed to restore orphaned queue items");
         }
     }
 
@@ -240,9 +275,11 @@ public class AnalysisQueueService : INotifyPropertyChanged
         OnPropertyChanged(nameof(ProcessedCount));
         PublishStatusEvent();
         
-        _eventBus.Publish(new TrackAnalysisCompletedEvent(trackHash, success, error));
+        // MOVED TO FLUSH BATCH ASYNC TO FIX RACE CONDITION
+        // _eventBus.Publish(new TrackAnalysisCompletedEvent(trackHash, success, error));
         // Publish legacy completion event for UI compatibility
-        _eventBus.Publish(new AnalysisCompletedEvent(trackHash, success, error));
+        // MOVED TO FLUSH BATCH ASYNC TO FIX RACE CONDITION
+        // _eventBus.Publish(new AnalysisCompletedEvent(trackHash, success, error));
         
         if (!success && error != null)
         {
@@ -298,7 +335,7 @@ public class AnalysisQueueService : INotifyPropertyChanged
     /// <summary>
     /// Update the status of a specific analysis thread for Mission Control dashboard.
     /// </summary>
-    public void UpdateThreadStatus(int threadId, string trackName, string status, double progress = 0)
+    public void UpdateThreadStatus(int threadId, string trackName, string status, double progress = 0, float bpmConfidence = 0, float keyConfidence = 0, float integrityScore = 0, AnalysisStage stage = AnalysisStage.Probing)
     {
         var info = new ActiveThreadInfo
         {
@@ -306,7 +343,11 @@ public class AnalysisQueueService : INotifyPropertyChanged
             CurrentTrack = string.IsNullOrEmpty(trackName) ? "-" : System.IO.Path.GetFileName(trackName),
             Status = status,
             Progress = progress,
-            StartTime = status == "Idle" ? null : (DateTime?)DateTime.Now
+            StartTime = status == "Idle" ? null : (DateTime?)DateTime.Now,
+            BpmConfidence = bpmConfidence,
+            KeyConfidence = keyConfidence,
+            IntegrityScore = integrityScore,
+            CurrentStage = stage
         };
         
         _activeThreads.AddOrUpdate(threadId, info, (id, old) => info);
@@ -322,6 +363,10 @@ public class AnalysisQueueService : INotifyPropertyChanged
                 existing.Status = info.Status;
                 existing.Progress = info.Progress;
                 existing.StartTime = info.StartTime;
+                existing.BpmConfidence = info.BpmConfidence;
+                existing.KeyConfidence = info.KeyConfidence;
+                existing.IntegrityScore = info.IntegrityScore;
+                existing.CurrentStage = info.CurrentStage;
             }
             else
             {
@@ -332,6 +377,7 @@ public class AnalysisQueueService : INotifyPropertyChanged
     }
 
     public ChannelReader<AnalysisRequest> Reader => _channel.Reader;
+    public ChannelReader<AnalysisRequest> PriorityReader => _priorityChannel.Reader;
 }
 
 public record AnalysisRequest(string FilePath, string TrackHash, AnalysisTier Tier = AnalysisTier.Tier1);
@@ -344,6 +390,7 @@ public class AnalysisWorker : BackgroundService
     private readonly ILogger<AnalysisWorker> _logger;
     private readonly IForensicLogger _forensicLogger;
     private readonly Services.Musical.CueGenerationEngine _cueEngine;
+    private readonly IForensicLockdownService _lockdown;
     private readonly int _maxConcurrentAnalyses;
     private readonly SemaphoreSlim _concurrencyLimiter;
     
@@ -351,10 +398,10 @@ public class AnalysisWorker : BackgroundService
     private DateTime _lastProgressReport = DateTime.MinValue;
     private readonly List<AnalysisResultContext> _pendingResults = new();
     private DateTime _lastBatchSave = DateTime.UtcNow;
-    private const int BatchSize = 10;
-    private readonly TimeSpan BatchTimeout = TimeSpan.FromSeconds(5);
+    private const int BatchSize = 3; // Reduced from 10 to 3 for safer persistence
+    private readonly TimeSpan BatchTimeout = TimeSpan.FromSeconds(2); // Reduced from 5s to 2s
 
-    public AnalysisWorker(AnalysisQueueService queue, IServiceProvider serviceProvider, IEventBus eventBus, ILogger<AnalysisWorker> logger, Configuration.AppConfig config, IForensicLogger forensicLogger, Services.Musical.CueGenerationEngine cueEngine)
+    public AnalysisWorker(AnalysisQueueService queue, IServiceProvider serviceProvider, IEventBus eventBus, ILogger<AnalysisWorker> logger, Configuration.AppConfig config, IForensicLogger forensicLogger, Services.Musical.CueGenerationEngine cueEngine, IForensicLockdownService lockdown)
     {
         _queue = queue;
         _serviceProvider = serviceProvider;
@@ -362,6 +409,7 @@ public class AnalysisWorker : BackgroundService
         _logger = logger;
         _forensicLogger = forensicLogger;
         _cueEngine = cueEngine;
+        _lockdown = lockdown;
         
         // Determine optimal parallelism
         // ... (keep default logic) ...
@@ -390,6 +438,9 @@ public class AnalysisWorker : BackgroundService
     {
         _logger.LogInformation("🧠 Musical Brain (AnalysisWorker) started with {Threads} parallel threads.", _maxConcurrentAnalyses);
         
+        // Restore Queue Orphans on startup
+        await _queue.RestoreQueueOrphansAsync();
+
         // Track batch metrics
         int processedInBatch = 0;
         var batchStartTime = DateTime.UtcNow;
@@ -414,17 +465,26 @@ public class AnalysisWorker : BackgroundService
                 // Try to read up to currentMaxThreads items without blocking too long
                 using var cts = CancellationTokenSource.CreateLinkedTokenSource(stoppingToken);
                 cts.CancelAfter(1000); // 1 second timeout
+
+                // 1. Check Priority Lane (Drain first)
+                while (batch.Count < currentMaxThreads && _queue.PriorityReader.TryRead(out var pRequest))
+                {
+                     batch.Add(pRequest);
+                }
                 
+                // 2. Fill remaining from Standard Lane
                 while (batch.Count < currentMaxThreads && _queue.Reader.TryRead(out var request))
                 {
                     batch.Add(request);
                 }
                 
-                // If no items ready, wait for at least one
+                // If no items ready, wait for at least one (Standard lane)
                 if (batch.Count == 0)
                 {
                     try
                     {
+                        // Note: This only waits on standard channel. Ideally we'd WaitAny on both.
+                        // For simplicity, we poll standard. Priority tracks might wait up to 1s if idle.
                         var request = await _queue.Reader.ReadAsync(cts.Token);
                         batch.Add(request);
                     }
@@ -450,6 +510,19 @@ public class AnalysisWorker : BackgroundService
                 await Task.Delay(500, stoppingToken);
             }
 
+            // Phase 25/27: Forensic Lockdown / Safe Mode check
+            // If lockdown is active (e.g., DJ is playing), we suspend all analysis to protect the audio buffer.
+            while (_lockdown.IsLockdownActive && !stoppingToken.IsCancellationRequested)
+            {
+                // Set all threads to "Standby"
+                for (int i = 0; i < _maxConcurrentAnalyses; i++)
+                {
+                    _queue.UpdateThreadStatus(i, string.Empty, "🛡️ Lockdown Standby", 0);
+                }
+                
+                await Task.Delay(2000, stoppingToken);
+            }
+
             // 3. Process batch in parallel
             var processingTasks = batch.Select(async (request, index) =>
             {
@@ -461,11 +534,11 @@ public class AnalysisWorker : BackgroundService
                     // Update thread status: Processing
                     _queue.UpdateThreadStatus(threadId, request.FilePath, "Processing", 0);
                     
-                    await ProcessRequestAsync(request, stoppingToken);
+                    await ProcessRequestAsync(request, threadId, stoppingToken);
                     Interlocked.Increment(ref processedInBatch);
                     
                     // Update thread status: Complete
-                    _queue.UpdateThreadStatus(threadId, request.FilePath, "Complete", 100);
+                    _queue.UpdateThreadStatus(threadId, request.FilePath, "Complete", 100, 1, 1, 1, AnalysisStage.Complete);
                     
                     // Log progress every 10 tracks
                     if (processedInBatch % 10 == 0)
@@ -476,12 +549,12 @@ public class AnalysisWorker : BackgroundService
                 catch (Exception ex)
                 {
                     _logger.LogError(ex, "Thread {ThreadId} failed processing track", threadId);
-                    _queue.UpdateThreadStatus(threadId, request.FilePath, "Error", 0);
+                    _queue.UpdateThreadStatus(threadId, request.FilePath, "Error", 0, 0, 0, 0, AnalysisStage.Complete);
                 }
                 finally
                 {
                     // Return thread to idle
-                    _queue.UpdateThreadStatus(threadId, string.Empty, "Idle", 0);
+                    _queue.UpdateThreadStatus(threadId, string.Empty, "Idle", 0, 0, 0, 0, AnalysisStage.Probing);
                     _concurrencyLimiter.Release();
                 }
             }).ToList();
@@ -510,12 +583,17 @@ public class AnalysisWorker : BackgroundService
     }
 
 
-    private async Task ProcessRequestAsync(AnalysisRequest request, CancellationToken stoppingToken)
+    private async Task ProcessRequestAsync(AnalysisRequest request, int threadId, CancellationToken stoppingToken)
     {
         string trackHash = request.TrackHash;
         bool analysisSucceeded = false;
         string? errorMessage = null;
         
+        // Local telemetry state
+        float currentBpmConfidence = 0;
+        float currentKeyConfidence = 0;
+        float currentIntegrityScore = 0;
+
         // Generate a Correlation ID for this entire analysis flow
         string correlationId = Guid.NewGuid().ToString();
         
@@ -540,18 +618,22 @@ public class AnalysisWorker : BackgroundService
                 var audioAnalyzer = scope.ServiceProvider.GetRequiredService<IAudioAnalysisService>();
                 var waveformAnalyzer = scope.ServiceProvider.GetRequiredService<WaveformAnalysisService>();
                 
+                // Stage: Probing
+                _queue.UpdateThreadStatus(threadId, request.FilePath, "Probing File...", 5, stage: AnalysisStage.Probing);
+
                 // Create initial run record
-                var run = new Data.Entities.AnalysisRunEntity
+                var run = new AnalysisRunEntity
                 {
                     RunId = runId,
                     TrackUniqueHash = trackHash,
                     TrackTitle = System.IO.Path.GetFileNameWithoutExtension(request.FilePath),
                     FilePath = request.FilePath,
                     StartedAt = runStartTime,
-                    Status = Data.Entities.AnalysisRunStatus.Processing,
+                    Status = AnalysisRunStatus.Processing,
                     Tier = request.Tier, // Set the requested tier
                     TriggerSource = "AutoQueue", // TODO: pass from request
-                    AnalysisVersion = "Essentia-2.1-beta5" // TODO: get from config
+                    AnalysisVersion = "Essentia-2.1-beta5", // TODO: get from config
+                    CurrentStage = AnalysisStage.Probing
                 };
                 dbContext.AnalysisRuns.Add(run);
                 await dbContext.SaveChangesAsync(stoppingToken);
@@ -563,7 +645,10 @@ public class AnalysisWorker : BackgroundService
                 using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(stoppingToken, timeoutCts.Token);
 
                 // 1. Generate Waveform
-                PublishThrottled(new AnalysisProgressEvent(trackHash, "Generating waveform...", 10));
+                run.CurrentStage = AnalysisStage.Waveform;
+                _queue.UpdateThreadStatus(threadId, request.FilePath, "Generating Waveform...", 10, stage: AnalysisStage.Waveform);
+                PublishThrottled(new AnalysisProgressEvent(trackHash, "Generating waveform...", 10, currentBpmConfidence, currentKeyConfidence, currentIntegrityScore));
+                
                 var waveformStopwatch = System.Diagnostics.Stopwatch.StartNew();
                 resultContext.WaveformData = await Task.Run(() => waveformAnalyzer.GenerateWaveformAsync(request.FilePath, linkedCts.Token), linkedCts.Token);
                 _forensicLogger.Info(correlationId, ForensicStage.AnalysisQueue, "Waveform generated", trackHash);
@@ -571,8 +656,6 @@ public class AnalysisWorker : BackgroundService
                 run.FfmpegDurationMs = waveformStopwatch.ElapsedMilliseconds;
 
                 // Phase 13: Demo-Safe Analysis Mode
-                // If a track is marked for demo (or matches a specific pattern), we skip 
-                // intense CPU work and provide deterministic results for a smooth presentation.
                 if (request.FilePath.Contains("DEMO_TRACK", StringComparison.OrdinalIgnoreCase))
                 {
                     _logger.LogInformation("🎬 DEMO MODE: Providing deterministic analysis for {Hash}", trackHash);
@@ -582,38 +665,108 @@ public class AnalysisWorker : BackgroundService
                         Danceability = 0.85f,
                         Energy = 0.9f,
                         MoodTag = "Happy",
-                        MoodConfidence = 0.95f
+                        MoodConfidence = 0.95f,
+                        BpmConfidence = 0.99f 
                     };
                     analysisSucceeded = true;
                 }
                 else
                 {
                     // 2. Musical Analysis
-                    PublishThrottled(new AnalysisProgressEvent(trackHash, "Analyzing musical features...", 40));
+                    run.CurrentStage = AnalysisStage.Intelligence;
+                    _queue.UpdateThreadStatus(threadId, request.FilePath, "Musical Intelligence...", 40, stage: AnalysisStage.Intelligence);
+                    PublishThrottled(new AnalysisProgressEvent(trackHash, "Analyzing musical features...", 40, currentBpmConfidence, currentKeyConfidence, currentIntegrityScore));
+                    
                     var essentiaStopwatch = System.Diagnostics.Stopwatch.StartNew();
                     resultContext.MusicalResult = await Task.Run(() => essentiaAnalyzer.AnalyzeTrackAsync(request.FilePath, trackHash, correlationId, linkedCts.Token, tier: request.Tier), linkedCts.Token);
                     run.EssentiaAnalysisCompleted = true;
                     run.EssentiaDurationMs = essentiaStopwatch.ElapsedMilliseconds;
+                    
+                    if (resultContext.MusicalResult != null)
+                    {
+                        currentBpmConfidence = resultContext.MusicalResult.BpmConfidence;
+                        currentKeyConfidence = 0.8f; // Placeholder as Essentia gives key but confidence varies
+                        run.BpmConfidence = currentBpmConfidence;
+                        run.KeyConfidence = currentKeyConfidence;
+                        _queue.UpdateThreadStatus(threadId, request.FilePath, "AI Musical Scan Complete", 60, currentBpmConfidence, currentKeyConfidence, currentIntegrityScore, AnalysisStage.Intelligence);
+                    }
                 }
 
                 // 3. Technical Analysis
-                PublishThrottled(new AnalysisProgressEvent(trackHash, "Running technical analysis...", 70));
+                run.CurrentStage = AnalysisStage.Forensics;
+                _queue.UpdateThreadStatus(threadId, request.FilePath, "Forensic Integrity Scan...", 70, currentBpmConfidence, currentKeyConfidence, currentIntegrityScore, stage: AnalysisStage.Forensics);
+                PublishThrottled(new AnalysisProgressEvent(trackHash, "Running technical analysis...", 70, currentBpmConfidence, currentKeyConfidence, currentIntegrityScore));
+                
                 resultContext.TechResult = await Task.Run(() => audioAnalyzer.AnalyzeFileAsync(request.FilePath, trackHash, correlationId, linkedCts.Token), linkedCts.Token);
                 run.FfmpegAnalysisCompleted = true;
+                
+                if (resultContext.TechResult != null)
+                {
+                    currentIntegrityScore = (float)resultContext.TechResult.QualityConfidence;
+                    run.IntegrityScore = currentIntegrityScore;
+                    _queue.UpdateThreadStatus(threadId, request.FilePath, "Forensics Complete", 80, currentBpmConfidence, currentKeyConfidence, currentIntegrityScore, AnalysisStage.Forensics);
+                }
 
                 // 4. Cue Generation (Heuristic)
+                run.CurrentStage = AnalysisStage.Finalizing;
+                _queue.UpdateThreadStatus(threadId, request.FilePath, "Finalizing Cues...", 85, currentBpmConfidence, currentKeyConfidence, currentIntegrityScore, stage: AnalysisStage.Finalizing);
+                
                 if (resultContext.WaveformData != null)
                 {
-                    PublishThrottled(new AnalysisProgressEvent(trackHash, "Generating cue points...", 85));
+                    PublishThrottled(new AnalysisProgressEvent(trackHash, "Generating cue points...", 85, currentBpmConfidence, currentKeyConfidence, currentIntegrityScore));
+                    
+                    // 1. Get Physical Cues (based on waveform peaks/troughs)
                     var cues = await _cueEngine.GenerateCuesAsync(resultContext.WaveformData, resultContext.WaveformData.DurationSeconds);
-                    resultContext.Cues = cues;
-                    _forensicLogger.Info(correlationId, ForensicStage.AnalysisQueue, $"Generated {cues.Count} structural cues", trackHash);
+                    
+                    // 2. Enrich with AI Musical Cues (Essentia)
+                    if (resultContext.MusicalResult != null)
+                    {
+                        // Drop
+                        if (resultContext.MusicalResult.DropTimeSeconds.HasValue && resultContext.MusicalResult.DropTimeSeconds > 5)
+                        {
+                            // Remove any physical cue near this timestamp to avoid duplicates (within 2s)
+                            cues.RemoveAll(c => Math.Abs(c.Timestamp - resultContext.MusicalResult.DropTimeSeconds.Value) < 2.0);
+                            
+                            cues.Add(new OrbitCue 
+                            { 
+                                Timestamp = resultContext.MusicalResult.DropTimeSeconds.Value,
+                                Name = "DROP",
+                                Role = CueRole.Drop,
+                                Color = "#FF0055", // Neon Red
+                                Source = CueSource.Auto,
+                                Confidence = 0.9f
+                            });
+                        }
+
+                        // Intro End (Phrase Start)
+                        if (resultContext.MusicalResult.CueIntro > 0)
+                        {
+                            cues.Add(new OrbitCue 
+                            { 
+                                Timestamp = resultContext.MusicalResult.CueIntro,
+                                Name = "Intro End",
+                                Role = CueRole.Custom, // Or PhraseStart
+                                Color = "#00BFFF", // Deep Sky Blue
+                                Source = CueSource.Auto,
+                                Confidence = 0.85f
+                            });
+                        }
+                    }
+                    
+                    // Sort by time
+                    resultContext.Cues = cues.OrderBy(c => c.Timestamp).ToList();
+                    
+                    _forensicLogger.Info(correlationId, ForensicStage.AnalysisQueue, $"Generated {cues.Count} structural cues (Merged AI + Physical)", trackHash);
                 }
 
                 PublishThrottled(new AnalysisProgressEvent(trackHash, "Queued for save...", 90));
                 
                 // Add to batch buffer
-                _pendingResults.Add(resultContext);
+                lock (_pendingResults)
+                {
+                    _pendingResults.Add(resultContext);
+                    _logger.LogInformation("💾 Result buffered for {Hash}. Pending count: {Count}", trackHash, _pendingResults.Count);
+                }
                 analysisSucceeded = true;
                 _forensicLogger.Info(correlationId, ForensicStage.AnalysisQueue, "Results queued for batch persistence", trackHash);
                 
@@ -676,85 +829,104 @@ public class AnalysisWorker : BackgroundService
 
     private async Task FlushBatchAsync(CancellationToken token)
     {
-        if (!_pendingResults.Any()) return;
-
-        var batchCount = _pendingResults.Count;
-        _logger.LogInformation("💾 Flushing batch of {Count} analysis results...", batchCount);
-
-        int retryCount = 0;
-        const int maxRetries = 5;
-        
-        while (retryCount < maxRetries)
-        {
-            try
-            {
-                using var dbContext = new AppDbContext();
-                
-                // Process all pending items in one transaction logic
-                foreach (var result in _pendingResults)
+                List<AnalysisResultContext> batchToSave;
+                lock (_pendingResults)
                 {
-                    var trackHash = result.TrackHash;
+                    if (!_pendingResults.Any()) return;
+                    batchToSave = _pendingResults.ToList();
+                    _pendingResults.Clear();
+                }
 
-                    if (result.MusicalResult != null)
+                _logger.LogInformation("💾 Flushing batch of {Count} analysis results...", batchToSave.Count);
+
+                int retryCount = 0;
+                const int maxRetries = 5;
+                
+                while (retryCount < maxRetries)
+                {
+                    try
                     {
-                        var existingFeatures = await dbContext.AudioFeatures.FirstOrDefaultAsync(f => f.TrackUniqueHash == trackHash, token);
-                        if (existingFeatures != null) dbContext.AudioFeatures.Remove(existingFeatures);
-                        dbContext.AudioFeatures.Add(result.MusicalResult);
-                    }
-
-                    if (result.TechResult != null)
-                    {
-                        var existingAnalysis = await dbContext.AudioAnalysis.FirstOrDefaultAsync(a => a.TrackUniqueHash == trackHash, token);
-                        if (existingAnalysis != null) dbContext.AudioAnalysis.Remove(existingAnalysis);
-                        dbContext.AudioAnalysis.Add(result.TechResult);
-                    }
-
-                    var playlistTracks = await dbContext.PlaylistTracks
-                        .Include(t => t.TechnicalDetails)
-                        .Where(t => t.TrackUniqueHash == trackHash)
-                        .ToListAsync(token);
-
-                    foreach (var track in playlistTracks)
-                    {
-                        ApplyResultsToTrack(track, result);
-                        if (track.TechnicalDetails != null && dbContext.Entry(track.TechnicalDetails).State == Microsoft.EntityFrameworkCore.EntityState.Detached)
+                        using var dbContext = new AppDbContext();
+                        
+                        // Process all pending items in one transaction logic
+                        foreach (var result in batchToSave)
                         {
-                            dbContext.TechnicalDetails.Add(track.TechnicalDetails);
+                            var trackHash = result.TrackHash;
+
+                            if (result.MusicalResult != null)
+                            {
+                                var existingFeatures = await dbContext.AudioFeatures.FirstOrDefaultAsync(f => f.TrackUniqueHash == trackHash, token);
+                                if (existingFeatures != null) dbContext.AudioFeatures.Remove(existingFeatures);
+                                
+                                // Fix for SQLite Error 19: Arousal NOT NULL constraint
+                                if (result.MusicalResult.Arousal == null) result.MusicalResult.Arousal = 0.5f; 
+                                if (result.MusicalResult.Valence == 0f) result.MusicalResult.Valence = 0.5f;
+                                
+                                dbContext.AudioFeatures.Add(result.MusicalResult);
+                            }
+
+                            if (result.TechResult != null)
+                            {
+                                var existingAnalysis = await dbContext.AudioAnalysis.FirstOrDefaultAsync(a => a.TrackUniqueHash == trackHash, token);
+                                if (existingAnalysis != null) dbContext.AudioAnalysis.Remove(existingAnalysis);
+                                dbContext.AudioAnalysis.Add(result.TechResult);
+                            }
+
+                            var playlistTracks = await dbContext.PlaylistTracks
+                                .Include(t => t.TechnicalDetails)
+                                .Where(t => t.TrackUniqueHash == trackHash)
+                                .ToListAsync(token);
+
+                            foreach (var track in playlistTracks)
+                            {
+                                ApplyResultsToTrack(track, result);
+                                if (track.TechnicalDetails != null && dbContext.Entry(track.TechnicalDetails).State == Microsoft.EntityFrameworkCore.EntityState.Detached)
+                                {
+                                    dbContext.TechnicalDetails.Add(track.TechnicalDetails);
+                                }
+                            }
+                            
+                            var libraryEntry = await dbContext.LibraryEntries.FirstOrDefaultAsync(e => e.UniqueHash == trackHash, token);
+                            if (libraryEntry != null)
+                            {
+                                ApplyResultsToLibraryEntry(libraryEntry, result);
+                            }
                         }
+
+                        await dbContext.SaveChangesAsync(token);
+                        
+                        foreach (var result in batchToSave)
+                        {
+                            _eventBus.Publish(new TrackMetadataUpdatedEvent(result.TrackHash));
+                            
+                            // Race Condition Check: Publish Completion events HERE, after DB commit
+                            _eventBus.Publish(new TrackAnalysisCompletedEvent(result.TrackHash, true));
+                            _eventBus.Publish(new AnalysisCompletedEvent(result.TrackHash, true));
+                        }
+
+                        _lastBatchSave = DateTime.UtcNow;
+                        _logger.LogInformation("✅ Batch save completed.");
+                        return;
                     }
-                    
-                    var libraryEntry = await dbContext.LibraryEntries.FirstOrDefaultAsync(e => e.UniqueHash == trackHash, token);
-                    if (libraryEntry != null)
+                    catch (Microsoft.Data.Sqlite.SqliteException ex) when (ex.SqliteErrorCode == 5) // SQLITE_BUSY
                     {
-                        ApplyResultsToLibraryEntry(libraryEntry, result);
+                        retryCount++;
+                        _logger.LogWarning("⚠️ Database locked during analysis batch save. Retry {Count}/{Max}...", retryCount, maxRetries);
+                        await Task.Delay(500 * retryCount, token); // Exponential backoff
+                    }
+                    catch (Exception ex)
+                    {
+                         _logger.LogError(ex, "❌ Failed to save analysis batch! Data may be lost for {Count} tracks.", batchToSave.Count);
+                         
+                         // Fix for Ghost Items: Notify failure so UI can clean up
+                         foreach (var result in batchToSave)
+                         {
+                             _eventBus.Publish(new TrackAnalysisFailedEvent(result.TrackHash, $"Batch Save Failed: {ex.Message}"));
+                         }
+ 
+                         return;
                     }
                 }
-
-                await dbContext.SaveChangesAsync(token);
-                
-                foreach (var result in _pendingResults)
-                {
-                    _eventBus.Publish(new TrackMetadataUpdatedEvent(result.TrackHash));
-                }
-
-                _lastBatchSave = DateTime.UtcNow;
-                _pendingResults.Clear();
-                _logger.LogInformation("✅ Batch save completed.");
-                return;
-            }
-            catch (Microsoft.Data.Sqlite.SqliteException ex) when (ex.SqliteErrorCode == 5) // SQLITE_BUSY
-            {
-                retryCount++;
-                _logger.LogWarning("⚠️ Database locked during analysis batch save. Retry {Count}/{Max}...", retryCount, maxRetries);
-                await Task.Delay(500 * retryCount, token); // Exponential backoff
-            }
-            catch (Exception ex)
-            {
-                 _logger.LogError(ex, "❌ Failed to save analysis batch! Data may be lost for {Count} tracks.", _pendingResults.Count);
-                 _pendingResults.Clear(); 
-                 return;
-            }
-        }
     }
 
     private void ApplyResultsToTrack(PlaylistTrackEntity track, AnalysisResultContext result)
@@ -854,6 +1026,7 @@ public class AnalysisWorker : BackgroundService
             entry.MusicalKey = result.MusicalResult.Key + (result.MusicalResult.Scale == "minor" ? "m" : "");
             entry.Energy = result.MusicalResult.Energy;
             entry.Danceability = result.MusicalResult.Danceability;
+            entry.Valence = result.MusicalResult.Valence;
         }
 
         if (result.WaveformData != null)

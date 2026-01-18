@@ -13,24 +13,83 @@ namespace SLSKDONET.Services;
 /// "The Immune System": Manages the blacklist of unwanted files (e.g., bad rips, fake upscales).
 /// Provides fast, cached lookups to block these files from search results and imports.
 /// </summary>
-public class ForensicLockdownService
+public class ForensicLockdownService : IForensicLockdownService
 {
     private readonly ILogger<ForensicLockdownService> _logger;
     private readonly IDbContextFactory<AppDbContext> _contextFactory;
+    private readonly IAudioPlayerService _audioPlayer;
     
     // In-memory cache for ultra-fast lookups during high-volume search results
     // Key: Hash, Value: dummy byte
     private readonly ConcurrentDictionary<string, byte> _blacklistedHashes = new();
 
+    private bool _isPerformanceLockdownActive = false;
+    private double _currentCpuLoad = 0;
+    private const double CPU_THRESHOLD = 0.85; // 85% load triggers safe mode
+    private readonly System.Diagnostics.Stopwatch _cpuStopwatch = new();
+    private TimeSpan _lastCpuTime = TimeSpan.Zero;
+
+    public bool IsLockdownActive => _isPerformanceLockdownActive || (_audioPlayer?.IsPlaying ?? false) || _currentCpuLoad > CPU_THRESHOLD;
+    public double CurrentCpuLoad => _currentCpuLoad;
+
     public ForensicLockdownService(
         ILogger<ForensicLockdownService> logger,
-        IDbContextFactory<AppDbContext> contextFactory)
+        IDbContextFactory<AppDbContext> contextFactory,
+        IAudioPlayerService audioPlayer)
     {
         _logger = logger;
         _contextFactory = contextFactory;
+        _audioPlayer = audioPlayer;
         
+        _cpuStopwatch.Start();
+        _lastCpuTime = System.Diagnostics.Process.GetCurrentProcess().TotalProcessorTime;
+
         // Hydrate cache on startup (fire and forget)
         Task.Run(HydrateCacheAsync);
+    }
+    
+    public void SetPerformanceLockdown(bool active)
+    {
+        _isPerformanceLockdownActive = active;
+        _logger.LogWarning("🛡️ Forensic Lockdown: {State}", active ? "FORCED ACTIVE" : "FORCED OFF");
+    }
+
+    public async Task MonitorSystemHealthAsync()
+    {
+        _logger.LogInformation("🛡️ CPU Watchdog: Active monitoring started");
+
+        while (true)
+        {
+            try
+            {
+                await Task.Delay(2000); // Sample every 2 seconds
+
+                var currentProcess = System.Diagnostics.Process.GetCurrentProcess();
+                var currentProcessorTime = currentProcess.TotalProcessorTime;
+                var elapsedMs = _cpuStopwatch.ElapsedMilliseconds;
+                
+                // Calculate CPU % since last sample
+                // Note: This is simplified and doesn't account for core count perfectly 
+                // but gives a good relative indicator for the app's own impact.
+                double cpuUsedMs = (currentProcessorTime - _lastCpuTime).TotalMilliseconds;
+                double totalMs = elapsedMs; // Total wall clock time since start (needs reset to be accurate per sample)
+                
+                // Better sampling:
+                _cpuStopwatch.Restart();
+                _currentCpuLoad = Math.Clamp(cpuUsedMs / (Environment.ProcessorCount * 2000.0), 0, 1.0);
+                _lastCpuTime = currentProcessorTime;
+
+                if (_currentCpuLoad > CPU_THRESHOLD && !_isPerformanceLockdownActive)
+                {
+                    _logger.LogCritical("🔥 High CPU detected ({Load:P0})! Auto-triggering Performance Lockdown.", _currentCpuLoad);
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "CPU Watchdog error");
+                await Task.Delay(5000);
+            }
+        }
     }
 
     private async Task HydrateCacheAsync()
