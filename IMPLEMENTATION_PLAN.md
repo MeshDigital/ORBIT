@@ -112,21 +112,30 @@ Detect Hybrid Architectures (Intel 12th Gen+, etc.) to distinguish between Perfo
 ### Proposed Changes
 
 #### [MODIFY] [SystemInfoHelper.cs](file:///c:/Users/quint/OneDrive/Documenten/GitHub/QMUSICSLSK/Services/SystemInfoHelper.cs)
-- Implement `GetCpuTopology()` using `GetLogicalProcessorInformationEx` (P/Invoke) or heuristics.
-- Add `CpuTopology` struct (P-Core Count, E-Core Count).
+- **Advanced CPU Detection**:
+    - Implement `CpuTopology` struct to track P-Cores, E-Cores, and Total Threads.
+    - Use **Heuristic/P-Invoke**: Identify P-Cores via SMT (2 threads) vs E-Cores (1 thread) or use `GetLogicalProcessorInformationEx`.
+    - **[TIP]** Accept `CancellationToken` for long-running checks.
 - Update `GetOptimalParallelism` to account for "Eco Mode" (Target E-Cores only) vs "Performance" (P+E).
 
 #### [MODIFY] [AnalysisQueueService.cs](file:///c:/Users/quint/OneDrive/Documenten/GitHub/QMUSICSLSK/Services/AnalysisQueueService.cs)
-- Update `AnalysisWorker` to poll `GetOptimalParallelism` more effectively.
-- **Fix**: The `SemaphoreSlim` is currently static. Replace with a dynamic throttle check (e.g. `while active > currentMax wait`).
-- **[ENHANCEMENT] Pressure Monitor**: If system-wide CPU > 80%, reduce workers temporarily.
-- Pass `ProcessPriorityClass` to `EssentiaAnalyzerService`.
+- **Dynamic Concurrency (Pressure Monitor)**:
+    - Implement a background loop (every 2-5s) checking `PerformanceCounter` (System CPU).
+    - **Throttling Logic**:
+        - `CPU > 85%`: Reduce `MaxParallelism` (min 1).
+        - `CPU < 50%`: Increase `MaxParallelism` (up to Optimal).
+    - Use `Interlocked.Exchange` or a "Leaky Bucket" gate instead of static `SemaphoreSlim`.
+- **Worker Optimization**:
+    - "Check-in" before processing each track to get current `MaxParallelism` and Mode.
+    - Pass `ProcessPriorityClass` to `EssentiaAnalyzerService`.
 
 #### [MODIFY] [EssentiaAnalyzerService.cs](file:///c:/Users/quint/OneDrive/Documenten/GitHub/QMUSICSLSK/Services/EssentiaAnalyzerService.cs)
-- Accept `ProcessPriorityClass` in `AnalyzeTrackAsync`.
-- Apply `ProcessPriorityClass.Idle` for Eco Mode (Forces E-Cores on Windows 11).
-- Apply `ProcessPriorityClass.BelowNormal` for Balanced.
+- **Leaf Icon Trick**:
+    - Accept `ProcessPriorityClass` priority.
+    - **Eco Mode**: Use `ProcessPriorityClass.Idle` (triggers Windows Thread Director to enforce E-Core affinity).
+    - **Balanced**: Use `ProcessPriorityClass.BelowNormal`.
 
 ### Verification Plan
-- **Manual Test**: Run on User's Machine (if Hybrid).
-- **Check Task Manager**: Verify `essentia.exe` priority and core affinity (Eco mode should show leaf icon).
+- **Dashboard**: Add "CPU Topology" readout (e.g., "Hybrid (8P + 4E)") and "Active Workers".
+- **System Stutter Test**: Run analysis while playing a video/game.
+    - **Success**: Essentia threads stay on E-Cores (High Index cores) and UI/Video does not stutter.
