@@ -319,7 +319,9 @@ public class AnalysisQueueService : INotifyPropertyChanged
             QueuedCount,
             ProcessedCount,
             CurrentTrackHash,
-            IsPaused
+            IsPaused,
+            SystemInfoHelper.GetCurrentPowerMode().ToString(),
+            SystemInfoHelper.GetOptimalParallelism() // Note: Dynamic limit is internal to worker, exposing optimal here for now, or we need to expose dynamic from worker.
         ));
     }
 
@@ -391,8 +393,14 @@ public class AnalysisWorker : BackgroundService
     private readonly IForensicLogger _forensicLogger;
     private readonly Services.Musical.CueGenerationEngine _cueEngine;
     private readonly IForensicLockdownService _lockdown;
-    private readonly int _maxConcurrentAnalyses;
-    private readonly SemaphoreSlim _concurrencyLimiter;
+
+    
+    // Phase 1.2: Dynamic Concurrency & Pressure Monitor
+#pragma warning disable CA1416 // Validate platform compatibility
+    private System.Diagnostics.PerformanceCounter? _cpuCounter;
+#pragma warning restore CA1416 // Validate platform compatibility
+    private DateTime _lastCpuCheck = DateTime.MinValue;
+    private float _lastCpuUsage = 0;
     
     // Batching & Throttling State
     private DateTime _lastProgressReport = DateTime.MinValue;
@@ -411,32 +419,57 @@ public class AnalysisWorker : BackgroundService
         _cueEngine = cueEngine;
         _lockdown = lockdown;
         
-        // Determine optimal parallelism
-        // ... (keep default logic) ...
-        int configuredValue = config.MaxConcurrentAnalyses;
-        if (configuredValue == 0)
+        // Initialize CPU Counter for Pressure Monitor (Windows only)
+        if (System.Runtime.InteropServices.RuntimeInformation.IsOSPlatform(System.Runtime.InteropServices.OSPlatform.Windows))
         {
-            _maxConcurrentAnalyses = SystemInfoHelper.GetOptimalParallelism();
-            _logger.LogInformation("🧠 Analysis parallelism: AUTO-DETECTED {Threads} threads ({SystemInfo})",
-                _maxConcurrentAnalyses, SystemInfoHelper.GetSystemDescription());
+            try
+            {
+#pragma warning disable CA1416 // Validate platform compatibility
+                _cpuCounter = new System.Diagnostics.PerformanceCounter("Processor", "% Processor Time", "_Total");
+                _cpuCounter.NextValue(); // First call always returns 0
+#pragma warning restore CA1416 // Validate platform compatibility
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning("Failed to initialize CPU Pressure Monitor: {Ex}", ex.Message);
+            }
         }
-        else if (configuredValue < 0)
+    }
+    
+    /// <summary>
+    /// Phase 1.2: Calculates dynamic concurrency limit based on System Pressure.
+    /// </summary>
+    private int GetDynamicConcurrencyLimit()
+    {
+        int optimal = SystemInfoHelper.GetOptimalParallelism();
+        
+        // If we have a CPU counter, apply pressure throttling
+        if (_cpuCounter != null)
         {
-            _maxConcurrentAnalyses = 1;
-            _logger.LogWarning("Invalid MaxConcurrentAnalyses: {Value}. Defaulting to 1.", configuredValue);
-        }
-        else
-        {
-            _maxConcurrentAnalyses = Math.Min(configuredValue, Environment.ProcessorCount * 2);
-            _logger.LogInformation("🧠 Analysis parallelism: CONFIGURED {Threads} threads", _maxConcurrentAnalyses);
+            // Only poll every 2 seconds to avoid perf overhead
+            if ((DateTime.UtcNow - _lastCpuCheck).TotalSeconds > 2)
+            {
+#pragma warning disable CA1416 // Validate platform compatibility
+                _lastCpuUsage = _cpuCounter.NextValue();
+#pragma warning restore CA1416 // Validate platform compatibility
+                _lastCpuCheck = DateTime.UtcNow;
+            }
+            
+            // Pressure Logic:
+            // > 85% CPU: Throttle down aggressively
+            if (_lastCpuUsage > 85)
+            {
+                return Math.Max(1, optimal / 2);
+            }
+            // < 50% CPU: Allow full speed
         }
         
-        _concurrencyLimiter = new SemaphoreSlim(_maxConcurrentAnalyses, _maxConcurrentAnalyses);
+        return optimal;
     }
     
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
-        _logger.LogInformation("🧠 Musical Brain (AnalysisWorker) started with {Threads} parallel threads.", _maxConcurrentAnalyses);
+        _logger.LogInformation("🧠 Musical Brain (AnalysisWorker) started with ~{Threads} parallel threads.", SystemInfoHelper.GetOptimalParallelism());
         
         // Restore Queue Orphans on startup
         await _queue.RestoreQueueOrphansAsync();
@@ -457,7 +490,8 @@ public class AnalysisWorker : BackgroundService
             }
 
             // 2. Collect batch of requests (Dynamic Parallelism)
-            int currentMaxThreads = SystemInfoHelper.GetOptimalParallelism();
+            // Phase 1.2: Check Pressure Monitor
+            int currentMaxThreads = GetDynamicConcurrencyLimit();
             
             var batch = new List<AnalysisRequest>();
             try
@@ -515,7 +549,7 @@ public class AnalysisWorker : BackgroundService
             while (_lockdown.IsLockdownActive && !stoppingToken.IsCancellationRequested)
             {
                 // Set all threads to "Standby"
-                for (int i = 0; i < _maxConcurrentAnalyses; i++)
+                for (int i = 0; i < currentMaxThreads; i++)
                 {
                     _queue.UpdateThreadStatus(i, string.Empty, "🛡️ Lockdown Standby", 0);
                 }
@@ -523,18 +557,25 @@ public class AnalysisWorker : BackgroundService
                 await Task.Delay(2000, stoppingToken);
             }
 
+            // Phase 1.2: Determine Priority based on Power Mode (Architecture Aware)
+            var powerMode = SystemInfoHelper.GetCurrentPowerMode();
+            var processPriority = (powerMode == SystemInfoHelper.PowerEfficiencyMode.Efficiency) 
+                ? System.Diagnostics.ProcessPriorityClass.Idle      // Eco Mode = E-Cores
+                : System.Diagnostics.ProcessPriorityClass.BelowNormal; // Balanced
+
             // 3. Process batch in parallel
             var processingTasks = batch.Select(async (request, index) =>
             {
                 var threadId = index; // Use index as thread ID for this batch
                 
-                await _concurrencyLimiter.WaitAsync(stoppingToken);
+                // REMOVED SemaphoreSlim wait - Batch size ALREADY limits concurrency dynamically
                 try
                 {
                     // Update thread status: Processing
                     _queue.UpdateThreadStatus(threadId, request.FilePath, "Processing", 0);
                     
-                    await ProcessRequestAsync(request, threadId, stoppingToken);
+                    // Phase 1.2: Pass Priority
+                    await ProcessRequestAsync(request, threadId, processPriority, stoppingToken);
                     Interlocked.Increment(ref processedInBatch);
                     
                     // Update thread status: Complete
@@ -543,7 +584,7 @@ public class AnalysisWorker : BackgroundService
                     // Log progress every 10 tracks
                     if (processedInBatch % 10 == 0)
                     {
-                        LogBatchProgress(processedInBatch, batchStartTime);
+                        LogBatchProgress(processedInBatch, batchStartTime, currentMaxThreads);
                     }
                 }
                 catch (Exception ex)
@@ -555,7 +596,6 @@ public class AnalysisWorker : BackgroundService
                 {
                     // Return thread to idle
                     _queue.UpdateThreadStatus(threadId, string.Empty, "Idle", 0, 0, 0, 0, AnalysisStage.Probing);
-                    _concurrencyLimiter.Release();
                 }
             }).ToList();
 
@@ -568,7 +608,7 @@ public class AnalysisWorker : BackgroundService
         _logger.LogInformation("🧠 Musical Brain (AnalysisWorker) stopped. Processed {Total} tracks.", processedInBatch);
     }
     
-    private void LogBatchProgress(int processed, DateTime startTime)
+    private void LogBatchProgress(int processed, DateTime startTime, int activeThreads)
     {
         var elapsed = DateTime.UtcNow - startTime;
         var tracksPerMinute = elapsed.TotalMinutes > 0 ? processed / elapsed.TotalMinutes : 0;
@@ -578,12 +618,12 @@ public class AnalysisWorker : BackgroundService
             processed,
             elapsed.ToString(@"hh\:mm\:ss"),
             tracksPerMinute,
-            _maxConcurrentAnalyses
+            activeThreads
         );
     }
 
 
-    private async Task ProcessRequestAsync(AnalysisRequest request, int threadId, CancellationToken stoppingToken)
+    private async Task ProcessRequestAsync(AnalysisRequest request, int threadId, System.Diagnostics.ProcessPriorityClass priority, CancellationToken stoppingToken)
     {
         string trackHash = request.TrackHash;
         bool analysisSucceeded = false;
@@ -678,7 +718,7 @@ public class AnalysisWorker : BackgroundService
                     PublishThrottled(new AnalysisProgressEvent(trackHash, "Analyzing musical features...", 40, currentBpmConfidence, currentKeyConfidence, currentIntegrityScore));
                     
                     var essentiaStopwatch = System.Diagnostics.Stopwatch.StartNew();
-                    resultContext.MusicalResult = await Task.Run(() => essentiaAnalyzer.AnalyzeTrackAsync(request.FilePath, trackHash, correlationId, linkedCts.Token, tier: request.Tier), linkedCts.Token);
+                    resultContext.MusicalResult = await Task.Run(() => essentiaAnalyzer.AnalyzeTrackAsync(request.FilePath, trackHash, correlationId, linkedCts.Token, tier: request.Tier, priority: priority), linkedCts.Token);
                     run.EssentiaAnalysisCompleted = true;
                     run.EssentiaDurationMs = essentiaStopwatch.ElapsedMilliseconds;
                     
@@ -697,7 +737,19 @@ public class AnalysisWorker : BackgroundService
                 _queue.UpdateThreadStatus(threadId, request.FilePath, "Forensic Integrity Scan...", 70, currentBpmConfidence, currentKeyConfidence, currentIntegrityScore, stage: AnalysisStage.Forensics);
                 PublishThrottled(new AnalysisProgressEvent(trackHash, "Running technical analysis...", 70, currentBpmConfidence, currentKeyConfidence, currentIntegrityScore));
                 
-                resultContext.TechResult = await Task.Run(() => audioAnalyzer.AnalyzeFileAsync(request.FilePath, trackHash, correlationId, linkedCts.Token), linkedCts.Token);
+                // Optimization: Check if DownloadManager already performed analysis (Phase 0.9 Resilience)
+                var existingAnalysis = await dbContext.AudioAnalysis.AsNoTracking()
+                    .FirstOrDefaultAsync(a => a.TrackUniqueHash == trackHash, linkedCts.Token);
+
+                if (existingAnalysis != null)
+                {
+                     _logger.LogInformation("🧠 Forensics: Reusing existing technical analysis for {Hash}", trackHash);
+                     resultContext.TechResult = existingAnalysis;
+                }
+                else
+                {
+                    resultContext.TechResult = await Task.Run(() => audioAnalyzer.AnalyzeFileAsync(request.FilePath, trackHash, correlationId, linkedCts.Token), linkedCts.Token);
+                }
                 run.FfmpegAnalysisCompleted = true;
                 
                 if (resultContext.TechResult != null)

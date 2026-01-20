@@ -1,0 +1,9 @@
+﻿C:\Users\quint\OneDrive\Documenten\GitHub\QMUSICSLSK\Services\AnalysisQueueService.cs(470,110): error CS0103: The name '_maxConcurrentAnalyses' does not exist in the current context [C:\Users\quint\OneDrive\Documenten\GitHub\QMUSICSLSK\SLSKDONET.csproj]
+C:\Users\quint\OneDrive\Documenten\GitHub\QMUSICSLSK\Services\AnalysisQueueService.cs(560,49): error CS0103: The name 'PowerEfficiencyMode' does not exist in the current context [C:\Users\quint\OneDrive\Documenten\GitHub\QMUSICSLSK\SLSKDONET.csproj]
+C:\Users\quint\OneDrive\Documenten\GitHub\QMUSICSLSK\Services\AnalysisQueueService.cs(619,13): error CS0103: The name '_maxConcurrentAnalyses' does not exist in the current context [C:\Users\quint\OneDrive\Documenten\GitHub\QMUSICSLSK\SLSKDONET.csproj]
+
+Build FAILED.
+    8 Warning(s)
+    3 Error(s)
+
+Time Elapsed 00:00:07.43

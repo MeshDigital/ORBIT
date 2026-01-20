@@ -118,8 +118,14 @@
                 </Border>
                 <Border Grid.Column="3" Background="#11FFFFFF" Margin="8,0,0,0" Padding="20" CornerRadius="8">
                     <StackPanel>
-                        <TextBlock Text="CPU WATCHDOG" FontSize="10" Foreground="#666" LetterSpacing="2"/>
-                        <ToggleSwitch OnContent="NORMAL" OffContent="CONSTRAINED" IsChecked="True" BorderThickness="0" Margin="0,5"/>
+                        <TextBlock Text="PERFORMANCE MODE" FontSize="10" Foreground="#666" LetterSpacing="2"/>
+                        <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,5">
+                            <TextBlock Text="{Binding PerformanceMode}" FontWeight="Bold" FontSize="18" Foreground="#4EC9B0"/>
+                            <Border Background="#224EC9B0" CornerRadius="4" Padding="4,2" VerticalAlignment="Center">
+                                <TextBlock Text="{Binding ConcurrencyLimit, StringFormat='{}{0} CORES'}" 
+                                           FontSize="9" FontWeight="Bold" Foreground="#4EC9B0"/>
+                            </Border>
+                        </StackPanel>
                     </StackPanel>
                 </Border>
             </Grid>

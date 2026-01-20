@@ -938,7 +938,7 @@ public class DownloadManager : INotifyPropertyChanged, IDisposable
         lock (_collectionLock) ctx = _downloads.FirstOrDefault(t => t.GlobalId == globalId);
         if (ctx == null) return;
 
-        _logger.LogInformation("Hard Retry for {GlobalId}", globalId);
+        _logger.LogInformation("Hard Retry for {GlobalId} - Bumping to VIP Priority", globalId);
         ctx.CancellationTokenSource?.Cancel();
         _ = UpdateStateAsync(ctx, PlaylistTrackState.Pending); // Reset to Pending
 
@@ -947,13 +947,17 @@ public class DownloadManager : INotifyPropertyChanged, IDisposable
         ctx.State = PlaylistTrackState.Pending;
         ctx.Progress = 0;
         ctx.ErrorMessage = null;
+        ctx.DetailedFailureMessage = null; // Fix: Clear previous diagnostics
         ctx.RetryCount = 0;
         ctx.NextRetryTime = null; // Ensure immediate pickup
-        ctx.SearchAttempts.Clear();
-        ctx.BlacklistedUsers.Clear(); // Clear blacklist to allow fresh search
-        ctx.CancellationTokenSource = new CancellationTokenSource(); // Reset CTS
+        ctx.SearchAttempts.Clear(); // Fix: Clear previous search attempts
+        ctx.BlacklistedUsers.Clear(); 
+        ctx.CancellationTokenSource = new CancellationTokenSource(); 
         
-        // Publish reset event (handled by StateChanged to Pending usually, but verify UI clears error)
+        // Fix: Promote to VIP to bypass "Lazy Queue" buffer
+        ctx.Model.Priority = 0;
+        
+        // Publish reset event
         _eventBus.Publish(new TrackStateChangedEvent(ctx.GlobalId, ctx.Model.PlaylistId, PlaylistTrackState.Pending, DownloadFailureReason.None));
     }
 
@@ -988,7 +992,7 @@ public class DownloadManager : INotifyPropertyChanged, IDisposable
         if (!string.IsNullOrEmpty(stalledUser))
         {
             ctx.BlacklistedUsers.Add(stalledUser);
-            _logger.LogWarning("âš ï¸ Health Monitor: Blacklisting peer {User} for {Track}", stalledUser, ctx.Model.Title);
+            _logger.LogWarning("⚠️ Health Monitor: Blacklisting peer {User} for {Track}", stalledUser, ctx.Model.Title);
             
             // Notify UI
             _eventBus.Publish(new NotificationEvent(
@@ -1173,7 +1177,7 @@ public class DownloadManager : INotifyPropertyChanged, IDisposable
                         var dbTrack = await _databaseService.FindTrackAsync(state.TrackGlobalId);
                         if (dbTrack == null)
                         {
-                            _logger.LogWarning("ðŸ‘» Zombie Checkpoint: {Track} (File & Record missing). Cleaning up.", state.Title);
+                            _logger.LogWarning("👻 Zombie Checkpoint: {Track} (File & Record missing). Cleaning up.", state.Title);
                             await _crashJournal.CompleteCheckpointAsync(checkpoint.Id); 
                             zombies++;
                             continue;
@@ -1196,7 +1200,7 @@ public class DownloadManager : INotifyPropertyChanged, IDisposable
                     {
                         try 
                         {
-                            _logger.LogWarning("âš ï¸ Truncation Guard: Truncating {Track} from {Disk} to {Journal} bytes.", 
+                            _logger.LogWarning("⚠️ Truncation Guard: Truncating {Track} from {Disk} to {Journal} bytes.", 
                                 state.Title, info.Length, state.BytesDownloaded);
                                 
                             using (var fs = new FileStream(state.PartFilePath, FileMode.Open, FileAccess.Write, FileShare.None))
@@ -1232,7 +1236,7 @@ public class DownloadManager : INotifyPropertyChanged, IDisposable
                 }
                 
                 recovered++;
-                _logger.LogInformation("âœ… Recovered Session: {Artist} - {Title} ({Percent}%)", 
+                _logger.LogInformation("✅ Recovered Session: {Artist} - {Title} ({Percent}%)", 
                     state.Artist, state.Title, (state.BytesDownloaded * 100.0 / Math.Max(1, state.ExpectedSize)).ToString("F0"));
             }
 
@@ -1249,10 +1253,42 @@ public class DownloadManager : INotifyPropertyChanged, IDisposable
 
     private async Task ProcessQueueLoop(CancellationToken token)
     {
+        int disconnectBackoff = 0;
+
         while (!token.IsCancellationRequested)
         {
             try
             {
+                // Phase 0.9: Circuit Breaker
+                if (!_soulseek.IsConnected)
+                {
+                    if (disconnectBackoff == 0)
+                    {
+                         _logger.LogWarning("🔌 Circuit Breaker: Queue processing PAUSED due to disconnection.");
+                        // _eventBus.Publish(new NotificationEvent("Download Queue Paused", "Waiting for Soulseek connection before processing queue...", NotificationType.Warning));
+                    }
+                    
+                    // Exponential Backoff: 2, 4, 8, 16... max 60s
+                    int delaySeconds = Math.Min(60, (int)Math.Pow(2, Math.Min(6, disconnectBackoff + 1))); 
+                    disconnectBackoff++;
+                    
+                    if (disconnectBackoff % 5 == 0) // Log occasionally
+                    {
+                        _logger.LogInformation("Circuit Breaker: Waiting for connection... (Next check in {Seconds}s)", delaySeconds);
+                    }
+
+                    await Task.Delay(delaySeconds * 1000, token);
+                    continue;
+                }
+
+                // Reset backoff if connected
+                if (disconnectBackoff > 0)
+                {
+                    _logger.LogInformation("✅ Circuit Breaker: Connection restored! Resuming queue processing.");
+                    // _eventBus.Publish(new NotificationEvent("Download Queue Resumed", "Soulseek connection restored.", NotificationType.Success));
+                    disconnectBackoff = 0;
+                }
+
                 DownloadContext? nextContext = null;
                 lock (_collectionLock)
                 {
@@ -1406,8 +1442,8 @@ public class DownloadManager : INotifyPropertyChanged, IDisposable
                          _logger.LogWarning("No match found for {Title}. Auto-retrying (Attempt {Count}/{Max})", 
                              ctx.Model.Title, ctx.RetryCount + 1, _config.MaxDownloadRetries);
                          
-                         // Throw to trigger the exponential backoff logic in catch block
-                         throw new Exception("No suitable match found");
+                         // Throw custom exception to preserve the "Search Rejected" state during retry
+                         throw new SearchRejectedException("No suitable match found", discoveryResult.Log);
                     }
 
                     // Determine specific failure reason based on search history
@@ -1479,6 +1515,34 @@ public class DownloadManager : INotifyPropertyChanged, IDisposable
                 _logger.LogWarning("âš ï¸ Unexpected cancellation for {Title} in state {State}. Marking as cancelled. Reason: {Reason}", 
                     ctx.Model.Title, ctx.State, cancellationReason);
                 await UpdateStateAsync(ctx, PlaylistTrackState.Cancelled);
+            }
+            catch (SearchRejectedException srex)
+            {
+                _logger.LogWarning("Search Rejected for {Title}: {Message}", ctx.Model.Title, srex.Message);
+                
+                // 1. Capture Diagnostics
+                if (srex.SearchLog != null)
+                {
+                    ctx.SearchAttempts.Add(srex.SearchLog);
+                }
+
+                // 2. Exponential Backoff for "No Results" (Retry Logic)
+                ctx.RetryCount++;
+                if (ctx.RetryCount < _config.MaxDownloadRetries)
+                {
+                    var delayMinutes = Math.Pow(2, ctx.RetryCount); // 2, 4, 8, 16...
+                    ctx.NextRetryTime = DateTime.UtcNow.AddMinutes(delayMinutes);
+                    ctx.Model.Priority = 20; // Low priority
+                    
+                    // Important: Set state to Pending so it stays in the queue, but with a status message explaining the delay
+                    await UpdateStateAsync(ctx, PlaylistTrackState.Pending, $"Retrying in {delayMinutes}m: Search Rejected");
+                    _logger.LogInformation("Scheduled retry #{Count} for {GlobalId} at {Time} due to search rejection", ctx.RetryCount, ctx.GlobalId, ctx.NextRetryTime);
+                }
+                else
+                {
+                    // Terminal Failure
+                    await UpdateStateAsync(ctx, PlaylistTrackState.Failed, DownloadFailureReason.NoSearchResults);
+                }
             }
             catch (Exception ex)
             {
@@ -1912,7 +1976,7 @@ public class DownloadManager : INotifyPropertyChanged, IDisposable
                             }
 
                             // C. Atomic Database Update (All or Nothing) with Retry Logic
-                            int maxRetries = 3;
+                            int maxRetries = 10; // Increased to 10 to survive heavy contention
                             for (int attempt = 1; attempt <= maxRetries; attempt++)
                             {
                                 try
@@ -2004,8 +2068,9 @@ public class DownloadManager : INotifyPropertyChanged, IDisposable
                                     }
                                     else
                                     {
+                                        var jitter = new Random().Next(100, 500);
                                         _logger.LogWarning("âš  Concurrency conflict saving analysis. Retrying... (Attempt {Attempt}/{Max})", attempt, maxRetries);
-                                        await Task.Delay(250 * attempt); // Progressive backoff
+                                        await Task.Delay((250 * attempt) + jitter); // Progressive backoff + Jitter
                                     }
                                 }
                                 catch (Exception dbEx)

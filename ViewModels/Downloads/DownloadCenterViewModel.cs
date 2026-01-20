@@ -200,9 +200,10 @@ public class DownloadCenterViewModel : ReactiveObject, IDisposable
             .Subscribe(_ => ActiveCount = _activeDownloads.Count)
             .DisposeWith(_subscriptions);
 
-        _activeDownloads.ToObservableChangeSet()
+        // Fix: Subscribe to _queuedDownloads pipeline to capture in-place state changes (Downloading -> Pending)
+        _queuedDownloads.ToObservableChangeSet()
             .ObserveOn(RxApp.MainThreadScheduler)
-            .Subscribe(_ => QueuedCount = _activeDownloads.Count(x => x.State == PlaylistTrackState.Queued || x.State == PlaylistTrackState.Pending))
+            .Subscribe(_ => QueuedCount = _queuedDownloads.Count)
             .DisposeWith(_subscriptions);
 
         // Phase 2: Grouping Pipeline (Active Only)

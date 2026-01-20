@@ -31,7 +31,7 @@
                         <MenuItem Header="Remove from History" Command="{Binding CleanCommand}"><MenuItem.Icon><PathIcon Data="{StaticResource delete_regular}" Width="16" Height="16"/></MenuItem.Icon></MenuItem>
                     </ContextMenu>
                 </Border.ContextMenu>
-                <c:StandardTrackRow/>
+                <c:StandardTrackRow Classes="card"/>
             </Border>
         </DataTemplate>
         <!-- Failed Row Template -->
@@ -78,14 +78,32 @@
                                  <ItemsControl ItemsSource="{Binding RejectionDetails}">
                                      <ItemsControl.ItemTemplate>
                                          <DataTemplate>
-                                             <Grid ColumnDefinitions="25, *, Auto, Auto" Margin="0,2">
-                                                 <TextBlock Grid.Column="0" Text="{Binding Rank, StringFormat='{}#{0}'}" Foreground="#555" FontSize="11" VerticalAlignment="Center"/>
-                                                 <TextBlock Grid.Column="1" Text="{Binding ShortReason}" Foreground="#DD6666" FontSize="11" FontWeight="SemiBold" VerticalAlignment="Center"/>
-                                                 <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="6" Margin="12,0">
-                                                     <TextBlock Text="{Binding Bitrate, StringFormat='{}{0}kbps'}" Foreground="#888" FontSize="11"/>
-                                                     <TextBlock Text="{Binding Format}" Foreground="#888" FontSize="11"/>
-                                                 </StackPanel>
-                                                 <TextBlock Grid.Column="3" Text="{Binding Username, StringFormat='{}@{0}'}" Foreground="#555" FontSize="11" Margin="12,0,0,0"/>
+                                             <Grid ColumnDefinitions="20, *" RowDefinitions="Auto, Auto" Margin="0,3">
+                                                 <!-- Rank -->
+                                                 <TextBlock Grid.Row="0" Grid.Column="0" Text="{Binding Rank, StringFormat='{}#{0}'}" Foreground="#555" FontSize="11" VerticalAlignment="Top" Margin="0,1,0,0"/>
+                                                 
+                                                 <!-- Top Row: Reason + Tech Stats -->
+                                                 <Grid Grid.Row="0" Grid.Column="1" ColumnDefinitions="*, Auto">
+                                                     <TextBlock Grid.Column="0" Text="{Binding ShortReason}" Foreground="#DD6666" FontSize="11" FontWeight="SemiBold" TextTrimming="CharacterEllipsis"/>
+                                                     <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="6" Margin="8,0,0,0">
+                                                          <TextBlock Text="{Binding Bitrate, StringFormat='{}{0}kbps'}" Foreground="#888" FontSize="11"/>
+                                                          <TextBlock Text="{Binding Format}" Foreground="#888" FontSize="11"/>
+                                                          <TextBlock Text="{Binding Username, StringFormat='{}@{0}'}" Foreground="#555" FontSize="11"/>
+                                                     </StackPanel>
+                                                 </Grid>
+
+                                                 <!-- Bottom Row: Filename -->
+                                                 <TextBlock Grid.Row="1" Grid.Column="1" 
+                                                            Text="{Binding Filename}" 
+                                                            Foreground="#666" FontStyle="Italic" FontSize="10" 
+                                                            TextTrimming="CharacterEllipsis" Margin="0,1,0,0">
+                                                     <ToolTip.Tip>
+                                                         <MultiBinding StringFormat="Score: {0} | {1}">
+                                                             <Binding Path="SearchScore"/>
+                                                             <Binding Path="RejectionReason"/>
+                                                         </MultiBinding>
+                                                     </ToolTip.Tip>
+                                                 </TextBlock>
                                              </Grid>
                                          </DataTemplate>
                                      </ItemsControl.ItemTemplate>
@@ -237,7 +255,7 @@
                                                         <MenuItem Header="Cancel" Command="{Binding CancelCommand}"><MenuItem.Icon><PathIcon Data="{StaticResource dismiss_regular}" Width="16" Height="16"/></MenuItem.Icon></MenuItem>
                                                     </ContextMenu>
                                                 </Border.ContextMenu>
-                                                <c:StandardTrackRow/>
+                                                <c:StandardTrackRow Classes="card"/>
                                             </Border>
                                         </DataTemplate>
                                     </ItemsRepeater.ItemTemplate>
@@ -264,7 +282,7 @@
                                                         <MenuItem Header="Cancel" Command="{Binding CancelCommand}"><MenuItem.Icon><PathIcon Data="{StaticResource dismiss_regular}" Width="16" Height="16"/></MenuItem.Icon></MenuItem>
                                                     </ContextMenu>
                                                 </Border.ContextMenu>
-                                                <c:StandardTrackRow/>
+                                                <c:StandardTrackRow Classes="card"/>
                                             </Border>
                                         </DataTemplate>
                                     </ItemsRepeater.ItemTemplate>

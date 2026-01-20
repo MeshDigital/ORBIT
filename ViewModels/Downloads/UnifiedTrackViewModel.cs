@@ -241,7 +241,19 @@ public class UnifiedTrackViewModel : ReactiveObject, IDisplayableTrack, IDisposa
         }
     }
 
-    public string FailureDisplayMessage => FailureEnum.ToDisplayMessage();
+    public string FailureDisplayMessage 
+    {
+        get
+        {
+            // Fix: If we have rejection details but no specific FailureEnum, it means the search found things but rejected them all.
+            if (_hasRejectionDetails && FailureEnum == DownloadFailureReason.None)
+            {
+                return "Search Rejected";
+            }
+            return FailureEnum.ToDisplayMessage();
+        }
+    }
+    
     public string FailureActionSuggestion => FailureEnum.ToActionableSuggestion();
 
     // Phase 0.5: Search Diagnostics
@@ -269,7 +281,12 @@ public class UnifiedTrackViewModel : ReactiveObject, IDisplayableTrack, IDisposa
             var parts = new System.Collections.Generic.List<string>();
             parts.Add("Soulseek"); // Source (Static for now)
             
-            if (Model.Bitrate.HasValue) parts.Add($"{Model.Bitrate}kbps");
+            if (Model.Bitrate.HasValue) 
+            {
+                 // Phase 0.6: Truth in UI
+                 string prefix = IsCompleted ? "" : "Est. ";
+                 parts.Add($"{prefix}{Model.Bitrate}kbps");
+            }
             if (!string.IsNullOrEmpty(Model.Format)) parts.Add(Model.Format.ToUpper());
             
             if (_totalBytes > 0) 
@@ -283,10 +300,14 @@ public class UnifiedTrackViewModel : ReactiveObject, IDisplayableTrack, IDisposa
             return string.Join(" • ", parts);
         }
     }
+    
+    // Phase 0.6: Truth in UI - Tech Specs are Estimates until verified
+    public string TechSpecPrefix => IsCompleted ? "" : "Est. ";
 
     // Curation Hub Properties
     public double IntegrityScore => Model.QualityConfidence ?? 0.0;
-    public bool IsSecure => IntegrityScore > 0.9 && !string.IsNullOrEmpty(Model.ResolvedFilePath) && System.IO.File.Exists(Model.ResolvedFilePath);
+    // Phase 0.6: Truth in UI
+    public bool IsSecure => IsCompleted && IntegrityScore > 0.9 && !string.IsNullOrEmpty(Model.ResolvedFilePath);
 
     // Phase 19: Search 2.0 Tiers for Library
     public SLSKDONET.Models.SearchTier Tier => MetadataForensicService.CalculateTier(Model);
@@ -439,6 +460,41 @@ public class UnifiedTrackViewModel : ReactiveObject, IDisplayableTrack, IDisposa
     {
         get => _discoveryReason;
         set => this.RaiseAndSetIfChanged(ref _discoveryReason, value);
+    }
+
+    // Phase 0.6: Truth in UI - Stems
+    private bool? _hasStems;
+    public bool HasStems
+    {
+        get
+        {
+            if (!IsCompleted) return false;
+            
+            if (!_hasStems.HasValue)
+            {
+                _hasStems = false;
+                _ = CheckStemsAsync();
+            }
+            return _hasStems.Value;
+        }
+    }
+    
+    private async Task CheckStemsAsync()
+    {
+         if (string.IsNullOrEmpty(Model.ResolvedFilePath)) return;
+         try {
+             await Task.Run(() => {
+                 var dir = System.IO.Path.GetDirectoryName(Model.ResolvedFilePath);
+                 var name = System.IO.Path.GetFileNameWithoutExtension(Model.ResolvedFilePath);
+                 if (string.IsNullOrEmpty(dir)) return;
+                 var path = System.IO.Path.Combine(dir, $"{name}_Stems");
+                 var found = System.IO.Directory.Exists(path) && System.IO.Directory.GetFiles(path).Length > 0;
+                 Avalonia.Threading.Dispatcher.UIThread.Post(() => {
+                     _hasStems = found;
+                     this.RaisePropertyChanged(nameof(HasStems));
+                 });
+             });
+         } catch {}
     }
 
     // Event Handlers

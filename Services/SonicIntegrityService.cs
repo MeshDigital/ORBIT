@@ -71,6 +71,7 @@ public class SonicIntegrityService : IDisposable
     {
         try
         {
+            // 1. Check basic execution
             var process = new Process
             {
                 StartInfo = new ProcessStartInfo
@@ -87,6 +88,30 @@ public class SonicIntegrityService : IDisposable
             await process.WaitForExitAsync();
             
             _isInitialized = process.ExitCode == 0;
+
+            // 2. Configure Xabe.FFmpeg if valid
+            if (_isInitialized)
+            {
+                try 
+                {
+                    // Resolve full path to configure Xabe
+                    string? fullPath = ResolveExecutablePath(_ffmpegPath);
+                    if (!string.IsNullOrEmpty(fullPath))
+                    {
+                        string? directory = Path.GetDirectoryName(fullPath);
+                        if (!string.IsNullOrEmpty(directory))
+                        {
+                            Xabe.FFmpeg.FFmpeg.SetExecutablesPath(directory);
+                            _logger.LogInformation("Xabe.FFmpeg configured with path: {Path}", directory);
+                        }
+                    }
+                }
+                catch (Exception xabeEx)
+                {
+                     _logger.LogWarning(xabeEx, "Failed to configure Xabe.FFmpeg path explicitly");
+                }
+            }
+            
             return _isInitialized;
         }
         catch (Exception ex)
@@ -94,6 +119,28 @@ public class SonicIntegrityService : IDisposable
             _logger.LogError(ex, "FFmpeg validation failed");
             return false;
         }
+    }
+
+    private string? ResolveExecutablePath(string executableName)
+    {
+        if (Path.IsPathRooted(executableName)) return File.Exists(executableName) ? executableName : null;
+
+        var pathEnv = Environment.GetEnvironmentVariable("PATH");
+        if (string.IsNullOrEmpty(pathEnv)) return null;
+
+        var paths = pathEnv.Split(Path.PathSeparator);
+        var extensions = new[] { ".exe", ".cmd", ".bat", "" }; // Windows extensions
+
+        foreach (var path in paths)
+        {
+            var fullPath = Path.Combine(path, executableName);
+            foreach (var ext in extensions)
+            {
+                var fullPathWithExt = fullPath + ext;
+                if (File.Exists(fullPathWithExt)) return fullPathWithExt;
+            }
+        }
+        return null;
     }
 
     public bool IsFfmpegAvailable() => _isInitialized;

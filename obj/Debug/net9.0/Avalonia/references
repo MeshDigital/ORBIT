@@ -134,6 +134,7 @@ C:\Users\quint\.nuget\packages\microsoft.netcore.app.ref\9.0.11\ref\net9.0\Syste
 C:\Users\quint\.nuget\packages\microsoft.netcore.app.ref\9.0.11\ref\net9.0\System.ComponentModel.EventBasedAsync.dll
 C:\Users\quint\.nuget\packages\microsoft.netcore.app.ref\9.0.11\ref\net9.0\System.ComponentModel.Primitives.dll
 C:\Users\quint\.nuget\packages\microsoft.netcore.app.ref\9.0.11\ref\net9.0\System.ComponentModel.TypeConverter.dll
+C:\Users\quint\.nuget\packages\system.configuration.configurationmanager\9.0.0\lib\net9.0\System.Configuration.ConfigurationManager.dll
 C:\Users\quint\.nuget\packages\microsoft.netcore.app.ref\9.0.11\ref\net9.0\System.Configuration.dll
 C:\Users\quint\.nuget\packages\microsoft.netcore.app.ref\9.0.11\ref\net9.0\System.Console.dll
 C:\Users\quint\.nuget\packages\microsoft.netcore.app.ref\9.0.11\ref\net9.0\System.Core.dll
@@ -143,7 +144,9 @@ C:\Users\quint\.nuget\packages\microsoft.netcore.app.ref\9.0.11\ref\net9.0\Syste
 C:\Users\quint\.nuget\packages\microsoft.netcore.app.ref\9.0.11\ref\net9.0\System.Diagnostics.Contracts.dll
 C:\Users\quint\.nuget\packages\microsoft.netcore.app.ref\9.0.11\ref\net9.0\System.Diagnostics.Debug.dll
 C:\Users\quint\.nuget\packages\microsoft.netcore.app.ref\9.0.11\ref\net9.0\System.Diagnostics.DiagnosticSource.dll
+C:\Users\quint\.nuget\packages\system.diagnostics.eventlog\9.0.0\lib\net9.0\System.Diagnostics.EventLog.dll
 C:\Users\quint\.nuget\packages\microsoft.netcore.app.ref\9.0.11\ref\net9.0\System.Diagnostics.FileVersionInfo.dll
+C:\Users\quint\.nuget\packages\system.diagnostics.performancecounter\9.0.0\lib\net9.0\System.Diagnostics.PerformanceCounter.dll
 C:\Users\quint\.nuget\packages\microsoft.netcore.app.ref\9.0.11\ref\net9.0\System.Diagnostics.Process.dll
 C:\Users\quint\.nuget\packages\microsoft.netcore.app.ref\9.0.11\ref\net9.0\System.Diagnostics.StackTrace.dll
 C:\Users\quint\.nuget\packages\microsoft.netcore.app.ref\9.0.11\ref\net9.0\System.Diagnostics.TextWriterTraceListener.dll

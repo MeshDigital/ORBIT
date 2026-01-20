@@ -24,6 +24,10 @@
             <Setter Property="Foreground" Value="White"/>
         </Style>
         
+        <Style Selector="Button.pending">
+            <Setter Property="Opacity" Value="0.5"/>
+        </Style>
+        
         <!-- Integrity Badge Styles -->
         <Style Selector="Border.IntegrityBadge">
             <Setter Property="CornerRadius" Value="2"/>
@@ -49,12 +53,32 @@
             <Setter Property="VerticalAlignment" Value="Center"/>
             <Setter Property="BorderThickness" Value="1"/>
         </Style>
+
+        <!-- Root Styles -->
+        <Style Selector="Border.root">
+            <Setter Property="Background" Value="{DynamicResource BackgroundBrush}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource BorderBrush}"/>
+            <Setter Property="BorderThickness" Value="0,0,0,1"/>
+            <Setter Property="Padding" Value="8,6"/>
+        </Style>
+        
+        <!-- Card Style (Phase 0.7) -->
+        <Style Selector=":is(UserControl).card Border.root">
+            <Setter Property="Background" Value="#252526"/>
+            <Setter Property="BorderBrush" Value="#333"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="CornerRadius" Value="6"/>
+            <Setter Property="Padding" Value="12"/>
+            <Setter Property="Margin" Value="0,0,0,8"/>
+        </Style>
+
+        <!-- Pending Text Style -->
+        <Style Selector="TextBlock.pending">
+            <Setter Property="FontStyle" Value="Italic"/>
+        </Style>
     </UserControl.Styles>
 
-    <Border Background="{DynamicResource BackgroundBrush}" 
-            BorderBrush="{DynamicResource BorderBrush}" 
-            BorderThickness="0,0,0,1" 
-            Padding="8,6">
+    <Border Classes="root">
             
 
             
@@ -127,6 +151,7 @@
                        <Border.IsVisible>
                            <MultiBinding Converter="{x:Static BoolConverters.And}">
                                <Binding Path="IsSecure"/>
+                               <Binding Path="IsCompleted"/>
                                <Binding Path="$parent[views:LibraryPage].DataContext.ViewSettings.ShowBadges"/>
                            </MultiBinding>
                        </Border.IsVisible>
@@ -161,24 +186,47 @@
                    </Border>
                    
                    <!-- Primary Genre Tag (Pill) -->
-                   <Border Background="{DynamicResource TertiaryBackgroundBrush}" CornerRadius="10" Padding="8,1" Margin="0,0,6,0" IsVisible="{Binding PrimaryGenre, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
+                   <Border Background="{DynamicResource TertiaryBackgroundBrush}" CornerRadius="10" Padding="8,1" Margin="0,0,6,0">
+                       <Border.IsVisible>
+                           <MultiBinding Converter="{x:Static BoolConverters.And}">
+                               <Binding Path="PrimaryGenre" Converter="{x:Static StringConverters.IsNotNullOrEmpty}"/>
+                               <Binding Path="IsCompleted"/>
+                           </MultiBinding>
+                       </Border.IsVisible>
                        <TextBlock Text="{Binding PrimaryGenre}" FontSize="10" Foreground="{DynamicResource TextSecondaryBrush}" FontWeight="SemiBold"/>
                    </Border>
 
                    <!-- Vibe Pill (AI Sonic Classification - Phase 12.7) -->
                    <Button Background="{Binding VibeColor}" 
+                           Classes.pending="{Binding !IsCompleted}"
                            Command="{Binding FilterByVibeCommand}"
                            BorderThickness="0" CornerRadius="10" Padding="8,1" Margin="0,0,6,0" 
                            ToolTip.Tip="{Binding SubGenreConfidence, StringFormat='AI Confidence: {0:P0}. Click to filter by this vibe.'}">
                        <Button.IsVisible>
                            <MultiBinding Converter="{x:Static BoolConverters.And}">
                                <Binding Path="DetectedSubGenre" Converter="{x:Static StringConverters.IsNotNullOrEmpty}"/>
-                               <Binding Path="$parent[views:LibraryPage].DataContext.ViewSettings.ShowVibePills"/>
+                               <Binding Path="$parent[views:LibraryPage].DataContext.ViewSettings.ShowBadges"/>
                            </MultiBinding>
                        </Button.IsVisible>
-                       <TextBlock Text="{Binding DetectedSubGenre, StringFormat='✨ {0}'}" FontSize="10" 
-                                  Foreground="White" FontWeight="Heavy" Opacity="0.9"/>
+                       <TextBlock Text="{Binding DetectedSubGenre}" FontSize="10" Foreground="White" FontWeight="Bold"/>
                    </Button>
+
+                   <!-- Technical Summary -->
+                   <TextBlock Classes.pending="{Binding !IsCompleted}"
+                            Text="{Binding TechnicalSummary}" 
+                            FontSize="11" 
+                            VerticalAlignment="Center" 
+                            Margin="0,0,8,0">
+                        <TextBlock.Styles>
+                            <Style Selector="TextBlock">
+                                <Setter Property="Foreground" Value="#888"/>
+                            </Style>
+                            <Style Selector="TextBlock.pending">
+                                <Setter Property="FontStyle" Value="Italic"/>
+                                <Setter Property="Foreground" Value="{DynamicResource TextTertiaryBrush}"/>
+                            </Style>
+                        </TextBlock.Styles>
+                   </TextBlock>
 
                    <!-- Year Tag (Pill) -->
                    <Border Background="#1AFFFFFF" CornerRadius="10" Padding="8,1">
@@ -212,7 +260,12 @@
                         <TextBlock Text="{Binding TierBadge}" FontSize="16" VerticalAlignment="Center"/>
                     </Border>
                     
-                    <TextBlock Text="{Binding TechnicalSummary}" Foreground="{DynamicResource TextSecondaryBrush}" FontSize="11" FontFamily="Consolas" VerticalAlignment="Center"/>
+                    <TextBlock Text="{Binding TechnicalSummary}" 
+                               Classes.pending="{Binding !IsCompleted}"
+                               Foreground="{DynamicResource TextSecondaryBrush}" 
+                               FontSize="11" 
+                               FontFamily="Consolas" 
+                               VerticalAlignment="Center"/>
                 </StackPanel>
                 
                 <!-- NEW: Duration (only show if completed) -->

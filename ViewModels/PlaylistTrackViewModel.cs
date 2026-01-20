@@ -324,7 +324,8 @@ public class PlaylistTrackViewModel : INotifyPropertyChanged, Library.ILibraryNo
     public string DurationDisplay => Model.CanonicalDuration.HasValue ? TimeSpan.FromMilliseconds(Model.CanonicalDuration.Value).ToString(@"mm\:ss") : "—";
 
     // Curation & Trust
-    public bool IsSecure => Model.QualityConfidence > 0.9 && !string.IsNullOrEmpty(Model.ResolvedFilePath);
+    // Phase 0.6: Truth in UI (Must be completed to be verified)
+    public bool IsSecure => Model.Status == TrackStatus.Downloaded && Model.QualityConfidence > 0.9 && !string.IsNullOrEmpty(Model.ResolvedFilePath);
     public string CurationIcon => Model.CurationConfidence switch
     {
         Data.Entities.CurationConfidence.Manual => "🛡️",
@@ -441,6 +442,9 @@ public class PlaylistTrackViewModel : INotifyPropertyChanged, Library.ILibraryNo
     {
         get
         {
+            // Phase 0.6: Truth in UI (Must be completed to have stems)
+            if (Model.Status != TrackStatus.Downloaded) return false;
+
             if (!_hasStems.HasValue)
             {
                 // Initial check

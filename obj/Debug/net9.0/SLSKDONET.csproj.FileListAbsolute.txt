@@ -214,6 +214,9 @@ C:\Users\quint\OneDrive\Documenten\GitHub\QMUSICSLSK\bin\Debug\net9.0\System.Com
 C:\Users\quint\OneDrive\Documenten\GitHub\QMUSICSLSK\bin\Debug\net9.0\System.Composition.Hosting.dll
 C:\Users\quint\OneDrive\Documenten\GitHub\QMUSICSLSK\bin\Debug\net9.0\System.Composition.Runtime.dll
 C:\Users\quint\OneDrive\Documenten\GitHub\QMUSICSLSK\bin\Debug\net9.0\System.Composition.TypedParts.dll
+C:\Users\quint\OneDrive\Documenten\GitHub\QMUSICSLSK\bin\Debug\net9.0\System.Configuration.ConfigurationManager.dll
+C:\Users\quint\OneDrive\Documenten\GitHub\QMUSICSLSK\bin\Debug\net9.0\System.Diagnostics.EventLog.dll
+C:\Users\quint\OneDrive\Documenten\GitHub\QMUSICSLSK\bin\Debug\net9.0\System.Diagnostics.PerformanceCounter.dll
 C:\Users\quint\OneDrive\Documenten\GitHub\QMUSICSLSK\bin\Debug\net9.0\System.Numerics.Tensors.dll
 C:\Users\quint\OneDrive\Documenten\GitHub\QMUSICSLSK\bin\Debug\net9.0\System.Reactive.dll
 C:\Users\quint\OneDrive\Documenten\GitHub\QMUSICSLSK\bin\Debug\net9.0\System.Security.Cryptography.ProtectedData.dll
@@ -353,6 +356,9 @@ C:\Users\quint\OneDrive\Documenten\GitHub\QMUSICSLSK\bin\Debug\net9.0\runtimes\w
 C:\Users\quint\OneDrive\Documenten\GitHub\QMUSICSLSK\bin\Debug\net9.0\runtimes\win-arm64\native\e_sqlite3.dll
 C:\Users\quint\OneDrive\Documenten\GitHub\QMUSICSLSK\bin\Debug\net9.0\runtimes\win-x64\native\e_sqlite3.dll
 C:\Users\quint\OneDrive\Documenten\GitHub\QMUSICSLSK\bin\Debug\net9.0\runtimes\win-x86\native\e_sqlite3.dll
+C:\Users\quint\OneDrive\Documenten\GitHub\QMUSICSLSK\bin\Debug\net9.0\runtimes\win\lib\net9.0\System.Diagnostics.EventLog.Messages.dll
+C:\Users\quint\OneDrive\Documenten\GitHub\QMUSICSLSK\bin\Debug\net9.0\runtimes\win\lib\net9.0\System.Diagnostics.EventLog.dll
+C:\Users\quint\OneDrive\Documenten\GitHub\QMUSICSLSK\bin\Debug\net9.0\runtimes\win\lib\net9.0\System.Diagnostics.PerformanceCounter.dll
 C:\Users\quint\OneDrive\Documenten\GitHub\QMUSICSLSK\bin\Debug\net9.0\Avalonia.Controls.TreeDataGrid.dll
 C:\Users\quint\OneDrive\Documenten\GitHub\QMUSICSLSK\bin\Debug\net9.0\Avalonia.Controls.TreeDataGrid.pdb
 C:\Users\quint\OneDrive\Documenten\GitHub\QMUSICSLSK\obj\Debug\net9.0\SLSKDONET.csproj.AssemblyReference.cache

@@ -13,7 +13,7 @@ namespace SLSKDONET.Services;
 
 public interface IAudioIntelligenceService
 {
-    Task<AudioFeaturesEntity?> AnalyzeTrackAsync(string filePath, string trackUniqueHash, string? correlationId = null, CancellationToken cancellationToken = default, bool generateCues = false, AnalysisTier tier = AnalysisTier.Tier1);
+    Task<AudioFeaturesEntity?> AnalyzeTrackAsync(string filePath, string trackUniqueHash, string? correlationId = null, CancellationToken cancellationToken = default, bool generateCues = false, AnalysisTier tier = AnalysisTier.Tier1, System.Diagnostics.ProcessPriorityClass priority = System.Diagnostics.ProcessPriorityClass.Normal);
     bool IsEssentiaAvailable();
 }
 
@@ -124,7 +124,7 @@ public class EssentiaAnalyzerService : IAudioIntelligenceService, IDisposable
         return false;
     }
 
-    public async Task<AudioFeaturesEntity?> AnalyzeTrackAsync(string filePath, string trackUniqueHash, string? correlationId = null, CancellationToken cancellationToken = default, bool generateCues = false, AnalysisTier tier = AnalysisTier.Tier1)
+    public async Task<AudioFeaturesEntity?> AnalyzeTrackAsync(string filePath, string trackUniqueHash, string? correlationId = null, CancellationToken cancellationToken = default, bool generateCues = false, AnalysisTier tier = AnalysisTier.Tier1, System.Diagnostics.ProcessPriorityClass priority = System.Diagnostics.ProcessPriorityClass.Normal)
     {
         var cid = correlationId ?? Guid.NewGuid().ToString();
         
@@ -207,6 +207,12 @@ public class EssentiaAnalyzerService : IAudioIntelligenceService, IDisposable
 
                 using var process = new Process { StartInfo = startInfo };
                 process.Start();
+                
+                // Phase 1.2: Multicore Optimization (Leaf Icon / EcoQoS)
+                if (priority != System.Diagnostics.ProcessPriorityClass.Normal)
+                {
+                    SystemInfoHelper.ConfigureProcessPriority(process, priority);
+                }
                 
                 // Zombie prevention
                 if (System.Runtime.InteropServices.RuntimeInformation.IsOSPlatform(System.Runtime.InteropServices.OSPlatform.Windows))

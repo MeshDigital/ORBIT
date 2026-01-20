@@ -146,6 +146,21 @@ public class AnalysisQueueViewModel : ReactiveObject, IDisposable
         set => this.RaiseAndSetIfChanged(ref _estimatedCompletion, value);
     }
     
+    // Mission Control: Performance Metrics (Phase 1.3)
+    private string _performanceMode = "Standard";
+    public string PerformanceMode
+    {
+        get => _performanceMode;
+        set => this.RaiseAndSetIfChanged(ref _performanceMode, value);
+    }
+
+    private int _concurrencyLimit;
+    public int ConcurrencyLimit
+    {
+        get => _concurrencyLimit;
+        set => this.RaiseAndSetIfChanged(ref _concurrencyLimit, value);
+    }
+
     // Metrics tracking
     private DateTime _sessionStartTime = DateTime.UtcNow;
     private readonly List<DateTime> _completionTimestamps = new();
@@ -341,6 +356,10 @@ public class AnalysisQueueViewModel : ReactiveObject, IDisposable
         _disposables.Add(_eventBus.GetEvent<TrackAnalysisFailedEvent>()
             .ObserveOn(RxApp.MainThreadScheduler)
             .Subscribe(OnAnalysisFailed));
+
+        _disposables.Add(_eventBus.GetEvent<AnalysisQueueStatusChangedEvent>()
+            .ObserveOn(RxApp.MainThreadScheduler)
+            .Subscribe(OnQueueStatusChanged));
 
         // Subscribe to live logs
         if (_forensicLogger is Services.TrackForensicLogger concreteLogger)
@@ -651,5 +670,11 @@ public class AnalysisQueueViewModel : ReactiveObject, IDisposable
                  FailedJobs.Insert(0, newJob);
              }
          }
+    }
+
+    private void OnQueueStatusChanged(AnalysisQueueStatusChangedEvent evt)
+    {
+        PerformanceMode = evt.PerformanceMode;
+        ConcurrencyLimit = evt.MaxConcurrency;
     }
 }

@@ -73,7 +73,9 @@ public record AnalysisQueueStatusChangedEvent(
     int QueuedCount,
     int ProcessedCount,
     string? CurrentTrackHash,
-    bool IsPaused
+    bool IsPaused,
+    string PerformanceMode = "Unknown",
+    int MaxConcurrency = 0
 );
 
 public record AnalysisCompletedEvent(
