@@ -24,6 +24,7 @@ Unify the visual design of the Download Center by applying the "Card" style (cur
 #### [MODIFY] [DownloadsPage.axaml](file:///c:/Users/quint/OneDrive/Documenten/GitHub/QMUSICSLSK/Views/Avalonia/DownloadsPage.axaml)
 - Update `Active` downloads `ItemsRepeater` template:
     - Add `Classes="card"` to `c:StandardTrackRow`.
+    - **[ENHANCEMENT]** Use PseudoClasses (e.g. `:card`) in `StandardTrackRow` code-behind for cleaner CSS-like styling instead of relying solely on `IsVisible`.
     - Remove overly restrictive wrapping borders if no longer needed.
 - Update `DownloadItemTemplate` (Completed):
     - Add `Classes="card"` to `c:StandardTrackRow`.
@@ -44,31 +45,33 @@ Unify the visual design of the Download Center by applying the "Card" style (cur
     - Update `RejectionDetails` Grid:
         - Add column/row to display `Filename`.
         - Add ToolTip to show full path and detailed rejection reason on hover.
+        - **[ENHANCEMENT]** Make ToolTip selectable (or add Copy icon).
+        - **[ENHANCEMENT]** Color-code rejection reasons (Yellow=Bitrate, Orange=Mismatch) for quick scanning.
+        - **[NEW]** Add "View Log" button to show exact search strings/peer responses.
 
 ## Phase 0.9: Download Resilience
 ### Services
 #### [MODIFY] [DownloadManager.cs](file:///c:/Users/quint/OneDrive/Documenten/GitHub/QMUSICSLSK/Services/DownloadManager.cs)
 - **Fix "Stuck" Retries**:
-    - Update `HardRetryTrack` to set `ctx.Model.Priority = 0` (High Priority).
-    - This ensures the `ProcessQueueLoop` picks it up immediately, bypassing the "5-minute rule" for non-enriched tracks.
+    - Update `HardRetryTrack` to set `ctx.Model.Priority = 0` (High Priority) AND call `_analysisQueue.RequestRefill()`.
 - **Fix "Queue Reset/Mass Failure"**:
     - Add **Circuit Breaker** to `ProcessQueueLoop`.
     - Check `_soulseek.IsConnected` at start of loop.
     - If disconnected:
-        - Publish `GlobalStatusEvent` ("Waiting for connection...").
+        - Publish `GlobalStatusEvent` with Backoff Countdown (e.g. "Retrying in 8s...").
+        - Transition downloading tracks to "WaitingForConnection" visual state.
         - Wait with **Exponential Backoff** (2s, 4s, 8s..., max 60s).
-    - Prevents rapid-fire failures and informs user of pause.
 
 ## Phase 1.0: Final Polish (Fitness & Finish)
 ### Controls
 #### [MODIFY] [StandardTrackRow.axaml](file:///c:/Users/quint/OneDrive/Documenten/GitHub/QMUSICSLSK/Views/Avalonia/Controls/StandardTrackRow.axaml)
 - **Verified Badge**: Add `IsCompleted` to MultiBinding (Safety + Integrity).
-- **Vibe Pill**: Set `Opacity="0.5"` when `!IsCompleted` (Forecast indicator).
-- **Technical Summary**: Use `TextTertiaryBrush` and Italics for pending stats.
+- **Vibe Pill**: Implement **Skeleton State** (Neutral Grey + Pulse) when `!IsCompleted` instead of hiding. Burn transition to "Active Vibe" using `Transitions`.
+- **Technical Summary**: Use `DataTrigger` in styles for Italics (view logic).
 
 ### Views
 #### [MODIFY] [DownloadsPage.axaml](file:///c:/Users/quint/OneDrive/Documenten/GitHub/QMUSICSLSK/Views/Avalonia/DownloadsPage.axaml)
-- **Rejection Tooltip**: Ensure `SearchScore` (e.g. "-50") is visible in the tooltip if available.
+- **Rejection Tooltip**: Ensure `SearchScore` is visible (e.g. progress bar or "Matching: 45%").
 
 ## Phase 1.1: Brain Tuning (Smart Matcher)
 ### ViewModels
@@ -79,8 +82,8 @@ Unify the visual design of the Download Center by applying the "Card" style (cur
 ### Services
 #### [MODIFY] [SearchResultMatcher.cs](file:///c:/Users/quint/OneDrive/Documenten/GitHub/QMUSICSLSK/Services/SearchResultMatcher.cs)
 - **Relax Artist Matching**:
-    - Update `CheckArtistMatch` to allow partial matches if the file artist contains the query artist (e.g. "Primate, Captain Bass" contains "Primate").
-    - Use word boundary checks to avoid "The Beatles" matching "The Beat".
+    - Normalize strings (remove "The", replace "feat", etc.) before partial match.
+    - Use word boundary checks to avoid false positives (e.g. "The Beat" in "The Beatles").
 ## Phase 0.10: Sync Library Folders [DONE]
 ### Models
 #### [NEW] [LibraryFoldersChangedEvent.cs](file:///c:/Users/quint/OneDrive/Documenten/GitHub/QMUSICSLSK/Models/LibraryFoldersChangedEvent.cs)
@@ -116,6 +119,7 @@ Detect Hybrid Architectures (Intel 12th Gen+, etc.) to distinguish between Perfo
 #### [MODIFY] [AnalysisQueueService.cs](file:///c:/Users/quint/OneDrive/Documenten/GitHub/QMUSICSLSK/Services/AnalysisQueueService.cs)
 - Update `AnalysisWorker` to poll `GetOptimalParallelism` more effectively.
 - **Fix**: The `SemaphoreSlim` is currently static. Replace with a dynamic throttle check (e.g. `while active > currentMax wait`).
+- **[ENHANCEMENT] Pressure Monitor**: If system-wide CPU > 80%, reduce workers temporarily.
 - Pass `ProcessPriorityClass` to `EssentiaAnalyzerService`.
 
 #### [MODIFY] [EssentiaAnalyzerService.cs](file:///c:/Users/quint/OneDrive/Documenten/GitHub/QMUSICSLSK/Services/EssentiaAnalyzerService.cs)
