@@ -12,7 +12,10 @@ using SLSKDONET.Views; // For AsyncRelayCommand
 using Avalonia.Threading;
 
 using System.Collections.ObjectModel; // Added
-using SLSKDONET.Models; // For SearchPolicy
+using SLSKDONET.Models; // For SearchPolicy and Events
+using SLSKDONET.Data.Entities;
+using SLSKDONET.Data; // For AppDbContext
+using Microsoft.EntityFrameworkCore;
 namespace SLSKDONET.ViewModels;
 
 
@@ -35,6 +38,7 @@ public class SettingsViewModel : INotifyPropertyChanged, IDisposable
     private readonly ISpotifyMetadataService _spotifyMetadataService;
     private readonly DatabaseService _databaseService;
     private readonly LibraryFolderScannerService _libraryFolderScannerService;
+    private readonly IEventBus _eventBus;
 
     // Hardcoded public client ID provided by user/project
     // Ideally this would be in a secured config, but for this desktop app scenario it's acceptable as a default.
@@ -314,6 +318,16 @@ public class SettingsViewModel : INotifyPropertyChanged, IDisposable
             }
         }
     }
+
+    // Phase 0.10: Library Folders
+    public ObservableCollection<LibraryFolderViewModel> LibraryFolders { get; } = new();
+
+    private LibraryFolderViewModel? _selectedLibraryFolder;
+    public LibraryFolderViewModel? SelectedLibraryFolder
+    {
+        get => _selectedLibraryFolder;
+        set => SetProperty(ref _selectedLibraryFolder, value);
+    }
     
     // Phase 2.4: Strategy Command Pattern
     public ObservableCollection<RankingStrategyViewModel> Strategies { get; } = new();
@@ -572,7 +586,9 @@ public class SettingsViewModel : INotifyPropertyChanged, IDisposable
     public ICommand CheckFfmpegCommand { get; } // Phase 8: Dependency validation
     public ICommand ResetDatabaseCommand { get; }
     public ICommand ScanLibraryCommand { get; } // [NEW] Manual Scan
-    
+    public ICommand AddLibraryFolderCommand { get; }
+    public ICommand RemoveLibraryFolderCommand { get; }
+
     // Scan State
     private bool _isScanning;
     public bool IsScanning
@@ -626,7 +642,8 @@ public class SettingsViewModel : INotifyPropertyChanged, IDisposable
         SpotifyAuthService spotifyAuthService,
         ISpotifyMetadataService spotifyMetadataService,
         DatabaseService databaseService,
-        LibraryFolderScannerService libraryFolderScannerService)
+        LibraryFolderScannerService libraryFolderScannerService,
+        IEventBus eventBus)
     {
         _logger = logger;
         _config = config;
@@ -636,6 +653,7 @@ public class SettingsViewModel : INotifyPropertyChanged, IDisposable
         _spotifyMetadataService = spotifyMetadataService;
         _databaseService = databaseService;
         _libraryFolderScannerService = libraryFolderScannerService;
+        _eventBus = eventBus;
 
         // Ensure default Client ID is set if empty
         if (string.IsNullOrEmpty(_config.SpotifyClientId))
@@ -658,7 +676,9 @@ public class SettingsViewModel : INotifyPropertyChanged, IDisposable
         RestartSpotifyAuthCommand = new AsyncRelayCommand(RestartSpotifyAuthAsync, () => IsSpotifyConnecting);
         ResetDatabaseCommand = new AsyncRelayCommand(ResetDatabaseAsync);
         ScanLibraryCommand = new AsyncRelayCommand(ScanLibraryAsync, () => !IsScanning);
-        
+        AddLibraryFolderCommand = new AsyncRelayCommand(AddLibraryFolderAsync);
+        RemoveLibraryFolderCommand = new AsyncRelayCommand(RemoveLibraryFolderAsync, () => SelectedLibraryFolder != null);
+
         // Explicitly initialize IsAuthenticating to false
         IsAuthenticating = false;
 
@@ -672,6 +692,9 @@ public class SettingsViewModel : INotifyPropertyChanged, IDisposable
         InitializeStrategies();
         
         _ = CheckFfmpegAsync(); // Phase 8: Check FFmpeg on startup
+        _ = LoadLibraryFoldersAsync(); // Phase 0.10
+
+        _eventBus.GetEvent<LibraryFoldersChangedEvent>().Subscribe(e => { _ = LoadLibraryFoldersAsync(); });
         
         // Force update of derived properties to ensure UI booleans are in sync with SpotifyState
         UpdateDerivedProperties(SpotifyState);
@@ -1189,6 +1212,91 @@ public class SettingsViewModel : INotifyPropertyChanged, IDisposable
         catch (Exception ex)
         {
             _logger.LogError(ex, "Failed to initiate database reset");
+        }
+    }
+
+    private async Task LoadLibraryFoldersAsync()
+    {
+        try
+        {
+            using var context = new AppDbContext();
+            var folders = await context.LibraryFolders.OrderBy(f => f.FolderPath).ToListAsync();
+
+            await Dispatcher.UIThread.InvokeAsync(() =>
+            {
+                LibraryFolders.Clear();
+                foreach (var folder in folders)
+                {
+                    LibraryFolders.Add(new LibraryFolderViewModel(folder));
+                }
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to load library folders in settings");
+        }
+    }
+
+    private async Task AddLibraryFolderAsync()
+    {
+        try
+        {
+            var path = await _fileInteractionService.OpenFolderDialogAsync("Select Music Library Folder");
+            if (string.IsNullOrEmpty(path)) return;
+
+            using var context = new AppDbContext();
+            
+            // Check duplicates
+            if (await context.LibraryFolders.AnyAsync(f => f.FolderPath == path))
+            {
+                _logger.LogWarning("Folder already exists: {Path}", path);
+                return;
+            }
+
+            var folder = new LibraryFolderEntity
+            {
+                Id = Guid.NewGuid(),
+                FolderPath = path,
+                IsEnabled = true,
+                AddedAt = DateTime.UtcNow
+            };
+
+            context.LibraryFolders.Add(folder);
+            await context.SaveChangesAsync();
+
+            _eventBus.Publish(new LibraryFoldersChangedEvent());
+            _logger.LogInformation("Added library folder: {Path}", path);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to add library folder");
+        }
+    }
+
+    private async Task RemoveLibraryFolderAsync()
+    {
+        if (SelectedLibraryFolder == null) return;
+
+        try
+        {
+            using var context = new AppDbContext();
+            var folder = await context.LibraryFolders.FindAsync(SelectedLibraryFolder.Id);
+            
+            if (folder != null)
+            {
+                context.LibraryFolders.Remove(folder);
+                await context.SaveChangesAsync();
+
+                _eventBus.Publish(new LibraryFoldersChangedEvent());
+                _logger.LogInformation("Removed library folder: {Path}", folder.FolderPath);
+                
+                // Clear selection
+                SelectedLibraryFolder = null;
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to remove library folder");
         }
     }
 }

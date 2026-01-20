@@ -11,6 +11,7 @@ using Microsoft.Extensions.Logging;
 using SLSKDONET.Data; 
 using SLSKDONET.Services;
 using SLSKDONET.Views; // For AsyncRelayCommand (if strict match needed)
+using SLSKDONET.Models; // For Events
 
 namespace SLSKDONET.ViewModels;
 
@@ -34,6 +35,7 @@ public class LibrarySourcesViewModel : INotifyPropertyChanged
     private readonly ILogger<LibrarySourcesViewModel> _logger;
     private readonly LibraryFolderScannerService _libraryFolderScannerService;
     private readonly IFileInteractionService _fileInteractionService;
+    private readonly IEventBus _eventBus;
 
     // Library Folders
     public ObservableCollection<LibraryFolderViewModel> LibraryFolders { get; } = new();
@@ -52,11 +54,13 @@ public class LibrarySourcesViewModel : INotifyPropertyChanged
     public LibrarySourcesViewModel(
         ILogger<LibrarySourcesViewModel> logger,
         LibraryFolderScannerService libraryFolderScannerService,
-        IFileInteractionService fileInteractionService)
+        IFileInteractionService fileInteractionService,
+        IEventBus eventBus)
     {
         _logger = logger;
         _libraryFolderScannerService = libraryFolderScannerService;
         _fileInteractionService = fileInteractionService;
+        _eventBus = eventBus;
 
         AddLibraryFolderCommand = new AsyncRelayCommand(AddLibraryFolderAsync);
         RemoveLibraryFolderCommand = new RelayCommand<LibraryFolderViewModel?>(RemoveLibraryFolder);
@@ -64,6 +68,9 @@ public class LibrarySourcesViewModel : INotifyPropertyChanged
 
         // Load existing on init
         _ = LoadLibraryFoldersAsync();
+        
+        // Phase 0.10: Sync
+        _eventBus.GetEvent<LibraryFoldersChangedEvent>().Subscribe(e => { _ = LoadLibraryFoldersAsync(); });
     }
 
     private async Task LoadLibraryFoldersAsync()
@@ -123,6 +130,7 @@ public class LibrarySourcesViewModel : INotifyPropertyChanged
             });
 
             _logger.LogInformation("Added library folder: {Path}", folderPath);
+            _eventBus.Publish(new LibraryFoldersChangedEvent());
         }
         catch (Exception ex)
         {
@@ -149,6 +157,7 @@ public class LibrarySourcesViewModel : INotifyPropertyChanged
                 });
 
                 _logger.LogInformation("Removed library folder: {Path}", folderVm.FolderPath);
+                _eventBus.Publish(new LibraryFoldersChangedEvent());
             }
         }
         catch (Exception ex)

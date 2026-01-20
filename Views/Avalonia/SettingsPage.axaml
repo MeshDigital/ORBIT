@@ -87,6 +87,50 @@
                 </StackPanel>
             </Border>
 
+            <!-- Library Folders -->
+            <Border Background="#252526" CornerRadius="8" Padding="20" BorderBrush="#3E3E3E" BorderThickness="1">
+                <StackPanel Spacing="16">
+                    <Grid ColumnDefinitions="*,Auto">
+                        <StackPanel Grid.Column="0" Spacing="4">
+                             <TextBlock Text="Library Folders" FontSize="16" FontWeight="SemiBold" Foreground="White"/>
+                             <TextBlock Text="Manage additional folders to scan for music." Foreground="#AAA" FontSize="12"/>
+                        </StackPanel>
+                        <Button Grid.Column="1" Command="{Binding AddLibraryFolderCommand}" Background="#1DB954" Foreground="White" Padding="12,6">
+                             <StackPanel Orientation="Horizontal" Spacing="6">
+                                 <TextBlock Text="+" FontWeight="Bold"/>
+                                 <TextBlock Text="Add Folder"/>
+                             </StackPanel>
+                        </Button>
+                    </Grid>
+                    
+                    <ListBox ItemsSource="{Binding LibraryFolders}" 
+                             SelectedItem="{Binding SelectedLibraryFolder}"
+                             Background="#1E1E1E" 
+                             BorderThickness="1" 
+                             BorderBrush="#333" 
+                             Height="150">
+                        <ListBox.ItemTemplate>
+                            <DataTemplate>
+                                <Grid ColumnDefinitions="Auto,*,Auto">
+                                    <PathIcon Grid.Column="0" Data="{StaticResource folder_regular}" Width="16" Height="16" Foreground="#DDD" Margin="0,0,12,0"/>
+                                    <TextBlock Grid.Column="1" Text="{Binding FolderPath}" VerticalAlignment="Center" Foreground="#DDD"/>
+                                </Grid>
+                            </DataTemplate>
+                        </ListBox.ItemTemplate>
+                    </ListBox>
+
+                    <Button Command="{Binding RemoveLibraryFolderCommand}" 
+                            IsEnabled="{Binding SelectedLibraryFolder, Converter={x:Static ObjectConverters.IsNotNull}}"
+                            Background="#2D2D2D" 
+                            BorderBrush="#FF5555" 
+                            BorderThickness="1" 
+                            HorizontalAlignment="Right">
+                        <TextBlock Text="Remove Selected" Foreground="#FF5555" Padding="12,4"/>
+                    </Button>
+
+                </StackPanel>
+            </Border>
+
             <!-- Search Filter Defaults -->
             <Border Background="#252526" CornerRadius="8" Padding="20" BorderBrush="#3E3E3E" BorderThickness="1">
                 <StackPanel Spacing="16">

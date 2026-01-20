@@ -260,9 +260,14 @@ public class EssentiaAnalyzerService : IAudioIntelligenceService, IDisposable
                 var options = new JsonSerializerOptions
                 {
                     PropertyNameCaseInsensitive = true,
-                    NumberHandling = System.Text.Json.Serialization.JsonNumberHandling.AllowNamedFloatingPointLiterals
+                    NumberHandling = System.Text.Json.Serialization.JsonNumberHandling.AllowNamedFloatingPointLiterals,
+                    ReadCommentHandling = JsonCommentHandling.Skip,
+                    AllowTrailingCommas = true
                 };
                 
+                // Sanitize JSON content (strip control characters)
+                jsonContent = SanitizeJson(jsonContent);
+
                 var data = JsonSerializer.Deserialize<EssentiaOutput>(jsonContent, options);
 
                 if (data == null)
@@ -564,6 +569,17 @@ public class EssentiaAnalyzerService : IAudioIntelligenceService, IDisposable
     // ============================================
     // Phase 13: Helper Methods
     // ============================================
+
+    /// <summary>
+    /// Removes invalid control characters from JSON string to prevent parsing errors.
+    /// Preserves standard whitespace (Tab \t, LineFeed \n, CarriageReturn \r).
+    /// </summary>
+    private static string SanitizeJson(string json)
+    {
+        if (string.IsNullOrEmpty(json)) return json;
+        // Regex matches control characters (0-31) EXCEPT 9 (\t), 10 (\n), 13 (\r)
+        return System.Text.RegularExpressions.Regex.Replace(json, @"[\u0000-\u0008\u000B\u000C\u000E-\u001F]", string.Empty);
+    }
 
     private static float CalculateBpmStability(float[]? bpmHistogram)
     {
