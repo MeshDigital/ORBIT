@@ -23,6 +23,11 @@
                     <TextBlock Text="⬇️"/>
                 </MenuItem.Icon>
             </MenuItem>
+            <MenuItem Header="Download Missing" Command="{Binding DownloadMissingCommand}">
+                <MenuItem.Icon>
+                    <TextBlock Text="🔍"/>
+                </MenuItem.Icon>
+            </MenuItem>
         </ContextMenu>
     </UserControl.ContextMenu>
     

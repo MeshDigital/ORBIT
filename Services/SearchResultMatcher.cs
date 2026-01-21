@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using Microsoft.Extensions.Logging;
+using System.Text.RegularExpressions;
 using SLSKDONET.Configuration;
 using SLSKDONET.Models;
 
@@ -22,7 +23,7 @@ public class SearchResultMatcher
         _config = config;
     }
 
-    public record MatchResult(double Score, string? RejectionReason = null, string? ShortReason = null);
+    public record MatchResult(double Score, string? ScoreBreakdown = null, string? RejectionReason = null, string? ShortReason = null);
 
     /// <summary>
     /// Finds the best matching track from a list of candidates.
@@ -49,7 +50,7 @@ public class SearchResultMatcher
         foreach (var candidate in candidates)
         {
             var result = CalculateMatchResult(model, candidate);
-            if (result.Score >= 0.7)
+            if (result.Score >= 70) // Phase 1.1: Threshold is 70/100
             {
                 matches.Add((candidate, result));
             }
@@ -77,6 +78,7 @@ public class SearchResultMatcher
                 FileSize = r.Track.Size ?? 0,
                 Filename = r.Track.Filename ?? "Unknown",
                 SearchScore = r.Result.Score,
+                ScoreBreakdown = r.Result.ScoreBreakdown,
                 RejectionReason = r.Result.RejectionReason ?? "Unknown rejection",
                 ShortReason = r.Result.ShortReason ?? "Rejected"
             })
@@ -104,34 +106,93 @@ public class SearchResultMatcher
 
     public MatchResult CalculateMatchResult(PlaylistTrack model, Track candidate)
     {
+        int score = 0;
+        var breakdown = new List<string>();
+
+        // 1. Duration (40 pts)
         var expectedDuration = model.CanonicalDuration.HasValue ? model.CanonicalDuration.Value / 1000 : 0;
-        var lengthTolerance = _config.SearchLengthToleranceSeconds;
+        if (expectedDuration > 0)
+        {
+            var diff = Math.Abs(expectedDuration - (candidate.Length ?? 0));
+            int durationPts = diff switch
+            {
+                <= 2 => 40,
+                <= 5 => 20,
+                <= 10 => 5,
+                _ => 0
+            };
+            score += durationPts;
+            if (durationPts > 0) breakdown.Add($"Duration: +{durationPts} ({candidate.Length}s vs {expectedDuration}s)");
+            else breakdown.Add($"Duration: 0 (Mismatch: {candidate.Length}s vs {expectedDuration}s)");
+        }
 
-        // Base score (Artist/Title/Duration)
-        var result = CalculateMatchResultInternal(
-            model.Artist,
-            model.Title,
-            expectedDuration,
-            candidate,
-            lengthTolerance);
+        // Tokenization for Path Analysis
+        var artistTokens = Tokenize(model.Artist);
+        var titleTokens = Tokenize(model.Title);
+        var allPathText = new List<string> { Path.GetFileName(candidate.Filename ?? "") };
+        if (candidate.PathSegments != null) allPathText.AddRange(candidate.PathSegments);
 
-        var score = result.Score;
+        // 2. Artist in Path (30 pts)
+        double artistMatchRatio = CalculateTokenMatchRatio(artistTokens, allPathText);
+        int artistPts = (int)(30 * artistMatchRatio);
+        score += artistPts;
+        if (artistPts > 0) breakdown.Add($"Artist: +{artistPts} (Tokens: {string.Join(",", artistTokens.Intersect(Tokenize(string.Join(" ", allPathText))))})");
 
-        // BPM Bonus
+        // 3. Title in Path (20 pts)
+        double titleMatchRatio = CalculateTokenMatchRatio(titleTokens, allPathText);
+        int titlePts = (int)(20 * titleMatchRatio);
+        score += titlePts;
+        if (titlePts > 0) breakdown.Add($"Title: +{titlePts}");
+
+        // 4. Bitrate (10 pts)
+        int bitratePts = 0;
+        if (candidate.Bitrate >= 320 || candidate.Format?.ToUpper() == "FLAC") bitratePts = 10;
+        else if (candidate.Bitrate >= 192) bitratePts = 5;
+        score += bitratePts;
+        if (bitratePts > 0) breakdown.Add($"Bitrate: +{bitratePts} ({candidate.Bitrate}kbps)");
+
+        // BPM Bonus (Extra)
         if (model.BPM.HasValue && model.BPM > 0)
         {
             var candidateBpm = ParseBpm(candidate.Filename);
-            if (candidateBpm.HasValue)
+            if (candidateBpm.HasValue && Math.Abs(candidateBpm.Value - model.BPM.Value) < 3)
             {
-                // If BPM matches within 3%, give a nice boost
-                if (Math.Abs(candidateBpm.Value - model.BPM.Value) < 3)
-                {
-                    score += 0.15; // Significant boost for BPM match
-                }
+                score += 5;
+                breakdown.Add("BPM Bonus: +5");
             }
         }
+
+        var finalScore = Math.Min(100, score);
+        var breakdownStr = string.Join(" | ", breakdown);
         
-        return result with { Score = Math.Min(1.0, score) };
+        string? rejection = null;
+        if (finalScore < 70) rejection = $"Low confidence score: {finalScore}/100. Breakdown: {breakdownStr}";
+
+        return new MatchResult(finalScore, breakdownStr, rejection, finalScore < 70 ? "Low Score" : null);
+    }
+
+    private List<string> Tokenize(string? input)
+    {
+        if (string.IsNullOrEmpty(input)) return new List<string>();
+        // Normalize handles most furniture. We just split by space and dash.
+        return Regex.Split(NormalizeFuzzy(input), @"[\s\-]+")
+                    .Where(s => s.Length > 1) // Ignore single chars/tokens
+                    .Select(s => s.ToLowerInvariant())
+                    .Distinct()
+                    .ToList();
+    }
+
+    private double CalculateTokenMatchRatio(List<string> searchTokens, List<string> haystack)
+    {
+        if (!searchTokens.Any()) return 1.0;
+        
+        var haystackMerged = string.Join(" ", haystack).ToLowerInvariant();
+        int matched = 0;
+        foreach (var token in searchTokens)
+        {
+            if (haystackMerged.Contains(token)) matched++;
+        }
+        return (double)matched / searchTokens.Count;
     }
 
     /// <summary>
@@ -153,107 +214,6 @@ public class SearchResultMatcher
         return null;
     }
 
-    public Track? FindBestMatch(
-        string expectedArtist,
-        string expectedTitle,
-        int expectedDurationSeconds,
-        IEnumerable<Track> candidates)
-    {
-        if (!candidates.Any())
-            return null;
-
-        if (!_config.FuzzyMatchEnabled)
-        {
-            _logger.LogDebug("Fuzzy matching disabled, returning first result");
-            return candidates.FirstOrDefault();
-        }
-
-        var lengthTolerance = _config.SearchLengthToleranceSeconds;
-        var matches = new List<(Track Track, double Score)>();
-
-        foreach (var candidate in candidates)
-        {
-            var result = CalculateMatchResultInternal(
-                expectedArtist,
-                expectedTitle,
-                expectedDurationSeconds,
-                candidate,
-                lengthTolerance);
-
-            if (result.Score >= 0.7) // Minimum acceptable match threshold
-            {
-                matches.Add((candidate, result.Score));
-            }
-        }
-
-        if (!matches.Any())
-        {
-            _logger.LogWarning("No acceptable fuzzy matches found for {Artist} - {Title}", expectedArtist, expectedTitle);
-            return null;
-        }
-
-        var bestMatch = matches.OrderByDescending(m => m.Score).FirstOrDefault();
-        
-        _logger.LogDebug("Best fuzzy match score: {Score:P} for {Artist} - {Title} (candidate: {Candidate})",
-            bestMatch.Score,
-            expectedArtist,
-            expectedTitle,
-            $"{bestMatch.Track.Artist} - {bestMatch.Track.Title}");
-
-        return bestMatch.Track;
-    }
-
-    /// <summary>
-    /// Calculates a match score (0-1) between expected and actual track.
-    /// Factors: artist name similarity, title similarity, duration match.
-    /// </summary>
-    private MatchResult CalculateMatchResultInternal(
-        string expectedArtist,
-        string expectedTitle,
-        int expectedDurationSeconds,
-        Track candidate,
-        int lengthToleranceSeconds)
-    {
-        // Check duration first (hard constraint)
-        if (expectedDurationSeconds > 0 && !IsDurationAcceptable(expectedDurationSeconds, candidate.Length ?? 0, lengthToleranceSeconds))
-        {
-            return new MatchResult(0.0, 
-                $"Duration mismatch: expected {expectedDurationSeconds}s, actual {candidate.Length}s (tol: {lengthToleranceSeconds}s)", 
-                $"Duration ({candidate.Length}s != {expectedDurationSeconds}s)");
-        }
-
-        // Strict filename matching (slsk-batchdl approach)
-        // Filename must contain title and artist with word boundaries
-        if (!StrictTitleSatisfies(candidate.Filename ?? string.Empty, expectedTitle))
-        {
-            _logger.LogTrace("Strict title check failed: {Filename} does not contain {Title}", candidate.Filename, expectedTitle);
-            return new MatchResult(0.0, 
-                $"Strict title check failed: '{candidate.Filename}' does not contain '{expectedTitle}'", 
-                "Title Mismatch");
-        }
-
-        if (!StrictArtistSatisfies(candidate.Filename ?? string.Empty, expectedArtist))
-        {
-            _logger.LogTrace("Strict artist check failed: {Filename} does not contain {Artist}", candidate.Filename, expectedArtist);
-            return new MatchResult(0.0, 
-                $"Strict artist check failed: '{candidate.Filename}' does not contain '{expectedArtist}'", 
-                "Artist Mismatch");
-        }
-
-        // Calculate string similarity (0-1)
-        var artistSimilarity = CalculateSimilarity(expectedArtist, candidate.Artist ?? "");
-        var titleSimilarity = CalculateSimilarity(expectedTitle, candidate.Title ?? "");
-
-        // Weight: title is more important than artist (80% vs 20%)
-        var combinedSimilarity = (titleSimilarity * 0.8) + (artistSimilarity * 0.2);
-
-        // Apply bonus if duration is very close
-        var durationBonus = (expectedDurationSeconds > 0) ? GetDurationBonus(expectedDurationSeconds, candidate.Length ?? 0) : 0.0;
-
-        var finalScore = Math.Min(1.0, combinedSimilarity + durationBonus);
-        
-        return new MatchResult(finalScore);
-    }
 
     /// <summary>
     /// Checks if duration is within acceptable tolerance.
@@ -397,15 +357,20 @@ public class SearchResultMatcher
         var normalizedFilename = NormalizeFuzzy(filename);
         var normalizedArtist = NormalizeFuzzy(expectedArtist);
 
-        // 1. Standard Check: Filename contains Artist (e.g. "Artist - Title.mp3" contains "Artist")
+        // 1. Standard Check: Filename contains Artist
         if (ContainsWithBoundary(normalizedFilename, normalizedArtist, ignoreCase: true))
             return true;
             
-        // 2. Multi-Artist Handling (Phase 1.1)
-        // If query is "Artist A, Artist B", and filename is "Artist A - Title.mp3", allow it.
+        // 1.5 Prefix/Suffix Leniency (Phase 1.2)
+        // Handle "The Artist" vs "Artist"
+        string strippedArtist = Regex.Replace(normalizedArtist, @"\b(the|dj|mc)\b", "", RegexOptions.IgnoreCase).Trim();
+        if (!string.IsNullOrEmpty(strippedArtist) && ContainsWithBoundary(normalizedFilename, strippedArtist, ignoreCase: true))
+            return true;
+
+        // 2. Multi-Artist Handling
         var splitArtists = normalizedArtist.Split(new[] { ',', '&', '/' }, StringSplitOptions.RemoveEmptyEntries)
                                            .Select(a => a.Trim())
-                                           .Where(a => a.Length > 2) // Ignore tiny parts like "DJ"
+                                           .Where(a => a.Length > 2)
                                            .ToList();
                                            
         if (splitArtists.Count > 1)
@@ -414,22 +379,13 @@ public class SearchResultMatcher
             {
                 if (ContainsWithBoundary(normalizedFilename, subArtist, ignoreCase: true))
                     return true;
+                
+                // Also check sub-artist with prefix leniency
+                string strippedSub = Regex.Replace(subArtist, @"\b(the|dj|mc)\b", "", RegexOptions.IgnoreCase).Trim();
+                if (!string.IsNullOrEmpty(strippedSub) && ContainsWithBoundary(normalizedFilename, strippedSub, ignoreCase: true))
+                    return true;
             }
         }
-        
-        // 3. Reverse Containment (Phase 1.1)
-        // If filename is "Artist A feat. Artist B" and query is "Artist A", it passes (handled by #1).
-        // BUT, if filename is "Primate" and query is "Primate, Captain Bass"...
-        // normalizedFilename = "primate", normalizedArtist = "primate captain bass"
-        // Check if query contains filename artist? No, that's too loose ("The" would match "The Beatles").
-        // But if the filename artist is a SUBSTRING of the query artist?
-        // E.g. Filename: "Primate", Query: "Primate, Captain Bass"
-        // We already handled splitting the Query in #2. 
-        // Let's rely on #2 for now. The screenshot case was "Primate, Captain Bass" rejected "Primate".
-        // If the FILE is "Primate" and EXPECTED is "Primate, Captain Bass":
-        // My Logic #1 check: "primate" contains "primate captain bass" -> False.
-        // My Logic #2 check: "primate captain bass" splits to "primate", "captain bass".
-        //   Check: "primate" (file) contains "primate" (split) -> True!
         
         return false;
     }

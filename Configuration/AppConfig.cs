@@ -58,7 +58,7 @@ public class AppConfig
     public bool EnableFuzzyNormalization { get; set; } = true; // Strip special chars, normalize feat.
     public bool EnableRelaxationStrategy { get; set; } = true; // Progressive threshold widening
     public bool EnableVbrFraudDetection { get; set; } = true; // Upscale protection
-    public int RelaxationTimeoutSeconds { get; set; } = 10; // Optimized: was 30s, reduced for faster fallback
+    public int RelaxationTimeoutSeconds { get; set; } = 5; // Optimized: was 10s, reduced for faster fallback
     
     // Phase 10: Profile Persistence
     public string? RankingProfile { get; set; } = "Balanced"; // Persists "Quality First", "DJ Mode", etc.

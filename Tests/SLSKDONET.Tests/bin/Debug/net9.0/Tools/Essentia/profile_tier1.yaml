@@ -7,5 +7,6 @@ highlevel:
     tensorflow_models:
         - "Tools/Essentia/models/genre_discogs400-discogs-effnet-1.pb"
         - "Tools/Essentia/models/danceability-discogs-effnet-1.pb"
+        - "Tools/Essentia/models/voice_instrumental-msd-musicnn-1.pb"
         - "Tools/Essentia/models/mood_happy-discogs-effnet-1.pb"
         - "Tools/Essentia/models/mood_relaxed-discogs-effnet-1.pb"

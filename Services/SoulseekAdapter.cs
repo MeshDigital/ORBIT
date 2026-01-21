@@ -490,23 +490,20 @@ public class SoulseekAdapter : ISoulseekAdapter, IDisposable
         var lengthAttr = file.Attributes?.FirstOrDefault(a => a.Type == FileAttributeType.Length);
         var length = lengthAttr?.Value ?? 0;
 
-        // Parse filename for artist/title
-        var filename = Path.GetFileNameWithoutExtension(file.Filename);
-        
-        // Remove leading track numbers (e.g. "01 - ", "01.", "01_")
-        var cleanFilename = System.Text.RegularExpressions.Regex.Replace(filename, @"^\d+[\s\-_\.]+", "");
+        // Path-Aware Extraction: Split full path into segments for context scoring
+        var pathSegments = file.Filename.Split(new[] { '/', '\\' }, StringSplitOptions.RemoveEmptyEntries).ToList();
 
-        // Split by common separators
-        var parts = cleanFilename.Split(new[] { " - ", "_-_", " -", "- " }, 2, StringSplitOptions.RemoveEmptyEntries);
+        // Parse filename for raw metadata
+        var rawFilename = Path.GetFileNameWithoutExtension(file.Filename);
         
-        // If no clear multi-character separator, try single dash but be careful
-        if (parts.Length < 2 && cleanFilename.Contains("-"))
-        {
-            parts = cleanFilename.Split(new[] { '-' }, 2, StringSplitOptions.RemoveEmptyEntries);
-        }
+        // Basic cleanup of leading numbers (e.g. "01 - ", "01.")
+        var cleanFilename = System.Text.RegularExpressions.Regex.Replace(rawFilename, @"^\d+[\s\-_\.]+", "").Trim();
+
+        // Simplified splitting: many Soulseek files follow "Artist - Title" or "Artist-Title"
+        var parts = cleanFilename.Split(new[] { " - ", " -", "- ", "-" }, 2, StringSplitOptions.RemoveEmptyEntries);
 
         string artist = "Unknown Artist";
-        string title = cleanFilename; // Default to full cleaned filename
+        string title = cleanFilename;
         string album = "";
 
         if (parts.Length >= 2)
@@ -514,12 +511,13 @@ public class SoulseekAdapter : ISoulseekAdapter, IDisposable
             artist = parts[0].Trim();
             title = parts[1].Trim();
         }
-
-        // Try to extract album from path
-        var pathParts = file.Filename.Split(new[] { '/', '\\' }, StringSplitOptions.RemoveEmptyEntries);
-        if (pathParts.Length > 1)
+        else if (pathSegments.Count >= 2)
         {
-            album = pathParts[^2]; // Second to last part is often the album
+            // Folder structure fallback: .../Artist/Album/Track.mp3
+            // The Scoring Engine will look deep into pathSegments, 
+            // but we provide a "best guess" here for the UI.
+            album = pathSegments[^2];
+            if (pathSegments.Count >= 3) artist = pathSegments[^3];
         }
 
         return new Track
@@ -527,18 +525,18 @@ public class SoulseekAdapter : ISoulseekAdapter, IDisposable
             Artist = artist,
             Title = title,
             Album = album,
+            PathSegments = pathSegments, // Phase 1.1: Context for the Brain
             Filename = file.Filename,
-            Directory = Path.GetDirectoryName(file.Filename), // Added for Album Grouping
+            Directory = Path.GetDirectoryName(file.Filename),
             Username = response.Username,
             Bitrate = bitrate,
             Size = file.Size,
             Length = length,
-            SoulseekFile = file, // CRITICAL: Store the original file object for downloads.
+            SoulseekFile = file,
             
-            // Intelligence Metrics
             HasFreeUploadSlot = response.HasFreeUploadSlot,
             QueueLength = response.QueueLength,
-            UploadSpeed = response.UploadSpeed // Bytes/s
+            UploadSpeed = response.UploadSpeed
         };
     }
 

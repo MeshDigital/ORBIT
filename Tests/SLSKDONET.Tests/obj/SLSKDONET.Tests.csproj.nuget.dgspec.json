@@ -316,6 +316,10 @@
               "target": "Package",
               "version": "[7.2.1, )"
             },
+            "System.Diagnostics.PerformanceCounter": {
+              "target": "Package",
+              "version": "[9.0.0, )"
+            },
             "System.Reactive": {
               "target": "Package",
               "version": "[6.1.0, )"

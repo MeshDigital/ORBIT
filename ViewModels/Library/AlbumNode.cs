@@ -63,6 +63,7 @@ public class AlbumNode : ILibraryNode, INotifyPropertyChanged
     public ObservableCollection<PlaylistTrackViewModel> Tracks { get; } = new();
     
     public ICommand DownloadAlbumCommand { get; }
+    public ICommand DownloadMissingCommand { get; }
     public ICommand AnalyzeAlbumT1Command { get; }
     public ICommand AnalyzeAlbumT2Command { get; }
     public ICommand AnalyzeAlbumT3Command { get; }
@@ -116,6 +117,7 @@ public class AlbumNode : ILibraryNode, INotifyPropertyChanged
         _artworkCacheService = artworkCacheService;
         
         DownloadAlbumCommand = new RelayCommand(DownloadAlbum);
+        DownloadMissingCommand = new RelayCommand(DownloadMissing);
         AnalyzeAlbumT1Command = new RelayCommand(() => AnalyzeAlbum(AnalysisTier.Tier1));
         AnalyzeAlbumT2Command = new RelayCommand(() => AnalyzeAlbum(AnalysisTier.Tier2));
         AnalyzeAlbumT3Command = new RelayCommand(() => AnalyzeAlbum(AnalysisTier.Tier3));
@@ -147,6 +149,23 @@ public class AlbumNode : ILibraryNode, INotifyPropertyChanged
             return t.Model; 
         }).ToList();
         _downloadManager.QueueTracks(tracksToDownload);
+    }
+
+    private void DownloadMissing()
+    {
+        if (_downloadManager == null || !Tracks.Any()) return;
+        
+        var tracksToDownload = Tracks
+            .Where(t => t.Model.Status == TrackStatus.Missing || t.Model.Status == TrackStatus.Failed)
+            .Select(t => { 
+                t.Model.Priority = 0; 
+                return t.Model; 
+            }).ToList();
+            
+        if (tracksToDownload.Any())
+        {
+            _downloadManager.QueueTracks(tracksToDownload);
+        }
     }
 
     private void AnalyzeAlbum(AnalysisTier tier = AnalysisTier.Tier1)

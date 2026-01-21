@@ -26,6 +26,14 @@
                         <TextBlock Text="🎯"/>
                     </MenuItem.Icon>
                 </MenuItem>
+                <Separator/>
+                <MenuItem Header="Download Missing" 
+                          Command="{Binding $parent[views:LibraryPage].DataContext.DownloadMissingCommand}"
+                          CommandParameter="{Binding}">
+                    <MenuItem.Icon>
+                        <TextBlock Text="🔍"/>
+                    </MenuItem.Icon>
+                </MenuItem>
             </ContextMenu>
         </Grid.ContextMenu>
         <!-- Tiny Album Art -->

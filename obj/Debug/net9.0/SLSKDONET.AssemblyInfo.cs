@@ -11,10 +11,10 @@ using System;
 using System.Reflection;
 
 [assembly: System.Reflection.AssemblyCompanyAttribute("SLSK_CSV Contributors")]
-[assembly: System.Reflection.AssemblyConfigurationAttribute("debug")]
+[assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyDescriptionAttribute("Soulseek batch downloader using Soulseek.NET - Cross-platform with Avalonia UI")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("0.1.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("0.1.0-alpha+40d627dfb8c6b645aeb4f296aaad3de0604597c2")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("0.1.0-alpha+6c50ee05f65af8c99ea3ee1d75162f4d6108db76")]
 [assembly: System.Reflection.AssemblyProductAttribute("ORBIT")]
 [assembly: System.Reflection.AssemblyTitleAttribute("ORBIT")]
 [assembly: System.Reflection.AssemblyVersionAttribute("0.1.0.0")]

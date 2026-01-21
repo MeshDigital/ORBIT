@@ -63,6 +63,12 @@ public class AnalysisRunEntity
     
     [MaxLength(50)]
     public string TriggerSource { get; set; } = string.Empty; // "AutoQueue", "ManualUser", "ReAnalyze"
+
+    // Telemetry & Confidence (Phase 25)
+    public float BpmConfidence { get; set; }   // 0.0 - 1.0
+    public float KeyConfidence { get; set; }   // 0.0 - 1.0
+    public float IntegrityScore { get; set; } // Forensic upscale detection result
+    public AnalysisStage CurrentStage { get; set; }
 }
 
 public enum AnalysisRunStatus

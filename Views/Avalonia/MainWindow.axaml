@@ -206,6 +206,18 @@
                             </StackPanel>
                         </Grid>
                     </Button>
+
+                    <Button Classes="nav" 
+                            Command="{Binding NavigateImportCommand}"
+                            Classes.selected="{Binding CurrentPageType, Converter={StaticResource EqualityConverter}, ConverterParameter={x:Static models:PageType.Import}}">
+                        <Grid ColumnDefinitions="Auto,*">
+                            <Border Grid.ColumnSpan="2" CornerRadius="4" IsVisible="False"/>
+                            <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="12">
+                                <TextBlock Text="📥" FontSize="16"/>
+                                <TextBlock Text="Import" FontSize="14"/>
+                            </StackPanel>
+                        </Grid>
+                    </Button>
                     
                     <Button Classes="nav" 
                             Command="{Binding NavigateLibraryCommand}"

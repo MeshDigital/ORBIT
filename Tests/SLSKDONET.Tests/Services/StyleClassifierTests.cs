@@ -40,7 +40,7 @@ public class StyleClassifierTests : IDisposable
         _loggerMock = new Mock<ILogger<StyleClassifierService>>();
         
         // We need a real-ish PersonalClassifierService or mock it heavily
-        var dbServiceMock = new Mock<DatabaseService>(null!, null!, null!); // Mock DatabaseService
+        var dbServiceMock = new Mock<DatabaseService>(null!, null!, null!, null!); // Mock DatabaseService
         _personalClassifierMock = new Mock<PersonalClassifierService>(dbServiceMock.Object);
 
         _service = new StyleClassifierService(dbFactoryMock.Object, _loggerMock.Object, _personalClassifierMock.Object);

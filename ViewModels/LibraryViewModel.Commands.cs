@@ -33,6 +33,7 @@ public partial class LibraryViewModel
     public ICommand DeleteProjectCommand { get; set; } = null!;
     public ICommand PlayAlbumCommand { get; set; } = null!;
     public ICommand DownloadAlbumCommand { get; set; } = null!;
+    public ICommand DownloadMissingCommand { get; set; } = null!;
     public ICommand ExportMonthlyDropCommand { get; set; } = null!;
     public ICommand FindHarmonicMatchesCommand { get; set; } = null!;
     public ICommand ToggleMixHelperCommand { get; set; } = null!;
@@ -113,6 +114,7 @@ public partial class LibraryViewModel
         DeleteProjectCommand = new AsyncRelayCommand<object>(ExecuteDeleteProjectAsync);
         PlayAlbumCommand = new AsyncRelayCommand<object>(ExecutePlayAlbumAsync);
         DownloadAlbumCommand = new AsyncRelayCommand<object>(ExecuteDownloadAlbumAsync);
+        DownloadMissingCommand = new AsyncRelayCommand<object>(ExecuteDownloadMissingAsync);
         ExportMonthlyDropCommand = new AsyncRelayCommand(ExecuteExportMonthlyDropAsync);
         
         FindHarmonicMatchesCommand = new AsyncRelayCommand<PlaylistTrackViewModel>(ExecuteFindHarmonicMatchesAsync);
@@ -324,10 +326,36 @@ public partial class LibraryViewModel
         if (param is PlaylistJob project)
         {
             var tracks = await _libraryService.LoadPlaylistTracksAsync(project.Id);
-            var pending = tracks.Where(t => t.Status != TrackStatus.Downloaded).ToList();
-            if (pending.Any())
+            if (tracks.Any())
             {
-                _notificationService.Show("Queueing Download", $"{pending.Count} tracks from {project.SourceTitle}", NotificationType.Information);
+                _notificationService.Show("Queueing Download", $"{tracks.Count} tracks from {project.SourceTitle}", NotificationType.Information);
+                
+                // Force Priority 0 so they hit the top of the queue immediately
+                foreach (var t in tracks) t.Priority = 0;
+                
+                _downloadManager.QueueTracks(tracks);
+            }
+        }
+    }
+
+    private async Task ExecuteDownloadMissingAsync(object? param)
+    {
+        if (param is PlaylistJob project)
+        {
+            var tracks = await _libraryService.LoadPlaylistTracksAsync(project.Id);
+            var missing = tracks.Where(t => t.Status == TrackStatus.Missing || t.Status == TrackStatus.Failed).ToList();
+            if (missing.Any())
+            {
+                _notificationService.Show("Queueing Missing Tracks", $"{missing.Count} missing tracks from {project.SourceTitle}", NotificationType.Information);
+                
+                // Force Priority 0
+                foreach (var t in missing) t.Priority = 0;
+                
+                _downloadManager.QueueTracks(missing);
+            }
+            else
+            {
+                _notificationService.Show("Download Missing", "All tracks are already downloaded or queued.", NotificationType.Information);
             }
         }
     }

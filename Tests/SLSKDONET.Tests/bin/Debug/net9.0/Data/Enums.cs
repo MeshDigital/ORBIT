@@ -15,3 +15,13 @@ public enum ActiveWorkspace
     Preparer, // Mix Helper + Inspector (Cueing)
     Forensic  // Full Page Lab (Deep Dive)
 }
+
+public enum AnalysisStage
+{
+    Probing,      // Hashing/Integrity
+    Waveform,     // Generating shimmers
+    Intelligence, // Essentia/ML
+    Forensics,    // Spectral Analysis
+    Finalizing,   // Writing Tags/Cues
+    Complete
+}

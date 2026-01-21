@@ -11,265 +11,311 @@
 
     <UserControl.Resources>
         <conv:StatusToColorConverter x:Key="StatusColorConverter"/>
+        <conv:ParameterizedBooleanConverter x:Key="ParameterizedBooleanConverter"/>
     </UserControl.Resources>
 
-    <Grid RowDefinitions="Auto,Auto,Auto,Auto,*,Auto,*,Auto,Auto">
-        <!-- MASTER VIEW: Analysis Queue -->
-            <!-- ROW 0: MISSION CONTROL HEADER -->
-            <Grid Grid.Row="0" Margin="32,24" ColumnDefinitions="*, Auto">
+    <UserControl.Styles>
+        <!-- MISSION CONTROL STYLES -->
+        <Style Selector="Border.missionCard">
+            <Setter Property="Background" Value="#CC252526"/>
+            <Setter Property="BorderBrush">
+                <Setter.Value>
+                    <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
+                        <GradientStop Color="#33FFFFFF" Offset="0"/>
+                        <GradientStop Color="#11FFFFFF" Offset="0.5"/>
+                        <GradientStop Color="#220078D4" Offset="1"/>
+                    </LinearGradientBrush>
+                </Setter.Value>
+            </Setter>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="CornerRadius" Value="8"/>
+            <Setter Property="Padding" Value="16"/>
+            <Setter Property="Margin" Value="0,0,0,8"/>
+            <Setter Property="Effect">
+                <Setter.Value>
+                    <DropShadowEffect BlurRadius="15" Color="#66000000" Opacity="0.4" OffsetX="2" OffsetY="2"/>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style Selector="Border.missionCard.failed">
+            <Setter Property="BorderBrush" Value="#66F44336"/> 
+        </Style>
+
+        <!-- Hover Effect Trigger -->
+        <Style Selector="Border.missionCard:pointerover">
+             <Setter Property="Background" Value="#DD2D2D30"/>
+             <Setter Property="BorderBrush" Value="#4EC9B0"/>
+        </Style>
+    </UserControl.Styles>
+
+    <!-- MAIN LAYOUT: Sticky Header + Scrollable Content -->
+    <Grid RowDefinitions="Auto, *">
+        
+        <!-- HEADER (Row 0) -->
+        <Border Grid.Row="0" Background="#1E1E1E" BorderBrush="#333" BorderThickness="0,0,0,1" Padding="32,24" ZIndex="10">
+            <Grid ColumnDefinitions="*, Auto">
                 <StackPanel Spacing="4">
-                    <TextBlock Text="MISSION CONTROL: ANALYSIS ENGINE" FontSize="20" FontWeight="Bold" LetterSpacing="2"/>
-                    <TextBlock Text="ORBIT LIVE TELEMETRY SYSTEM" FontSize="11" Foreground="#666" LetterSpacing="3"/>
+                    <StackPanel Orientation="Horizontal" Spacing="12">
+                        <TextBlock Text="MISSION CONTROL" FontSize="20" FontWeight="Bold" LetterSpacing="2"/>
+                        <!-- System Pressure Indicator -->
+                        <Border Background="#22F44336" CornerRadius="4" Padding="6,2" VerticalAlignment="Center" IsVisible="False">
+                            <StackPanel Orientation="Horizontal" Spacing="4">
+                                <TextBlock Text="⚠️ SYSTEM PRESSURE" FontSize="10" FontWeight="Bold" Foreground="#F44336"/>
+                            </StackPanel>
+                        </Border>
+                    </StackPanel>
+                    <TextBlock Text="ORBIT LIVE TELEMETRY SYSTEM v2.0" FontSize="11" Foreground="#666" LetterSpacing="3"/>
                 </StackPanel>
-                
-                <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="16">
-                    <Button Command="{Binding RunBrainTestCommand}" IsEnabled="{Binding !IsTestRunning}"
-                            Background="#114EC9B0" BorderBrush="#4EC9B0" BorderThickness="1">
-                        <StackPanel Orientation="Horizontal" Spacing="8">
-                            <TextBlock Text="🧠" VerticalAlignment="Center"/>
-                            <TextBlock Text="BRAIN TEST" FontWeight="Bold" Foreground="#4EC9B0"/>
-                        </StackPanel>
-                    </Button>
-                    <Button Command="{Binding PerformDemoPrepCommand}" IsEnabled="{Binding !IsPrepRunning}"
-                            Background="#11FFFFFF" BorderBrush="#33FFFFFF" BorderThickness="1">
-                        <TextBlock Text="SCAN LIBRARY" FontWeight="Bold"/>
-                    </Button>
+
+                <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="24">
+                    <!-- Stealth Mode Toggle -->
+                    <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                        <TextBlock Text="STEALTH MODE" FontSize="10" Foreground="#888" VerticalAlignment="Center"/>
+                        <ToggleSwitch IsChecked="{Binding IsStealthModeEnabled}" OnContent="" OffContent="" />
+                    </StackPanel>
+
+                    <!-- Global Actions -->
+                    <StackPanel Orientation="Horizontal" Spacing="12">
+                         <Button Command="{Binding RunBrainTestCommand}" IsEnabled="{Binding !IsTestRunning}"
+                                Background="#114EC9B0" BorderBrush="#4EC9B0" BorderThickness="1" CornerRadius="4">
+                            <StackPanel Orientation="Horizontal" Spacing="8">
+                                <TextBlock Text="🧠" VerticalAlignment="Center"/>
+                                <TextBlock Text="BRAIN TEST" FontWeight="Bold" Foreground="#4EC9B0"/>
+                            </StackPanel>
+                        </Button>
+                        <Button Command="{Binding PerformDemoPrepCommand}" IsEnabled="{Binding !IsPrepRunning}"
+                                Background="#11FFFFFF" BorderBrush="#33FFFFFF" BorderThickness="1" CornerRadius="4">
+                            <TextBlock Text="SCAN LIBRARY" FontWeight="Bold"/>
+                        </Button>
+                    </StackPanel>
                 </StackPanel>
             </Grid>
+        </Border>
 
-            <!-- ROW 1: ACTIVE THREADS COCKPIT -->
-            <Border Grid.Row="1" Margin="32,0,32,16" Background="#11FFFFFF" CornerRadius="12" Padding="20">
-                <Grid RowDefinitions="Auto, *">
-                    <TextBlock Grid.Row="0" Text="THREAD ACTIVITY &amp; CONFIDENCE" FontSize="12" FontWeight="Bold" Foreground="#888" Margin="0,0,0,15"/>
-                    <ItemsControl Grid.Row="1" ItemsSource="{Binding ActiveThreads}">
-                        <ItemsControl.ItemsPanel>
-                            <ItemsPanelTemplate>
-                                <WrapPanel Orientation="Horizontal"/>
-                            </ItemsPanelTemplate>
-                        </ItemsControl.ItemsPanel>
-                        <ItemsControl.ItemTemplate>
-                            <DataTemplate>
-                                <Border Background="#1A1A1A" Width="280" Height="140" Margin="0,0,12,12" 
-                                        BorderBrush="#33FFFFFF" BorderThickness="1" CornerRadius="8">
-                                    <Grid RowDefinitions="*, Auto" Margin="15">
-                                        <!-- Top: Identity & Radars -->
-                                        <Grid Grid.Row="0" ColumnDefinitions="*, Auto, Auto">
-                                            <StackPanel Spacing="4" VerticalAlignment="Center">
-                                                <TextBlock Text="{Binding ThreadId, StringFormat='CORE {0}'}" FontSize="10" Foreground="#4EC9B0" FontWeight="Bold"/>
-                                                <TextBlock Text="{Binding CurrentTrack}" FontSize="12" FontWeight="SemiBold" TextTrimming="CharacterEllipsis"/>
-                                                <TextBlock Text="{Binding Status}" FontSize="10" Foreground="#666"/>
-                                            </StackPanel>
-                                            
-                                            <!-- Radars -->
-                                            <controls:ConfidenceRadar Grid.Column="1" Label="KEY" Value="{Binding KeyConfidence}" Color="#4EC9B0" Width="45" Height="45"/>
-                                            <controls:ConfidenceRadar Grid.Column="2" Label="BPM" Value="{Binding BpmConfidence}" Color="#F44336" Width="45" Height="45"/>
-                                        </Grid>
-                                        
-                                        <!-- Bottom: Progress & Stage LEDs -->
-                                        <StackPanel Grid.Row="1" Spacing="10">
-                                            <ProgressBar Value="{Binding Progress}" Maximum="100" Height="4" Foreground="#4EC9B0" Background="#11FFFFFF"/>
-                                            <ItemsControl ItemsSource="{Binding ActiveStages}">
-                                                <ItemsControl.ItemsPanel>
-                                                    <ItemsPanelTemplate>
-                                                        <StackPanel Orientation="Horizontal" Spacing="6" HorizontalAlignment="Center"/>
-                                                    </ItemsPanelTemplate>
-                                                </ItemsControl.ItemsPanel>
-                                                <ItemsControl.ItemTemplate>
-                                                    <DataTemplate>
-                                                        <Border Width="8" Height="8" CornerRadius="4" 
-                                                                Background="{Binding Color}" Opacity="{Binding Opacity}"
-                                                                ToolTip.Tip="{Binding Label}">
-
-                                                        </Border>
-                                                    </DataTemplate>
-                                                </ItemsControl.ItemTemplate>
-                                            </ItemsControl>
-                                        </StackPanel>
-                                    </Grid>
-                                </Border>
-                            </DataTemplate>
-                        </ItemsControl.ItemTemplate>
-                    </ItemsControl>
-                </Grid>
-            </Border>
-
-            <!-- ROW 2: ENGINE METRICS (THROUGHPUT) -->
-            <Grid Grid.Row="2" Margin="32,0,32,24" ColumnDefinitions="*,*,*,*">
-                <Border Grid.Column="0" Background="#11FFFFFF" Margin="0,0,8,0" Padding="20" CornerRadius="8">
-                    <StackPanel>
-                        <TextBlock Text="THROUGHPUT" FontSize="10" Foreground="#666" LetterSpacing="2"/>
-                        <StackPanel Orientation="Horizontal" Spacing="10" Margin="0,5">
-                            <TextBlock Text="{Binding TracksPerMinute, StringFormat='{}{0:F1}'}" FontSize="24" FontWeight="Bold"/>
-                            <TextBlock Text="TRK / MIN" FontSize="10" VerticalAlignment="Bottom" Margin="0,0,0,4" Foreground="#444"/>
-                        </StackPanel>
-                    </StackPanel>
-                </Border>
-                <Border Grid.Column="1" Background="#11FFFFFF" Margin="8,0,8,0" Padding="20" CornerRadius="8">
-                    <StackPanel>
-                        <TextBlock Text="SESSION PROCESSED" FontSize="10" Foreground="#666" LetterSpacing="2"/>
-                        <TextBlock Text="{Binding TotalProcessed}" FontSize="24" FontWeight="Bold" Margin="0,5"/>
-                    </StackPanel>
-                </Border>
-                <Border Grid.Column="2" Background="#11FFFFFF" Margin="8,0,8,0" Padding="20" CornerRadius="8">
-                    <StackPanel>
-                        <TextBlock Text="ESTIMATED COMPLETION" FontSize="10" Foreground="#666" LetterSpacing="2"/>
-                        <TextBlock Text="{Binding EstimatedCompletion}" FontSize="24" FontWeight="Bold" Foreground="#4EC9B0" Margin="0,5"/>
-                    </StackPanel>
-                </Border>
-                <Border Grid.Column="3" Background="#11FFFFFF" Margin="8,0,0,0" Padding="20" CornerRadius="8">
-                    <StackPanel>
-                        <TextBlock Text="PERFORMANCE MODE" FontSize="10" Foreground="#666" LetterSpacing="2"/>
-                        <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,5">
-                            <TextBlock Text="{Binding PerformanceMode}" FontWeight="Bold" FontSize="18" Foreground="#4EC9B0"/>
-                            <Border Background="#224EC9B0" CornerRadius="4" Padding="4,2" VerticalAlignment="Center">
-                                <TextBlock Text="{Binding ConcurrencyLimit, StringFormat='{}{0} CORES'}" 
-                                           FontSize="9" FontWeight="Bold" Foreground="#4EC9B0"/>
-                            </Border>
-                        </StackPanel>
-                    </StackPanel>
-                </Border>
-            </Grid>
-
-            <!-- ROW 3: FORENSIC STREAM CONTROL -->
-            <Grid Grid.Row="3" Margin="32,0,32,16">
-                 <Button Command="{Binding ToggleForensicStreamCommand}" HorizontalAlignment="Stretch" Padding="15,8" Background="#0AFFFFFF">
-                    <Grid ColumnDefinitions="Auto, *, Auto">
-                        <TextBlock Text="🔍 LIVE FORENSIC STREAM" FontSize="11" FontWeight="Bold" Foreground="#4EC9B0" LetterSpacing="1"/>
-                        <TextBlock Grid.Column="2" Text="{Binding IsForensicStreamExpanded, Converter={StaticResource ParameterizedBooleanConverter}, ConverterParameter='COLLAPSE|EXPAND'}" FontSize="10" Foreground="#666"/>
-                    </Grid>
-                 </Button>
-            </Grid>
-
-            <!-- Active Jobs (Row 4) - Using * to fill available space -->
-            <Grid Grid.Row="4" Margin="32,16,32,0" RowDefinitions="Auto,*">
-                <Grid Grid.Row="0" Margin="0,0,0,8">
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="*"/>
-                        <ColumnDefinition Width="Auto"/>
-                    </Grid.ColumnDefinitions>
-                    <TextBlock Text="ACTIVE PROCESSING" FontSize="12" FontWeight="Bold" Foreground="#4EC9B0"/>
-                    <Button Grid.Column="1" Content="🧹 Purge Stuck" 
-                            Command="{Binding PurgeStuckJobsCommand}"
-                            FontSize="10" Padding="8,2" Classes="accent" Background="Transparent" BorderBrush="#F44336" Foreground="#F44336"/>
-                </Grid>
-                
-                <DataGrid Grid.Row="1" ItemsSource="{Binding ActiveJobs}" AutoGenerateColumns="False" 
-                          CanUserResizeColumns="True" Background="#252526" BorderThickness="0" CornerRadius="8"
-                          GridLinesVisibility="Horizontal" HeadersVisibility="Column">
-                    <DataGrid.Columns>
-                        <DataGridTextColumn Header="File" Binding="{Binding FileName}" Width="*"/>
-                        <DataGridTextColumn Header="Status" Binding="{Binding Status}" Width="120"/>
-                        <DataGridTextColumn Header="Step" Binding="{Binding Step}" Width="180"/>
-                        <DataGridTemplateColumn Header="Telemetry" Width="200">
-                            <DataGridTemplateColumn.CellTemplate>
-                                <DataTemplate>
-                                    <Grid Margin="12,0">
-                                        <!-- Shimmering Waveform Placeholder -->
-                                        <Border Height="20" Background="#11FFFFFF" CornerRadius="4" ClipToBounds="True">
-                                            <Panel>
-                                                <!-- Animated Gradient Shimmer -->
-                                                <Rectangle Fill="#224EC9B0" Width="200" HorizontalAlignment="Left"
-                                                           Opacity="0.3">
-                                                    <Rectangle.RenderTransform>
-                                                        <TranslateTransform X="-200"/>
-                                                    </Rectangle.RenderTransform>
-                                                </Rectangle>
-
-                                                <!-- Fake Waveform Path -->
-                                                <Path Data="M0,10 L5,2 L10,18 L15,5 L20,15 L25,0 L30,20 L35,8 L40,12 L45,3 L50,17 L55,5 L60,15 L65,0 L70,20 L75,8 L80,12 L85,3 L90,17 L95,5 L100,15 L105,0 L110,20 L115,8 L120,12 L125,3 L130,17 L135,5 L140,15 L145,0 L150,20 L155,8 L160,12 L165,3 L170,17 L175,5 L180,15 L185,0 L190,20 L195,8 L200,10" 
-                                                      Stroke="#4EC9B0" StrokeThickness="1" Stretch="Fill" Opacity="0.6"/>
-                                                
-
-                                            </Panel>
-                                        </Border>
-                                        <TextBlock Text="{Binding ProgressPercent, StringFormat='{}{0}%'}" 
-                                                 FontSize="9" FontWeight="Bold" Foreground="White" 
-                                                 HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                                    </Grid>
-                                </DataTemplate>
-                            </DataGridTemplateColumn.CellTemplate>
-                        </DataGridTemplateColumn>
-                    </DataGrid.Columns>
-                </DataGrid>
-            </Grid>
-
-            <!-- Splitter (Row 5) -->
-            <GridSplitter Grid.Row="5" Background="#333" Height="2" HorizontalAlignment="Stretch" Margin="32,2"/>
-
-            <!-- Completed Jobs (Row 6) - Using * to fill available space -->
-            <Grid Grid.Row="6" Margin="32,0,32,0" RowDefinitions="Auto,*">
-                <Grid Grid.Row="0" Margin="0,0,0,8">
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="*"/>
-                        <ColumnDefinition Width="Auto"/>
-                    </Grid.ColumnDefinitions>
-                     <TextBlock Text="RECENTLY COMPLETED" FontSize="12" FontWeight="Bold" Foreground="#1DB954"/>
-                     <Button Grid.Column="1" Content="Clear All" 
-                             Command="{Binding ClearCompletedCommand}"
-                             FontSize="10" Padding="8,2" Background="Transparent" Foreground="#888"/>
-                </Grid>
-               
-                <DataGrid Grid.Row="1" ItemsSource="{Binding CompletedJobs}" AutoGenerateColumns="False" 
-                          CanUserResizeColumns="True" Background="#252526" BorderThickness="0" CornerRadius="8"
-                          GridLinesVisibility="Horizontal" HeadersVisibility="Column">
-                    <DataGrid.Columns>
-                        <DataGridTextColumn Header="File" Binding="{Binding FileName}" Width="*"/>
-                        <DataGridTextColumn Header="Status" Binding="{Binding Status}" Width="120"/>
-                        <DataGridTextColumn Header="Time" Binding="{Binding Age}" Width="100"/>
-                        <DataGridTemplateColumn Header="Actions" Width="180">
-                             <DataGridTemplateColumn.CellTemplate>
-                                <DataTemplate>
-                                    <StackPanel Orientation="Horizontal" Spacing="4">
-                                        <Button ToolTip.Tip="Play"
-                                                Command="{Binding $parent[UserControl].DataContext.PlayTrackCommand}" 
-                                                CommandParameter="{Binding}"
-                                                FontSize="11" Padding="6" Background="Transparent" Foreground="#1DB954">
-                                            <PathIcon Data="{StaticResource play_circle_regular}" Width="14" Height="14"/>
-                                        </Button>
-                                        <Button ToolTip.Tip="Locate File"
-                                                Command="{Binding $parent[UserControl].DataContext.LocateTrackCommand}" 
-                                                CommandParameter="{Binding}"
-                                                FontSize="11" Padding="6" Background="Transparent" Foreground="#4EC9B0">
-                                            <PathIcon Data="{StaticResource folder_open_regular}" Width="14" Height="14"/>
-                                        </Button>
-                                        <Button Content="Inspect" 
-                                                Command="{Binding $parent[UserControl].DataContext.InspectTrackCommand}" 
-                                                CommandParameter="{Binding}"
-                                                FontSize="10" Padding="8,2" Margin="4,0,0,0"
-                                                Classes="accent"/>
-                                    </StackPanel>
-                                </DataTemplate>
-                             </DataGridTemplateColumn.CellTemplate>
-                        </DataGridTemplateColumn>
-                    </DataGrid.Columns>
-                </DataGrid>
-            </Grid>
+        <!-- CONTENT (Row 1) -->
+        <TabControl Grid.Row="1" Margin="32,0" Padding="0,16,0,0">
             
-            <!-- Splitter (Row 7) -->
-            <GridSplitter Grid.Row="7" Background="#333" Height="2" HorizontalAlignment="Stretch" Margin="32,2"/>
+            <!-- TAB 1: LIVE OPERATIONS (Cockpit) -->
+            <TabItem Header="LIVE OPS" FontSize="12" FontWeight="Bold">
+                <ScrollViewer Margin="0,16,0,0">
+                    <Grid RowDefinitions="Auto, Auto, Auto">
+                       
+                        <!-- METRICS HUD -->
+                         <Grid Grid.Row="0" ColumnDefinitions="*,*,*,*" Margin="0,0,0,24">
+                            <Border Grid.Column="0" Background="#11FFFFFF" Margin="0,0,8,0" Padding="16" CornerRadius="8">
+                                <StackPanel>
+                                    <TextBlock Text="THROUGHPUT" FontSize="10" Foreground="#666" LetterSpacing="2"/>
+                                    <TextBlock Text="{Binding TracksPerMinute, StringFormat='{}{0:F1} TRK/MIN'}" FontSize="20" FontWeight="Bold" Margin="0,4"/>
+                                </StackPanel>
+                            </Border>
+                            <Border Grid.Column="1" Background="#11FFFFFF" Margin="8,0,8,0" Padding="16" CornerRadius="8">
+                                <StackPanel>
+                                    <TextBlock Text="PROCESSED" FontSize="10" Foreground="#666" LetterSpacing="2"/>
+                                    <TextBlock Text="{Binding TotalProcessed}" FontSize="20" FontWeight="Bold" Margin="0,4"/>
+                                </StackPanel>
+                            </Border>
+                             <Border Grid.Column="2" Background="#11FFFFFF" Margin="8,0,8,0" Padding="16" CornerRadius="8">
+                                <StackPanel>
+                                    <TextBlock Text="ESTIMATED COMPLETION" FontSize="10" Foreground="#666" LetterSpacing="2"/>
+                                    <TextBlock Text="{Binding EstimatedCompletion}" FontSize="20" FontWeight="Bold" Foreground="#4EC9B0" Margin="0,4"/>
+                                </StackPanel>
+                            </Border>
+                             <!-- Performance Mode Indicator -->
+                            <Border Grid.Column="3" Background="#11FFFFFF" Margin="8,0,0,0" Padding="16" CornerRadius="8">
+                                <StackPanel>
+                                    <TextBlock Text="PERFORMANCE MODE" FontSize="10" Foreground="#666" LetterSpacing="2"/>
+                                    <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,4">
+                                        <TextBlock Text="{Binding PerformanceMode}" FontWeight="Bold" FontSize="16" Foreground="#4EC9B0"/>
+                                        <Border Background="#224EC9B0" CornerRadius="4" Padding="4,2" VerticalAlignment="Center">
+                                            <TextBlock Text="{Binding ConcurrencyLimit, StringFormat='{}{0} CORES'}" 
+                                                       FontSize="9" FontWeight="Bold" Foreground="#4EC9B0"/>
+                                        </Border>
+                                    </StackPanel>
+                                </StackPanel>
+                            </Border>
+                        </Grid>
 
-            <!-- Failed Jobs (Row 8) - Fixed height to avoid domination, but resizable via splitter above if rows were star -->
-            <!-- Actually, let's make it 150px fixed unless resize -->
-            <Grid Grid.Row="8" Margin="32,0,32,16" RowDefinitions="Auto,*">
-                 <Grid Grid.Row="0" Margin="0,0,0,8">
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="*"/>
-                        <ColumnDefinition Width="Auto"/>
-                    </Grid.ColumnDefinitions>
-                     <TextBlock Text="FAILED / ERRORS" FontSize="12" FontWeight="Bold" Foreground="#F44336"/>
-                     <Button Grid.Column="1" Content="Clear All" 
-                             Command="{Binding ClearFailedCommand}"
-                             FontSize="10" Padding="8,2" Background="Transparent" Foreground="#888"/>
+                        <!-- ACTIVE THREADS GRID -->
+                        <TextBlock Grid.Row="1" Text="ACTIVE THREADS" FontSize="12" FontWeight="Bold" Foreground="#666" Margin="0,0,0,12"/>
+                        <ItemsControl Grid.Row="1" ItemsSource="{Binding ActiveThreads}" Margin="0,0,0,24">
+                            <ItemsControl.ItemsPanel>
+                                <ItemsPanelTemplate>
+                                    <WrapPanel Orientation="Horizontal"/>
+                                </ItemsPanelTemplate>
+                            </ItemsControl.ItemsPanel>
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <Border Background="#1A1A1A" Width="270" Height="130" Margin="0,0,12,12" 
+                                            BorderBrush="#33FFFFFF" BorderThickness="1" CornerRadius="8">
+                                        <Grid RowDefinitions="*, Auto" Margin="12">
+                                            <Grid Grid.Row="0" ColumnDefinitions="*, Auto">
+                                                <StackPanel Spacing="4">
+                                                    <!-- Thread ID with Eco Icon possibility -->
+                                                    <StackPanel Orientation="Horizontal" Spacing="4">
+                                                        <TextBlock Text="{Binding ThreadId, StringFormat='CORE {0}'}" FontSize="10" Foreground="#4EC9B0" FontWeight="Bold"/>
+                                                    </StackPanel>
+                                                    <TextBlock Text="{Binding CurrentTrack}" FontSize="11" FontWeight="SemiBold" TextTrimming="CharacterEllipsis"/>
+                                                    <TextBlock Text="{Binding Status}" FontSize="10" Foreground="#666"/>
+                                                </StackPanel>
+                                                <!-- Confidence Radars -->
+                                                <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="4">
+                                                     <controls:ConfidenceRadar Label="KEY" Value="{Binding KeyConfidence}" Color="#4EC9B0" Width="36" Height="36"/>
+                                                     <controls:ConfidenceRadar Label="BPM" Value="{Binding BpmConfidence}" Color="#F44336" Width="36" Height="36"/>
+                                                </StackPanel>
+                                            </Grid>
+                                             <StackPanel Grid.Row="1" Spacing="8">
+                                                <ProgressBar Value="{Binding Progress}" Maximum="100" Height="3" Foreground="#4EC9B0" Background="#11FFFFFF"/>
+                                            </StackPanel>
+                                        </Grid>
+                                    </Border>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+
+                        <!-- ACTIVE PIPELINE -->
+                        <Grid Grid.Row="2">
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="*"/>
+                            </Grid.RowDefinitions>
+                             <Grid Grid.Row="0" Margin="0,0,0,8">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Text="ACTIVE PIPELINE" FontSize="12" FontWeight="Bold" Foreground="#4EC9B0"/>
+                                <Button Grid.Column="1" Content="🧹 Purge Stuck" Command="{Binding PurgeStuckJobsCommand}"
+                                        FontSize="10" Padding="8,2" Background="Transparent" BorderBrush="#F44336" Foreground="#F44336"/>
+                            </Grid>
+                            
+                            <!-- Card List for Active Jobs -->
+                           <ItemsControl Grid.Row="1" ItemsSource="{Binding ActiveJobs}">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <Border Classes="missionCard">
+                                            <Grid ColumnDefinitions="40, *, Auto, Auto" RowDefinitions="Auto, Auto">
+                                                <!-- Icon -->
+                                                <PathIcon Grid.RowSpan="2" Data="{StaticResource music_regular}" Width="16" Height="16" Foreground="#888" VerticalAlignment="Center" HorizontalAlignment="Center"/>
+                                                
+                                                <!-- Info -->
+                                                <StackPanel Grid.Column="1" Grid.Row="0" VerticalAlignment="Center">
+                                                    <TextBlock Text="{Binding FileName}" FontSize="13" FontWeight="SemiBold"/>
+                                                    <TextBlock Text="{Binding Status}" FontSize="11" Foreground="#888"/>
+                                                </StackPanel>
+                                                
+                                                <!-- Progress -->
+                                                <StackPanel Grid.Column="1" Grid.Row="1" Margin="0,8,0,0">
+                                                    <ProgressBar Value="{Binding ProgressPercent}" Maximum="100" Height="4" Foreground="#4EC9B0" Background="#22FFFFFF"/>
+                                                </StackPanel>
+
+                                                <!-- Step -->
+                                                <TextBlock Grid.Column="2" Grid.Row="0" Text="{Binding Step}" FontSize="11" Foreground="#666" Margin="16,0" VerticalAlignment="Center"/>
+                                            </Grid>
+                                        </Border>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                           </ItemsControl>
+                        </Grid>
+
+                    </Grid>
+                </ScrollViewer>
+            </TabItem>
+
+            <!-- TAB 2: MISSION LOG (History) -->
+            <TabItem Header="MISSION LOG" FontSize="12" FontWeight="Bold">
+                 <Grid RowDefinitions="Auto, *">
+                     <Grid Grid.Row="0" Margin="0,16,0,8">
+                         <TextBlock Text="RECENTLY COMPLETED" FontSize="12" FontWeight="Bold" Foreground="#1DB954"/>
+                         <Button Command="{Binding ClearCompletedCommand}" Content="Clear Log" HorizontalAlignment="Right" FontSize="10"/>
+                     </Grid>
+                     
+                     <ScrollViewer Grid.Row="1">
+                         <ItemsControl ItemsSource="{Binding CompletedJobs}">
+                             <ItemsControl.ItemsPanel>
+                                 <ItemsPanelTemplate>
+                                     <VirtualizingStackPanel />
+                                 </ItemsPanelTemplate>
+                             </ItemsControl.ItemsPanel>
+                             <ItemsControl.ItemTemplate>
+                                 <DataTemplate>
+                                     <Border Classes="missionCard">
+                                         <Grid ColumnDefinitions="Auto, *, Auto, Auto">
+                                              <!-- Integrity Pill -->
+                                             <Border Width="4" Background="#1DB954" CornerRadius="2" Margin="0,0,12,0" VerticalAlignment="Stretch"/>
+                                             
+                                             <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                                 <TextBlock Text="{Binding FileName}" FontSize="13" FontWeight="SemiBold"/>
+                                                 <TextBlock Text="{Binding TrackHash}" FontSize="10" FontFamily="Consolas" Foreground="#666"/>
+                                             </StackPanel>
+                                             
+                                             <TextBlock Grid.Column="2" Text="{Binding Age}" FontSize="11" Foreground="#888" VerticalAlignment="Center" Margin="16,0"/>
+                                             
+                                              <!-- Actions -->
+                                             <StackPanel Grid.Column="3" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                                                 <Button ToolTip.Tip="Play" Command="{Binding $parent[UserControl].DataContext.PlayTrackCommand}" CommandParameter="{Binding}" Background="Transparent">
+                                                     <PathIcon Data="{StaticResource play_circle_regular}" Foreground="#1DB954"/>
+                                                 </Button>
+                                                  <Button ToolTip.Tip="Inspect" Command="{Binding $parent[UserControl].DataContext.InspectTrackCommand}" CommandParameter="{Binding}" Background="Transparent">
+                                                     <PathIcon Data="{StaticResource alert_regular}" Foreground="#4EC9B0"/>
+                                                 </Button>
+                                             </StackPanel>
+                                         </Grid>
+                                     </Border>
+                                 </DataTemplate>
+                             </ItemsControl.ItemTemplate>
+                         </ItemsControl>
+                     </ScrollViewer>
                  </Grid>
-                 <DataGrid Grid.Row="1" ItemsSource="{Binding FailedJobs}" AutoGenerateColumns="False" 
-                           CanUserResizeColumns="True" Background="#252526" BorderThickness="0" CornerRadius="8"
-                           GridLinesVisibility="Horizontal" HeadersVisibility="Column">
-                    <DataGrid.Columns>
-                        <DataGridTextColumn Header="File" Binding="{Binding FileName}" Width="*"/>
-                        <DataGridTextColumn Header="Error" Binding="{Binding Error}" Width="2*"/>
-                        <DataGridTextColumn Header="Time" Binding="{Binding Age}" Width="100"/>
-                    </DataGrid.Columns>
-                </DataGrid>
-            </Grid>
-        </Grid>
+            </TabItem>
+
+            <!-- TAB 3: BLACK BOX (Failures) -->
+            <TabItem Header="BLACK BOX" FontSize="12" FontWeight="Bold">
+                 <Grid RowDefinitions="Auto, *">
+                     <Grid Grid.Row="0" Margin="0,16,0,8">
+                         <TextBlock Text="INCIDENT REPORT" FontSize="12" FontWeight="Bold" Foreground="#F44336"/>
+                         <Button Command="{Binding ClearFailedCommand}" Content="Clear All" HorizontalAlignment="Right" FontSize="10"/>
+                     </Grid>
+                     
+                     <ScrollViewer Grid.Row="1">
+                         <ItemsControl ItemsSource="{Binding FailedJobs}">
+                             <ItemsControl.ItemTemplate>
+                                 <DataTemplate>
+                                     <Border Classes="missionCard failed">
+                                         <Grid RowDefinitions="Auto, Auto, Auto">
+                                             <Grid Grid.Row="0" ColumnDefinitions="Auto, *, Auto">
+                                                 <PathIcon Data="{StaticResource error_circle_regular}" Foreground="#F44336" Margin="0,0,12,0"/>
+                                                 <TextBlock Grid.Column="1" Text="{Binding FileName}" FontSize="13" FontWeight="Bold" Foreground="#FFCCCC"/>
+                                                 <TextBlock Grid.Column="2" Text="{Binding Age}" FontSize="11" Foreground="#666"/>
+                                             </Grid>
+                                             
+                                             <SelectableTextBlock Grid.Row="1" Text="{Binding Error}" Margin="28,8,0,12" 
+                                                                  FontSize="11" Foreground="#FF8888" TextWrapping="Wrap" FontFamily="Consolas"/>
+                                             
+                                             <StackPanel Grid.Row="2" Orientation="Horizontal" Spacing="8" Margin="28,0,0,0">
+                                                  <!-- Deep Retry Context Menu could go here, for now just Retry button -->
+                                                  <Button Content="Retry Analysis" 
+                                                          Command="{Binding $parent[UserControl].DataContext.DeepRetryCommand}" 
+                                                          CommandParameter="{Binding}"
+                                                          Classes="accent" FontSize="11"/>
+                                             </StackPanel>
+                                         </Grid>
+                                     </Border>
+                                 </DataTemplate>
+                             </ItemsControl.ItemTemplate>
+                         </ItemsControl>
+                     </ScrollViewer>
+                 </Grid>
+            </TabItem>
+
+        </TabControl>
+        
+        <!-- Live Forensic Stream Overlay/Footer could go here if needed, but it's part of the page usually -->
+         <Grid Grid.Row="1" VerticalAlignment="Bottom" Margin="32,0,32,16" IsVisible="{Binding IsForensicStreamExpanded}">
+             <!-- Intentionally left simple for now as it was in previous design but sticking to tabs is cleaner. 
+                  Users can view logs in a separate window or we add a 4th tab. 
+                  For now hiding it to declutter unless requested. -->
+         </Grid>
+
+    </Grid>
 </UserControl>

@@ -211,7 +211,13 @@ public class ImportPreviewViewModel : INotifyPropertyChanged
 
             // Group by album for display
             GroupByAlbum();
-            StatusMessage = $"Loaded {ImportedTracks.Count} tracks";
+            
+            // Phase 22: Default to selecting missing tracks
+            await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() => 
+            {
+                SelectMissing();
+                StatusMessage = $"Loaded {ImportedTracks.Count} tracks";
+            });
             
             _logger.LogInformation("Import preview initialized with {Count} tracks from {Source}. First track: {Artist} - {Title}", 
                 ImportedTracks.Count, sourceTitle, 
@@ -377,6 +383,13 @@ public class ImportPreviewViewModel : INotifyPropertyChanged
 
              // Efficiently update groups
              UpdateAlbumGroupsIncremental(enrichedTracks);
+
+             // Auto-select missing tracks if they are not already in library
+             foreach (var selectable in enrichedTracks)
+             {
+                 if (!selectable.IsInLibrary)
+                     selectable.IsSelected = true;
+             }
 
              StatusMessage = $"Loaded {ImportedTracks.Count} tracks...";
              IsLoading = false; 

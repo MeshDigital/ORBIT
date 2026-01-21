@@ -55,6 +55,7 @@ public class RejectedResult
     public long FileSize { get; set; }
     public string Filename { get; set; } = "";
     public double SearchScore { get; set; } // ResultSorter score
+    public string? ScoreBreakdown { get; set; } // Phase 1.1: Detailed points breakdown
     
     /// <summary>
     /// Detailed rejection reason for logging/debugging.

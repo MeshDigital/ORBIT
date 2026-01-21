@@ -31,15 +31,8 @@ public class AudioAnalysisEntity
 
     public DateTime AnalyzedAt { get; set; } = DateTime.UtcNow;
 
-    // Phase 13: Cognitive Features (Scalars)
-    public double? Danceability { get; set; }      // 0.0 (Static) - 1.0 (Club)
-    public double? Arousal { get; set; }           // 0.0 (Calm) - 1.0 (Aggressive)
-    public double? Valence { get; set; }           // 0.0 (Sad/Dark) - 1.0 (Happy/Bright)
-    public double? Sadness { get; set; }           // 0.0 (Not Sad) - 1.0 (Melancholic) -> Phase 21
-    public bool IsInstrumental { get; set; }
-    public double? InstrumentalProbability { get; set; }
-
-    public string? MusicalStyle { get; set; }       // Top genre from Discogs model
+    // Phase 13: Cognitive Features (Moved to AudioFeaturesEntity)
+    // Removed: Danceability, Arousal, Valence, Sadness, IsInstrumental, InstrumentalProbability, MusicalStyle
     
     // --- Phase 21: Deep Learning Cortex (Vectors) ---
     // Storing 128-float array as a JSON string for database compatibility

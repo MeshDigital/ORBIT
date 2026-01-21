@@ -198,6 +198,20 @@ public class AnalysisQueueViewModel : ReactiveObject, IDisposable
         set => this.RaiseAndSetIfChanged(ref _prepStatus, value);
     }
 
+    // Phase 1.4: Stealth Mode
+    private bool _isStealthModeEnabled;
+    public bool IsStealthModeEnabled
+    {
+        get => _isStealthModeEnabled;
+        set
+        {
+            this.RaiseAndSetIfChanged(ref _isStealthModeEnabled, value);
+            _queueService.SetStealthMode(value);
+        }
+    }
+
+    public ReactiveCommand<AnalysisJobViewModel, Unit> DeepRetryCommand { get; }
+
     public ReactiveCommand<AnalysisJobViewModel, Unit> InspectTrackCommand { get; }
     public ReactiveCommand<LibraryEntry, Unit> InspectLibraryEntryCommand { get; }
     public ReactiveCommand<Unit, Unit> RunBrainTestCommand { get; }
@@ -298,6 +312,19 @@ public class AnalysisQueueViewModel : ReactiveObject, IDisposable
         PurgeStuckJobsCommand = ReactiveCommand.Create(PurgeStuckJobs);
         ClearCompletedCommand = ReactiveCommand.Create(() => CompletedJobs.Clear());
         ClearFailedCommand = ReactiveCommand.Create(() => FailedJobs.Clear());
+        
+        DeepRetryCommand = ReactiveCommand.Create<AnalysisJobViewModel>(job => 
+        {
+            if (job != null && !string.IsNullOrEmpty(job.FilePath) && !string.IsNullOrEmpty(job.TrackHash))
+            {
+                // Remove from failed list if present
+                if (FailedJobs.Contains(job)) FailedJobs.Remove(job);
+                
+                // Force re-queue
+                _queueService.ForceQueueAnalysis(job.FilePath, job.TrackHash);
+                _logger.LogInformation("Creating Deep Retry job for: {File}", job.FileName);
+            }
+        });
 
         // Job Control Commands
         PlayTrackCommand = ReactiveCommand.Create<AnalysisJobViewModel>(job => 

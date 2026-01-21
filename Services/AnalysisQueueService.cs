@@ -51,6 +51,7 @@ public class AnalysisQueueService : INotifyPropertyChanged
     private int _processedCount = 0;
     private string? _currentTrackHash = null;
     private bool _isPaused = false;
+    private bool _isStealthMode = false;
     
     // Thread tracking for Mission Control dashboard
     private readonly ConcurrentDictionary<int, ActiveThreadInfo> _activeThreads = new();
@@ -112,6 +113,26 @@ public class AnalysisQueueService : INotifyPropertyChanged
                 PublishStatusEvent();
             }
         }
+    }
+
+    public bool IsStealthMode
+    {
+        get => _isStealthMode;
+        set
+        {
+            if (_isStealthMode != value)
+            {
+                _isStealthMode = value;
+                OnPropertyChanged();
+                PublishStatusEvent();
+            }
+        }
+    }
+
+    public void SetStealthMode(bool enabled)
+    {
+        IsStealthMode = enabled;
+        _logger.LogInformation("🕵️ Mission Control: Stealth Mode set to {Enabled}", enabled);
     }
 
     public AnalysisQueueService(IEventBus eventBus, ILogger<AnalysisQueueService> logger, IDbContextFactory<AppDbContext> dbFactory)
@@ -313,6 +334,14 @@ public class AnalysisQueueService : INotifyPropertyChanged
         }
     }
 
+    public void ForceQueueAnalysis(string filePath, string trackHash)
+    {
+         _channel.Writer.TryWrite(new AnalysisRequest(filePath, trackHash, AnalysisTier.Tier3, Force: true));
+         Interlocked.Increment(ref _queuedCount);
+         OnPropertyChanged(nameof(QueuedCount));
+         PublishStatusEvent();
+    }
+
     private void PublishStatusEvent()
     {
         _eventBus.Publish(new AnalysisQueueStatusChangedEvent(
@@ -320,8 +349,8 @@ public class AnalysisQueueService : INotifyPropertyChanged
             ProcessedCount,
             CurrentTrackHash,
             IsPaused,
-            SystemInfoHelper.GetCurrentPowerMode().ToString(),
-            SystemInfoHelper.GetOptimalParallelism() // Note: Dynamic limit is internal to worker, exposing optimal here for now, or we need to expose dynamic from worker.
+            IsStealthMode ? "Stealth (Eco)" : SystemInfoHelper.GetCurrentPowerMode().ToString(),
+            SystemInfoHelper.GetOptimalParallelism()
         ));
     }
 
@@ -382,7 +411,7 @@ public class AnalysisQueueService : INotifyPropertyChanged
     public ChannelReader<AnalysisRequest> PriorityReader => _priorityChannel.Reader;
 }
 
-public record AnalysisRequest(string FilePath, string TrackHash, AnalysisTier Tier = AnalysisTier.Tier1);
+public record AnalysisRequest(string FilePath, string TrackHash, AnalysisTier Tier = AnalysisTier.Tier1, bool Force = false);
 
 public class AnalysisWorker : BackgroundService
 {
@@ -559,7 +588,7 @@ public class AnalysisWorker : BackgroundService
 
             // Phase 1.2: Determine Priority based on Power Mode (Architecture Aware)
             var powerMode = SystemInfoHelper.GetCurrentPowerMode();
-            var processPriority = (powerMode == SystemInfoHelper.PowerEfficiencyMode.Efficiency) 
+            var processPriority = (powerMode == SystemInfoHelper.PowerEfficiencyMode.Efficiency || _queue.IsStealthMode) 
                 ? System.Diagnostics.ProcessPriorityClass.Idle      // Eco Mode = E-Cores
                 : System.Diagnostics.ProcessPriorityClass.BelowNormal; // Balanced
 
@@ -738,8 +767,13 @@ public class AnalysisWorker : BackgroundService
                 PublishThrottled(new AnalysisProgressEvent(trackHash, "Running technical analysis...", 70, currentBpmConfidence, currentKeyConfidence, currentIntegrityScore));
                 
                 // Optimization: Check if DownloadManager already performed analysis (Phase 0.9 Resilience)
-                var existingAnalysis = await dbContext.AudioAnalysis.AsNoTracking()
-                    .FirstOrDefaultAsync(a => a.TrackUniqueHash == trackHash, linkedCts.Token);
+                // Unless Force is true (Phase 1.4: Deep Retry)
+                AudioAnalysisEntity? existingAnalysis = null;
+                if (!request.Force)
+                {
+                    existingAnalysis = await dbContext.AudioAnalysis.AsNoTracking()
+                        .FirstOrDefaultAsync(a => a.TrackUniqueHash == trackHash, linkedCts.Token);
+                }
 
                 if (existingAnalysis != null)
                 {

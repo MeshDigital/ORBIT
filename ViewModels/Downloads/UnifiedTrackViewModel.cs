@@ -125,6 +125,11 @@ public class UnifiedTrackViewModel : ReactiveObject, IDisplayableTrack, IDisposa
                  _eventBus.Publish(new SearchRequestedEvent(DetectedSubGenre));
              }
          });
+
+         ViewAllSearchResultsCommand = ReactiveCommand.Create(() => 
+         {
+             _eventBus.Publish(new SearchRequestedEvent($"{Model.Artist} {Model.Title}"));
+         });
     }
     
     private void FindSimilar()
@@ -441,6 +446,7 @@ public class UnifiedTrackViewModel : ReactiveObject, IDisplayableTrack, IDisposa
     public ICommand FilterByVibeCommand { get; }
     public ICommand FindSimilarCommand { get; }
     public ICommand FindSimilarAiCommand { get; }
+    public ICommand ViewAllSearchResultsCommand { get; }
 
     // Internal State
     private long _totalBytes;

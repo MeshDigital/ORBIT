@@ -58,6 +58,34 @@
                             </Grid>
                         </Button>
 
+                        <!-- Paste Link Section -->
+                        <Border Background="#121212" BorderBrush="#333" BorderThickness="1" CornerRadius="8" Padding="16">
+                            <StackPanel Spacing="12">
+                                <TextBlock Text="Paste Spotify Link" FontWeight="SemiBold" Foreground="#AAA" FontSize="12"/>
+                                <Grid ColumnDefinitions="*,Auto">
+                                    <TextBox Text="{Binding PlaylistUrl, Mode=TwoWay}"
+                                             Watermark="https://open.spotify.com/playlist/... or album/..."
+                                             Background="#1A1A1A"
+                                             BorderThickness="1"
+                                             Padding="12,10"
+                                             CornerRadius="4"
+                                             Margin="0,0,8,0"/>
+                                    <Button Grid.Column="1"
+                                            Command="{Binding LoadPlaylistCommand}"
+                                            IsEnabled="{Binding IsAuthenticated}"
+                                            Background="#1DB954"
+                                            Foreground="Black"
+                                            FontWeight="Bold"
+                                            Padding="20,0"
+                                            VerticalAlignment="Stretch"
+                                            CornerRadius="4">
+                                        <TextBlock Text="Import" VerticalAlignment="Center"/>
+                                    </Button>
+                                </Grid>
+                                <TextBlock Text="Supports Playlists and Albums" FontSize="10" Foreground="#666"/>
+                            </StackPanel>
+                        </Border>
+
                         <!-- Playlists Section -->
                         <TextBlock Text="Your Playlists" FontSize="14" FontWeight="SemiBold" Foreground="#AAA" Margin="0,8,0,0"/>
                         

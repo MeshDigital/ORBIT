@@ -38,6 +38,8 @@ public class TrackListViewModel : ReactiveObject, IDisposable
     private readonly IBulkOperationCoordinator _bulkCoordinator;
 
     public HierarchicalLibraryViewModel Hierarchical { get; }
+    
+    private readonly System.Reactive.Subjects.Subject<System.Reactive.Unit> _refreshRequestSubject = new();
 
     private ObservableCollection<PlaylistTrackViewModel> _currentProjectTracks = new();
     public ObservableCollection<PlaylistTrackViewModel> CurrentProjectTracks
@@ -501,6 +503,13 @@ public class TrackListViewModel : ReactiveObject, IDisposable
         _disposables.Add(eventBus.GetEvent<TrackAddedEvent>().Subscribe(OnTrackAdded));
 
         
+        // Throttled UI Refresh for dynamic changes (add/move/delete)
+        _refreshRequestSubject
+            .Throttle(TimeSpan.FromMilliseconds(500))
+            .ObserveOn(RxApp.MainThreadScheduler)
+            .Subscribe(_ => RefreshFilteredTracks())
+            .DisposeWith(_disposables);
+
         // Initial Load
         _ = LoadStyleFiltersAsync();
     }
@@ -545,63 +554,15 @@ public class TrackListViewModel : ReactiveObject, IDisposable
 
     private void OnTrackAdded(TrackAddedEvent evt)
     {
-        Dispatcher.UIThread.Post(() => {
-            // If the track belongs to the current project, add it
-            if (_mainViewModel?.LibraryViewModel?.SelectedProject?.Id == evt.TrackModel.PlaylistId)
-            {
-                // Prevents duplicates if the event is fired twice
-                if (CurrentProjectTracks.Any(t => t.Model.Id == evt.TrackModel.Id)) return;
-
-                var vm = new PlaylistTrackViewModel(evt.TrackModel, _eventBus, _libraryService, _artworkCache);
-                
-                // Sync Initial State
-                if (evt.InitialState.HasValue)
-                {
-                    vm.State = evt.InitialState.Value;
-                }
-
-                CurrentProjectTracks.Add(vm);
-                RefreshFilteredTracks();
-            }
-            // "All Tracks" project (Guid.Empty)
-            else if (_mainViewModel?.LibraryViewModel?.SelectedProject?.Id == Guid.Empty)
-            {
-                // In All Tracks view, we add it if it's a new unique file 
-                // but cloned tracks ARE new unique files.
-                if (CurrentProjectTracks.Any(t => t.Model.TrackUniqueHash == evt.TrackModel.TrackUniqueHash)) return;
-
-                var vm = new PlaylistTrackViewModel(evt.TrackModel, _eventBus, _libraryService, _artworkCache);
-                if (evt.InitialState.HasValue) vm.State = evt.InitialState.Value;
-                
-                CurrentProjectTracks.Add(vm);
-                RefreshFilteredTracks();
-            }
-        });
+        // Use the throttled refresh subject instead of immediate post
+        // This is critical for bulk imports (Spotify) to prevent UI thread flooding
+        _refreshRequestSubject.OnNext(System.Reactive.Unit.Default);
     }
 
     private void OnTrackMoved(TrackMovedEvent evt)
     {
-        Dispatcher.UIThread.Post(() => {
-            // If moved from this project, remove it
-            if (_mainViewModel?.LibraryViewModel?.SelectedProject?.Id == evt.OldProjectId)
-            {
-                var track = CurrentProjectTracks.FirstOrDefault(t => t.GlobalId == evt.TrackGlobalId);
-                if (track != null)
-                {
-                    if (track is IDisposable disposable) disposable.Dispose();
-                    CurrentProjectTracks.Remove(track);
-                    RefreshFilteredTracks();
-                }
-            }
-            // If moved to this project, and it's not already here (sanity check)
-            else if (_mainViewModel?.LibraryViewModel?.SelectedProject?.Id == evt.NewProjectId)
-            {
-                // We might need to load the track from global or reload. 
-                // For simplicity, if we are in the target project, a refresh might be needed or just reload.
-                // But usually the user is in the source project during drag.
-                _ = LoadProjectTracksAsync(_mainViewModel.LibraryViewModel.SelectedProject);
-            }
-        });
+        // Use throttled refresh
+        _refreshRequestSubject.OnNext(System.Reactive.Unit.Default);
     }
 
     public void SetMainViewModel(MainViewModel mainViewModel)
@@ -750,15 +711,7 @@ public class TrackListViewModel : ReactiveObject, IDisposable
     {
         var selectedProjectId = _mainViewModel?.LibraryViewModel?.SelectedProject?.Id ?? Guid.Empty;
 
-        // Dispose existing virtualized collection if any
-        if (FilteredTracks is VirtualizedTrackCollection existingVtc)
-        {
-            existingVtc.Dispose();
-        }
-
         // Phase 23: Logic for In-Memory vs Database Virtualization
-        // If we have CurrentProjectTracks populated (e.g. from a Smart Crate or memory-only list),
-        // and it feels like we should be showing them (no project ID mismatch).
         if (CurrentProjectTracks.Any() && selectedProjectId != Guid.Empty && CurrentProjectTracks.First().SourceId != selectedProjectId)
         {
              // ID Mismatch - use virtualization to reload from the correct project
@@ -769,8 +722,11 @@ public class TrackListViewModel : ReactiveObject, IDisposable
              // Use in-memory tracks (useful for Smart Playlists that aren't DB crates)
              _logger.LogInformation("RefreshFilteredTracks: Using in-memory tracks (Count: {Count})", CurrentProjectTracks.Count);
              var filtered = CurrentProjectTracks.Where(FilterTracks).ToList();
+             
+             var oldVtcMemory = FilteredTracks as VirtualizedTrackCollection;
              FilteredTracks = new ObservableCollection<PlaylistTrackViewModel>(filtered);
              this.RaisePropertyChanged(nameof(LimitedTracks));
+             oldVtcMemory?.Dispose();
              return;
         }
 
@@ -791,9 +747,13 @@ public class TrackListViewModel : ReactiveObject, IDisposable
             }
         };
 
+        var oldVtc = FilteredTracks as VirtualizedTrackCollection;
         FilteredTracks = virtualized;
         this.RaisePropertyChanged(nameof(LimitedTracks));
         
+        // Dispose old collection AFTER assignment to avoid re-rendering disposed items
+        oldVtc?.Dispose();
+
         _logger.LogInformation("RefreshFilteredTracks (Virtualized): Updated filters for project {Id}. Search='{Search}', DL={DL}, Pend={Pend}", 
             selectedProjectId, SearchText, IsFilterDownloaded, IsFilterPending);
     }

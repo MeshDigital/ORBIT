@@ -40,6 +40,7 @@
                  <Border.ContextMenu>
                     <ContextMenu>
                         <MenuItem Header="Retry Download" Command="{Binding RetryCommand}"><MenuItem.Icon><PathIcon Data="{StaticResource arrow_counterclockwise_regular}" Width="16" Height="16"/></MenuItem.Icon></MenuItem>
+                        <MenuItem Header="View All Search Results" Command="{Binding ViewAllSearchResultsCommand}"><MenuItem.Icon><PathIcon Data="{StaticResource search_regular}" Width="16" Height="16"/></MenuItem.Icon></MenuItem>
                         <MenuItem Header="Remove from History" Command="{Binding CleanCommand}"><MenuItem.Icon><PathIcon Data="{StaticResource delete_regular}" Width="16" Height="16"/></MenuItem.Icon></MenuItem>
                     </ContextMenu>
                 </Border.ContextMenu>
@@ -98,9 +99,10 @@
                                                             Foreground="#666" FontStyle="Italic" FontSize="10" 
                                                             TextTrimming="CharacterEllipsis" Margin="0,1,0,0">
                                                      <ToolTip.Tip>
-                                                         <MultiBinding StringFormat="Score: {0} | {1}">
+                                                         <MultiBinding StringFormat="Score: {0}/100 | {1} &#x0a;{2}">
                                                              <Binding Path="SearchScore"/>
-                                                             <Binding Path="RejectionReason"/>
+                                                             <Binding Path="ShortReason"/>
+                                                             <Binding Path="ScoreBreakdown"/>
                                                          </MultiBinding>
                                                      </ToolTip.Tip>
                                                  </TextBlock>

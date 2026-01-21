@@ -46,6 +46,7 @@ public partial class LibraryViewModel : INotifyPropertyChanged, IDisposable
     private readonly SmartCrateService _smartCrateService;
     private readonly ForensicLabViewModel _forensicLab;
     private readonly IntelligenceCenterViewModel _intelligenceCenter;
+    private readonly DownloadManager _downloadManager;
 
     // Infrastructure for Sidebars/Delayed operations
     private System.Threading.Timer? _selectionDebounceTimer;
@@ -197,7 +198,8 @@ public partial class LibraryViewModel : INotifyPropertyChanged, IDisposable
         SearchFilterViewModel searchFilters,
         SmartCrateService smartCrateService,
         ForensicLabViewModel forensicLab,
-        IntelligenceCenterViewModel intelligenceCenter)
+        IntelligenceCenterViewModel intelligenceCenter,
+        DownloadManager downloadManager)
     {
         _logger = logger;
         _navigationService = navigationService;
@@ -220,6 +222,7 @@ public partial class LibraryViewModel : INotifyPropertyChanged, IDisposable
         _smartCrateService = smartCrateService;
         _forensicLab = forensicLab;
         _intelligenceCenter = intelligenceCenter;
+        _downloadManager = downloadManager;
         LibrarySourcesViewModel = librarySourcesViewModel;
 
         Projects = projects;

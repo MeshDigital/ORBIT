@@ -172,22 +172,26 @@ public class DownloadDiscoveryService
                 // Real-time evaluation of incoming results
                 var matchResult = _matcher.CalculateMatchResult(track, searchTrack);
                 var score = matchResult.Score;
+
+                // Phase 1.1: Store breakdown for UI transparency
+                searchTrack.ScoreBreakdown = matchResult.ScoreBreakdown;
+                searchTrack.CurrentRank = score;
                 
-                // If we find a "Gold" match (>0.92) early, trigger immediate download
-                if (score > 0.92)
+                // If we find a "Golden Key" match (> 95) early, trigger immediate download
+                if (score > 95)
                 {
-                    _logger.LogInformation("🚀 THRESHOLD TRIGGER: Found 'Gold' match ({Score:P0}) early! Skipping rest of search. File: {File}", 
+                    _logger.LogInformation("🚀 QUICK STRIKE: Found high-confidence match ({Score}/100) early! Skipping rest of search. File: {File}", 
                         score, searchTrack.Filename);
                     _forensicLogger.Info(track.TrackUniqueHash, Data.Entities.ForensicStage.Matching, 
-                        $"Threshold Trigger (Gold): Approved {searchTrack.Username}'s file ({score:P0}). Bitrate: {searchTrack.Bitrate}kbps",
+                        $"Quick Strike (95+): Approved {searchTrack.Username}'s file. {matchResult.ScoreBreakdown}",
                         track.TrackUniqueHash,
                         new { searchTrack.Filename, score, searchTrack.Bitrate, searchTrack.Username });
                     return new DiscoveryResult(searchTrack, log);
                 }
 
                 // Phase 3C.5: Speculative Start (Silver Match)
-                // If we have a decent match (>0.7) and 5 seconds have passed, take it.
-                if (score > 0.7)
+                // If we have a decent match (> 70) and 3 seconds have passed, take it.
+                if (score > 70)
                 {
                     // Track best silver match found so far
                     if (bestSilverMatch == null || score > bestSilverScore)
@@ -198,21 +202,21 @@ public class DownloadDiscoveryService
                 }
                 else
                 {
-                    // Track why it was rejected if it's in top 100 results to avoid overcounting
+                    // Track why it was rejected
                     if (allTracks.Count < 100)
                     {
                         if (matchResult.ShortReason?.StartsWith("Duration") == true) log.RejectedByQuality++;
-                        else if (matchResult.ShortReason?.Contains("Mismatch") == true) log.RejectedByQuality++;
+                        else if (matchResult.ShortReason?.Contains("Low Score") == true) log.RejectedByQuality++;
                     }
                 }
 
-                // Check speculative timeout (5s)
-                if ((DateTime.UtcNow - searchStartTime).TotalSeconds > 5 && bestSilverMatch != null)
+                // Check speculative timeout (3s)
+                if ((DateTime.UtcNow - searchStartTime).TotalSeconds > 3 && bestSilverMatch != null)
                 {
-                    _logger.LogInformation("🥈 SPECULATIVE TRIGGER: 5s timeout reached with Silver match ({Score:P0}). Starting speculative download. File: {File}", 
+                    _logger.LogInformation("🥈 SPECULATIVE TRIGGER: 3s timeout reached with match ({Score}/100). Starting download. File: {File}", 
                         bestSilverScore, bestSilverMatch.Filename);
                     _forensicLogger.Info(track.TrackUniqueHash, Data.Entities.ForensicStage.Matching, 
-                        $"Speculative Trigger (Silver): 5s timeout reached. Approved {bestSilverMatch.Username}'s file ({bestSilverScore:P0})",
+                        $"Speculative Trigger (70+): 3s timeout reached. Approved {bestSilverMatch.Username}'s file. Score: {bestSilverScore}",
                         track.TrackUniqueHash,
                         new { bestSilverMatch.Filename, bestSilverScore, bestSilverMatch.Bitrate, bestSilverMatch.Username });
                     return new DiscoveryResult(bestSilverMatch, log);

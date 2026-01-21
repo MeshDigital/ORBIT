@@ -430,6 +430,7 @@ public class DownloadManager : INotifyPropertyChanged, IDisposable
                         Status = TrackStatus.Missing,
                         ResolvedFilePath = string.Empty,
                         TrackNumber = idx++,
+                        Priority = 0,
                         // Map Metadata if available from import
                         SpotifyTrackId = track.SpotifyTrackId,
                         SpotifyAlbumId = track.SpotifyAlbumId,
@@ -458,7 +459,6 @@ public class DownloadManager : INotifyPropertyChanged, IDisposable
             // 1. Persist the job header and all associated tracks via LibraryService
             try
             {
-                await _libraryService.SavePlaylistJobWithTracksAsync(job);
                 await _libraryService.SavePlaylistJobWithTracksAsync(job);
                 _logger.LogInformation("Saved PlaylistJob to database with {TrackCount} tracks", job.PlaylistTracks.Count);
                 await _databaseService.LogPlaylistJobDiagnostic(job.Id);
