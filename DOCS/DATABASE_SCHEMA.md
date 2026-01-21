@@ -240,6 +240,50 @@ ON LibraryEntries (LastUpgradeScanAt)
 WHERE LastUpgradeScanAt IS NOT NULL;
 ```
 
+### Database Optimizations
+
+**SQLite Configuration** (AppDbContext.OnConfiguring):
+- **WAL Mode**: Write-Ahead Logging for better concurrency
+- **Shared Cache**: Enables cache sharing across connections
+- **Busy Timeout**: 2 seconds (prevents "Database is locked")
+- **Command Timeout**: 30 seconds for long operations
+- **Synchronous Mode**: NORMAL (safe with WAL, faster than FULL)
+- **Cache Size**: 10MB per connection
+- **Auto-Checkpoint**: 1000 pages (~4MB)
+
+---
+
+## New Entities (Jan 2026)
+
+### SmartCrateDefinitionEntity
+- Table: `smart_crate_definitions`
+- Fields: `Id (guid, pk)`, `Name`, `RulesJson` (serialized criteria), `SortOrder`, `CreatedAt`, `UpdatedAt`
+- Purpose: Rule-driven smart crates/playlists that auto-refresh based on BPM/Energy/Mood/Integrity filters.
+
+### GenreCueTemplateEntity
+- Table: `GenreCueTemplates`
+- Fields: `Id`, `GenreName`, `DisplayName`, `IsBuiltIn`, Cue1-8 targets/offsets/colors/labels, optional cues 5-8.
+- Purpose: Genre-aware cue templates for drop/build/outro placement.
+
+### TrackPhraseEntity
+- Table: `TrackPhrases`
+- Fields: `Id`, `TrackUniqueHash`, `Type (PhraseType)`, `StartTimeSeconds`, `EndTimeSeconds`, `EnergyLevel`, `Confidence`, `OrderIndex`, `Label`.
+- Purpose: Detected phrases/segments used for cue generation and visual overlays.
+
+### LibraryFolderEntity
+- Table: `LibraryFolders`
+- Fields: `Id (guid)`, `FolderPath`, `IsEnabled`, `AddedAt`, `LastScannedAt`, `TracksFound`.
+- Purpose: Configurable library source folders with scan history.
+
+### AnalysisRunEntity (Expanded)
+- Table: `analysis_runs`
+- Fields: `RunId (guid, pk)`, `TrackUniqueHash`, `TrackTitle`, `FilePath`, `StartedAt`, `CompletedAt`, `DurationMs`, `Tier (AnalysisTier)`, `Status`, `RetryAttempt`, `WorkerThreadId`, `ErrorMessage/Stack`, `FailedStage`, `WaveformGenerated`, `FfmpegAnalysisCompleted`, `EssentiaAnalysisCompleted`, `DatabaseSaved`, `FfmpegDurationMs`, `EssentiaDurationMs`, `DatabaseSaveDurationMs`, `AnalysisVersion`, `TriggerSource`, `BpmConfidence`, `KeyConfidence`, `IntegrityScore`, `CurrentStage`.
+- Purpose: Per-run audit trail for analysis with timing and confidence metrics.
+
+### AudioFeaturesEntity (New Fields)
+- Added columns: `InstrumentalProbability`, `MoodTag`, `MoodConfidence`, `Arousal`, `Valence`, `Sadness`, `VectorEmbeddingBytes`, `VggishEmbeddingJson`, `VisualizationVectorJson`.
+- Purpose: Store vocal probability, mood/arousal/valence, and vector embeddings for Sonic Match/AI features.
+
 ---
 
 ## Migrations

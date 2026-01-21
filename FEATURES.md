@@ -11,6 +11,12 @@
 - **Drag-and-Drop**: Drag tracks from Library to player sidebar
 - **Double-Click Play**: Quick playback from track lists
 
+### Stem Separation & Mixer
+- **Real-Time Stem Engine**: ONNX and Spleeter backends for 2-5 stem splits
+- **Stem Mixer**: Solo, mute, and gain per stem with synchronized transport
+- **Waveform Overlays**: Per-stem waveforms and meter visualization
+- **Live Routing**: Fast switching between hardware-friendly output profiles
+
 ### Visual Analysis
 - **Automatic Rekordbox Probing**: Detects `.DAT/.EXT` companion files for instant waveforms
 - **Beat Grid Support**: Displays original beat markers from analysis data
@@ -34,6 +40,19 @@
 - **Filter Options**: Filter by status (All, Downloaded, Pending)
 - **Search**: Search tracks within current view
 - **Sort Options**: Sort by artist, title, status, date added
+- **Column Customization**: Show/hide, resize, and reorder columns (Status, Artist, Title, Duration, BPM, Key, Bitrate, Album, etc.)
+- **Persistent Layout**: Column configuration auto-saves to `%APPDATA%/ORBIT/column_config.json`
+
+### Smart Playlists & Smart Crates
+- **Rule Builder**: Create vibe-driven playlists with BPM, energy, mood, and integrity rules
+- **Crate Templates**: Save reusable rule sets for rapid playlist generation
+- **Live Preview**: See matching track counts and example results before saving
+- **Auto-Refresh**: Crates update as new tracks meet criteria
+
+### Library Sources & Bulk Operations
+- **Folder Management**: Enable/disable library folders, track scan history, and counts
+- **Bulk Actions**: Run multi-track operations with progress modal and cancellation
+- **Virtualized Lists**: Optimized scrolling for 50k+ tracks with minimal memory use
 
 ### Persistence
 - **SQLite Database**: All data persisted locally
@@ -78,6 +97,17 @@
 - **Spectrogram Stack**: Visual breakdown of frequency content.
 - **Prediction Radar**: See exactly how "sure" the AI is about a track's style (e.g., "80% Techno, 20% House").
 
+## 🧠 Intelligence & Discovery
+
+### Intelligence Center
+- **Sonic Match**: AI similarity engine using TensorFlow and Essentia embeddings
+- **Confidence Telemetry**: Radar and cards showing match strength and mood
+- **Diagnostics Mode**: Inspect model inputs, outputs, and hardware capabilities
+
+### Search Diagnostics
+- **Search Rejection UI**: Clear rejection reasons with confidence and match score
+- **Forensic Tooltips**: Inline insights for why a result was accepted or rejected
+
 ---
 
 ## ⬇️ Download Management
@@ -99,6 +129,11 @@
 - **Timeout Handling**: Intelligent timeout detection
 - **File Validation**: Check file integrity after download
 - **Duplicate Detection**: Avoid downloading duplicates
+
+## 📤 Export & DJ Hardware
+- **Rekordbox/USB Export**: Hardware-ready exports with cue and tag mapping
+- **Cue Templates**: Genre-aware cue layouts (Drops, Builds, Outros)
+- **Serato/Universal Cues**: Writes Serato markers and universal cue formats
 
 ---
 

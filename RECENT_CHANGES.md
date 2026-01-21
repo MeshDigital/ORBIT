@@ -1,5 +1,38 @@
 # Recent Changes
 
+## [0.1.0-alpha.9.1] - Library UI Customization (Jan 21, 2026 - Latest)
+
+### New Features
+* **Column Configuration**: Save/restore column layout, width, visibility, and sort order to `%APPDATA%/ORBIT/column_config.json`.
+* **Default Columns**: Status, Artist, Title, Duration, BPM, Key, Bitrate, Format, Album, Genres, Added date.
+* **Reactive Persistence**: Debounced (2s) auto-save on column changes via Rx throttling.
+* **Schema Backup**: SchemaMigratorService handles auto-backup rotation (keep last 5), force-reset markers, and patching.
+
+## [0.1.0-alpha.9] - Stem Workspace & Smart Crates (Jan 21, 2026)
+
+### New Features
+* **Stem Workspace**: Real-time stem separation and mixing powered by ONNX/Spleeter with new Stem Mixer, Channel, and Waveform views.
+* **Smart Playlists & Smart Crates**: Rule-based playlist/crate builder with new dialogs, criteria models, and crate definitions.
+* **Intelligence Center**: Central AI hub with Sonic Match (TensorFlow model pool) and telemetry cards for vibe insights.
+* **Hardware Export**: New export service for Rekordbox/USB workflows with metadata mapping.
+* **Library Sources**: Folder management UI for scanning/refreshing library sources.
+
+### Improvements
+* **Library Virtualization v2**: Virtualized track collection for large libraries, smoother scrolling, and better caching.
+* **Bulk Operations**: Coordinator service plus modal to track long-running bulk tasks.
+* **Cue Generation**: Phrase detection + genre-aware cue templates with Serato/Universal cue writers.
+
+## [0.1.0-alpha.8] - Brain Tuning & Multicore (Jan 15, 2026)
+
+### New Features
+* **Brain Tuning (Phase 1.1)**: 0-100 weighted scoring, path-aware extraction, quick-strike downloads, and forensic tooltips.
+* **Multicore Optimization (Phase 1.2/1.3)**: Parallel analysis with performance metrics UI and hardware telemetry.
+* **Search Rejection UI**: Dedicated rejection diagnostics surfaced in Analysis Queue and Search pages.
+
+### Fixes & Stability
+* Improved SystemInfo hardware detection, parallel worker safety, and download discovery resilience.
+* Refined SearchResultMatcher scoring and SonicIntegrityService safeguards.
+
 ## [0.1.0-alpha.6] - Sonic Visualizations (Phase 18.2)
 
 ### New Features
