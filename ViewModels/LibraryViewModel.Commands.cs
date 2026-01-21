@@ -60,6 +60,8 @@ public partial class LibraryViewModel
     public ICommand QuickLookCommand { get; set; } = null!;
     public ICommand SmartEscapeCommand { get; set; } = null!;
     public ICommand ToggleUpgradeScoutCommand { get; set; } = null!;
+    public ICommand ToggleColumnCommand { get; set; } = null!;
+    public ICommand ResetViewCommand { get; set; } = null!;
 
 
     // Export Specific Properties
@@ -195,6 +197,8 @@ public partial class LibraryViewModel
         });
 
         SetViewModeCommand = new RelayCommand<TrackViewMode>(mode => ViewSettings.ViewMode = mode);
+        ToggleColumnCommand = new RelayCommand<ColumnDefinition>(ExecuteToggleColumn);
+        ResetViewCommand = new AsyncRelayCommand(ExecuteResetViewAsync);
     }
 
     public ICommand SetViewModeCommand { get; set; } = null!;
@@ -678,5 +682,34 @@ public partial class LibraryViewModel
                 _notificationService.Show("Rename Failed", ex.Message, NotificationType.Error);
             }
         }
+    }
+
+    private void ExecuteToggleColumn(ColumnDefinition? column)
+    {
+        if (column == null) return;
+        column.IsVisible = !column.IsVisible;
+        _columnConfigService.SaveConfiguration(AvailableColumns.ToList());
+    }
+
+    private async Task ExecuteResetViewAsync()
+    {
+        bool confirm = await _dialogService.ConfirmAsync(
+            "Reset Studio View",
+            "This will restore the default column layout. Are you sure?");
+        
+        if (confirm)
+        {
+            AvailableColumns.Clear();
+            var defaults = _columnConfigService.GetDefaultConfiguration();
+            foreach (var col in defaults) AvailableColumns.Add(col);
+            _columnConfigService.SaveConfiguration(defaults);
+            _notificationService.Show("View Reset", "Studio default layout restored.", NotificationType.Information);
+        }
+    }
+
+    public void OnColumnLayoutChanged()
+    {
+        // Called from View when columns are reordered or resized
+        _columnConfigService.SaveConfiguration(AvailableColumns.ToList());
     }
 }

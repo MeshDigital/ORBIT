@@ -7,7 +7,8 @@ public enum TrackViewMode
 {
     List,
     Cards,
-    Compact
+    Compact,
+    Pro
 }
 
 /// <summary>

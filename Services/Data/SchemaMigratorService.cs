@@ -1008,6 +1008,77 @@ public class SchemaMigratorService
                 await command.ExecuteNonQueryAsync();
             }
 
+            // 13. Phase 0: FTS5 Virtual Table for Instant Search
+            if (!TableExists("TracksFts"))
+            {
+                _logger.LogInformation("Patching Schema: Creating FTS5 Virtual Table (TracksFts)...");
+                command.CommandText = @"
+                    CREATE VIRTUAL TABLE IF NOT EXISTS TracksFts USING fts5(
+                        Artist, 
+                        Title, 
+                        content='Tracks', 
+                        content_rowid='Id'
+                    );
+
+                    -- Triggers to keep Search Index in sync automatically
+                    CREATE TRIGGER IF NOT EXISTS tbl_tracks_ai AFTER INSERT ON Tracks BEGIN
+                        INSERT INTO TracksFts(rowid, Artist, Title) VALUES (new.Id, new.Artist, new.Title);
+                    END;
+
+                    CREATE TRIGGER IF NOT EXISTS tbl_tracks_ad AFTER DELETE ON Tracks BEGIN
+                        INSERT INTO TracksFts(TracksFts, rowid, Artist, Title) VALUES('delete', old.Id, old.Artist, old.Title);
+                    END;
+
+                    CREATE TRIGGER IF NOT EXISTS tbl_tracks_au AFTER UPDATE ON Tracks BEGIN
+                        INSERT INTO TracksFts(TracksFts, rowid, Artist, Title) VALUES('delete', old.Id, old.Artist, old.Title);
+                        INSERT INTO TracksFts(rowid, Artist, Title) VALUES (new.Id, new.Artist, new.Title);
+                    END;
+                ";
+                await command.ExecuteNonQueryAsync();
+                
+                // Seed initial data if table was just created
+                _logger.LogInformation("Seeding FTS5 index from existing tracks...");
+                command.CommandText = "INSERT INTO TracksFts(rowid, Artist, Title) SELECT Id, Artist, Title FROM Tracks;";
+                await command.ExecuteNonQueryAsync();
+                _logger.LogInformation("✅ FTS5 search index seeded successfully.");
+            }
+
+            // 14. Phase 0: FTS5 Virtual Table for LibraryEntries (Main Library)
+            if (!TableExists("LibraryEntriesFts"))
+            {
+                _logger.LogInformation("Patching Schema: Creating FTS5 Virtual Table (LibraryEntriesFts)...");
+                command.CommandText = @"
+                    CREATE VIRTUAL TABLE IF NOT EXISTS LibraryEntriesFts USING fts5(
+                        Artist, 
+                        Title, 
+                        Album,
+                        content='LibraryEntries', 
+                        content_rowid='rowid'
+                    );
+
+                    -- Triggers to keep Library Index in sync automatically
+                    CREATE TRIGGER IF NOT EXISTS tbl_lib_ai AFTER INSERT ON LibraryEntries BEGIN
+                        INSERT INTO LibraryEntriesFts(rowid, Artist, Title, Album) VALUES (new.rowid, new.Artist, new.Title, new.Album);
+                    END;
+
+                    CREATE TRIGGER IF NOT EXISTS tbl_lib_ad AFTER DELETE ON LibraryEntries BEGIN
+                        INSERT INTO LibraryEntriesFts(LibraryEntriesFts, rowid, Artist, Title, Album) VALUES('delete', old.rowid, old.Artist, old.Title, old.Album);
+                    END;
+
+                    CREATE TRIGGER IF NOT EXISTS tbl_lib_au AFTER UPDATE ON LibraryEntries BEGIN
+                        INSERT INTO LibraryEntriesFts(LibraryEntriesFts, rowid, Artist, Title, Album) VALUES('delete', old.rowid, old.Artist, old.Title, old.Album);
+                        INSERT INTO LibraryEntriesFts(rowid, Artist, Title, Album) VALUES (new.rowid, new.Artist, new.Title, new.Album);
+                    END;
+                ";
+                await command.ExecuteNonQueryAsync();
+                
+                // Seed initial data
+                _logger.LogInformation("Seeding FTS5 library index...");
+                command.CommandText = "INSERT INTO LibraryEntriesFts(rowid, Artist, Title, Album) SELECT rowid, Artist, Title, Album FROM LibraryEntries;";
+                await command.ExecuteNonQueryAsync();
+                _logger.LogInformation("✅ Library FTS5 search index seeded successfully.");
+            }
+
             _logger.LogInformation("Schema patching completed.");
         }
         catch (Exception ex)

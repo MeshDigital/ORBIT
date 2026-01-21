@@ -47,6 +47,7 @@ public partial class LibraryViewModel : INotifyPropertyChanged, IDisposable
     private readonly ForensicLabViewModel _forensicLab;
     private readonly IntelligenceCenterViewModel _intelligenceCenter;
     private readonly DownloadManager _downloadManager;
+    private readonly Services.Library.ColumnConfigurationService _columnConfigService;
 
     // Infrastructure for Sidebars/Delayed operations
     private System.Threading.Timer? _selectionDebounceTimer;
@@ -58,6 +59,7 @@ public partial class LibraryViewModel : INotifyPropertyChanged, IDisposable
     public Library.SmartPlaylistViewModel SmartPlaylists { get; }
     public TrackInspectorViewModel TrackInspector { get; }
     public UpgradeScoutViewModel UpgradeScout { get; }
+    public System.Collections.ObjectModel.ObservableCollection<ColumnDefinition> AvailableColumns { get; } = new();
     public LibrarySourcesViewModel LibrarySourcesViewModel { get; }
     public ForensicLabViewModel ForensicLab => _forensicLab;
 
@@ -199,7 +201,8 @@ public partial class LibraryViewModel : INotifyPropertyChanged, IDisposable
         SmartCrateService smartCrateService,
         ForensicLabViewModel forensicLab,
         IntelligenceCenterViewModel intelligenceCenter,
-        DownloadManager downloadManager)
+        DownloadManager downloadManager,
+        Services.Library.ColumnConfigurationService columnConfigService)
     {
         _logger = logger;
         _navigationService = navigationService;
@@ -223,6 +226,7 @@ public partial class LibraryViewModel : INotifyPropertyChanged, IDisposable
         _forensicLab = forensicLab;
         _intelligenceCenter = intelligenceCenter;
         _downloadManager = downloadManager;
+        _columnConfigService = columnConfigService;
         LibrarySourcesViewModel = librarySourcesViewModel;
 
         Projects = projects;
@@ -233,6 +237,9 @@ public partial class LibraryViewModel : INotifyPropertyChanged, IDisposable
         TrackInspector = trackInspector;
         
         UpgradeScout.CloseRequested += (s, e) => IsUpgradeScoutVisible = false;
+
+        // Load columns
+        _ = InitializeColumnsAsync();
 
         InitializeCommands();
 
@@ -339,5 +346,14 @@ public partial class LibraryViewModel : INotifyPropertyChanged, IDisposable
             // Navigate to Library if not already there (MainViewModel handles this if we publish event)
             // But we are usually already in Library.
         });
+    }
+
+    private async Task InitializeColumnsAsync()
+    {
+        var columns = await _columnConfigService.LoadConfigurationAsync();
+        foreach (var col in columns.OrderBy(c => c.DisplayOrder))
+        {
+            AvailableColumns.Add(col);
+        }
     }
 }

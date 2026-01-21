@@ -45,12 +45,13 @@ public class AppDbContext : DbContext
         var dbPath = Path.Combine(appData, "ORBIT", "library.db");
         Directory.CreateDirectory(Path.GetDirectoryName(dbPath)!);
         
-        // Phase 1B: Enable WAL Mode for better concurrency
+        // Phase 1B/0: Enable WAL Mode and Busy Timeout for better concurrency
         var connectionString = new SqliteConnectionStringBuilder
         {
             DataSource = dbPath,
             Mode = SqliteOpenMode.ReadWriteCreate,
-            Cache = SqliteCacheMode.Shared // Enable shared cache for better concurrency
+            Cache = SqliteCacheMode.Shared, // Enable shared cache for better concurrency
+            DefaultTimeout = 2000 // 2 seconds busy timeout - prevents "Database is locked"
         }.ToString();
         
         optionsBuilder.UseSqlite(connectionString, options =>
@@ -111,6 +112,17 @@ public class AppDbContext : DbContext
             .WithOne(t => t.Job)
             .HasForeignKey(t => t.PlaylistId)
             .OnDelete(DeleteBehavior.Cascade);
+
+        // Phase 0: Composite Indexing for Library Performance
+        // Searching by Artist + Title is the #1 query.
+        modelBuilder.Entity<TrackEntity>()
+            .HasIndex(t => new { t.Artist, t.Title })
+            .HasDatabaseName("IX_Tracks_Artist_Title");
+
+        // Phase 0: Fast Lookup Index for Orchestration
+        modelBuilder.Entity<TrackEntity>()
+            .HasIndex(t => t.GlobalId)
+            .IsUnique();
 
         // Phase 1A: Add Query Indexes
         modelBuilder.Entity<PlaylistTrackEntity>()

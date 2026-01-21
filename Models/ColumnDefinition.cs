@@ -10,4 +10,7 @@ public class ColumnDefinition
     public int DisplayOrder { get; set; }
     public bool IsVisible { get; set; } = true;
     public string? PropertyPath { get; set; }
+    public bool CanSort { get; set; } = true;
+    public string? CellTemplateKey { get; set; } // For "Vibe" coloring or Star Ratings
+    public Type? DataType { get; set; } // Helps with numeric sorting (BPM vs Artist)
 }

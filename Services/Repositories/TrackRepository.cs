@@ -715,39 +715,57 @@ public class TrackRepository : ITrackRepository
     public async Task<int> GetTotalLibraryTrackCountAsync(string? filter = null, bool? downloadedOnly = null)
     {
         using var context = new AppDbContext();
-        var query = context.LibraryEntries.AsQueryable();
-
+        
         if (!string.IsNullOrEmpty(filter))
         {
-            var lowerFilter = filter.ToLower();
-            query = query.Where(t => t.Artist.ToLower().Contains(lowerFilter) || t.Title.ToLower().Contains(lowerFilter));
-        }
-        
-        if (downloadedOnly == true)
-        {
-            query = query.Where(t => t.FilePath != null && t.FilePath != "");
+            var formattedSearch = filter.Trim() + "*";
+            var count = await context.Database.ExecuteSqlRawAsync(
+                "SELECT COUNT(*) FROM LibraryEntries WHERE rowid IN (SELECT rowid FROM LibraryEntriesFts WHERE LibraryEntriesFts MATCH {0})", formattedSearch);
+            
+            // ExecuteSqlRawAsync returns the number of rows affected, not the count.
+            // We need to use a Different approach for Scalar results or just use the query.
+            
+            var query = context.LibraryEntries.FromSqlRaw(
+                "SELECT * FROM LibraryEntries WHERE rowid IN (SELECT rowid FROM LibraryEntriesFts WHERE LibraryEntriesFts MATCH {0})", formattedSearch);
+            
+            if (downloadedOnly == true)
+            {
+                query = query.Where(t => t.FilePath != null && t.FilePath != "");
+            }
+            
+            return await query.CountAsync();
         }
 
-        return await query.CountAsync();
+        var baseQuery = context.LibraryEntries.AsQueryable();
+        if (downloadedOnly == true)
+        {
+            baseQuery = baseQuery.Where(t => t.FilePath != null && t.FilePath != "");
+        }
+
+        return await baseQuery.CountAsync();
     }
 
     public async Task<List<PlaylistTrackEntity>> GetPagedAllTracksAsync(int skip, int take, string? filter = null, bool? downloadedOnly = null)
     {
         using var context = new AppDbContext();
         
-        // 1. Start with LibraryEntries (The Permanent Index)
-        var query = context.LibraryEntries
-            .Include(le => le.AudioFeatures) // FIX: Include AI Data
-            .AsQueryable();
+        IQueryable<LibraryEntryEntity> query;
 
-        // 2. Apply Filters (Replicate logic from ApplyFilters for consistency)
+        // 2. Apply Filters (Use FTS5 if filter is present)
         if (!string.IsNullOrEmpty(filter))
         {
-            var lowerFilter = filter.ToLower();
-            query = query.Where(t => t.Artist.ToLower().Contains(lowerFilter) || t.Title.ToLower().Contains(lowerFilter));
+            var formattedSearch = filter.Trim() + "*";
+            query = context.LibraryEntries
+                .FromSqlRaw("SELECT * FROM LibraryEntries WHERE rowid IN (SELECT rowid FROM LibraryEntriesFts WHERE LibraryEntriesFts MATCH {0})", formattedSearch);
+        }
+        else
+        {
+            query = context.LibraryEntries.AsQueryable();
         }
 
-        // 3. Apply DownloadedOnly (LibraryEntries don't track status perfectly, checking FilePath presence is a good proxy)
+        query = query.Include(le => le.AudioFeatures).AsNoTracking();
+
+        // 3. Apply DownloadedOnly
         if (downloadedOnly == true)
         {
             query = query.Where(t => t.FilePath != null && t.FilePath != "");
@@ -815,5 +833,18 @@ public class TrackRepository : ITrackRepository
             IsTrustworthy = e.Integrity != Data.IntegrityLevel.Suspicious && e.Integrity != Data.IntegrityLevel.None,
             QualityConfidence = (e.Bitrate >= 320 || e.Format == "flac") ? 1.0 : 0.5
         }).ToList();
+    }
+
+    public async Task<List<LibraryEntryEntity>> SearchLibraryFtsAsync(string searchTerm, int limit = 100)
+    {
+        using var context = new AppDbContext();
+        var formattedSearch = searchTerm.Trim() + "*";
+        
+        return await context.LibraryEntries
+            .FromSqlRaw("SELECT * FROM LibraryEntries WHERE rowid IN (SELECT rowid FROM LibraryEntriesFts WHERE LibraryEntriesFts MATCH {0})", formattedSearch)
+            .Include(le => le.AudioFeatures)
+            .AsNoTracking()
+            .Take(limit)
+            .ToListAsync();
     }
 }

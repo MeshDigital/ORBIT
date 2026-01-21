@@ -308,6 +308,14 @@ public class TrackListViewModel : ReactiveObject, IDisposable
             UpdateSelectionState();
         }
     }
+
+    public void UpdateSelection(System.Collections.Generic.IEnumerable<PlaylistTrackViewModel> selected)
+    {
+        // Don't trigger recursive updates if we're already changing selection
+        _selectedTracks.Clear();
+        foreach (var t in selected) _selectedTracks.Add(t);
+        UpdateSelectionState();
+    }
     
     // Phase 22: Available Vibes
     public ObservableCollection<string> AvailableVibes { get; } = new ObservableCollection<string>

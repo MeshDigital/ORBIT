@@ -13,6 +13,7 @@ using SLSKDONET.Data;
 using SLSKDONET.Services;
 using SLSKDONET.Services.InputParsers;
 using SLSKDONET.Services.Ranking;
+using SLSKDONET.Services.Library;
 using SLSKDONET.ViewModels;
 using SLSKDONET.Views;
 using System;
@@ -576,6 +577,7 @@ public partial class App : Application
         services.AddSingleton<DownloadLogService>();
         services.AddSingleton<LibraryService>();
         services.AddSingleton<ILibraryService>(provider => provider.GetRequiredService<LibraryService>());
+        services.AddSingleton<ColumnConfigurationService>();
 
         // Audio Player
         services.AddSingleton<IAudioPlayerService, AudioPlayerService>();

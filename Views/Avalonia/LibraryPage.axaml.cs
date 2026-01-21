@@ -32,6 +32,97 @@ public partial class LibraryPage : UserControl
         // Enable drag-drop on playlist ListBox
         AddHandler(DragDrop.DragOverEvent, OnPlaylistDragOver);
         AddHandler(DragDrop.DropEvent, OnPlaylistDrop);
+
+        // DataGrid Professionalization
+        var dataGrid = this.FindControl<DataGrid>("ProDataGrid");
+        if (dataGrid != null)
+        {
+            dataGrid.ColumnReordered += OnDataGridColumnReordered;
+            dataGrid.ColumnResized += OnDataGridColumnResized;
+            dataGrid.SelectionChanged += OnDataGridSelectionChanged;
+            
+            // Context menu for headers
+            SetupColumnContextMenu(dataGrid);
+        }
+    }
+
+    private void OnDataGridColumnReordered(object? sender, DataGridColumnEventArgs e)
+    {
+        if (DataContext is LibraryViewModel vm && sender is DataGrid dg)
+        {
+            // Update DisplayOrder in AvailableColumns
+            foreach (var col in dg.Columns)
+            {
+                var def = vm.AvailableColumns.FirstOrDefault(c => c.Header?.ToString() == col.Header?.ToString());
+                if (def != null)
+                {
+                    def.DisplayOrder = col.DisplayIndex;
+                }
+            }
+            vm.OnColumnLayoutChanged();
+        }
+    }
+
+    private void OnDataGridColumnResized(object? sender, DataGridColumnResizeEventArgs e)
+    {
+        if (DataContext is LibraryViewModel vm)
+        {
+            var def = vm.AvailableColumns.FirstOrDefault(c => c.Header?.ToString() == e.Column.Header?.ToString());
+            if (def != null)
+            {
+                def.Width = (int)e.Column.ActualWidth;
+                vm.OnColumnLayoutChanged();
+            }
+        }
+    }
+
+    private void OnDataGridSelectionChanged(object? sender, SelectionChangedEventArgs e)
+    {
+        if (DataContext is LibraryViewModel vm && sender is DataGrid dg)
+        {
+            // Sync DataGrid selection to Tracks.SelectedTracks
+            // FilteredTracks are PlaylistTrackViewModels
+            var selected = dg.SelectedItems.Cast<PlaylistTrackViewModel>().ToList();
+            
+            // Update VM selection logic (calling internal method if possible or using Commands)
+            // For now, we assume simple sync is needed
+             vm.Tracks.UpdateSelection(selected);
+        }
+    }
+
+    private void SetupColumnContextMenu(DataGrid dg)
+    {
+        // Headers are tricky to catch in Avalonia DataGrid without styles, 
+        // but we can add a context menu to the whole grid and filter for header area or just have it everywhere.
+        // Professional approach: Context menu on the grid itself that lists columns.
+        
+        var menu = new ContextMenu();
+        
+        if (DataContext is LibraryViewModel vm)
+        {
+            foreach (var colDef in vm.AvailableColumns)
+            {
+                var item = new MenuItem 
+                { 
+                    Header = colDef.Header, 
+                    Icon = colDef.IsVisible ? "✓" : "",
+                    Command = vm.ToggleColumnCommand,
+                    CommandParameter = colDef
+                };
+                
+                // Add binding for Icon would be better but let's keep it simple for now
+                menu.Items.Add(item);
+            }
+            
+            menu.Items.Add(new Separator());
+            menu.Items.Add(new MenuItem 
+            { 
+                Header = "Reset to Studio Default", 
+                Command = vm.ResetViewCommand 
+            });
+        }
+        
+        dg.ContextMenu = menu;
     }
 
     private void CloseRemovalHistory_Click(object? sender, RoutedEventArgs e)
