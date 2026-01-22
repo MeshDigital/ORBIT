@@ -10,6 +10,7 @@ using Avalonia.VisualTree;
 using SLSKDONET.Models;
 using SLSKDONET.Services;
 using SLSKDONET.ViewModels;
+using SLSKDONET.ViewModels.Library;
 using Microsoft.Extensions.Logging;
 
 namespace SLSKDONET.Views.Avalonia;
@@ -38,7 +39,7 @@ public partial class LibraryPage : UserControl
         if (dataGrid != null)
         {
             dataGrid.ColumnReordered += OnDataGridColumnReordered;
-            dataGrid.ColumnResized += OnDataGridColumnResized;
+            // dataGrid.ColumnResized += OnDataGridColumnResized;
             dataGrid.SelectionChanged += OnDataGridSelectionChanged;
             
             // Context menu for headers
@@ -63,7 +64,7 @@ public partial class LibraryPage : UserControl
         }
     }
 
-    private void OnDataGridColumnResized(object? sender, DataGridColumnResizeEventArgs e)
+    private void OnDataGridColumnResized(object? sender, DataGridColumnEventArgs e)
     {
         if (DataContext is LibraryViewModel vm)
         {

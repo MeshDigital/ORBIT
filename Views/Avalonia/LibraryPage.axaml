@@ -7,7 +7,7 @@
              xmlns:controls="clr-namespace:SLSKDONET.Views.Avalonia.Controls"
              xmlns:views="clr-namespace:SLSKDONET.Views.Avalonia"
              xmlns:conv="clr-namespace:SLSKDONET.Views.Avalonia.Converters"
-             xmlns:tree="clr-namespace:Avalonia.Controls;assembly=Avalonia.Controls.TreeDataGrid"
+             xmlns:dg="clr-namespace:Avalonia.Controls;assembly=Avalonia.Controls.DataGrid"
              xmlns:rootConv="clr-namespace:SLSKDONET.Converters"
              xmlns:models="clr-namespace:SLSKDONET.Models"
              xmlns:helpers="clr-namespace:SLSKDONET.Helpers"
@@ -394,7 +394,7 @@
                         </ListBox>
 
                         <!-- Pro View (DataGrid) -->
-                        <DataGrid Name="ProDataGrid"
+                        <dg:DataGrid Name="ProDataGrid"
                                   IsVisible="{Binding ViewSettings.ViewMode, Converter={StaticResource EnumToBoolConverter}, ConverterParameter={x:Static models:TrackViewMode.Pro}}"
                                   ItemsSource="{Binding Tracks.FilteredTracks}"
                                   SelectionMode="Extended"
@@ -402,14 +402,11 @@
                                   CanUserResizeColumns="True"
                                   CanUserSortColumns="True"
                                   IsReadOnly="True"
-                                  GridLinesVisibility="Horizontal"
-                                  AlternatingRowBackground="#1AFFFFFF"
-                                  RowBackground="Transparent"
                                   Background="Transparent"
                                   BorderThickness="0"
                                   HeadersVisibility="Column">
-                            <DataGrid.Styles>
-                                <Style Selector="DataGridColumnHeader">
+                            <dg:DataGrid.Styles>
+                                <Style Selector="dg|DataGridColumnHeader">
                                     <Setter Property="Background" Value="#252526"/>
                                     <Setter Property="Foreground" Value="#888"/>
                                     <Setter Property="FontSize" Value="11"/>
@@ -417,32 +414,32 @@
                                     <Setter Property="BorderThickness" Value="0,0,0,1"/>
                                     <Setter Property="BorderBrush" Value="#3E3E3E"/>
                                 </Style>
-                            </DataGrid.Styles>
-                            <DataGrid.Columns>
-                                <DataGridTextColumn Header="Artist" Binding="{Binding Artist}" Width="200"/>
-                                <DataGridTextColumn Header="Title" Binding="{Binding Title}" Width="250"/>
-                                <DataGridTemplateColumn Header="BPM" Width="70">
-                                    <DataGridTemplateColumn.CellTemplate>
+                            </dg:DataGrid.Styles>
+                            <dg:DataGrid.Columns>
+                                <dg:DataGridTextColumn Header="Artist" Binding="{Binding Artist}" Width="200"/>
+                                <dg:DataGridTextColumn Header="Title" Binding="{Binding Title}" Width="250"/>
+                                <dg:DataGridTemplateColumn Header="BPM" Width="70">
+                                    <dg:DataGridTemplateColumn.CellTemplate>
                                         <DataTemplate DataType="vm:PlaylistTrackViewModel">
                                             <TextBlock Text="{Binding BPM, StringFormat={}{0:F0}}" 
                                                        Foreground="{Binding ColorBrush}"
                                                        VerticalAlignment="Center" HorizontalAlignment="Center" FontWeight="Bold"/>
                                         </DataTemplate>
-                                    </DataGridTemplateColumn.CellTemplate>
-                                </DataGridTemplateColumn>
-                                <DataGridTemplateColumn Header="Key" Width="60">
-                                    <DataGridTemplateColumn.CellTemplate>
+                                    </dg:DataGridTemplateColumn.CellTemplate>
+                                </dg:DataGridTemplateColumn>
+                                <dg:DataGridTemplateColumn Header="Key" Width="60">
+                                    <dg:DataGridTemplateColumn.CellTemplate>
                                         <DataTemplate DataType="vm:PlaylistTrackViewModel">
                                             <Border Background="{Binding ColorBrush}" CornerRadius="4" Padding="4,2" HorizontalAlignment="Center">
                                                 <TextBlock Text="{Binding MusicalKey}" Foreground="White" FontSize="11" FontWeight="Bold"/>
                                             </Border>
                                         </DataTemplate>
-                                    </DataGridTemplateColumn.CellTemplate>
-                                </DataGridTemplateColumn>
-                                <DataGridTextColumn Header="Time" Binding="{Binding DurationFormatted}" Width="80"/>
-                                <DataGridTextColumn Header="Bitrate" Binding="{Binding BitrateFormatted}" Width="80"/>
-                            </DataGrid.Columns>
-                        </DataGrid>
+                                    </dg:DataGridTemplateColumn.CellTemplate>
+                                </dg:DataGridTemplateColumn>
+                                <dg:DataGridTextColumn Header="Time" Binding="{Binding DurationFormatted}" Width="80"/>
+                                <dg:DataGridTextColumn Header="Bitrate" Binding="{Binding BitrateFormatted}" Width="80"/>
+                            </dg:DataGrid.Columns>
+                        </dg:DataGrid>
                     </Panel>
 
                     <GridSplitter Grid.Row="1" Height="2" HorizontalAlignment="Stretch" Background="#33FFFFFF" IsVisible="{Binding IsDiscoveryLaneVisible}">

@@ -62,7 +62,7 @@ public class ColumnConfigurationService : IDisposable
             if (directory != null) Directory.CreateDirectory(directory);
 
             var json = JsonSerializer.Serialize(config, new JsonSerializerOptions { WriteIndented = true });
-            await File.WriteToSafeAsync(_configPath, json);
+            await FileExtensions.WriteToSafeAsync(_configPath, json);
             _logger.LogInformation("Column configuration saved to {Path}", _configPath);
         }
         catch (Exception ex)
