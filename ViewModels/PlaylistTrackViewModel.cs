@@ -168,6 +168,38 @@ public class PlaylistTrackViewModel : INotifyPropertyChanged, Library.ILibraryNo
         }
     }
 
+    public int? ManualEnergy
+    {
+        get => Model.ManualEnergy;
+        set
+        {
+            if (Model.ManualEnergy != value)
+            {
+                Model.ManualEnergy = value;
+                OnPropertyChanged();
+                OnPropertyChanged(nameof(EnergyRating));
+            }
+        }
+    }
+
+    public string EnergyRating => ManualEnergy?.ToString() ?? (Energy > 0 ? $"{(int)(Energy * 10):0}" : "—");
+
+    public double? DropTimestamp
+    {
+        get => Model.DropTimestamp;
+        set
+        {
+            if (Model.DropTimestamp != value)
+            {
+                Model.DropTimestamp = value;
+                OnPropertyChanged();
+                OnPropertyChanged(nameof(DropDisplay));
+            }
+        }
+    }
+
+    public string DropDisplay => DropTimestamp.HasValue ? TimeSpan.FromSeconds(DropTimestamp.Value).ToString(@"mm\:ss") : "—";
+
     public double Valence
     {
         get => Model.Valence ?? 0.0;
@@ -253,8 +285,49 @@ public class PlaylistTrackViewModel : INotifyPropertyChanged, Library.ILibraryNo
     public string? Genres => GenresDisplay;
     public int Popularity => Model.Popularity ?? 0;
     public string? Duration => DurationDisplay;
-    public string? Bitrate => Model.Bitrate?.ToString() ?? Model.BitrateScore?.ToString() ?? "—";
+    public string? DurationFormatted => DurationDisplay; // Alias for DataGrid
+    
+    // Phase 5: Fixed Bitrate (ensure it doesn't show BPM values)
+    public string? Bitrate 
+    {
+        get
+        {
+            var val = Model.Bitrate ?? Model.BitrateScore ?? 0;
+            if (val > 0 && val < 100 && BPM > 0) return "—"; // Likely a swapped BPM value
+            return val > 0 ? $"{val}" : "—";
+        }
+    }
+    public string? BitrateFormatted => Bitrate; // Alias for DataGrid
     public string? Status => StatusText;
+
+    public string? Label
+    {
+        get => Model.Label;
+        set
+        {
+            if (Model.Label != value)
+            {
+                Model.Label = value;
+                OnPropertyChanged();
+            }
+        }
+    }
+
+    public string? Comments
+    {
+        get => Model.Comments;
+        set
+        {
+            if (Model.Comments != value)
+            {
+                Model.Comments = value;
+                OnPropertyChanged();
+            }
+        }
+    }
+
+    public string Source => Model.SourceProvenance ?? Model.Source.ToString();
+    public string? SourceProvenance => Model.SourceProvenance;
 
     public ArtworkProxy Artwork => _artwork;
     
@@ -319,6 +392,63 @@ public class PlaylistTrackViewModel : INotifyPropertyChanged, Library.ILibraryNo
                 return camelot; // Already Camelot
             
             return $"{Model.MusicalKey} ({camelot})";
+        }
+    }
+
+    public Avalonia.Media.IBrush ColorBrush
+    {
+        get
+        {
+            if (string.IsNullOrEmpty(Model.MusicalKey)) return Avalonia.Media.Brushes.Transparent;
+            var camelot = Utils.KeyConverter.ToCamelot(Model.MusicalKey);
+            return GetHarmonicColor(camelot);
+        }
+    }
+
+    private static Avalonia.Media.IBrush GetHarmonicColor(string camelot)
+    {
+        if (string.IsNullOrEmpty(camelot) || camelot.Length < 2) return Avalonia.Media.Brushes.Transparent;
+
+        bool isMinor = camelot.EndsWith("A", StringComparison.OrdinalIgnoreCase);
+        string numPart = camelot.Substring(0, camelot.Length - 1);
+
+        if (isMinor)
+        {
+            return numPart switch
+            {
+                "1" => Avalonia.Media.Brushes.Teal,
+                "2" => Avalonia.Media.Brushes.SteelBlue,
+                "3" => Avalonia.Media.Brushes.RoyalBlue,
+                "4" => Avalonia.Media.Brushes.Indigo,
+                "5" => Avalonia.Media.Brushes.DarkViolet,
+                "6" => Avalonia.Media.Brushes.MediumVioletRed,
+                "7" => Avalonia.Media.Brushes.Crimson,
+                "8" => Avalonia.Media.Brushes.DarkOrange,
+                "9" => Avalonia.Media.Brushes.Gold,
+                "10" => Avalonia.Media.Brushes.YellowGreen,
+                "11" => Avalonia.Media.Brushes.MediumSeaGreen,
+                "12" => Avalonia.Media.Brushes.DarkCyan,
+                _ => Avalonia.Media.Brushes.SlateGray
+            };
+        }
+        else
+        {
+            return numPart switch
+            {
+                "1" => Avalonia.Media.Brushes.Aquamarine,
+                "2" => Avalonia.Media.Brushes.LightSkyBlue,
+                "3" => Avalonia.Media.Brushes.DodgerBlue,
+                "4" => Avalonia.Media.Brushes.SlateBlue,
+                "5" => Avalonia.Media.Brushes.Plum,
+                "6" => Avalonia.Media.Brushes.HotPink,
+                "7" => Avalonia.Media.Brushes.LightCoral,
+                "8" => Avalonia.Media.Brushes.Orange,
+                "9" => Avalonia.Media.Brushes.Khaki,
+                "10" => Avalonia.Media.Brushes.PaleGreen,
+                "11" => Avalonia.Media.Brushes.MediumSpringGreen,
+                "12" => Avalonia.Media.Brushes.Turquoise,
+                _ => Avalonia.Media.Brushes.LightSlateGray
+            };
         }
     }
     public string DurationDisplay => Model.CanonicalDuration.HasValue ? TimeSpan.FromMilliseconds(Model.CanonicalDuration.Value).ToString(@"mm\:ss") : "—";
@@ -522,13 +652,25 @@ public class PlaylistTrackViewModel : INotifyPropertyChanged, Library.ILibraryNo
     private bool _isLiked;
     public bool IsLiked
     {
-        get => _isLiked;
+        get => Model.IsLiked;
         set
         {
-            if (_isLiked != value)
+            if (Model.IsLiked != value)
             {
-                _isLiked = value;
                 Model.IsLiked = value;
+                OnPropertyChanged();
+            }
+        }
+    }
+
+    public int PlayCount
+    {
+        get => Model.PlayCount;
+        set
+        {
+            if (Model.PlayCount != value)
+            {
+                Model.PlayCount = value;
                 OnPropertyChanged();
             }
         }
@@ -677,6 +819,8 @@ public class PlaylistTrackViewModel : INotifyPropertyChanged, Library.ILibraryNo
                      Model.Popularity = updatedTrack.Popularity;
                      Model.Genres = updatedTrack.Genres;
                      Model.IsReviewNeeded = updatedTrack.IsReviewNeeded; // Phase 10.4
+                     Model.Label = updatedTrack.Label;
+                     Model.Comments = updatedTrack.Comments;
                      
                      // NEW: Sync Waveform and Technical Analysis results
                      Model.WaveformData = updatedTrack.WaveformData;
@@ -733,6 +877,11 @@ public class PlaylistTrackViewModel : INotifyPropertyChanged, Library.ILibraryNo
              OnPropertyChanged(nameof(Genres));
              OnPropertyChanged(nameof(Genres));
              OnPropertyChanged(nameof(Popularity));
+             OnPropertyChanged(nameof(Label));
+             OnPropertyChanged(nameof(Comments));
+             OnPropertyChanged(nameof(Source));
+             OnPropertyChanged(nameof(DurationFormatted));
+             OnPropertyChanged(nameof(BitrateFormatted));
              
              // NEW: Notify Waveform and technical props
              OnPropertyChanged(nameof(WaveformData));

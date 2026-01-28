@@ -65,6 +65,8 @@ public class LibraryEntry
     public int? Popularity { get; set; }
     public int? CanonicalDuration { get; set; }
     public DateTime? ReleaseDate { get; set; }
+    public string? Label { get; set; }
+    public string? Comments { get; set; }
     
     public byte[] WaveformData { get; set; } = Array.Empty<byte>();
     public byte[] RmsData { get; set; } = Array.Empty<byte>();

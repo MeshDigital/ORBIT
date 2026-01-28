@@ -100,7 +100,11 @@ namespace SLSKDONET.Services
             }
             catch (Exception ex)
             {
-                _logger.LogWarning("Failed to load artwork: {Path}. Error: {Message}", uriOrPath, ex.Message);
+                // Throttle failure logging to prevent spam during network issues
+                if (DateTime.Now.Second % 10 == 0)
+                {
+                    _logger.LogWarning("Failed to load artwork (throttled): {Path}. Error: {Message}", uriOrPath, ex.Message);
+                }
             }
             return null;
         }

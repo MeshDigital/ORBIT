@@ -611,11 +611,58 @@ public class SchemaMigratorService
                 }
             }
 
+            // 1D. Tracks Table
+            if (TableExists("Tracks"))
+            {
+                if (!ColumnExists("Tracks", "Label"))
+                {
+                    _logger.LogInformation("Patching Schema: Adding Label to Tracks...");
+                    command.CommandText = @"ALTER TABLE ""Tracks"" ADD COLUMN ""Label"" TEXT NULL;";
+                    await command.ExecuteNonQueryAsync();
+                }
+                if (!ColumnExists("Tracks", "Comments"))
+                {
+                    _logger.LogInformation("Patching Schema: Adding Comments to Tracks...");
+                    command.CommandText = @"ALTER TABLE ""Tracks"" ADD COLUMN ""Comments"" TEXT NULL;";
+                    await command.ExecuteNonQueryAsync();
+                }
+                if (!ColumnExists("Tracks", "DropTimestamp"))
+                {
+                    _logger.LogInformation("Patching Schema: Adding DropTimestamp to Tracks...");
+                    command.CommandText = @"ALTER TABLE ""Tracks"" ADD COLUMN ""DropTimestamp"" REAL NULL;";
+                    await command.ExecuteNonQueryAsync();
+                }
+                if (!ColumnExists("Tracks", "ManualEnergy"))
+                {
+                    _logger.LogInformation("Patching Schema: Adding ManualEnergy to Tracks...");
+                    command.CommandText = @"ALTER TABLE ""Tracks"" ADD COLUMN ""ManualEnergy"" INTEGER NULL;";
+                    await command.ExecuteNonQueryAsync();
+                }
+                if (!ColumnExists("Tracks", "SourceProvenance"))
+                {
+                    _logger.LogInformation("Patching Schema: Adding SourceProvenance to Tracks...");
+                    command.CommandText = @"ALTER TABLE ""Tracks"" ADD COLUMN ""SourceProvenance"" TEXT NULL;";
+                    await command.ExecuteNonQueryAsync();
+                }
+            }
+
             // 2. PlaylistTracks Columns
             if (!ColumnExists("PlaylistTracks", "PrimaryGenre"))
             {
                 _logger.LogInformation("Patching Schema: Adding PrimaryGenre to PlaylistTracks...");
                 command.CommandText = @"ALTER TABLE ""PlaylistTracks"" ADD COLUMN ""PrimaryGenre"" TEXT NULL;";
+                await command.ExecuteNonQueryAsync();
+            }
+            if (!ColumnExists("PlaylistTracks", "Label"))
+            {
+                _logger.LogInformation("Patching Schema: Adding Label to PlaylistTracks...");
+                command.CommandText = @"ALTER TABLE ""PlaylistTracks"" ADD COLUMN ""Label"" TEXT NULL;";
+                await command.ExecuteNonQueryAsync();
+            }
+            if (!ColumnExists("PlaylistTracks", "Comments"))
+            {
+                _logger.LogInformation("Patching Schema: Adding Comments to PlaylistTracks...");
+                command.CommandText = @"ALTER TABLE ""PlaylistTracks"" ADD COLUMN ""Comments"" TEXT NULL;";
                 await command.ExecuteNonQueryAsync();
             }
             if (!ColumnExists("PlaylistTracks", "IsPrepared"))
@@ -624,12 +671,72 @@ public class SchemaMigratorService
                 command.CommandText = @"ALTER TABLE ""PlaylistTracks"" ADD COLUMN ""IsPrepared"" INTEGER NOT NULL DEFAULT 0;";
                 await command.ExecuteNonQueryAsync();
             }
+            if (!ColumnExists("PlaylistTracks", "DropTimestamp"))
+            {
+                _logger.LogInformation("Patching Schema: Adding DropTimestamp to PlaylistTracks...");
+                command.CommandText = @"ALTER TABLE ""PlaylistTracks"" ADD COLUMN ""DropTimestamp"" REAL NULL;";
+                await command.ExecuteNonQueryAsync();
+            }
+            if (!ColumnExists("PlaylistTracks", "ManualEnergy"))
+            {
+                _logger.LogInformation("Patching Schema: Adding ManualEnergy to PlaylistTracks...");
+                command.CommandText = @"ALTER TABLE ""PlaylistTracks"" ADD COLUMN ""ManualEnergy"" INTEGER NULL;";
+                await command.ExecuteNonQueryAsync();
+            }
+            if (!ColumnExists("PlaylistTracks", "SourceProvenance"))
+            {
+                _logger.LogInformation("Patching Schema: Adding SourceProvenance to PlaylistTracks...");
+                command.CommandText = @"ALTER TABLE ""PlaylistTracks"" ADD COLUMN ""SourceProvenance"" TEXT NULL;";
+                await command.ExecuteNonQueryAsync();
+            }
 
             // 3. LibraryEntries Columns
             if (!ColumnExists("LibraryEntries", "PrimaryGenre"))
             {
                 _logger.LogInformation("Patching Schema: Adding PrimaryGenre to LibraryEntries...");
                 command.CommandText = @"ALTER TABLE ""LibraryEntries"" ADD COLUMN ""PrimaryGenre"" TEXT NULL;";
+                await command.ExecuteNonQueryAsync();
+            }
+            if (!ColumnExists("LibraryEntries", "Label"))
+            {
+                _logger.LogInformation("Patching Schema: Adding Label to LibraryEntries...");
+                command.CommandText = @"ALTER TABLE ""LibraryEntries"" ADD COLUMN ""Label"" TEXT NULL;";
+                await command.ExecuteNonQueryAsync();
+            }
+            if (!ColumnExists("LibraryEntries", "Comments"))
+            {
+                _logger.LogInformation("Patching Schema: Adding Comments to LibraryEntries...");
+                command.CommandText = @"ALTER TABLE ""LibraryEntries"" ADD COLUMN ""Comments"" TEXT NULL;";
+                await command.ExecuteNonQueryAsync();
+            }
+            if (!ColumnExists("LibraryEntries", "WaveformData"))
+            {
+                _logger.LogInformation("Patching Schema: Adding WaveformData to LibraryEntries...");
+                command.CommandText = @"ALTER TABLE ""LibraryEntries"" ADD COLUMN ""WaveformData"" BLOB NULL;";
+                await command.ExecuteNonQueryAsync();
+            }
+            if (!ColumnExists("LibraryEntries", "RmsData"))
+            {
+                _logger.LogInformation("Patching Schema: Adding RmsData to LibraryEntries...");
+                command.CommandText = @"ALTER TABLE ""LibraryEntries"" ADD COLUMN ""RmsData"" BLOB NULL;";
+                await command.ExecuteNonQueryAsync();
+            }
+            if (!ColumnExists("LibraryEntries", "LowData"))
+            {
+                _logger.LogInformation("Patching Schema: Adding LowData to LibraryEntries...");
+                command.CommandText = @"ALTER TABLE ""LibraryEntries"" ADD COLUMN ""LowData"" BLOB NULL;";
+                await command.ExecuteNonQueryAsync();
+            }
+            if (!ColumnExists("LibraryEntries", "MidData"))
+            {
+                _logger.LogInformation("Patching Schema: Adding MidData to LibraryEntries...");
+                command.CommandText = @"ALTER TABLE ""LibraryEntries"" ADD COLUMN ""MidData"" BLOB NULL;";
+                await command.ExecuteNonQueryAsync();
+            }
+            if (!ColumnExists("LibraryEntries", "HighData"))
+            {
+                _logger.LogInformation("Patching Schema: Adding HighData to LibraryEntries...");
+                command.CommandText = @"ALTER TABLE ""LibraryEntries"" ADD COLUMN ""HighData"" BLOB NULL;";
                 await command.ExecuteNonQueryAsync();
             }
             if (!ColumnExists("LibraryEntries", "IsPrepared"))
@@ -642,6 +749,48 @@ public class SchemaMigratorService
             {
                 _logger.LogInformation("Patching Schema: Adding CuePointsJson to LibraryEntries...");
                 command.CommandText = @"ALTER TABLE ""LibraryEntries"" ADD COLUMN ""CuePointsJson"" TEXT NULL;";
+                await command.ExecuteNonQueryAsync();
+            }
+            if (!ColumnExists("LibraryEntries", "DropTimestamp"))
+            {
+                _logger.LogInformation("Patching Schema: Adding DropTimestamp to LibraryEntries...");
+                command.CommandText = @"ALTER TABLE ""LibraryEntries"" ADD COLUMN ""DropTimestamp"" REAL NULL;";
+                await command.ExecuteNonQueryAsync();
+            }
+            if (!ColumnExists("LibraryEntries", "ManualEnergy"))
+            {
+                _logger.LogInformation("Patching Schema: Adding ManualEnergy to LibraryEntries...");
+                command.CommandText = @"ALTER TABLE ""LibraryEntries"" ADD COLUMN ""ManualEnergy"" INTEGER NULL;";
+                await command.ExecuteNonQueryAsync();
+            }
+            if (!ColumnExists("LibraryEntries", "SourceProvenance"))
+            {
+                _logger.LogInformation("Patching Schema: Adding SourceProvenance to LibraryEntries...");
+                command.CommandText = @"ALTER TABLE ""LibraryEntries"" ADD COLUMN ""SourceProvenance"" TEXT NULL;";
+                await command.ExecuteNonQueryAsync();
+            }
+            if (!ColumnExists("LibraryEntries", "Rating"))
+            {
+                _logger.LogInformation("Patching Schema: Adding Rating to LibraryEntries...");
+                command.CommandText = @"ALTER TABLE ""LibraryEntries"" ADD COLUMN ""Rating"" INTEGER NOT NULL DEFAULT 0;";
+                await command.ExecuteNonQueryAsync();
+            }
+            if (!ColumnExists("LibraryEntries", "IsLiked"))
+            {
+                _logger.LogInformation("Patching Schema: Adding IsLiked to LibraryEntries...");
+                command.CommandText = @"ALTER TABLE ""LibraryEntries"" ADD COLUMN ""IsLiked"" INTEGER NOT NULL DEFAULT 0;";
+                await command.ExecuteNonQueryAsync();
+            }
+            if (!ColumnExists("LibraryEntries", "PlayCount"))
+            {
+                _logger.LogInformation("Patching Schema: Adding PlayCount to LibraryEntries...");
+                command.CommandText = @"ALTER TABLE ""LibraryEntries"" ADD COLUMN ""PlayCount"" INTEGER NOT NULL DEFAULT 0;";
+                await command.ExecuteNonQueryAsync();
+            }
+            if (!ColumnExists("LibraryEntries", "LastPlayedAt"))
+            {
+                _logger.LogInformation("Patching Schema: Adding LastPlayedAt to LibraryEntries...");
+                command.CommandText = @"ALTER TABLE ""LibraryEntries"" ADD COLUMN ""LastPlayedAt"" TEXT NULL;";
                 await command.ExecuteNonQueryAsync();
             }
             
@@ -1009,72 +1158,121 @@ public class SchemaMigratorService
             }
 
             // 13. Phase 0: FTS5 Virtual Table for Instant Search
-            if (!TableExists("TracksFts"))
+            // Fix: Reliance on rowid is fragile (e.g. after VACUUM). 
+            // We now store the GlobalId as an unindexed column for stable linking.
+            bool isIncorrectlyConfigured = false;
+            if (TableExists("TracksFts"))
             {
-                _logger.LogInformation("Patching Schema: Creating FTS5 Virtual Table (TracksFts)...");
-                command.CommandText = @"
-                    CREATE VIRTUAL TABLE IF NOT EXISTS TracksFts USING fts5(
-                        Artist, 
-                        Title, 
-                        content='Tracks', 
-                        content_rowid='Id'
-                    );
-
-                    -- Triggers to keep Search Index in sync automatically
-                    CREATE TRIGGER IF NOT EXISTS tbl_tracks_ai AFTER INSERT ON Tracks BEGIN
-                        INSERT INTO TracksFts(rowid, Artist, Title) VALUES (new.Id, new.Artist, new.Title);
-                    END;
-
-                    CREATE TRIGGER IF NOT EXISTS tbl_tracks_ad AFTER DELETE ON Tracks BEGIN
-                        INSERT INTO TracksFts(TracksFts, rowid, Artist, Title) VALUES('delete', old.Id, old.Artist, old.Title);
-                    END;
-
-                    CREATE TRIGGER IF NOT EXISTS tbl_tracks_au AFTER UPDATE ON Tracks BEGIN
-                        INSERT INTO TracksFts(TracksFts, rowid, Artist, Title) VALUES('delete', old.Id, old.Artist, old.Title);
-                        INSERT INTO TracksFts(rowid, Artist, Title) VALUES (new.Id, new.Artist, new.Title);
-                    END;
-                ";
-                await command.ExecuteNonQueryAsync();
+                using var checkCmd = connection.CreateCommand();
+                checkCmd.CommandText = "SELECT sql FROM sqlite_master WHERE name='TracksFts'";
+                var sql = (await checkCmd.ExecuteScalarAsync())?.ToString();
                 
-                // Seed initial data if table was just created
+                // Drop if it's missing the GlobalId column (unindexed or otherwise)
+                if (sql != null && !sql.Contains("GlobalId"))
+                {
+                    isIncorrectlyConfigured = true;
+                    _logger.LogWarning("TracksFts is missing GlobalId column. Dropping and recreating...");
+                    command.CommandText = "DROP TABLE TracksFts;";
+                    await command.ExecuteNonQueryAsync();
+                }
+            }
+
+            if (!TableExists("TracksFts") || isIncorrectlyConfigured)
+            {
+                _logger.LogInformation("Patching Schema: Creating robust FTS5 Virtual Table (TracksFts)...");
+                command.CommandText = "CREATE VIRTUAL TABLE IF NOT EXISTS TracksFts USING fts5(Artist, Title, GlobalId UNINDEXED);";
+                await command.ExecuteNonQueryAsync();
+            }
+
+            _logger.LogInformation("Patching Schema: Ensuring TracksFts triggers are correct...");
+            command.CommandText = @"
+                DROP TRIGGER IF EXISTS tbl_tracks_ai;
+                CREATE TRIGGER tbl_tracks_ai AFTER INSERT ON Tracks BEGIN
+                    INSERT INTO TracksFts(Artist, Title, GlobalId) VALUES (new.Artist, new.Title, new.GlobalId);
+                END;
+
+                DROP TRIGGER IF EXISTS tbl_tracks_ad;
+                CREATE TRIGGER tbl_tracks_ad AFTER DELETE ON Tracks BEGIN
+                    DELETE FROM TracksFts WHERE GlobalId = old.GlobalId;
+                END;
+
+                DROP TRIGGER IF EXISTS tbl_tracks_au;
+                CREATE TRIGGER tbl_tracks_au AFTER UPDATE ON Tracks BEGIN
+                    DELETE FROM TracksFts WHERE GlobalId = old.GlobalId;
+                    INSERT INTO TracksFts(Artist, Title, GlobalId) VALUES (new.Artist, new.Title, new.GlobalId);
+                END;
+            ";
+            await command.ExecuteNonQueryAsync();
+
+            // Seed initial data if table is empty
+            command.CommandText = "SELECT COUNT(*) FROM TracksFts";
+            var ftsCount = Convert.ToInt64(await command.ExecuteScalarAsync());
+            if (ftsCount == 0 || isIncorrectlyConfigured)
+            {
                 _logger.LogInformation("Seeding FTS5 index from existing tracks...");
-                command.CommandText = "INSERT INTO TracksFts(rowid, Artist, Title) SELECT Id, Artist, Title FROM Tracks;";
+                command.CommandText = "INSERT INTO TracksFts(Artist, Title, GlobalId) SELECT Artist, Title, GlobalId FROM Tracks;";
                 await command.ExecuteNonQueryAsync();
                 _logger.LogInformation("✅ FTS5 search index seeded successfully.");
             }
 
             // 14. Phase 0: FTS5 Virtual Table for LibraryEntries (Main Library)
-            if (!TableExists("LibraryEntriesFts"))
+            bool isLibFtsIncorrect = false;
+            if (TableExists("LibraryEntriesFts"))
             {
-                _logger.LogInformation("Patching Schema: Creating FTS5 Virtual Table (LibraryEntriesFts)...");
+                using var checkCmd = connection.CreateCommand();
+                checkCmd.CommandText = "SELECT sql FROM sqlite_master WHERE name='LibraryEntriesFts'";
+                var sql = (await checkCmd.ExecuteScalarAsync())?.ToString();
+                
+                // Drop if it's missing the UniqueHash column or has legacy content mapping
+                if (sql != null && (!sql.Contains("UniqueHash") || sql.Contains("content=")))
+                {
+                    isLibFtsIncorrect = true;
+                    _logger.LogWarning("LibraryEntriesFts is incorrectly configured. Dropping and recreating...");
+                    command.CommandText = "DROP TABLE LibraryEntriesFts;";
+                    await command.ExecuteNonQueryAsync();
+                }
+            }
+
+            if (!TableExists("LibraryEntriesFts") || isLibFtsIncorrect)
+            {
+                _logger.LogInformation("Patching Schema: Creating robust FTS5 Virtual Table (LibraryEntriesFts)...");
                 command.CommandText = @"
                     CREATE VIRTUAL TABLE IF NOT EXISTS LibraryEntriesFts USING fts5(
                         Artist, 
                         Title, 
                         Album,
-                        content='LibraryEntries', 
-                        content_rowid='rowid'
-                    );
-
-                    -- Triggers to keep Library Index in sync automatically
-                    CREATE TRIGGER IF NOT EXISTS tbl_lib_ai AFTER INSERT ON LibraryEntries BEGIN
-                        INSERT INTO LibraryEntriesFts(rowid, Artist, Title, Album) VALUES (new.rowid, new.Artist, new.Title, new.Album);
-                    END;
-
-                    CREATE TRIGGER IF NOT EXISTS tbl_lib_ad AFTER DELETE ON LibraryEntries BEGIN
-                        INSERT INTO LibraryEntriesFts(LibraryEntriesFts, rowid, Artist, Title, Album) VALUES('delete', old.rowid, old.Artist, old.Title, old.Album);
-                    END;
-
-                    CREATE TRIGGER IF NOT EXISTS tbl_lib_au AFTER UPDATE ON LibraryEntries BEGIN
-                        INSERT INTO LibraryEntriesFts(LibraryEntriesFts, rowid, Artist, Title, Album) VALUES('delete', old.rowid, old.Artist, old.Title, old.Album);
-                        INSERT INTO LibraryEntriesFts(rowid, Artist, Title, Album) VALUES (new.rowid, new.Artist, new.Title, new.Album);
-                    END;
-                ";
+                        UniqueHash UNINDEXED
+                    );";
                 await command.ExecuteNonQueryAsync();
-                
-                // Seed initial data
+            }
+
+            _logger.LogInformation("Patching Schema: Ensuring LibraryEntriesFts triggers are correct...");
+            command.CommandText = @"
+                DROP TRIGGER IF EXISTS tbl_lib_ai;
+                CREATE TRIGGER tbl_lib_ai AFTER INSERT ON LibraryEntries BEGIN
+                    INSERT INTO LibraryEntriesFts(Artist, Title, Album, UniqueHash) VALUES (new.Artist, new.Title, new.Album, new.UniqueHash);
+                END;
+
+                DROP TRIGGER IF EXISTS tbl_lib_ad;
+                CREATE TRIGGER tbl_lib_ad AFTER DELETE ON LibraryEntries BEGIN
+                    DELETE FROM LibraryEntriesFts WHERE UniqueHash = old.UniqueHash;
+                END;
+
+                DROP TRIGGER IF EXISTS tbl_lib_au;
+                CREATE TRIGGER tbl_lib_au AFTER UPDATE ON LibraryEntries BEGIN
+                    DELETE FROM LibraryEntriesFts WHERE UniqueHash = old.UniqueHash;
+                    INSERT INTO LibraryEntriesFts(Artist, Title, Album, UniqueHash) VALUES (new.Artist, new.Title, new.Album, new.UniqueHash);
+                END;
+            ";
+            await command.ExecuteNonQueryAsync();
+            
+            // Seed initial data
+            command.CommandText = "SELECT COUNT(*) FROM LibraryEntriesFts";
+            var libFtsCount = Convert.ToInt64(await command.ExecuteScalarAsync());
+            if (libFtsCount == 0 || isLibFtsIncorrect)
+            {
                 _logger.LogInformation("Seeding FTS5 library index...");
-                command.CommandText = "INSERT INTO LibraryEntriesFts(rowid, Artist, Title, Album) SELECT rowid, Artist, Title, Album FROM LibraryEntries;";
+                command.CommandText = "INSERT INTO LibraryEntriesFts(Artist, Title, Album, UniqueHash) SELECT Artist, Title, Album, UniqueHash FROM LibraryEntries;";
                 await command.ExecuteNonQueryAsync();
                 _logger.LogInformation("✅ Library FTS5 search index seeded successfully.");
             }

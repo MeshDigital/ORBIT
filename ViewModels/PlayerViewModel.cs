@@ -650,7 +650,10 @@ namespace SLSKDONET.ViewModels
                      WaveformData = new WaveformAnalysisData 
                      { 
                          PeakData = anlz.WaveformData,
-                         RmsData = anlz.WaveformData, // Fallback
+                         RmsData = anlz.WaveformData, 
+                         LowData = anlz.LowData,
+                         MidData = anlz.MidData,
+                         HighData = anlz.HighData,
                          PointsPerSecond = 100 
                      };
                 }

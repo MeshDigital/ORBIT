@@ -155,6 +155,13 @@ public partial class LibraryPage : UserControl
                 else
                 {
                     _logger?.LogInformation("[DIAGNOSTIC] LibraryPage.OnLoaded: Projects already loaded ({Count} items). Skipping re-load.", vm.Projects.AllProjects.Count);
+                    
+                    // FIX: Eagerly select first project if none selected to avoid 3s UI binding delay
+                    if (vm.Projects.SelectedProject == null && vm.Projects.FilteredProjects.Count > 0)
+                    {
+                        _logger?.LogInformation("[DIAGNOSTIC] Eagerly selecting first project to avoid UI delay");
+                        vm.Projects.SelectedProject = vm.Projects.FilteredProjects[0];
+                    }
                 }
                 
                 _logger?.LogInformation("[DIAGNOSTIC] LoadProjectsAsync completed. AllProjects count AFTER load: {Count}", vm.Projects.AllProjects.Count);

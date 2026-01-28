@@ -55,11 +55,7 @@ public class TrackListViewModel : ReactiveObject, IDisposable
     private IList<PlaylistTrackViewModel> _filteredTracks = new ObservableCollection<PlaylistTrackViewModel>();
     public IList<PlaylistTrackViewModel> FilteredTracks
     {
-        get
-        {
-             _logger?.LogDebug("FilteredTracks accessed. Type: {Type}", _filteredTracks?.GetType().Name);
-             return _filteredTracks;
-        }
+        get => _filteredTracks;
         private set 
         {
             if (_filteredTracks is INotifyCollectionChanged oldCol)
@@ -74,34 +70,34 @@ public class TrackListViewModel : ReactiveObject, IDisposable
                 newCol.CollectionChanged += OnFilteredTracksChanged;
             }
             
-            this.RaisePropertyChanged(nameof(LimitedTracks));
+            UpdateLimitedTracks();
         }
     }
 
     private void OnFilteredTracksChanged(object? sender, NotifyCollectionChangedEventArgs e)
     {
-        // When the virtualized collection updates (pages load), we must notify the UI 
-        // that LimitedTracks (Subset) has hypothetically changed so it re-reads the subset.
-        this.RaisePropertyChanged(nameof(LimitedTracks));
+        // Throttled notification for LimitedTracks to avoid UI flooding
+        _updateLimitedTracksRequest.OnNext(System.Reactive.Unit.Default);
     }
     
+    private readonly System.Reactive.Subjects.Subject<System.Reactive.Unit> _updateLimitedTracksRequest = new();
+    private IEnumerable<PlaylistTrackViewModel> _limitedTracks = Enumerable.Empty<PlaylistTrackViewModel>();
+
     /// <summary>
     /// A safe subset of tracks (max 50) for non-virtualized views like the Card View.
-    /// Prevents UI freezing with large lists.
+    /// Cached and throttled to prevent UI freezing.
     /// </summary>
-    /// <summary>
-    /// A safe subset of tracks (max 50) for non-virtualized views like the Card View.
-    /// Prevents UI freezing with large lists.
-    /// </summary>
-    public IEnumerable<PlaylistTrackViewModel> LimitedTracks
+    public IEnumerable<PlaylistTrackViewModel> LimitedTracks => _limitedTracks;
+
+    private void UpdateLimitedTracks()
     {
-        get
+        var result = (FilteredTracks as VirtualizedTrackCollection)?.GetSubset(50) ?? FilteredTracks.Take(50);
+        var list = result.ToList();
+        
+        if (!Enumerable.SequenceEqual(_limitedTracks, list))
         {
-            _logger?.LogInformation("LimitedTracks accessed by UI");
-            var result = (FilteredTracks as VirtualizedTrackCollection)?.GetSubset(50) ?? FilteredTracks.Take(50);
-            var list = result.ToList();
-            _logger?.LogInformation("LimitedTracks returning {Count} items (Subset for CardView)", list.Count);
-            return list;
+            _limitedTracks = list;
+            this.RaisePropertyChanged(nameof(LimitedTracks));
         }
     }
 
@@ -518,6 +514,13 @@ public class TrackListViewModel : ReactiveObject, IDisposable
             .Subscribe(_ => RefreshFilteredTracks())
             .DisposeWith(_disposables);
 
+        // Throttled LimitedTracks updates
+        _updateLimitedTracksRequest
+            .Throttle(TimeSpan.FromMilliseconds(300))
+            .ObserveOn(RxApp.MainThreadScheduler)
+            .Subscribe(_ => UpdateLimitedTracks())
+            .DisposeWith(_disposables);
+
         // Initial Load
         _ = LoadStyleFiltersAsync();
     }
@@ -751,7 +754,7 @@ public class TrackListViewModel : ReactiveObject, IDisposable
         virtualized.CollectionChanged += (s, e) => {
             if (e.Action == NotifyCollectionChangedAction.Reset)
             {
-                Dispatcher.UIThread.Post(() => this.RaisePropertyChanged(nameof(LimitedTracks)));
+                _updateLimitedTracksRequest.OnNext(System.Reactive.Unit.Default);
             }
         };
 

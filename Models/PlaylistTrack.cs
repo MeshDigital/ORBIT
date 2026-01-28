@@ -114,6 +114,8 @@ public class PlaylistTrack
     public int? Popularity { get; set; }
     public int? CanonicalDuration { get; set; }
     public DateTime? ReleaseDate { get; set; }
+    public string? Label { get; set; }
+    public string? Comments { get; set; }
 
     // Phase 0.1: Musical Intelligence & Antigravity
     public string? MusicalKey { get; set; }
@@ -183,6 +185,11 @@ public class PlaylistTrack
     // Phase 13: Per-Track Filter Overrides
     public string? PreferredFormats { get; set; }
     public int? MinBitrateOverride { get; set; }
+
+    // Phase 5: Ultimate Track View
+    public double? DropTimestamp { get; set; }
+    public int? ManualEnergy { get; set; }
+    public string? SourceProvenance { get; set; }
 
     public WaveformAnalysisData WaveformDataObj => new WaveformAnalysisData
     {

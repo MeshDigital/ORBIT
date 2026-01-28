@@ -58,27 +58,27 @@
                     <Grid Grid.Row="0" Margin="12,16,12,8" ColumnDefinitions="*,Auto">
                          <TextBlock Text="LIBRARY" FontSize="12" FontWeight="Bold" Foreground="#888" VerticalAlignment="Center"/>
                          
-                         <DropDownButton Content="Tools" Classes="tool" CornerRadius="4" Padding="8,4" FontSize="12">
+                         <DropDownButton Content="Tools" Classes="tool" CornerRadius="4" Padding="8,4" FontSize="12" Grid.Column="1">
                              <DropDownButton.Flyout>
                                  <MenuFlyout>
-                                     <MenuItem Header="Import History" Command="{Binding ViewHistoryCommand}">
+                                     <MenuItem Header="Import History" Command="{Binding ViewHistoryCommand}" InputGesture="Ctrl+H">
                                          <MenuItem.Icon><TextBlock Text="📜"/></MenuItem.Icon>
                                      </MenuItem>
-                                     <MenuItem Header="Upgrade Scout" Command="{Binding ToggleUpgradeScoutCommand}">
+                                     <MenuItem Header="Upgrade Scout" Command="{Binding ToggleUpgradeScoutCommand}" InputGesture="Ctrl+U">
                                          <MenuItem.Icon><TextBlock Text="💎"/></MenuItem.Icon>
                                      </MenuItem>
                                      <Separator/>
-                                     <MenuItem Header="Manage Sources" Command="{Binding OpenSourcesCommand}">
+                                     <MenuItem Header="Manage Sources" Command="{Binding OpenSourcesCommand}" InputGesture="Ctrl+,">
                                          <MenuItem.Icon><TextBlock Text="📁"/></MenuItem.Icon>
                                      </MenuItem>
-                                     <MenuItem Header="New Smart Playlist" Command="{Binding CreateSmartPlaylistCommand}">
+                                     <MenuItem Header="New Smart Playlist" Command="{Binding CreateSmartPlaylistCommand}" InputGesture="Ctrl+N">
                                          <MenuItem.Icon><TextBlock Text="⚡"/></MenuItem.Icon>
                                      </MenuItem>
                                      <MenuItem Header="Retry Offline Tracks" Command="{Binding Operations.RetryOfflineTracksCommand}">
                                          <MenuItem.Icon><TextBlock Text="🔄"/></MenuItem.Icon>
                                      </MenuItem>
                                      <Separator/>
-                                     <MenuItem Header="Export Monthly Drop" Command="{Binding ExportMonthlyDropCommand}">
+                                     <MenuItem Header="Export Monthly Drop" Command="{Binding ExportMonthlyDropCommand}" InputGesture="Ctrl+E">
                                          <MenuItem.Icon><TextBlock Text="📂"/></MenuItem.Icon>
                                      </MenuItem>
                                  </MenuFlyout>
@@ -89,10 +89,11 @@
                     <!-- Navigation List -->
                     <ScrollViewer Grid.Row="1">
                         <StackPanel Spacing="2">
-                            <!-- Pinned / Special -->
+                            <!-- Section: Smart Playlists -->
+                            <TextBlock Text="SMART PLAYLISTS" FontSize="10" FontWeight="Bold" Foreground="#555" Margin="16,8,16,4"/>
                             <ListBox ItemsSource="{Binding SmartPlaylists.SmartPlaylists}"
                                      SelectedItem="{Binding SmartPlaylists.SelectedSmartPlaylist, Mode=TwoWay}"
-                                     Background="Transparent" BorderThickness="0" Padding="0" Margin="0,0,0,8">
+                                     Background="Transparent" BorderThickness="0" Padding="0" Margin="0,0,0,4">
                                 <ListBox.Styles>
                                     <Style Selector="ListBoxItem">
                                         <Setter Property="Padding" Value="12,8"/>
@@ -112,7 +113,10 @@
                                 </ListBox.ItemTemplate>
                             </ListBox>
                             
-                            <!-- Actions as List Items -->
+                            <!-- Section: Quick Access -->
+                            <Separator Height="1" Background="#2A2A2A" Margin="12,4"/>
+                            <TextBlock Text="LIBRARY" FontSize="10" FontWeight="Bold" Foreground="#555" Margin="16,4,16,4"/>
+                            
                             <Button Command="{Binding Projects.ImportLikedSongsCommand}" Classes="nav-item" Margin="8,0">
                                 <StackPanel Orientation="Horizontal" Spacing="12">
                                     <Border Width="24" Height="24" CornerRadius="4" Background="#281111" VerticalAlignment="Center">
@@ -131,18 +135,17 @@
                                 </StackPanel>
                             </Button>
 
-                            <Separator Height="1" Background="#333" Margin="12,8"/>
+                            <!-- Section: User Playlists -->
+                            <Separator Height="1" Background="#2A2A2A" Margin="12,8"/>
+                            <TextBlock Text="PLAYLISTS" FontSize="10" FontWeight="Bold" Foreground="#555" Margin="16,4,16,4"/>
 
                             <!-- Project Search -->
-                            <Border Background="#2D2D2D" BorderBrush="#333" BorderThickness="1" CornerRadius="8" Margin="8,8,8,12" Padding="10,2">
+                            <Border Background="#2D2D2D" BorderBrush="#333" BorderThickness="1" CornerRadius="8" Margin="8,4,8,8" Padding="10,2">
                                 <Grid ColumnDefinitions="Auto,*">
                                     <TextBlock Grid.Column="0" Text="🔍" FontSize="12" VerticalAlignment="Center" Foreground="#666"/>
                                     <TextBox Grid.Column="1" Text="{Binding Projects.SearchText, Mode=TwoWay}" Watermark="Filter projects..." Background="Transparent" BorderThickness="0" FontSize="12" Padding="8,6" Foreground="White"/>
                                 </Grid>
                             </Border>
-
-                            <!-- User Playlists -->
-                            <TextBlock Text="PLAYLISTS" FontSize="11" FontWeight="Bold" Foreground="#666" Margin="16,0,16,8"/>
                             
                             <ListBox ItemsSource="{Binding Projects.FilteredProjects}" SelectedItem="{Binding Projects.SelectedProject, Mode=TwoWay}" Background="Transparent" BorderThickness="0" Padding="0">
                                 <ListBox.Styles>
@@ -416,28 +419,59 @@
                                 </Style>
                             </dg:DataGrid.Styles>
                             <dg:DataGrid.Columns>
-                                <dg:DataGridTextColumn Header="Artist" Binding="{Binding Artist}" Width="200"/>
-                                <dg:DataGridTextColumn Header="Title" Binding="{Binding Title}" Width="250"/>
-                                <dg:DataGridTemplateColumn Header="BPM" Width="70">
+                                <dg:DataGridTemplateColumn Header="Art" Width="50">
                                     <dg:DataGridTemplateColumn.CellTemplate>
                                         <DataTemplate DataType="vm:PlaylistTrackViewModel">
-                                            <TextBlock Text="{Binding BPM, StringFormat={}{0:F0}}" 
-                                                       Foreground="{Binding ColorBrush}"
-                                                       VerticalAlignment="Center" HorizontalAlignment="Center" FontWeight="Bold"/>
-                                        </DataTemplate>
-                                    </dg:DataGridTemplateColumn.CellTemplate>
-                                </dg:DataGridTemplateColumn>
-                                <dg:DataGridTemplateColumn Header="Key" Width="60">
-                                    <dg:DataGridTemplateColumn.CellTemplate>
-                                        <DataTemplate DataType="vm:PlaylistTrackViewModel">
-                                            <Border Background="{Binding ColorBrush}" CornerRadius="4" Padding="4,2" HorizontalAlignment="Center">
-                                                <TextBlock Text="{Binding MusicalKey}" Foreground="White" FontSize="11" FontWeight="Bold"/>
+                                            <Border Width="32" Height="32" CornerRadius="4" ClipToBounds="True" Background="#333" HorizontalAlignment="Center" VerticalAlignment="Center">
+                                                <Image Source="{Binding Artwork.Image}" Stretch="UniformToFill"/>
                                             </Border>
                                         </DataTemplate>
                                     </dg:DataGridTemplateColumn.CellTemplate>
                                 </dg:DataGridTemplateColumn>
-                                <dg:DataGridTextColumn Header="Time" Binding="{Binding DurationFormatted}" Width="80"/>
+
+                                <dg:DataGridTextColumn Header="Artist" Binding="{Binding Artist}" Width="150"/>
+                                <dg:DataGridTextColumn Header="Title" Binding="{Binding Title}" Width="200"/>
+                                <dg:DataGridTextColumn Header="Album" Binding="{Binding Album}" Width="150"/>
+                                
+                                <dg:DataGridTemplateColumn Header="BPM" Width="60">
+                                    <dg:DataGridTemplateColumn.CellTemplate>
+                                        <DataTemplate DataType="vm:PlaylistTrackViewModel">
+                                            <TextBlock Text="{Binding BPM, StringFormat={}{0:F0}}" 
+                                                       Foreground="{Binding QualityColor}"
+                                                       VerticalAlignment="Center" HorizontalAlignment="Center" FontWeight="Bold"/>
+                                        </DataTemplate>
+                                    </dg:DataGridTemplateColumn.CellTemplate>
+                                </dg:DataGridTemplateColumn>
+                                
+                                <dg:DataGridTemplateColumn Header="Key" Width="80">
+                                    <dg:DataGridTemplateColumn.CellTemplate>
+                                        <DataTemplate DataType="vm:PlaylistTrackViewModel">
+                                            <Border Background="{Binding ColorBrush}" CornerRadius="4" Padding="4,2" HorizontalAlignment="Center" VerticalAlignment="Center">
+                                                <TextBlock Text="{Binding KeyDisplay}" Foreground="White" FontSize="11" FontWeight="Bold"/>
+                                            </Border>
+                                        </DataTemplate>
+                                    </dg:DataGridTemplateColumn.CellTemplate>
+                                </dg:DataGridTemplateColumn>
+
+                                <dg:DataGridTextColumn Header="Drop" Binding="{Binding DropDisplay}" Width="60"/>
+                                <dg:DataGridTextColumn Header="Energy" Binding="{Binding EnergyRating}" Width="60"/>
+
+                                <dg:DataGridTemplateColumn Header="Vibe" Width="180">
+                                    <dg:DataGridTemplateColumn.CellTemplate>
+                                        <DataTemplate DataType="vm:PlaylistTrackViewModel">
+                                            <controls:VibePillContainer Items="{Binding VibePills}" VerticalAlignment="Center"/>
+                                        </DataTemplate>
+                                    </dg:DataGridTemplateColumn.CellTemplate>
+                                </dg:DataGridTemplateColumn>
+
+                                <dg:DataGridTextColumn Header="Year" Binding="{Binding YearDisplay}" Width="60"/>
+                                <dg:DataGridTextColumn Header="Genre" Binding="{Binding PrimaryGenre}" Width="100"/>
+                                <dg:DataGridTextColumn Header="Label" Binding="{Binding Label}" Width="120"/>
+                                <dg:DataGridTextColumn Header="Time" Binding="{Binding DurationFormatted}" Width="70"/>
                                 <dg:DataGridTextColumn Header="Bitrate" Binding="{Binding BitrateFormatted}" Width="80"/>
+                                <dg:DataGridTextColumn Header="Source" Binding="{Binding Source}" Width="100"/>
+                                <dg:DataGridTextColumn Header="Plays" Binding="{Binding PlayCount}" Width="50"/>
+                                <dg:DataGridTextColumn Header="Comments" Binding="{Binding Comments}" Width="*"/>
                             </dg:DataGrid.Columns>
                         </dg:DataGrid>
                     </Panel>

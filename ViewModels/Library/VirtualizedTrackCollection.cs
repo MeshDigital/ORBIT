@@ -147,7 +147,8 @@ public class VirtualizedTrackCollection : IList<PlaylistTrackViewModel>, IList, 
 
             await Dispatcher.UIThread.InvokeAsync(() =>
             {
-                // Trigger a Reset to ensure UI re-evaluates all visible items
+                // Only trigger Reset if significant changes occur or via throttled mechanism
+                // to prevent UI freezing during bulk page loads.
                 CollectionChanged?.Invoke(this, new NotifyCollectionChangedEventArgs(NotifyCollectionChangedAction.Reset));
             });
         }

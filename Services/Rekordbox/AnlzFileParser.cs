@@ -105,8 +105,14 @@ public class AnlzFileParser
                     
                 case "PWAV": 
                 case "PWV2": 
-                case "PWV3": 
                     data.WaveformData = ParseWaveform(reader, length);
+                    break;
+                case "PWV3":
+                case "PWH1": // High-res/RGB tags
+                case "PWH2":
+                case "PWH3":
+                    var rgbData = ParseWaveform(reader, length);
+                    ExtractRgbFromPwh(rgbData, data);
                     break;
                     
                 case "PSSI": 
@@ -215,23 +221,45 @@ public class AnlzFileParser
     /// </summary>
     private byte[] ParseWaveform(BinaryReader reader, uint length)
     {
-        // Use ArrayPool to avoid allocating large byte arrays
-        var buffer = ArrayPool<byte>.Shared.Rent((int)length);
+        return reader.ReadBytes((int)length);
+    }
+
+    /// <summary>
+    /// Processes Rekordbox high-res waveform data (PWHx tags) which contains
+    /// interleaved Low (Red), Mid (Green), and High (Blue) components.
+    /// </summary>
+    private void ExtractRgbFromPwh(byte[] data, AnlzData target)
+    {
+        // PWH3 usually starts with a 16-byte header, then interleaved bytes.
+        // Each entry is often 3-4 bytes depending on the version.
+        // For simplicity, we detect fixed offsets or patterns if known.
+        // In many Rekordbox versions, it's 3 bytes per sample: Low, Mid, High.
         
-        try
+        if (data.Length < 20) return;
+
+        int headerSize = 16;
+        int payloadSize = data.Length - headerSize;
+        int sampleCount = payloadSize / 3; 
+        
+        var low = new byte[sampleCount];
+        var mid = new byte[sampleCount];
+        var high = new byte[sampleCount];
+        var summary = new byte[sampleCount];
+
+        for (int i = 0; i < sampleCount; i++)
         {
-            reader.Read(buffer, 0, (int)length);
-            
-            // Copy to sized array for return
-            var result = new byte[length];
-            Array.Copy(buffer, result, (int)length);
-            
-            return result;
+            int baseIdx = headerSize + (i * 3);
+            low[i] = data[baseIdx];
+            mid[i] = data[baseIdx + 1];
+            high[i] = data[baseIdx + 2];
+            // Summary is usually max of the three
+            summary[i] = Math.Max(low[i], Math.Max(mid[i], high[i]));
         }
-        finally
-        {
-            ArrayPool<byte>.Shared.Return(buffer);
-        }
+
+        target.LowData = low;
+        target.MidData = mid;
+        target.HighData = high;
+        target.WaveformData = summary;
     }
     
     /// <summary>
@@ -290,6 +318,9 @@ public class AnlzData
     public List<BeatGridTick> BeatGrid { get; set; } = new();
     public List<CuePoint> CuePoints { get; set; } = new();
     public byte[] WaveformData { get; set; } = Array.Empty<byte>();
+    public byte[] LowData { get; set; } = Array.Empty<byte>();
+    public byte[] MidData { get; set; } = Array.Empty<byte>();
+    public byte[] HighData { get; set; } = Array.Empty<byte>();
     public SongStructure SongStructure { get; set; } = new();
 }
 

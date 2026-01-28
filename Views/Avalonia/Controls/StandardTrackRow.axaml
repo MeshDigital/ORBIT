@@ -79,8 +79,8 @@
     </UserControl.Styles>
 
     <Border Classes="root">
-            
-
+        <Panel>
+            <!-- Phase 5B: Removed waveform underlay - was visually noisy in list context -->
             
         <Grid ColumnDefinitions="50, 12, *, Auto" RowDefinitions="Auto, Auto">
         
@@ -126,12 +126,21 @@
             <!-- Column 1: Spacer -->
             
             <!-- Column 2: Main Content -->
-            <StackPanel Grid.Row="0" Grid.Column="2" Orientation="Vertical" VerticalAlignment="Center" Spacing="2">
+             <StackPanel Grid.Row="0" Grid.Column="2" Orientation="Vertical" VerticalAlignment="Center" Spacing="2">
                 <!-- Line 1: Artist - Title -->
                 <StackPanel Orientation="Horizontal" Spacing="6">
                    <TextBlock Text="{Binding ArtistName}" FontWeight="SemiBold" Foreground="{DynamicResource TextBrush}" FontSize="14" TextTrimming="CharacterEllipsis"/>
                    <TextBlock Text="-" Foreground="{DynamicResource TextTertiaryBrush}"/>
                    <TextBlock Text="{Binding TrackTitle}" Foreground="{DynamicResource TextBrush}" FontSize="14" TextTrimming="CharacterEllipsis"/>
+                   
+                   <!-- Interaction Hub -->
+                   <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="8,0" Spacing="8">
+                        <TextBlock Text="❤️" IsVisible="{Binding IsLiked}" FontSize="12" VerticalAlignment="Center"/>
+                        <StackPanel Orientation="Horizontal" Spacing="2" Opacity="0.6">
+                            <TextBlock Text="🎧" FontSize="10" VerticalAlignment="Center"/>
+                            <TextBlock Text="{Binding PlayCount}" FontSize="9" VerticalAlignment="Center" FontWeight="Bold"/>
+                        </StackPanel>
+                   </StackPanel>
                    
                    <!--Curation Trust Badge (Phase 11.5) -->
                    <Border CornerRadius="2" Padding="4,1" Margin="0,0,6,0" VerticalAlignment="Center" 
@@ -343,5 +352,6 @@
             </StackPanel>
             
         </Grid>
+        </Panel>
     </Border>
 </UserControl>

@@ -40,6 +40,8 @@ public class TrackEntity
     public int? Popularity { get; set; }
     public int? CanonicalDuration { get; set; }
     public DateTime? ReleaseDate { get; set; }
+    public string? Label { get; set; }
+    public string? Comments { get; set; }
 
     // Phase 0.1: Musical Intelligence & Antigravity
     public string? MusicalKey { get; set; } // e.g. "8A"
@@ -91,6 +93,10 @@ public class TrackEntity
     public string? PrimaryGenre { get; set; } // Phase 10
     public double? InstrumentalProbability { get; set; } // Phase 18.2
 
+    // Phase 5: Ultimate Track View
+    public double? DropTimestamp { get; set; }
+    public int? ManualEnergy { get; set; }
+    public string? SourceProvenance { get; set; }
 }
 
 /// <summary>
@@ -190,6 +196,8 @@ public class PlaylistTrackEntity
     public int? Popularity { get; set; }
     public int? CanonicalDuration { get; set; }
     public DateTime? ReleaseDate { get; set; }
+    public string? Label { get; set; }
+    public string? Comments { get; set; }
 
     // Musical Intelligence
     public string? MusicalKey { get; set; }
@@ -244,6 +252,11 @@ public class PlaylistTrackEntity
     public int EnrichmentAttempts { get; set; } = 0;
     public string? LastEnrichmentAttempt { get; set; }
 
+    // Phase 5: Ultimate Track View
+    public double? DropTimestamp { get; set; }
+    public int? ManualEnergy { get; set; }
+    public string? SourceProvenance { get; set; }
+
     // Configured in AppDbContext via Fluent API
     public virtual AudioFeaturesEntity? AudioFeatures { get; set; }
 
@@ -296,6 +309,8 @@ public class LibraryEntryEntity
     public int? Popularity { get; set; }
     public int? CanonicalDuration { get; set; }
     public DateTime? ReleaseDate { get; set; }
+    public string? Label { get; set; }
+    public string? Comments { get; set; }
 
     // Musical Intelligence
     public string? MusicalKey { get; set; }
@@ -336,6 +351,15 @@ public class LibraryEntryEntity
     // Phase 21: Smart Enrichment Retry System
     public int EnrichmentAttempts { get; set; } = 0;
     public string? LastEnrichmentAttempt { get; set; }
+
+    // Phase 5: Ultimate Track View
+    public double? DropTimestamp { get; set; }
+    public int? ManualEnergy { get; set; }
+    public string? SourceProvenance { get; set; }
+    public int Rating { get; set; } = 0;
+    public bool IsLiked { get; set; } = false;
+    public int PlayCount { get; set; } = 0;
+    public DateTime? LastPlayedAt { get; set; }
 
     // Configured in AppDbContext via Fluent API
     public virtual AudioFeaturesEntity? AudioFeatures { get; set; }

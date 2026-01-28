@@ -182,8 +182,8 @@ public class TrackRepository : ITrackRepository
     {
         using var context = new AppDbContext();
         var query = context.PlaylistTracks
-            .Include(t => t.TechnicalDetails)
             .Include(t => t.AudioFeatures)
+            .AsNoTracking()
             .AsQueryable();
             
         if (playlistId != Guid.Empty)
@@ -771,32 +771,72 @@ public class TrackRepository : ITrackRepository
             query = query.Where(t => t.FilePath != null && t.FilePath != "");
         }
 
-        // 4. Order & Page
+        // 4. Order & Page (Optimized: Select only what's needed for the list view, avoiding heavy blobs)
         var entries = await query
             .OrderByDescending(t => t.AddedAt)
             .Skip(skip)
             .Take(take)
+            .Select(e => new 
+            {
+                e.UniqueHash,
+                e.Artist,
+                e.Title,
+                e.Album,
+                e.FilePath,
+                e.Bitrate,
+                e.DurationSeconds,
+                e.Format,
+                e.AddedAt,
+                e.LastUsedAt,
+                e.SpotifyTrackId,
+                e.ISRC,
+                e.SpotifyAlbumId,
+                e.SpotifyArtistId,
+                e.AlbumArtUrl,
+                e.Genres,
+                e.Popularity,
+                e.CanonicalDuration,
+                e.ReleaseDate,
+                e.Label,
+                e.Comments,
+                e.MusicalKey,
+                e.BPM,
+                e.Energy,
+                e.Valence,
+                e.Danceability,
+                e.Integrity,
+                e.Loudness,
+                e.TruePeak,
+                e.DynamicRange,
+                e.IsEnriched,
+                e.IsPrepared,
+                e.PrimaryGenre,
+                e.DetectedSubGenre,
+                e.SubGenreConfidence,
+                e.InstrumentalProbability,
+                e.DropTimestamp,
+                e.ManualEnergy,
+                e.SourceProvenance,
+                e.Rating,
+                e.IsLiked,
+                e.PlayCount,
+                e.LastPlayedAt,
+                e.AudioFeatures
+            })
             .ToListAsync();
 
         // 5. PROJECT to PlaylistTrackEntity (The Adapter Pattern)
-        // This allows the existing UI to consume LibraryEntries without refactoring the ViewModels.
+        // Re-mapping from the anonymous type to the entity
         return entries.Select(e => new PlaylistTrackEntity
         {
-            Id = Guid.NewGuid(), // Virtual ID for the view
-            PlaylistId = Guid.Empty, // Indicates "Library View"
-            
-            // Map Core Metadata
+            Id = Guid.NewGuid(),
+            PlaylistId = Guid.Empty,
             Artist = e.Artist,
             Title = e.Title,
             Album = e.Album,
             TrackUniqueHash = e.UniqueHash,
-            
-            // Map Status (If it has a path, it's downloaded)
             Status = string.IsNullOrEmpty(e.FilePath) ? TrackStatus.Missing : TrackStatus.Downloaded,
             ResolvedFilePath = e.FilePath,
-            
-            // Map Enrichment Data
-            // Map Enrichment Data (Prefer AudioFeatures if available)
             SpotifyTrackId = e.SpotifyTrackId,
             AlbumArtUrl = e.AlbumArtUrl,
             BPM = (e.AudioFeatures?.Bpm > 0) ? e.AudioFeatures.Bpm : e.BPM,
@@ -804,34 +844,33 @@ public class TrackRepository : ITrackRepository
             Danceability = (e.AudioFeatures?.Danceability > 0) ? e.AudioFeatures.Danceability : e.Danceability,
             Valence = (e.AudioFeatures?.Valence > 0) ? e.AudioFeatures.Valence : e.Valence,
             MusicalKey = !string.IsNullOrEmpty(e.AudioFeatures?.Key) ? e.AudioFeatures.Key : e.MusicalKey,
-            CanonicalDuration = e.DurationSeconds * 1000, // Convert to MS
-            
-            // Important: Library entries might not have SortOrder, so we default to 0
+            CanonicalDuration = e.DurationSeconds * 1000,
             SortOrder = 0,
             AddedAt = e.AddedAt,
             IsEnriched = e.IsEnriched,
-            
-            // FIX: Map Technical Data (Badges/Quality)
             Bitrate = e.Bitrate,
             Format = e.Format,
-            Integrity = e.Integrity, // Now correctly mapped
-            BitrateScore = e.Bitrate, // Fallback score
-            
-            // FIX: Map AI/Curation Data (Vibes/Shields)
+            Integrity = e.Integrity,
+            BitrateScore = e.Bitrate,
             DetectedSubGenre = e.AudioFeatures?.DetectedSubGenre ?? e.DetectedSubGenre,
             SubGenreConfidence = e.AudioFeatures?.SubGenreConfidence ?? e.SubGenreConfidence,
-            InstrumentalProbability = e.AudioFeatures?.InstrumentalProbability ?? e.InstrumentalProbability, // FIX: Map Instrumental Pill
+            InstrumentalProbability = e.AudioFeatures?.InstrumentalProbability ?? e.InstrumentalProbability,
             PrimaryGenre = e.PrimaryGenre,
-            AudioFeatures = e.AudioFeatures, // Pass the whole object if possible, or map fields
-            
-            // Map Technical Audio (Loudness/Dynamics)
+            AudioFeatures = e.AudioFeatures,
             Loudness = e.Loudness,
             TruePeak = e.TruePeak,
             DynamicRange = e.DynamicRange,
-            
-            // Map Trust
             IsTrustworthy = e.Integrity != Data.IntegrityLevel.Suspicious && e.Integrity != Data.IntegrityLevel.None,
-            QualityConfidence = (e.Bitrate >= 320 || e.Format == "flac") ? 1.0 : 0.5
+            QualityConfidence = (e.Bitrate >= 320 || e.Format == "flac") ? 1.0 : 0.5,
+            
+            // Phase 5: Ultimate Track View
+            DropTimestamp = e.DropTimestamp,
+            ManualEnergy = e.ManualEnergy,
+            SourceProvenance = e.SourceProvenance,
+            Rating = e.Rating,
+            IsLiked = e.IsLiked,
+            PlayCount = e.PlayCount,
+            LastPlayedAt = e.LastPlayedAt
         }).ToList();
     }
 

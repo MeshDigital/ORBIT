@@ -110,6 +110,8 @@ public class LibraryService : ILibraryService
                 existingEntity.Bitrate = entry.Bitrate;
                 existingEntity.DurationSeconds = entry.DurationSeconds;
                 existingEntity.Format = entry.Format;
+                existingEntity.Label = entry.Label;
+                existingEntity.Comments = entry.Comments;
                 existingEntity.LastUsedAt = DateTime.UtcNow;
                 
                 // Preserve scientific data if input is empty (don't overwrite enrichment with nulls)
@@ -215,7 +217,9 @@ public class LibraryService : ILibraryService
                     Energy = track.Energy,
                     Danceability = track.Danceability,
                     Valence = track.Valence,
-                    IsEnriched = track.IsEnriched
+                    IsEnriched = track.IsEnriched,
+                    Label = track.Label,
+                    Comments = track.Comments
                 };
 
                 await SaveOrUpdateLibraryEntryAsync(entry);
@@ -253,7 +257,9 @@ public class LibraryService : ILibraryService
                 Energy = track.Energy,
                 Danceability = track.Danceability,
                 Valence = track.Valence,
-                IsEnriched = track.IsEnriched
+                IsEnriched = track.IsEnriched,
+                Label = track.Label,
+                Comments = track.Comments
             };
 
             await SaveOrUpdateLibraryEntryAsync(entry);
@@ -850,6 +856,8 @@ public class LibraryService : ILibraryService
             Energy = entity.Energy,
             Danceability = entity.Danceability,
             Valence = entity.Valence,
+            Label = entity.Label,
+            Comments = entity.Comments,
 
             // Phase 21: AI Brain - Mapped below via AudioFeatures
             // Sadness = entity.Sadness, // Removed
@@ -930,8 +938,9 @@ public class LibraryService : ILibraryService
             BPM = track.BPM,
             Energy = track.Energy,
             DetectedSubGenre = track.DetectedSubGenre,
-            Danceability = track.Danceability,
             Valence = track.Valence,
+            Label = track.Label,
+            Comments = track.Comments,
             AnalysisOffset = track.AnalysisOffset,
             BitrateScore = track.BitrateScore,
             Bitrate = track.Bitrate ?? 0,
@@ -988,6 +997,8 @@ public class LibraryService : ILibraryService
             Valence = entity.Valence,
             BPM = entity.BPM,
             MusicalKey = entity.MusicalKey,
+            Label = entity.Label,
+            Comments = entity.Comments,
 
             // Phase 21: AI Brain
             Sadness = entity.AudioFeatures?.Sadness,
@@ -1036,6 +1047,8 @@ public class LibraryService : ILibraryService
         entity.BPM = entry.BPM;
         entity.MusicalKey = entry.MusicalKey;
         entity.IsEnriched = entry.IsEnriched;
+        entity.Label = entry.Label;
+        entity.Comments = entry.Comments;
         
         // Phase 17: Technical Audio Analysis
         entity.Loudness = entry.Loudness;
@@ -1231,7 +1244,9 @@ public class LibraryService : ILibraryService
                     IsEnriched = track.IsEnriched,
                     IsPrepared = track.IsPrepared, // Phase 10
                     PrimaryGenre = track.PrimaryGenre,
-                    DetectedSubGenre = track.DetectedSubGenre
+                    DetectedSubGenre = track.DetectedSubGenre,
+                    Label = track.Label,
+                    Comments = track.Comments
                 };
                 newTracks.Add(newTrack);
             }
