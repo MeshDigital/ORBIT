@@ -199,31 +199,18 @@
             <GridSplitter Grid.Column="1" Width="1" Background="#3E3E3E" HorizontalAlignment="Center"/>
             
             <!-- RIGHT PANEL: Track List -->
-            <Grid Grid.Column="2" RowDefinitions="Auto,Auto,Auto,*">
-                <Border Grid.Row="0" Background="#252526" BorderBrush="#3E3E3E" BorderThickness="0,0,0,1" Padding="20,16">
+            <Grid Grid.Column="2" RowDefinitions="Auto,Auto,Auto,Auto,*">
+                <!-- Row 0: Search Bar + Action Buttons -->
+                <Border Grid.Row="0" Background="#252526" BorderBrush="#3E3E3E" BorderThickness="0,0,0,1" Padding="16,12">
                     <Grid ColumnDefinitions="*,Auto">
-                        <Grid Grid.Column="0" ColumnDefinitions="*,Auto">
-                            <Border Grid.Column="0" Background="#2D2D2D" BorderBrush="#3E3E3E" BorderThickness="1" CornerRadius="8" Padding="12,0" HorizontalAlignment="Stretch" MaxWidth="600" Margin="0,0,16,0">
-                                <Grid ColumnDefinitions="Auto,*">
-                                    <TextBlock Grid.Column="0" Text="🔍" FontSize="14" VerticalAlignment="Center" Margin="0,0,8,0" Foreground="#888"/>
-                                    <TextBox Grid.Column="1" Text="{Binding Tracks.SearchText, Mode=TwoWay}" Watermark="Search tracks..." Background="Transparent" BorderThickness="0" Padding="0,10" Foreground="White"/>
-                                </Grid>
-                            </Border>
-                            <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8">
-                                <ToggleButton Content="All" IsChecked="{Binding Tracks.IsFilterAll, Mode=TwoWay}" Classes="chip" Padding="16,8"/>
-                                <ToggleButton Content="Downloaded" IsChecked="{Binding Tracks.IsFilterDownloaded, Mode=TwoWay}" Classes="chip" Padding="16,8"/>
-                                <ToggleButton Content="Pending" IsChecked="{Binding Tracks.IsFilterPending, Mode=TwoWay}" Classes="chip" Padding="16,8"/>
-                                <ToggleButton Content="Needs Review" IsChecked="{Binding Tracks.IsFilterNeedsReview, Mode=TwoWay}" Classes="chip danger" Padding="16,8"/>
-                                <ItemsControl ItemsSource="{Binding Tracks.StyleFilters}">
-                                    <ItemsControl.ItemsPanel><ItemsPanelTemplate><StackPanel Orientation="Horizontal" Spacing="8"/></ItemsPanelTemplate></ItemsControl.ItemsPanel>
-                                    <ItemsControl.ItemTemplate>
-                                        <DataTemplate>
-                                            <ToggleButton Content="{Binding Style.Name}" IsChecked="{Binding IsSelected, Mode=TwoWay}" Classes="chip" Padding="16,8" BorderBrush="{Binding ColorBrush}" BorderThickness="0,0,0,2"/>
-                                        </DataTemplate>
-                                    </ItemsControl.ItemTemplate>
-                                </ItemsControl>
-                            </StackPanel>
-                        </Grid>
+                        <!-- Search Box - Full Width -->
+                        <Border Grid.Column="0" Background="#2D2D2D" BorderBrush="#3E3E3E" BorderThickness="1" CornerRadius="8" Padding="12,0" HorizontalAlignment="Stretch" Margin="0,0,16,0">
+                            <Grid ColumnDefinitions="Auto,*">
+                                <TextBlock Grid.Column="0" Text="🔍" FontSize="14" VerticalAlignment="Center" Margin="0,0,8,0" Foreground="#888"/>
+                                <TextBox Grid.Column="1" Text="{Binding Tracks.SearchText, Mode=TwoWay}" Watermark="Search tracks..." Background="Transparent" BorderThickness="0" Padding="0,10" Foreground="White"/>
+                            </Grid>
+                        </Border>
+                        <!-- Action Buttons -->
                         <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8">
                             <DropDownButton Content="Bulk Analyze" IsVisible="{Binding Tracks.HasMultiSelection}" Classes="chip danger" CornerRadius="4" Padding="12,6" FontSize="12">
                                 <DropDownButton.Flyout>
@@ -242,8 +229,33 @@
                     </Grid>
                 </Border>
                 
+                <!-- Row 1: Filter Chips (Status + Style Filters) -->
+                <Border Grid.Row="1" Background="#1E1E1E" BorderBrush="#3E3E3E" BorderThickness="0,0,0,1" Padding="16,8">
+                    <Grid ColumnDefinitions="Auto,*">
+                        <!-- Status Chips (Fixed) -->
+                        <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="8" Margin="0,0,16,0">
+                            <ToggleButton Content="All" IsChecked="{Binding Tracks.IsFilterAll, Mode=TwoWay}" Classes="chip" Padding="12,6"/>
+                            <ToggleButton Content="Downloaded" IsChecked="{Binding Tracks.IsFilterDownloaded, Mode=TwoWay}" Classes="chip" Padding="12,6"/>
+                            <ToggleButton Content="Pending" IsChecked="{Binding Tracks.IsFilterPending, Mode=TwoWay}" Classes="chip" Padding="12,6"/>
+                            <ToggleButton Content="Needs Review" IsChecked="{Binding Tracks.IsFilterNeedsReview, Mode=TwoWay}" Classes="chip danger" Padding="12,6"/>
+                        </StackPanel>
+                        <!-- Style Filters (Scrollable) -->
+                        <ScrollViewer Grid.Column="1" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled">
+                            <ItemsControl ItemsSource="{Binding Tracks.StyleFilters}">
+                                <ItemsControl.ItemsPanel><ItemsPanelTemplate><StackPanel Orientation="Horizontal" Spacing="8"/></ItemsPanelTemplate></ItemsControl.ItemsPanel>
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <ToggleButton Content="{Binding Style.Name}" IsChecked="{Binding IsSelected, Mode=TwoWay}" Classes="chip" Padding="12,6" BorderBrush="{Binding ColorBrush}" BorderThickness="0,0,0,2"/>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </ScrollViewer>
+                    </Grid>
+                </Border>
+                
+                
                 <!-- View Settings Toolbar -->
-                <Border Grid.Row="1" Background="#1E1E1E" BorderBrush="#3E3E3E" BorderThickness="0,0,0,1" Padding="12,6">
+                <Border Grid.Row="2" Background="#1E1E1E" BorderBrush="#3E3E3E" BorderThickness="0,0,0,1" Padding="12,6">
                     <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
                         <TextBlock Text="View:" FontWeight="SemiBold" FontSize="11" Foreground="#888" VerticalAlignment="Center" Margin="0,0,8,0"/>
                         
@@ -292,7 +304,7 @@
                     </StackPanel>
                 </Border>
                 
-                <Border Grid.Row="2" Background="#252526" BorderBrush="#3E3E3E" BorderThickness="0,0,0,1" Padding="16,12" IsVisible="{Binding IsActiveDownloadsVisible}">
+                <Border Grid.Row="3" Background="#252526" BorderBrush="#3E3E3E" BorderThickness="0,0,0,1" Padding="16,12" IsVisible="{Binding IsActiveDownloadsVisible}">
                     <Grid RowDefinitions="Auto,Auto">
                         <Grid ColumnDefinitions="*,Auto" Grid.Row="0">
                             <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="16" VerticalAlignment="Center">
@@ -312,7 +324,7 @@
                     </Grid>
                 </Border>
 
-                <Grid Grid.Row="3" RowDefinitions="*, Auto, Auto">
+                <Grid Grid.Row="4" RowDefinitions="*, Auto, Auto">
                     <Panel Grid.Row="0">
                         <!-- Standard List View -->
                         <ListBox ItemsSource="{Binding Tracks.FilteredTracks}" 
