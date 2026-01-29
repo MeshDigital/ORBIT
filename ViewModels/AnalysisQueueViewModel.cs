@@ -21,6 +21,8 @@ public class AnalysisJobViewModel : ReactiveObject
     private string? _error;
     
     public string TrackHash { get; set; }
+    public Guid? DatabaseId { get; set; } // Phase 21: Database visibility
+    public string GlobalId => TrackHash; // Alias for UI
     public string FilePath { get; set; }
     public string FileName => System.IO.Path.GetFileName(FilePath);
     
@@ -474,7 +476,8 @@ public class AnalysisQueueViewModel : ReactiveObject, IDisposable
         var job = new AnalysisJobViewModel(evt.TrackGlobalId, evt.FileName) 
         { 
             Status = "Analyzing",
-            Step = "Initializing..."
+            Step = "Initializing...",
+            DatabaseId = evt.DatabaseId
         };
         ActiveJobs.Add(job);
     }

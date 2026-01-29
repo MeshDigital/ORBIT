@@ -17,6 +17,7 @@ public class ActiveThreadInfo : INotifyPropertyChanged
     private string _status = "Idle";
     private double _progress;
     private DateTime? _startTime;
+    private Guid? _databaseId; // Phase 21: Database visibility
 
     public int ThreadId
     {
@@ -46,6 +47,12 @@ public class ActiveThreadInfo : INotifyPropertyChanged
     {
         get => _startTime;
         set => SetField(ref _startTime, value);
+    }
+
+    public Guid? DatabaseId
+    {
+        get => _databaseId;
+        set => SetField(ref _databaseId, value);
     }
 
     private float _bpmConfidence;

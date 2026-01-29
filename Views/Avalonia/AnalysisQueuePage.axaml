@@ -200,8 +200,11 @@
                                                 
                                                 <!-- Info -->
                                                 <StackPanel Grid.Column="1" Grid.Row="0" VerticalAlignment="Center">
-                                                    <TextBlock Text="{Binding FileName}" FontSize="13" FontWeight="SemiBold"/>
-                                                    <TextBlock Text="{Binding Status}" FontSize="11" Foreground="#888"/>
+                                                    <TextBlock Text="{Binding FileName}" FontSize="13" FontWeight="SemiBold" TextTrimming="CharacterEllipsis"/>
+                                                    <StackPanel Orientation="Horizontal" Spacing="8">
+                                                        <TextBlock Text="{Binding Status}" FontSize="11" Foreground="#888"/>
+                                                        <TextBlock Text="{Binding DatabaseId, StringFormat='{}DB-ID: {0}'}" FontSize="10" Foreground="#4EC9B0" Opacity="0.8" FontFamily="Consolas"/>
+                                                    </StackPanel>
                                                 </StackPanel>
                                                 
                                                 <!-- Progress -->
@@ -246,7 +249,10 @@
                                              
                                              <StackPanel Grid.Column="1" VerticalAlignment="Center">
                                                  <TextBlock Text="{Binding FileName}" FontSize="13" FontWeight="SemiBold"/>
-                                                 <TextBlock Text="{Binding TrackHash}" FontSize="10" FontFamily="Consolas" Foreground="#666"/>
+                                                 <StackPanel Orientation="Horizontal" Spacing="8">
+                                                     <TextBlock Text="{Binding TrackHash}" FontSize="10" FontFamily="Consolas" Foreground="#666"/>
+                                                     <TextBlock Text="{Binding DatabaseId, StringFormat='{} (ID: {0})'}" FontSize="10" Foreground="#4EC9B0" Opacity="0.6"/>
+                                                 </StackPanel>
                                              </StackPanel>
                                              
                                              <TextBlock Grid.Column="2" Text="{Binding Age}" FontSize="11" Foreground="#888" VerticalAlignment="Center" Margin="16,0"/>
@@ -285,7 +291,10 @@
                                          <Grid RowDefinitions="Auto, Auto, Auto">
                                              <Grid Grid.Row="0" ColumnDefinitions="Auto, *, Auto">
                                                  <PathIcon Data="{StaticResource error_circle_regular}" Foreground="#F44336" Margin="0,0,12,0"/>
-                                                 <TextBlock Grid.Column="1" Text="{Binding FileName}" FontSize="13" FontWeight="Bold" Foreground="#FFCCCC"/>
+                                                 <StackPanel Grid.Column="1">
+                                                     <TextBlock Text="{Binding FileName}" FontSize="13" FontWeight="Bold" Foreground="#FFCCCC"/>
+                                                     <TextBlock Text="{Binding DatabaseId, StringFormat='{}Track ID: {0}'}" FontSize="9" Foreground="#666" FontFamily="Consolas"/>
+                                                 </StackPanel>
                                                  <TextBlock Grid.Column="2" Text="{Binding Age}" FontSize="11" Foreground="#666"/>
                                              </Grid>
                                              

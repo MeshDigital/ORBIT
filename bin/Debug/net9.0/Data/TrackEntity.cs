@@ -8,6 +8,19 @@ using SLSKDONET.Data.Entities;
 namespace SLSKDONET.Data;
 
 /// <summary>
+/// Status of the audio analysis process for a track.
+/// </summary>
+public enum AnalysisStatus
+{
+    None = 0,
+    Pending = 1,
+    Processing = 2,
+    Completed = 3,
+    Failed = 4,
+    Skipped = 5
+}
+
+/// <summary>
 /// Database entity for a track in the persisted queue.
 /// </summary>
 public class TrackEntity
@@ -237,6 +250,8 @@ public class PlaylistTrackEntity
     public bool IsEnriched { get; set; } = false;
     public bool IsPrepared { get; set; } = false; // Phase 10
     
+    public AnalysisStatus AnalysisStatus { get; set; } = AnalysisStatus.None;
+
     // Phase 15
     public string? DetectedSubGenre { get; set; }
     public float? SubGenreConfidence { get; set; } // Phase 12.7
@@ -339,6 +354,7 @@ public class LibraryEntryEntity
     
     public bool IsEnriched { get; set; } = false;
     public bool IsPrepared { get; set; } = false; // Phase 10
+    public AnalysisStatus AnalysisStatus { get; set; } = AnalysisStatus.None;
     public string? PrimaryGenre { get; set; } // Phase 10
     public string? CuePointsJson { get; set; } // Phase 10
 

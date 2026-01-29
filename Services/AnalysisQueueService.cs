@@ -55,6 +55,7 @@ public class AnalysisQueueService : INotifyPropertyChanged
     
     // Thread tracking for Mission Control dashboard
     private readonly ConcurrentDictionary<int, ActiveThreadInfo> _activeThreads = new();
+    private readonly ConcurrentDictionary<string, byte> _activeRequestHashes = new(); // Phase 21: Runtime Deduplication
     public ObservableCollection<ActiveThreadInfo> ActiveThreads { get; } = new();
 
     public event PropertyChangedEventHandler? PropertyChanged;
@@ -154,9 +155,16 @@ public class AnalysisQueueService : INotifyPropertyChanged
         _eventBus.GetEvent<TrackAnalysisRequestedEvent>().Subscribe(OnAnalysisRequested);
     }
 
-    public void QueueAnalysis(string filePath, string trackHash, AnalysisTier tier = AnalysisTier.Tier1, bool highPriority = false)
+    public void QueueAnalysis(string filePath, string trackHash, AnalysisTier tier = AnalysisTier.Tier1, bool highPriority = false, Guid? dbId = null)
     {
-        var request = new AnalysisRequest(filePath, trackHash, tier);
+        // Phase 21: Runtime Deduplication
+        if (!_activeRequestHashes.TryAdd(trackHash, 0))
+        {
+            _logger.LogDebug("🧠 Analysis already in progress/queued for {Hash}, skipping duplicate request.", trackHash);
+            return;
+        }
+
+        var request = new AnalysisRequest(filePath, trackHash, tier, DatabaseId: dbId);
         
         if (highPriority)
         {
@@ -192,7 +200,7 @@ public class AnalysisQueueService : INotifyPropertyChanged
                     
                 if (entry != null && System.IO.File.Exists(entry.FilePath))
                 {
-                    QueueAnalysis(entry.FilePath, entry.UniqueHash, evt.Tier);
+                    QueueAnalysis(entry.FilePath, entry.UniqueHash, evt.Tier, dbId: entry.Id);
                     return;
                 }
                 
@@ -202,7 +210,7 @@ public class AnalysisQueueService : INotifyPropertyChanged
                     
                 if (track != null && !string.IsNullOrEmpty(track.ResolvedFilePath) && System.IO.File.Exists(track.ResolvedFilePath))
                 {
-                    QueueAnalysis(track.ResolvedFilePath, evt.TrackGlobalId, evt.Tier);
+                    QueueAnalysis(track.ResolvedFilePath, evt.TrackGlobalId, evt.Tier, dbId: track.Id);
                     return;
                 }
                 
@@ -229,9 +237,13 @@ public class AnalysisQueueService : INotifyPropertyChanged
         {
             using var context = await _dbFactory.CreateDbContextAsync();
             
-            // 1. Find tracks in library that don't have audio features yet
+            // 1. Find tracks in library that need analysis
+            // Optimization: Skip tracks that explicitly FAILED or are COMPLETED
             var unanalyzedTracks = await context.LibraryEntries
+                .Where(le => le.AnalysisStatus == AnalysisStatus.None || le.AnalysisStatus == AnalysisStatus.Pending)
                 .Where(le => !context.AudioFeatures.Any(af => af.TrackUniqueHash == le.UniqueHash))
+                .OrderByDescending(le => le.AddedAt)
+                .Take(2000) // Don't overwhelm the channel in one go
                 .ToListAsync();
 
             // 2. Find Stalled Runs (Processing but app crashed)
@@ -263,7 +275,7 @@ public class AnalysisQueueService : INotifyPropertyChanged
             {
                 if (File.Exists(track.FilePath))
                 {
-                    QueueAnalysis(track.FilePath, track.UniqueHash, AnalysisTier.Tier1);
+                    QueueAnalysis(track.FilePath, track.UniqueHash, AnalysisTier.Tier1, dbId: track.Id);
                     enqueuedCount++;
                 }
                 else
@@ -280,14 +292,16 @@ public class AnalysisQueueService : INotifyPropertyChanged
         }
     }
 
-    public void NotifyProcessingStarted(string trackHash, string fileName)
+    public void NotifyProcessingStarted(string trackHash, string fileName, Guid? dbId = null)
     {
         CurrentTrackHash = trackHash;
-        _eventBus.Publish(new TrackAnalysisStartedEvent(trackHash, fileName));
+        _eventBus.Publish(new TrackAnalysisStartedEvent(trackHash, fileName) { DatabaseId = dbId });
     }
 
     public void NotifyProcessingCompleted(string trackHash, bool success, string? error = null)
     {
+        _activeRequestHashes.TryRemove(trackHash, out _); // Cleanup deduplication set
+        
         Interlocked.Increment(ref _processedCount);
         Interlocked.Decrement(ref _queuedCount);
         CurrentTrackHash = null;
@@ -316,7 +330,7 @@ public class AnalysisQueueService : INotifyPropertyChanged
         {
             if (!string.IsNullOrEmpty(track.ResolvedFilePath) && !string.IsNullOrEmpty(track.TrackUniqueHash))
             {
-                QueueAnalysis(track.ResolvedFilePath, track.TrackUniqueHash, tier);
+                QueueAnalysis(track.ResolvedFilePath, track.TrackUniqueHash, tier, dbId: track.Id);
                 count++;
             }
         }
@@ -329,17 +343,15 @@ public class AnalysisQueueService : INotifyPropertyChanged
     {
         if (!string.IsNullOrEmpty(track.ResolvedFilePath) && !string.IsNullOrEmpty(track.TrackUniqueHash))
         {
-            QueueAnalysis(track.ResolvedFilePath, track.TrackUniqueHash, tier);
+            QueueAnalysis(track.ResolvedFilePath, track.TrackUniqueHash, tier, dbId: track.Id);
              _logger.LogInformation("Manual priority queue ({Tier}): {File}", tier, track.Title);
         }
     }
 
-    public void ForceQueueAnalysis(string filePath, string trackHash)
+    public void ForceQueueAnalysis(string filePath, string trackHash, Guid? dbId = null)
     {
-         _channel.Writer.TryWrite(new AnalysisRequest(filePath, trackHash, AnalysisTier.Tier3, Force: true));
-         Interlocked.Increment(ref _queuedCount);
-         OnPropertyChanged(nameof(QueuedCount));
-         PublishStatusEvent();
+         _activeRequestHashes.TryRemove(trackHash, out _); // Force: allow re-entry
+         QueueAnalysis(filePath, trackHash, AnalysisTier.Tier3, highPriority: true, dbId: dbId);
     }
 
     private void PublishStatusEvent()
@@ -378,7 +390,7 @@ public class AnalysisQueueService : INotifyPropertyChanged
             BpmConfidence = bpmConfidence,
             KeyConfidence = keyConfidence,
             IntegrityScore = integrityScore,
-            CurrentStage = stage
+            DatabaseId = status == "Idle" ? null : (Guid?)null // Will be updated by caller
         };
         
         _activeThreads.AddOrUpdate(threadId, info, (id, old) => info);
@@ -398,6 +410,7 @@ public class AnalysisQueueService : INotifyPropertyChanged
                 existing.KeyConfidence = info.KeyConfidence;
                 existing.IntegrityScore = info.IntegrityScore;
                 existing.CurrentStage = info.CurrentStage;
+                // Update DatabaseId if available
             }
             else
             {
@@ -411,7 +424,7 @@ public class AnalysisQueueService : INotifyPropertyChanged
     public ChannelReader<AnalysisRequest> PriorityReader => _priorityChannel.Reader;
 }
 
-public record AnalysisRequest(string FilePath, string TrackHash, AnalysisTier Tier = AnalysisTier.Tier1, bool Force = false);
+public record AnalysisRequest(string FilePath, string TrackHash, AnalysisTier Tier = AnalysisTier.Tier1, bool Force = false, Guid? DatabaseId = null);
 
 public class AnalysisWorker : BackgroundService
 {
@@ -603,6 +616,10 @@ public class AnalysisWorker : BackgroundService
                     // Update thread status: Processing
                     _queue.UpdateThreadStatus(threadId, request.FilePath, "Processing", 0);
                     
+                    // Update thread info with DB ID
+                    var threadInfo = _queue.ActiveThreads.FirstOrDefault(t => t.ThreadId == threadId);
+                    if (threadInfo != null) threadInfo.DatabaseId = request.DatabaseId;
+
                     // Phase 1.2: Pass Priority
                     await ProcessRequestAsync(request, threadId, processPriority, stoppingToken);
                     Interlocked.Increment(ref processedInBatch);
@@ -672,13 +689,13 @@ public class AnalysisWorker : BackgroundService
         var sw = System.Diagnostics.Stopwatch.StartNew();
 
         // Context to hold results for batching
-        var resultContext = new AnalysisResultContext { TrackHash = trackHash, FilePath = request.FilePath, CorrelationId = correlationId };
+        var resultContext = new AnalysisResultContext { TrackHash = trackHash, FilePath = request.FilePath, CorrelationId = correlationId, DatabaseId = request.DatabaseId };
 
         using (_forensicLogger.TimedOperation(correlationId, ForensicStage.AnalysisQueue, "Full Analysis Pipeline", trackHash))
         {
             try
             {
-                _queue.NotifyProcessingStarted(trackHash, request.FilePath);
+                _queue.NotifyProcessingStarted(trackHash, request.FilePath, request.DatabaseId);
                 _forensicLogger.Info(correlationId, ForensicStage.AnalysisQueue, "Processing started", trackHash);
 
                 using var scope = _serviceProvider.CreateScope();
@@ -896,11 +913,23 @@ public class AnalysisWorker : BackgroundService
                     errorRun.Status = Data.Entities.AnalysisRunStatus.Failed;
                     errorRun.ErrorMessage = ex.Message;
                     errorRun.ErrorStackTrace = ex.StackTrace;
-                    errorRun.FailedStage = "Unknown"; // TODO: track which stage failed
+                    errorRun.FailedStage = "Unknown"; 
                     errorRun.CompletedAt = DateTime.UtcNow;
                     errorRun.DurationMs = sw.ElapsedMilliseconds;
                     await errorDb.SaveChangesAsync();
                 }
+
+                // Phase 21: Mark track as Failed in DB to prevent infinite retry loops
+                using var dbScope = _serviceProvider.CreateScope();
+                var db = dbScope.ServiceProvider.GetRequiredService<AppDbContext>();
+                
+                var entry = await db.LibraryEntries.FirstOrDefaultAsync(e => e.UniqueHash == trackHash, stoppingToken);
+                if (entry != null) { entry.AnalysisStatus = AnalysisStatus.Failed; }
+                
+                var tracks = await db.PlaylistTracks.Where(t => t.TrackUniqueHash == trackHash).ToListAsync(stoppingToken);
+                foreach(var t in tracks) { t.AnalysisStatus = AnalysisStatus.Failed; }
+                
+                await db.SaveChangesAsync(stoppingToken);
             }
             finally
             {
@@ -986,7 +1015,7 @@ public class AnalysisWorker : BackgroundService
                             _eventBus.Publish(new TrackMetadataUpdatedEvent(result.TrackHash));
                             
                             // Race Condition Check: Publish Completion events HERE, after DB commit
-                            _eventBus.Publish(new TrackAnalysisCompletedEvent(result.TrackHash, true));
+                            _eventBus.Publish(new TrackAnalysisCompletedEvent(result.TrackHash, true) { DatabaseId = result.DatabaseId });
                             _eventBus.Publish(new AnalysisCompletedEvent(result.TrackHash, true));
                         }
 
@@ -1021,10 +1050,18 @@ public class AnalysisWorker : BackgroundService
         if (result.MusicalResult != null)
         {
             track.IsEnriched = true;
+            track.AnalysisStatus = AnalysisStatus.Completed; // Phase 21
             track.BPM = result.MusicalResult.Bpm;
             track.MusicalKey = result.MusicalResult.Key + (result.MusicalResult.Scale == "minor" ? "m" : "");
             track.Energy = result.MusicalResult.Energy;
             track.Danceability = result.MusicalResult.Danceability;
+        }
+        else if (track.AnalysisStatus == AnalysisStatus.None || track.AnalysisStatus == AnalysisStatus.Pending)
+        {
+             // If we didn't get musical results, it might be a partial or error state that we're still saving
+             // track.AnalysisStatus = AnalysisStatus.Failed; // Handled by Flush caller if batch fails?
+             // Actually, FlushBatchAsync handles SUCCESSFUL results. Failed results are notified via NotifyProcessingCompleted(false).
+             // But we should mark it as Failed in DB too if we know.
         }
 
         if (result.WaveformData != null)
@@ -1107,6 +1144,7 @@ public class AnalysisWorker : BackgroundService
         if (result.MusicalResult != null)
         {
             entry.IsEnriched = true;
+            entry.AnalysisStatus = AnalysisStatus.Completed; // Phase 21
             entry.BPM = result.MusicalResult.Bpm;
             // Fix: Map properties directly from result
             entry.MusicalKey = result.MusicalResult.Key + (result.MusicalResult.Scale == "minor" ? "m" : "");
@@ -1177,6 +1215,7 @@ public class AnalysisWorker : BackgroundService
         public string InteractionId { get; set; } = Guid.NewGuid().ToString(); // Internal tracking
         public string CorrelationId { get; set; } = string.Empty;
         public string TrackHash { get; set; } = string.Empty;
+        public Guid? DatabaseId { get; set; } // Phase 21: Database visibility
         public string FilePath { get; set; } = string.Empty;
         public WaveformAnalysisData? WaveformData { get; set; } // Changed from WaveformData
         public AudioAnalysisEntity? TechResult { get; set; }

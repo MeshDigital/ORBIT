@@ -58,8 +58,8 @@ public record TrackProgressChangedEvent(string TrackGlobalId, double Progress, l
 public record TrackMetadataUpdatedEvent(string TrackGlobalId);
 
 // Audio Analysis Pipeline (Phase 3 Integration + Phase 1 Progress)
-public record TrackAnalysisCompletedEvent(string TrackGlobalId, bool Success, string? ErrorMessage = null);
-public record TrackAnalysisStartedEvent(string TrackGlobalId, string FileName);
+public record TrackAnalysisCompletedEvent(string TrackGlobalId, bool Success, string? ErrorMessage = null) { public Guid? DatabaseId { get; init; } }
+public record TrackAnalysisStartedEvent(string TrackGlobalId, string FileName) { public Guid? DatabaseId { get; init; } }
 
 // Phase 24: Stem Workspace Communication
 public record OpenStemWorkspaceRequestEvent(string TrackGlobalId);
