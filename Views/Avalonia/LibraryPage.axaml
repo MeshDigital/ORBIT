@@ -28,21 +28,15 @@
     </UserControl.Resources>
 
     <UserControl.KeyBindings>
-        <!-- Workspace Switching (Ctrl + 1-5) -->
+        <!-- Workspace Switching (Ctrl + 1-5) - These are safe as they use Ctrl -->
         <KeyBinding Gesture="Ctrl+D1" Command="{Binding SwitchWorkspaceCommand}" CommandParameter="{x:Static vm:ActiveWorkspace.Selector}"/>
         <KeyBinding Gesture="Ctrl+D2" Command="{Binding SwitchWorkspaceCommand}" CommandParameter="{x:Static vm:ActiveWorkspace.Analyst}"/>
         <KeyBinding Gesture="Ctrl+D3" Command="{Binding SwitchWorkspaceCommand}" CommandParameter="{x:Static vm:ActiveWorkspace.Preparer}"/>
         <KeyBinding Gesture="Ctrl+D4" Command="{Binding SwitchWorkspaceCommand}" CommandParameter="{x:Static vm:ActiveWorkspace.Forensic}"/>
         <KeyBinding Gesture="Ctrl+D5" Command="{Binding SwitchWorkspaceCommand}" CommandParameter="{x:Static vm:ActiveWorkspace.Industrial}"/>
 
-        <!-- Fluidity Shortcuts -->
-        <KeyBinding Gesture="Space" Command="{Binding QuickLookCommand}"/>
+        <!-- Global Shortcuts (Safe) -->
         <KeyBinding Gesture="Escape" Command="{Binding SmartEscapeCommand}"/>
-        
-        <!-- Quick Actions (Operation Glass Console) -->
-        <KeyBinding Gesture="P" Command="{Binding Operations.PlayTrackCommand}" CommandParameter="{Binding Tracks.LeadSelectedTrack}"/>
-        <KeyBinding Gesture="L" Command="{Binding Operations.OpenFolderCommand}" CommandParameter="{Binding Tracks.LeadSelectedTrack}"/>
-        <KeyBinding Gesture="A" Command="{Binding AnalyzeTrackCommand}" CommandParameter="{Binding Tracks.LeadSelectedTrack}"/>
     </UserControl.KeyBindings>
 
     <Grid>
@@ -327,9 +321,15 @@
                 <Grid Grid.Row="4" RowDefinitions="*, Auto, Auto">
                     <Panel Grid.Row="0">
                         <!-- Standard List View -->
-                        <ListBox ItemsSource="{Binding Tracks.FilteredTracks}" 
-                                 IsVisible="{Binding ViewSettings.ViewMode, Converter={StaticResource EnumToBoolConverter}, ConverterParameter={x:Static models:TrackViewMode.List}}"
+                        <ListBox IsVisible="{Binding ViewSettings.ViewMode, Converter={StaticResource EnumToBoolConverter}, ConverterParameter={x:Static models:TrackViewMode.List}}"
                                  SelectionMode="Multiple" SelectedItems="{Binding Tracks.SelectedTracks}" Background="Transparent" BorderThickness="0">
+                            <ListBox.ItemsSource>
+                                <MultiBinding Converter="{StaticResource EqualityConverter}">
+                                    <Binding Path="ViewSettings.ViewMode"/>
+                                    <Binding Source="{x:Static models:TrackViewMode.List}"/>
+                                    <Binding Path="Tracks.FilteredTracks"/>
+                                </MultiBinding>
+                            </ListBox.ItemsSource>
                             <ListBox.ItemsPanel><ItemsPanelTemplate><VirtualizingStackPanel/></ItemsPanelTemplate></ListBox.ItemsPanel>
                             <ListBox.Styles>
                                 <Style Selector="ListBoxItem">
@@ -338,6 +338,12 @@
                                 </Style>
                                 <Style Selector="ListBoxItem:selected /template/ ContentPresenter"><Setter Property="Background" Value="#1AFFFFFF"/></Style>
                             </ListBox.Styles>
+                            <ListBox.KeyBindings>
+                                <KeyBinding Gesture="Space" Command="{Binding QuickLookCommand}"/>
+                                <KeyBinding Gesture="P" Command="{Binding Operations.PlayTrackCommand}" CommandParameter="{Binding Tracks.LeadSelectedTrack}"/>
+                                <KeyBinding Gesture="L" Command="{Binding Operations.OpenFolderCommand}" CommandParameter="{Binding Tracks.LeadSelectedTrack}"/>
+                                <KeyBinding Gesture="A" Command="{Binding AnalyzeTrackCommand}" CommandParameter="{Binding Tracks.LeadSelectedTrack}"/>
+                            </ListBox.KeyBindings>
                             <ListBox.ItemTemplate>
                                 <DataTemplate DataType="vm:PlaylistTrackViewModel">
                                     <Border Background="Transparent" Padding="8,6">
@@ -384,10 +390,16 @@
 
                         <!-- Card View -->
                         <ListBox IsVisible="{Binding ViewSettings.ViewMode, Converter={StaticResource EnumToBoolConverter}, ConverterParameter={x:Static models:TrackViewMode.Cards}}" 
-                             ItemsSource="{Binding Tracks.LimitedTracks}" 
-                             SelectionMode="Multiple" 
-                             Background="Transparent"
-                             BorderThickness="0">
+                                 SelectionMode="Multiple" 
+                                 Background="Transparent"
+                                 BorderThickness="0">
+                            <ListBox.ItemsSource>
+                                <MultiBinding Converter="{StaticResource EqualityConverter}">
+                                    <Binding Path="ViewSettings.ViewMode"/>
+                                    <Binding Source="{x:Static models:TrackViewMode.Cards}"/>
+                                    <Binding Path="Tracks.FilteredTracks"/>
+                                </MultiBinding>
+                            </ListBox.ItemsSource>
                              <ListBox.Styles>
                                 <Style Selector="ListBoxItem">
                                     <Setter Property="IsSelected" Value="{Binding IsSelected, Mode=TwoWay}"/>
@@ -401,6 +413,12 @@
                                     <WrapPanel/> 
                                 </ItemsPanelTemplate>
                             </ListBox.ItemsPanel>
+                            <ListBox.KeyBindings>
+                                <KeyBinding Gesture="Space" Command="{Binding QuickLookCommand}"/>
+                                <KeyBinding Gesture="P" Command="{Binding Operations.PlayTrackCommand}" CommandParameter="{Binding Tracks.LeadSelectedTrack}"/>
+                                <KeyBinding Gesture="L" Command="{Binding Operations.OpenFolderCommand}" CommandParameter="{Binding Tracks.LeadSelectedTrack}"/>
+                                <KeyBinding Gesture="A" Command="{Binding AnalyzeTrackCommand}" CommandParameter="{Binding Tracks.LeadSelectedTrack}"/>
+                            </ListBox.KeyBindings>
                             <ListBox.ItemTemplate>
                                 <DataTemplate DataType="vm:PlaylistTrackViewModel">
                                     <controls:TrackCard/>
@@ -411,7 +429,6 @@
                         <!-- Pro View (DataGrid) -->
                         <dg:DataGrid Name="ProDataGrid"
                                   IsVisible="{Binding ViewSettings.ViewMode, Converter={StaticResource EnumToBoolConverter}, ConverterParameter={x:Static models:TrackViewMode.Pro}}"
-                                  ItemsSource="{Binding Tracks.FilteredTracks}"
                                   SelectionMode="Extended"
                                   CanUserReorderColumns="True"
                                   CanUserResizeColumns="True"
@@ -420,6 +437,19 @@
                                   Background="Transparent"
                                   BorderThickness="0"
                                   HeadersVisibility="Column">
+                            <dg:DataGrid.ItemsSource>
+                                <MultiBinding Converter="{StaticResource EqualityConverter}">
+                                    <Binding Path="ViewSettings.ViewMode"/>
+                                    <Binding Source="{x:Static models:TrackViewMode.Pro}"/>
+                                    <Binding Path="Tracks.FilteredTracks"/>
+                                </MultiBinding>
+                            </dg:DataGrid.ItemsSource>
+                            <dg:DataGrid.KeyBindings>
+                                <KeyBinding Gesture="Space" Command="{Binding QuickLookCommand}"/>
+                                <KeyBinding Gesture="P" Command="{Binding Operations.PlayTrackCommand}" CommandParameter="{Binding Tracks.LeadSelectedTrack}"/>
+                                <KeyBinding Gesture="L" Command="{Binding Operations.OpenFolderCommand}" CommandParameter="{Binding Tracks.LeadSelectedTrack}"/>
+                                <KeyBinding Gesture="A" Command="{Binding AnalyzeTrackCommand}" CommandParameter="{Binding Tracks.LeadSelectedTrack}"/>
+                            </dg:DataGrid.KeyBindings>
                             <dg:DataGrid.Styles>
                                 <Style Selector="dg|DataGridColumnHeader">
                                     <Setter Property="Background" Value="#252526"/>

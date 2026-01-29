@@ -10,6 +10,7 @@ using SLSKDONET.Models;
 using SLSKDONET.Services;
 using Avalonia.Threading;
 using Microsoft.Extensions.Logging;
+using System.Reactive.Disposables;
 
 namespace SLSKDONET.ViewModels.Library;
 
@@ -30,7 +31,9 @@ public class VirtualizedTrackCollection : IList<PlaylistTrackViewModel>, IList, 
     
     private int _count = -1;
     private readonly Dictionary<int, PageInfo> _pages = new();
+    private readonly Dictionary<string, PlaylistTrackViewModel> _viewModelCache = new();
     private readonly HashSet<int> _pendingPages = new();
+    private readonly CompositeDisposable _disposables = new();
     
     public event NotifyCollectionChangedEventHandler? CollectionChanged;
     public event PropertyChangedEventHandler? PropertyChanged;
@@ -54,23 +57,49 @@ public class VirtualizedTrackCollection : IList<PlaylistTrackViewModel>, IList, 
         _downloadedOnly = downloadedOnly;
         _pageSize = pageSize;
         
+        // Centralized event dispatch
+        SubscribeToEvents();
+
         // Initial count load
         _ = LoadCountAsync();
     }
 
+    private void SubscribeToEvents()
+    {
+        _disposables.Add(_eventBus.GetEvent<TrackStateChangedEvent>().Subscribe(evt => DispatchToViewModel(evt.TrackGlobalId, vm => vm.OnStateChanged(evt))));
+        _disposables.Add(_eventBus.GetEvent<TrackProgressChangedEvent>().Subscribe(evt => DispatchToViewModel(evt.TrackGlobalId, vm => vm.OnProgressChanged(evt))));
+        _disposables.Add(_eventBus.GetEvent<Models.TrackMetadataUpdatedEvent>().Subscribe(evt => DispatchToViewModel(evt.TrackGlobalId, vm => vm.OnMetadataUpdated(evt))));
+        _disposables.Add(_eventBus.GetEvent<Models.TrackAnalysisStartedEvent>().Subscribe(evt => DispatchToViewModel(evt.TrackGlobalId, vm => vm.OnAnalysisStarted(evt))));
+        _disposables.Add(_eventBus.GetEvent<Models.TrackAnalysisFailedEvent>().Subscribe(evt => DispatchToViewModel(evt.TrackGlobalId, vm => vm.OnAnalysisFailed(evt))));
+    }
+
+    private void DispatchToViewModel(string globalId, Action<PlaylistTrackViewModel> action)
+    {
+        if (string.IsNullOrEmpty(globalId)) return;
+        if (_viewModelCache.TryGetValue(globalId, out var vm))
+        {
+            action(vm);
+        }
+    }
+
     private async Task LoadCountAsync()
     {
+        var sw = System.Diagnostics.Stopwatch.StartNew();
         try 
         {
+            _logger.LogInformation("[VirtualizedTrackCollection] Starting count query...");
             var count = await _libraryService.GetTrackCountAsync(_playlistId, _filter, _downloadedOnly);
+            sw.Stop();
+            _logger.LogInformation("[VirtualizedTrackCollection] Count query took {Ms}ms, returned {Count}", sw.ElapsedMilliseconds, count);
             _count = count;
             
-            await Dispatcher.UIThread.InvokeAsync(() =>
+            // PERFORMANCE FIX: Only notify Count change, NO Reset event here.
+            // The Reset causes all 3 views (List/Cards/Pro) to recalculate, triggering massive page loads.
+            // The UI will naturally update as items are accessed through virtualization.
+            Dispatcher.UIThread.Post(() =>
             {
                 OnPropertyChanged(nameof(Count));
-                // Notify reset so UI binds to the new count
-                CollectionChanged?.Invoke(this, new NotifyCollectionChangedEventArgs(NotifyCollectionChangedAction.Reset));
-                _logger.LogInformation("[VirtualizedTrackCollection] Reset fired after count load: {Count}", _count);
+                _logger.LogInformation("[VirtualizedTrackCollection] Count updated, no Reset fired");
             });
         }
         catch (Exception ex)
@@ -123,34 +152,57 @@ public class VirtualizedTrackCollection : IList<PlaylistTrackViewModel>, IList, 
         return _placeholder;
     }
 
+    private CancellationTokenSource? _notifyThrottleCts;
+    private bool _hasPendingNotify;
+
     private async Task LoadPageAsync(int pageIndex)
     {
         if (!_pendingPages.Add(pageIndex)) return;
 
         try
         {
+            var sw = System.Diagnostics.Stopwatch.StartNew();
             _logger.LogInformation("[VirtualizedTrackCollection] Loading page {PageIndex}...", pageIndex);
             
             int skip = pageIndex * _pageSize;
             var tracks = await _libraryService.GetPagedPlaylistTracksAsync(_playlistId, skip, _pageSize, _filter, _downloadedOnly);
+            sw.Stop();
+            _logger.LogInformation("[VirtualizedTrackCollection] Page {Page} query took {Ms}ms ({Count} tracks)", pageIndex, sw.ElapsedMilliseconds, tracks.Count);
             
             var viewModels = tracks.Select(t => new PlaylistTrackViewModel(t, _eventBus, _libraryService, _artworkCache)).ToList();
             
             _pages[pageIndex] = new PageInfo { Items = viewModels, LastAccess = DateTime.UtcNow };
 
+            // Update ViewModel cache for quick event dispatch
+            foreach (var vm in viewModels)
+            {
+                if (!string.IsNullOrEmpty(vm.GlobalId))
+                {
+                    _viewModelCache[vm.GlobalId] = vm;
+                }
+            }
+
             // Cache management
             if (_pages.Count > 20) 
             {
                 var oldest = _pages.OrderBy(p => p.Value.LastAccess).First();
+                
+                // Remove from VM cache before discarding page
+                foreach (var vm in oldest.Value.Items)
+                {
+                    if (!string.IsNullOrEmpty(vm.GlobalId))
+                    {
+                        _viewModelCache.Remove(vm.GlobalId);
+                    }
+                    vm.Dispose();
+                }
+
                 _pages.Remove(oldest.Key);
             }
 
-            await Dispatcher.UIThread.InvokeAsync(() =>
-            {
-                // Only trigger Reset if significant changes occur or via throttled mechanism
-                // to prevent UI freezing during bulk page loads.
-                CollectionChanged?.Invoke(this, new NotifyCollectionChangedEventArgs(NotifyCollectionChangedAction.Reset));
-            });
+            // PERFORMANCE FIX: Throttle UI notifications to prevent cascading Reset events
+            // Only notify UI after 200ms of no new page loads to batch updates
+            ScheduleThrottledNotify();
         }
         catch (Exception ex)
         {
@@ -160,6 +212,31 @@ public class VirtualizedTrackCollection : IList<PlaylistTrackViewModel>, IList, 
         {
             _pendingPages.Remove(pageIndex);
         }
+    }
+
+    private void ScheduleThrottledNotify()
+    {
+        _hasPendingNotify = true;
+        _notifyThrottleCts?.Cancel();
+        _notifyThrottleCts = new CancellationTokenSource();
+        var token = _notifyThrottleCts.Token;
+
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                await Task.Delay(200, token); // Wait 200ms for more page loads to batch
+                if (!token.IsCancellationRequested && _hasPendingNotify)
+                {
+                    _hasPendingNotify = false;
+                    await Dispatcher.UIThread.InvokeAsync(() =>
+                    {
+                        CollectionChanged?.Invoke(this, new NotifyCollectionChangedEventArgs(NotifyCollectionChangedAction.Reset));
+                    });
+                }
+            }
+            catch (OperationCanceledException) { /* Expected when new pages load */ }
+        });
     }
 
     public int Count => _count == -1 ? 0 : _count;
@@ -223,11 +300,13 @@ public class VirtualizedTrackCollection : IList<PlaylistTrackViewModel>, IList, 
 
     public void Dispose()
     {
+        _disposables.Dispose();
         foreach (var page in _pages.Values)
         {
             foreach (var vm in page.Items) vm.Dispose();
         }
         _pages.Clear();
+        _viewModelCache.Clear();
     }
 
     protected void OnPropertyChanged(string name) => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));

@@ -720,7 +720,9 @@ public class PlaylistTrackViewModel : INotifyPropertyChanged, Library.ILibraryNo
         {
             State = PlaylistTrackState.Completed;
             Progress = 1.0;
-            LoadFileSizeFromDisk(); // Ensure size is loaded for existing tracks
+            // PERFORMANCE FIX: Defer disk I/O to background thread
+            // Don't block constructor with file system calls
+            _ = Task.Run(LoadFileSizeFromDisk);
         }
 
         PauseCommand = new RelayCommand(Pause, () => CanPause);
@@ -735,24 +737,15 @@ public class PlaylistTrackViewModel : INotifyPropertyChanged, Library.ILibraryNo
         RetryCommand = new RelayCommand(FindNewVersion, () => CanHardRetry);
         HardRetryCommand = RetryCommand;
         
-        // Smart Subscription
-            if (_eventBus != null)
-            {
-                _disposables.Add(_eventBus.GetEvent<TrackStateChangedEvent>().Subscribe(OnStateChanged));
-                _disposables.Add(_eventBus.GetEvent<TrackProgressChangedEvent>().Subscribe(OnProgressChanged));
-                _disposables.Add(_eventBus.GetEvent<Models.TrackMetadataUpdatedEvent>().Subscribe(OnMetadataUpdated));
-                _disposables.Add(_eventBus.GetEvent<Models.TrackAnalysisStartedEvent>().Subscribe(OnAnalysisStarted));
-                _disposables.Add(_eventBus.GetEvent<Models.TrackAnalysisFailedEvent>().Subscribe(OnAnalysisFailed));
-            }
-
-            // Initialize ArtworkProxy
-            _artwork = new ArtworkProxy(_artworkCacheService!, track.AlbumArtUrl);
+        // REMOVED: 8000+ redundant event listeners eliminated.
+        // Centralized dispatch moved to VirtualizedTrackCollection.
+        
+        // Initialize ArtworkProxy
+        _artwork = new ArtworkProxy(_artworkCacheService!, track.AlbumArtUrl);
             
-            // Eagerly trigger artwork load if URL exists (fixes artwork not showing after restart)
-            if (!string.IsNullOrWhiteSpace(track.AlbumArtUrl))
-            {
-                _ = _artwork.Image; // Access property to trigger async load
-            }
+            // PERFORMANCE FIX: Don't eagerly trigger artwork load in constructor
+            // Let UI trigger it via property access when visible (lazy loading)
+            // This was causing 1600+ async operations on library open
         }
 
     public void Dispose()
@@ -779,7 +772,8 @@ public class PlaylistTrackViewModel : INotifyPropertyChanged, Library.ILibraryNo
         _isDisposed = true;
     }
 
-    private void OnMetadataUpdated(Models.TrackMetadataUpdatedEvent evt)
+    // Event Handlers (Internal for centralized update from collection)
+    internal void OnMetadataUpdated(Models.TrackMetadataUpdatedEvent evt)
     {
         if (evt.TrackGlobalId != GlobalId) return;
         
@@ -917,7 +911,7 @@ public class PlaylistTrackViewModel : INotifyPropertyChanged, Library.ILibraryNo
         });
     }
 
-    private void OnStateChanged(TrackStateChangedEvent evt)
+    internal void OnStateChanged(TrackStateChangedEvent evt)
     {
         if (evt.TrackGlobalId != GlobalId) return;
         
@@ -969,7 +963,7 @@ public class PlaylistTrackViewModel : INotifyPropertyChanged, Library.ILibraryNo
         OnPropertyChanged(nameof(MetadataStatusSymbol));
     }
 
-    private void OnProgressChanged(TrackProgressChangedEvent evt)
+    internal void OnProgressChanged(TrackProgressChangedEvent evt)
     {
         if (evt.TrackGlobalId != GlobalId) return;
         
@@ -986,7 +980,7 @@ public class PlaylistTrackViewModel : INotifyPropertyChanged, Library.ILibraryNo
         });
     }
 
-    private void OnAnalysisStarted(Models.TrackAnalysisStartedEvent evt)
+    internal void OnAnalysisStarted(Models.TrackAnalysisStartedEvent evt)
     {
         if (evt.TrackGlobalId != GlobalId) return;
         
@@ -999,7 +993,7 @@ public class PlaylistTrackViewModel : INotifyPropertyChanged, Library.ILibraryNo
         });
     }
 
-    private void OnAnalysisFailed(Models.TrackAnalysisFailedEvent evt)
+    internal void OnAnalysisFailed(Models.TrackAnalysisFailedEvent evt)
     {
         if (evt.TrackGlobalId != GlobalId) return;
         

@@ -136,7 +136,10 @@ public partial class LibraryPage : UserControl
 
     protected override async void OnLoaded(RoutedEventArgs e)
     {
+        var totalSw = System.Diagnostics.Stopwatch.StartNew();
+        var stepSw = System.Diagnostics.Stopwatch.StartNew();
         base.OnLoaded(e);
+        _logger?.LogInformation("[PERF] LibraryPage.OnLoaded: base.OnLoaded took {Ms}ms", stepSw.ElapsedMilliseconds);
         
         // BUGFIX: Ensure projects are loaded when user navigates to Library page
         // Previously only loaded during startup or after imports, not on manual navigation
@@ -144,54 +147,54 @@ public partial class LibraryPage : UserControl
         {
             try
             {
+                stepSw.Restart();
                 // FIX: Check if projects are already loaded to prevent aggressive reloading on tab switch
                 if (!vm.Projects.AllProjects.Any())
                 {
-                    _logger?.LogInformation("[DIAGNOSTIC] LibraryPage.OnLoaded: Starting LoadProjectsAsync");
-                    _logger?.LogInformation("[DIAGNOSTIC] Current AllProjects count BEFORE load: {Count}", vm.Projects.AllProjects.Count);
-                    
+                    _logger?.LogInformation("[PERF] LibraryPage.OnLoaded: Starting LoadProjectsAsync");
                     await vm.LoadProjectsAsync();
+                    _logger?.LogInformation("[PERF] LoadProjectsAsync took {Ms}ms", stepSw.ElapsedMilliseconds);
                 }
                 else
                 {
-                    _logger?.LogInformation("[DIAGNOSTIC] LibraryPage.OnLoaded: Projects already loaded ({Count} items). Skipping re-load.", vm.Projects.AllProjects.Count);
+                    _logger?.LogInformation("[PERF] Projects already loaded ({Count} items), check took {Ms}ms", vm.Projects.AllProjects.Count, stepSw.ElapsedMilliseconds);
                     
                     // FIX: Eagerly select first project if none selected to avoid 3s UI binding delay
                     if (vm.Projects.SelectedProject == null && vm.Projects.FilteredProjects.Count > 0)
                     {
-                        _logger?.LogInformation("[DIAGNOSTIC] Eagerly selecting first project to avoid UI delay");
+                        stepSw.Restart();
+                        _logger?.LogInformation("[PERF] Selecting first project...");
                         vm.Projects.SelectedProject = vm.Projects.FilteredProjects[0];
+                        _logger?.LogInformation("[PERF] Project selection took {Ms}ms", stepSw.ElapsedMilliseconds);
                     }
                 }
                 
-                _logger?.LogInformation("[DIAGNOSTIC] LoadProjectsAsync completed. AllProjects count AFTER load: {Count}", vm.Projects.AllProjects.Count);
-                
-                if (vm.Projects.AllProjects.Count == 0)
-                {
-                    _logger?.LogWarning("[DIAGNOSTIC] WARNING: AllProjects is still empty after LoadProjectsAsync!");
-                }
-                else
-                {
-                    _logger?.LogInformation("[DIAGNOSTIC] Projects loaded successfully. First project: {Title}", vm.Projects.AllProjects[0].SourceTitle);
-                }
+                stepSw.Restart();
+                _logger?.LogInformation("[PERF] LoadProjectsAsync completed. AllProjects count: {Count}", vm.Projects.AllProjects.Count);
+                _logger?.LogInformation("[PERF] First project: {Title}", vm.Projects.AllProjects.FirstOrDefault()?.SourceTitle ?? "none");
+                _logger?.LogInformation("[PERF] Logging took {Ms}ms", stepSw.ElapsedMilliseconds);
             }
             catch (Exception ex)
             {
-                _logger?.LogError(ex, "[DIAGNOSTIC] EXCEPTION in LibraryPage.OnLoaded during LoadProjectsAsync");
+                _logger?.LogError(ex, "[PERF] EXCEPTION in LibraryPage.OnLoaded");
             }
         }
         else
         {
-            _logger?.LogWarning("[DIAGNOSTIC] LibraryPage.OnLoaded: DataContext is NOT LibraryViewModel!");
+            _logger?.LogWarning("[PERF] LibraryPage.OnLoaded: DataContext is NOT LibraryViewModel!");
         }
         
-        
+        stepSw.Restart();
         // Find the playlist ListBox and enable drop
         var playlistListBox = this.FindControl<ListBox>("PlaylistListBox");
         if (playlistListBox != null)
         {
             DragDrop.SetAllowDrop(playlistListBox, true);
         }
+        _logger?.LogInformation("[PERF] FindControl/DragDrop took {Ms}ms", stepSw.ElapsedMilliseconds);
+        
+        totalSw.Stop();
+        _logger?.LogInformation("[PERF] TOTAL LibraryPage.OnLoaded took {Ms}ms", totalSw.ElapsedMilliseconds);
         
         // TODO: Restore Drag and Drop for the new Track ListBox
     }
