@@ -20,8 +20,13 @@ namespace SLSKDONET.Services
         public event EventHandler<float>? PositionChanged;
         public event EventHandler<long>? LengthChanged;
         public event EventHandler<AudioLevelsEventArgs>? AudioLevelsChanged;
+        public event EventHandler<float[]>? SpectrumChanged;
         public event EventHandler? EndReached;
         public event EventHandler? PausableChanged;
+
+        private float[] _fftBuffer = new float[1024];
+        private int _fftPos = 0;
+        private DateTime _lastSpectrumUpdate = DateTime.MinValue;
 
         private double _pitch = 1.0;
         public double Pitch 
@@ -37,7 +42,7 @@ namespace SLSKDONET.Services
         public AudioPlayerService()
         {
             _isInitialized = true;
-            _timer = new System.Timers.Timer(30);
+            _timer = new System.Timers.Timer(50); // 20fps is sufficient for progress updates
             _timer.Elapsed += OnTimerElapsed;
             _timer.Start();
         }
@@ -87,9 +92,19 @@ namespace SLSKDONET.Services
                 // Set up channel and resampler for pitch (turntable style)
                 _sampleChannel = new SampleChannel(_audioFile, true);
                 
-                // For true pitch sliding, we'd need a custom ResamplingProvider.
-                // For now, we use the standard pipeline with Metering.
-                _meteringProvider = new MeteringSampleProvider(_sampleChannel);
+                // 1. Intercept for FFT (Spectrum)
+                var fftProvider = new FftSampleProvider(_sampleChannel, 1024, data => 
+                {
+                    var now = DateTime.UtcNow;
+                    if ((now - _lastSpectrumUpdate).TotalMilliseconds > 40) // 25fps for spectrum
+                    {
+                        SpectrumChanged?.Invoke(this, data);
+                        _lastSpectrumUpdate = now;
+                    }
+                });
+
+                // 2. Wrap in Metering for VU
+                _meteringProvider = new MeteringSampleProvider(fftProvider);
                 _meteringProvider.StreamVolume += OnStreamVolume;
                 
                 _outputDevice = new WasapiOut(NAudio.CoreAudioApi.AudioClientShareMode.Shared, 100);
@@ -114,6 +129,69 @@ namespace SLSKDONET.Services
                 Left = e.MaxSampleValues[0], 
                 Right = e.MaxSampleValues.Length > 1 ? e.MaxSampleValues[1] : e.MaxSampleValues[0] 
             });
+        }
+
+        // Custom FFT Provider (Inline for simplicity or could be moved)
+        private class FftSampleProvider : ISampleProvider
+        {
+            private readonly ISampleProvider _source;
+            private readonly int _fftSize;
+            private readonly Action<float[]> _onFftCalculated;
+            private readonly float[] _buffer;
+            private int _pos;
+            private readonly System.Numerics.Complex[] _complexBuffer;
+
+            public WaveFormat WaveFormat => _source.WaveFormat;
+
+            public FftSampleProvider(ISampleProvider source, int fftSize, Action<float[]> onFftCalculated)
+            {
+                _source = source;
+                _fftSize = fftSize;
+                _onFftCalculated = onFftCalculated;
+                _buffer = new float[fftSize];
+                _complexBuffer = new System.Numerics.Complex[fftSize];
+            }
+
+            public int Read(float[] buffer, int offset, int count)
+            {
+                int read = _source.Read(buffer, offset, count);
+                
+                for (int i = 0; i < read; i++)
+                {
+                    _buffer[_pos] = buffer[offset + i];
+                    _pos++;
+
+                    if (_pos >= _fftSize)
+                    {
+                        PerformFft();
+                        _pos = 0;
+                    }
+                }
+
+                return read;
+            }
+
+            private void PerformFft()
+            {
+                for (int i = 0; i < _fftSize; i++)
+                {
+                    // Apply Hanning Window to reduce leakage
+                    float window = (float)(0.5 * (1.0 - Math.Cos(2.0 * Math.PI * i / (_fftSize - 1))));
+                    _complexBuffer[i] = new System.Numerics.Complex(_buffer[i] * window, 0);
+                }
+
+                // Use MathNet.Numerics for FFT if available, else a simple fallback
+                // Assuming MathNet for now as seen in project
+                MathNet.Numerics.IntegralTransforms.Fourier.Forward(_complexBuffer, MathNet.Numerics.IntegralTransforms.FourierOptions.NoScaling);
+
+                var magnitude = new float[_fftSize / 2];
+                for (int i = 0; i < magnitude.Length; i++)
+                {
+                    magnitude[i] = (float)_complexBuffer[i].Magnitude;
+                }
+
+                _onFftCalculated(magnitude);
+            }
         }
 
         public void Pause()

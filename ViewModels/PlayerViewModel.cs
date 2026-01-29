@@ -205,6 +205,13 @@ namespace SLSKDONET.ViewModels
             set => SetProperty(ref _vuLeft, value);
         }
 
+        private float[] _spectrumData = Array.Empty<float>();
+        public float[] SpectrumData
+        {
+            get => _spectrumData;
+            set => SetProperty(ref _spectrumData, value);
+        }
+
         private float _vuRight;
         public float VuRight
         {
@@ -316,19 +323,15 @@ namespace SLSKDONET.ViewModels
                 .DisposeWith(_disposables);
 
             Observable.FromEventPattern<float>(h => _playerService.PositionChanged += h, h => _playerService.PositionChanged -= h)
-                .Subscribe(e => Dispatcher.UIThread.Post(() => Position = e.EventArgs))
+                .Sample(TimeSpan.FromMilliseconds(50)) // 20fps for progress markers
+                .ObserveOn(RxApp.MainThreadScheduler)
+                .Subscribe(e => Position = e.EventArgs)
                 .DisposeWith(_disposables);
 
             Observable.FromEventPattern<long>(h => _playerService.TimeChanged += h, h => _playerService.TimeChanged -= h)
-                .Subscribe(e => 
-                {
-                    var now = DateTime.UtcNow;
-                    if ((now - _lastTimeUpdate).TotalMilliseconds > 250) // Throttle to 4fps
-                    {
-                        Dispatcher.UIThread.Post(() => CurrentTimeStr = TimeSpan.FromMilliseconds(e.EventArgs).ToString(@"m\:ss"));
-                        _lastTimeUpdate = now;
-                    }
-                })
+                .Sample(TimeSpan.FromMilliseconds(250)) // 4fps for time text is plenty
+                .ObserveOn(RxApp.MainThreadScheduler)
+                .Subscribe(e => CurrentTimeStr = TimeSpan.FromMilliseconds(e.EventArgs).ToString(@"m\:ss"))
                 .DisposeWith(_disposables);
 
             Observable.FromEventPattern<long>(h => _playerService.LengthChanged += h, h => _playerService.LengthChanged -= h)
@@ -336,11 +339,19 @@ namespace SLSKDONET.ViewModels
                 .DisposeWith(_disposables);
 
             Observable.FromEventPattern<AudioLevelsEventArgs>(h => _playerService.AudioLevelsChanged += h, h => _playerService.AudioLevelsChanged -= h)
-                .Subscribe(e => Dispatcher.UIThread.Post(() => 
+                .Sample(TimeSpan.FromMilliseconds(40)) // 25fps for VU meters - visually smooth but efficient
+                .ObserveOn(RxApp.MainThreadScheduler)
+                .Subscribe(e => 
                 {
                     VuLeft = e.EventArgs.Left;
                     VuRight = e.EventArgs.Right;
-                }))
+                })
+                .DisposeWith(_disposables);
+
+            Observable.FromEventPattern<float[]>(h => _playerService.SpectrumChanged += h, h => _playerService.SpectrumChanged -= h)
+                .Sample(TimeSpan.FromMilliseconds(40)) // 25fps for Spectrum
+                .ObserveOn(RxApp.MainThreadScheduler)
+                .Subscribe(e => SpectrumData = e.EventArgs)
                 .DisposeWith(_disposables);
 
             TogglePlayPauseCommand = new RelayCommand(TogglePlayPause);

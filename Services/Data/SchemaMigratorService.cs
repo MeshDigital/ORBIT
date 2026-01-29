@@ -1167,11 +1167,11 @@ public class SchemaMigratorService
                 checkCmd.CommandText = "SELECT sql FROM sqlite_master WHERE name='TracksFts'";
                 var sql = (await checkCmd.ExecuteScalarAsync())?.ToString();
                 
-                // Drop if it's missing the GlobalId column (unindexed or otherwise)
-                if (sql != null && !sql.Contains("GlobalId"))
+                // Drop if it's missing the GlobalId column or the new Key column
+                if (sql != null && (!sql.Contains("GlobalId") || !sql.Contains(", Key")))
                 {
                     isIncorrectlyConfigured = true;
-                    _logger.LogWarning("TracksFts is missing GlobalId column. Dropping and recreating...");
+                    _logger.LogWarning("TracksFts is incorrectly configured. Dropping and recreating...");
                     command.CommandText = "DROP TABLE TracksFts;";
                     await command.ExecuteNonQueryAsync();
                 }
@@ -1180,7 +1180,7 @@ public class SchemaMigratorService
             if (!TableExists("TracksFts") || isIncorrectlyConfigured)
             {
                 _logger.LogInformation("Patching Schema: Creating robust FTS5 Virtual Table (TracksFts)...");
-                command.CommandText = "CREATE VIRTUAL TABLE IF NOT EXISTS TracksFts USING fts5(Artist, Title, GlobalId UNINDEXED);";
+                command.CommandText = "CREATE VIRTUAL TABLE IF NOT EXISTS TracksFts USING fts5(Artist, Title, Key, GlobalId UNINDEXED);";
                 await command.ExecuteNonQueryAsync();
             }
 
@@ -1188,7 +1188,26 @@ public class SchemaMigratorService
             command.CommandText = @"
                 DROP TRIGGER IF EXISTS tbl_tracks_ai;
                 CREATE TRIGGER tbl_tracks_ai AFTER INSERT ON Tracks BEGIN
-                    INSERT INTO TracksFts(Artist, Title, GlobalId) VALUES (new.Artist, new.Title, new.GlobalId);
+                    INSERT INTO TracksFts(Artist, Title, Key, GlobalId) VALUES (
+                        new.Artist, 
+                        new.Title, 
+                        COALESCE(new.MusicalKey, '') || ' ' || (CASE new.MusicalKey
+                            WHEN 'Abm' THEN '1A' WHEN 'G#m' THEN '1A' WHEN 'B' THEN '1B' WHEN 'Cb' THEN '1B'
+                            WHEN 'Ebm' THEN '2A' WHEN 'D#m' THEN '2A' WHEN 'F#' THEN '2B' WHEN 'Gb' THEN '2B'
+                            WHEN 'Bbm' THEN '3A' WHEN 'A#m' THEN '3A' WHEN 'Db' THEN '3B' WHEN 'C#' THEN '3B'
+                            WHEN 'Fm' THEN '4A' WHEN 'Ab' THEN '4B' WHEN 'G#' THEN '4B'
+                            WHEN 'Cm' THEN '5A' WHEN 'Eb' THEN '5B' WHEN 'D#' THEN '5B'
+                            WHEN 'Gm' THEN '6A' WHEN 'Bb' THEN '6B' WHEN 'A#' THEN '6B'
+                            WHEN 'Dm' THEN '7A' WHEN 'F' THEN '7B'
+                            WHEN 'Am' THEN '8A' WHEN 'C' THEN '8B'
+                            WHEN 'Em' THEN '9A' WHEN 'G' THEN '9B'
+                            WHEN 'Bm' THEN '10A' WHEN 'D' THEN '10B'
+                            WHEN 'F#m' THEN '11A' WHEN 'Gbm' THEN '11A' WHEN 'A' THEN '11B'
+                            WHEN 'Dbm' THEN '12A' WHEN 'C#m' THEN '12A' WHEN 'E' THEN '12B'
+                            ELSE ''
+                        END),
+                        new.GlobalId
+                    );
                 END;
 
                 DROP TRIGGER IF EXISTS tbl_tracks_ad;
@@ -1199,7 +1218,26 @@ public class SchemaMigratorService
                 DROP TRIGGER IF EXISTS tbl_tracks_au;
                 CREATE TRIGGER tbl_tracks_au AFTER UPDATE ON Tracks BEGIN
                     DELETE FROM TracksFts WHERE GlobalId = old.GlobalId;
-                    INSERT INTO TracksFts(Artist, Title, GlobalId) VALUES (new.Artist, new.Title, new.GlobalId);
+                    INSERT INTO TracksFts(Artist, Title, Key, GlobalId) VALUES (
+                        new.Artist, 
+                        new.Title, 
+                        COALESCE(new.MusicalKey, '') || ' ' || (CASE new.MusicalKey
+                            WHEN 'Abm' THEN '1A' WHEN 'G#m' THEN '1A' WHEN 'B' THEN '1B' WHEN 'Cb' THEN '1B'
+                            WHEN 'Ebm' THEN '2A' WHEN 'D#m' THEN '2A' WHEN 'F#' THEN '2B' WHEN 'Gb' THEN '2B'
+                            WHEN 'Bbm' THEN '3A' WHEN 'A#m' THEN '3A' WHEN 'Db' THEN '3B' WHEN 'C#' THEN '3B'
+                            WHEN 'Fm' THEN '4A' WHEN 'Ab' THEN '4B' WHEN 'G#' THEN '4B'
+                            WHEN 'Cm' THEN '5A' WHEN 'Eb' THEN '5B' WHEN 'D#' THEN '5B'
+                            WHEN 'Gm' THEN '6A' WHEN 'Bb' THEN '6B' WHEN 'A#' THEN '6B'
+                            WHEN 'Dm' THEN '7A' WHEN 'F' THEN '7B'
+                            WHEN 'Am' THEN '8A' WHEN 'C' THEN '8B'
+                            WHEN 'Em' THEN '9A' WHEN 'G' THEN '9B'
+                            WHEN 'Bm' THEN '10A' WHEN 'D' THEN '10B'
+                            WHEN 'F#m' THEN '11A' WHEN 'Gbm' THEN '11A' WHEN 'A' THEN '11B'
+                            WHEN 'Dbm' THEN '12A' WHEN 'C#m' THEN '12A' WHEN 'E' THEN '12B'
+                            ELSE ''
+                        END),
+                        new.GlobalId
+                    );
                 END;
             ";
             await command.ExecuteNonQueryAsync();
@@ -1210,7 +1248,25 @@ public class SchemaMigratorService
             if (ftsCount == 0 || isIncorrectlyConfigured)
             {
                 _logger.LogInformation("Seeding FTS5 index from existing tracks...");
-                command.CommandText = "INSERT INTO TracksFts(Artist, Title, GlobalId) SELECT Artist, Title, GlobalId FROM Tracks;";
+                command.CommandText = @"
+                    INSERT INTO TracksFts(Artist, Title, Key, GlobalId) 
+                    SELECT Artist, Title, 
+                           COALESCE(MusicalKey, '') || ' ' || (CASE MusicalKey
+                            WHEN 'Abm' THEN '1A' WHEN 'G#m' THEN '1A' WHEN 'B' THEN '1B' WHEN 'Cb' THEN '1B'
+                            WHEN 'Ebm' THEN '2A' WHEN 'D#m' THEN '2A' WHEN 'F#' THEN '2B' WHEN 'Gb' THEN '2B'
+                            WHEN 'Bbm' THEN '3A' WHEN 'A#m' THEN '3A' WHEN 'Db' THEN '3B' WHEN 'C#' THEN '3B'
+                            WHEN 'Fm' THEN '4A' WHEN 'Ab' THEN '4B' WHEN 'G#' THEN '4B'
+                            WHEN 'Cm' THEN '5A' WHEN 'Eb' THEN '5B' WHEN 'D#' THEN '5B'
+                            WHEN 'Gm' THEN '6A' WHEN 'Bb' THEN '6B' WHEN 'A#' THEN '6B'
+                            WHEN 'Dm' THEN '7A' WHEN 'F' THEN '7B'
+                            WHEN 'Am' THEN '8A' WHEN 'C' THEN '8B'
+                            WHEN 'Em' THEN '9A' WHEN 'G' THEN '9B'
+                            WHEN 'Bm' THEN '10A' WHEN 'D' THEN '10B'
+                            WHEN 'F#m' THEN '11A' WHEN 'Gbm' THEN '11A' WHEN 'A' THEN '11B'
+                            WHEN 'Dbm' THEN '12A' WHEN 'C#m' THEN '12A' WHEN 'E' THEN '12B'
+                            ELSE ''
+                        END), 
+                        GlobalId FROM Tracks;";
                 await command.ExecuteNonQueryAsync();
                 _logger.LogInformation("✅ FTS5 search index seeded successfully.");
             }
@@ -1223,8 +1279,8 @@ public class SchemaMigratorService
                 checkCmd.CommandText = "SELECT sql FROM sqlite_master WHERE name='LibraryEntriesFts'";
                 var sql = (await checkCmd.ExecuteScalarAsync())?.ToString();
                 
-                // Drop if it's missing the UniqueHash column or has legacy content mapping
-                if (sql != null && (!sql.Contains("UniqueHash") || sql.Contains("content=")))
+                // Drop if it's missing the UniqueHash column or the new Key column or has legacy content mapping
+                if (sql != null && (!sql.Contains("UniqueHash") || !sql.Contains(", Key") || sql.Contains("content=")))
                 {
                     isLibFtsIncorrect = true;
                     _logger.LogWarning("LibraryEntriesFts is incorrectly configured. Dropping and recreating...");
@@ -1241,6 +1297,7 @@ public class SchemaMigratorService
                         Artist, 
                         Title, 
                         Album,
+                        Key,
                         UniqueHash UNINDEXED
                     );";
                 await command.ExecuteNonQueryAsync();
@@ -1250,7 +1307,27 @@ public class SchemaMigratorService
             command.CommandText = @"
                 DROP TRIGGER IF EXISTS tbl_lib_ai;
                 CREATE TRIGGER tbl_lib_ai AFTER INSERT ON LibraryEntries BEGIN
-                    INSERT INTO LibraryEntriesFts(Artist, Title, Album, UniqueHash) VALUES (new.Artist, new.Title, new.Album, new.UniqueHash);
+                    INSERT INTO LibraryEntriesFts(Artist, Title, Album, Key, UniqueHash) VALUES (
+                        new.Artist, 
+                        new.Title, 
+                        new.Album, 
+                        COALESCE(new.MusicalKey, '') || ' ' || (CASE new.MusicalKey
+                            WHEN 'Abm' THEN '1A' WHEN 'G#m' THEN '1A' WHEN 'B' THEN '1B' WHEN 'Cb' THEN '1B'
+                            WHEN 'Ebm' THEN '2A' WHEN 'D#m' THEN '2A' WHEN 'F#' THEN '2B' WHEN 'Gb' THEN '2B'
+                            WHEN 'Bbm' THEN '3A' WHEN 'A#m' THEN '3A' WHEN 'Db' THEN '3B' WHEN 'C#' THEN '3B'
+                            WHEN 'Fm' THEN '4A' WHEN 'Ab' THEN '4B' WHEN 'G#' THEN '4B'
+                            WHEN 'Cm' THEN '5A' WHEN 'Eb' THEN '5B' WHEN 'D#' THEN '5B'
+                            WHEN 'Gm' THEN '6A' WHEN 'Bb' THEN '6B' WHEN 'A#' THEN '6B'
+                            WHEN 'Dm' THEN '7A' WHEN 'F' THEN '7B'
+                            WHEN 'Am' THEN '8A' WHEN 'C' THEN '8B'
+                            WHEN 'Em' THEN '9A' WHEN 'G' THEN '9B'
+                            WHEN 'Bm' THEN '10A' WHEN 'D' THEN '10B'
+                            WHEN 'F#m' THEN '11A' WHEN 'Gbm' THEN '11A' WHEN 'A' THEN '11B'
+                            WHEN 'Dbm' THEN '12A' WHEN 'C#m' THEN '12A' WHEN 'E' THEN '12B'
+                            ELSE ''
+                        END),
+                        new.UniqueHash
+                    );
                 END;
 
                 DROP TRIGGER IF EXISTS tbl_lib_ad;
@@ -1261,7 +1338,27 @@ public class SchemaMigratorService
                 DROP TRIGGER IF EXISTS tbl_lib_au;
                 CREATE TRIGGER tbl_lib_au AFTER UPDATE ON LibraryEntries BEGIN
                     DELETE FROM LibraryEntriesFts WHERE UniqueHash = old.UniqueHash;
-                    INSERT INTO LibraryEntriesFts(Artist, Title, Album, UniqueHash) VALUES (new.Artist, new.Title, new.Album, new.UniqueHash);
+                    INSERT INTO LibraryEntriesFts(Artist, Title, Album, Key, UniqueHash) VALUES (
+                        new.Artist, 
+                        new.Title, 
+                        new.Album, 
+                        COALESCE(new.MusicalKey, '') || ' ' || (CASE new.MusicalKey
+                            WHEN 'Abm' THEN '1A' WHEN 'G#m' THEN '1A' WHEN 'B' THEN '1B' WHEN 'Cb' THEN '1B'
+                            WHEN 'Ebm' THEN '2A' WHEN 'D#m' THEN '2A' WHEN 'F#' THEN '2B' WHEN 'Gb' THEN '2B'
+                            WHEN 'Bbm' THEN '3A' WHEN 'A#m' THEN '3A' WHEN 'Db' THEN '3B' WHEN 'C#' THEN '3B'
+                            WHEN 'Fm' THEN '4A' WHEN 'Ab' THEN '4B' WHEN 'G#' THEN '4B'
+                            WHEN 'Cm' THEN '5A' WHEN 'Eb' THEN '5B' WHEN 'D#' THEN '5B'
+                            WHEN 'Gm' THEN '6A' WHEN 'Bb' THEN '6B' WHEN 'A#' THEN '6B'
+                            WHEN 'Dm' THEN '7A' WHEN 'F' THEN '7B'
+                            WHEN 'Am' THEN '8A' WHEN 'C' THEN '8B'
+                            WHEN 'Em' THEN '9A' WHEN 'G' THEN '9B'
+                            WHEN 'Bm' THEN '10A' WHEN 'D' THEN '10B'
+                            WHEN 'F#m' THEN '11A' WHEN 'Gbm' THEN '11A' WHEN 'A' THEN '11B'
+                            WHEN 'Dbm' THEN '12A' WHEN 'C#m' THEN '12A' WHEN 'E' THEN '12B'
+                            ELSE ''
+                        END),
+                        new.UniqueHash
+                    );
                 END;
             ";
             await command.ExecuteNonQueryAsync();
@@ -1272,7 +1369,25 @@ public class SchemaMigratorService
             if (libFtsCount == 0 || isLibFtsIncorrect)
             {
                 _logger.LogInformation("Seeding FTS5 library index...");
-                command.CommandText = "INSERT INTO LibraryEntriesFts(Artist, Title, Album, UniqueHash) SELECT Artist, Title, Album, UniqueHash FROM LibraryEntries;";
+                command.CommandText = @"
+                    INSERT INTO LibraryEntriesFts(Artist, Title, Album, Key, UniqueHash) 
+                    SELECT Artist, Title, Album, 
+                           COALESCE(MusicalKey, '') || ' ' || (CASE MusicalKey
+                            WHEN 'Abm' THEN '1A' WHEN 'G#m' THEN '1A' WHEN 'B' THEN '1B' WHEN 'Cb' THEN '1B'
+                            WHEN 'Ebm' THEN '2A' WHEN 'D#m' THEN '2A' WHEN 'F#' THEN '2B' WHEN 'Gb' THEN '2B'
+                            WHEN 'Bbm' THEN '3A' WHEN 'A#m' THEN '3A' WHEN 'Db' THEN '3B' WHEN 'C#' THEN '3B'
+                            WHEN 'Fm' THEN '4A' WHEN 'Ab' THEN '4B' WHEN 'G#' THEN '4B'
+                            WHEN 'Cm' THEN '5A' WHEN 'Eb' THEN '5B' WHEN 'D#' THEN '5B'
+                            WHEN 'Gm' THEN '6A' WHEN 'Bb' THEN '6B' WHEN 'A#' THEN '6B'
+                            WHEN 'Dm' THEN '7A' WHEN 'F' THEN '7B'
+                            WHEN 'Am' THEN '8A' WHEN 'C' THEN '8B'
+                            WHEN 'Em' THEN '9A' WHEN 'G' THEN '9B'
+                            WHEN 'Bm' THEN '10A' WHEN 'D' THEN '10B'
+                            WHEN 'F#m' THEN '11A' WHEN 'Gbm' THEN '11A' WHEN 'A' THEN '11B'
+                            WHEN 'Dbm' THEN '12A' WHEN 'C#m' THEN '12A' WHEN 'E' THEN '12B'
+                            ELSE ''
+                        END),
+                        UniqueHash FROM LibraryEntries;";
                 await command.ExecuteNonQueryAsync();
                 _logger.LogInformation("✅ Library FTS5 search index seeded successfully.");
             }

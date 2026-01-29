@@ -205,11 +205,16 @@ public class TrackRepository : ITrackRepository
         if (!string.IsNullOrEmpty(filter))
         {
             var lowerFilter = filter.ToLower();
-            query = query.Where(t => t.Artist.ToLower().Contains(lowerFilter) || t.Title.ToLower().Contains(lowerFilter));
+            query = query.Where(t => t.Artist.ToLower().Contains(lowerFilter) || 
+                                     t.Title.ToLower().Contains(lowerFilter) ||
+                                     (t.MusicalKey != null && t.MusicalKey.ToLower().Contains(lowerFilter)));
         }
-        if (downloadedOnly == true)
+        if (downloadedOnly.HasValue)
         {
-            query = query.Where(t => t.Status == TrackStatus.Downloaded);
+            if (downloadedOnly.Value)
+                query = query.Where(t => t.Status == TrackStatus.Downloaded);
+            else
+                query = query.Where(t => t.Status != TrackStatus.Downloaded);
         }
         return query;
     }
@@ -766,9 +771,12 @@ public class TrackRepository : ITrackRepository
         query = query.Include(le => le.AudioFeatures).AsNoTracking();
 
         // 3. Apply DownloadedOnly
-        if (downloadedOnly == true)
+        if (downloadedOnly.HasValue)
         {
-            query = query.Where(t => t.FilePath != null && t.FilePath != "");
+            if (downloadedOnly.Value)
+                query = query.Where(t => t.FilePath != null && t.FilePath != "");
+            else
+                query = query.Where(t => string.IsNullOrEmpty(t.FilePath));
         }
 
         // 4. Order & Page (Optimized: Select only what's needed for the list view, avoiding heavy blobs)

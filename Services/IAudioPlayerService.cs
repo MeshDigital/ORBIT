@@ -16,6 +16,7 @@ namespace SLSKDONET.Services
         event EventHandler<float> PositionChanged;
         event EventHandler<long> LengthChanged;
         event EventHandler<AudioLevelsEventArgs> AudioLevelsChanged;
+        event EventHandler<float[]> SpectrumChanged;
         event EventHandler EndReached;
         event EventHandler PausableChanged;
 

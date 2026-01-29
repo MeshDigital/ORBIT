@@ -19,6 +19,14 @@
                     ClipToBounds="True" 
                     BoxShadow="0 4 8 0 #40000000">
                 <Panel>
+                    <!-- Phase 1.7: Vibe Visualizer (Mini-Glow) -->
+                    <controls:VibeVisualizer IsPlaying="{Binding IsPlaying}"
+                                             VuLeft="{Binding VuLeft}"
+                                             VuRight="{Binding VuRight}"
+                                             SpectrumData="{Binding SpectrumData}"
+                                             Energy="{Binding CurrentTrack.Energy}"
+                                             MoodTag="{Binding CurrentTrack.MoodTag}"
+                                             Opacity="0.6"/>
                     <Image Source="{Binding CurrentTrack.ArtworkBitmap}" 
                            Stretch="UniformToFill"
                            IsVisible="{Binding CurrentTrack.ArtworkBitmap, Converter={x:Static ObjectConverters.IsNotNull}}"/>

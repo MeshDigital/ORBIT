@@ -139,3 +139,103 @@ Detect Hybrid Architectures (Intel 12th Gen+, etc.) to distinguish between Perfo
 - **Dashboard**: Add "CPU Topology" readout (e.g., "Hybrid (8P + 4E)") and "Active Workers".
 - **System Stutter Test**: Run analysis while playing a video/game.
     - **Success**: Essentia threads stay on E-Cores (High Index cores) and UI/Video does not stutter.
+
+## Phase 1.3: Hybrid Columnar List View (Refined Library UI)
+
+### Goal
+Implement a high-performance Columnar List View with perfectly aligned metadata (Artist, Title, BPM/Key) while maintaining a clean, professional aesthetic. Fix StyleFilters duplication and header overlap.
+
+### Proposed Changes
+
+#### ViewModels
+- **[FIX] TrackListViewModel**: Deduplicate StyleFilters by Name in `LoadStyleFiltersAsync`. Add a loading guard.
+
+#### Models
+- **[MODIFY] ColumnDefinition**: Add `SharedSizeGroup` helper property.
+
+#### Controls
+- **[MODIFY] StandardTrackRow.axaml**:
+    - Refactor Grid to use `SharedSizeGroup` for Artist, Title, and BPM/Key columns.
+    - Consolidate 10+ metadata indicators into a compact "Badge Tray".
+    - Align Vibe pills and other indicators for vertical consistency.
+
+#### Views
+- **[MODIFY] LibraryPage.axaml**:
+    - Redesign header into two clean rows: Search/Actions and Filters.
+    - Add a fixed Column Header row using `SharedSizeGroup` to provide alignment and sorting UI.
+    - Set `Grid.IsSharedSizeScope="True"` to enable global columnar alignment.
+
+### Verification Plan
+1.  **StyleFilters**: Verify no duplicate AI chips appear in the toolbar.
+2.  **Alignment**: Verify Artist/Title/BPM columns line up perfectly across different rows.
+3.  **Search Bar**: Verify the search bar no longer overlaps action buttons and allows spaces.
+4.  **Badges**: Verify metadata tray looks cleaner and less cluttered.
+
+## Phase 1.4: Library Performance Optimization (Critical Fix)
+
+### Goal
+Resolve the "broken" performance of the library caused by `SharedSizeGroup` overhead in virtualized lists. Replace dynamic alignment with optimized fixed widths while ensuring "Card" and "Pro" views remain fully functional.
+
+### Proposed Changes
+
+#### [MODIFY] [LibraryPage.axaml](file:///c:/Users/quint/OneDrive/Documenten/GitHub/QMUSICSLSK/Views/Avalonia/LibraryPage.axaml)
+- Remove `Grid.IsSharedSizeScope="True"` from the main layout.
+- Replace `SharedSizeGroup` with fixed pixel widths in the Column Header row:
+    - **Artist**: 220px
+    - **Title**: 320px
+    - **BPM/Key**: 100px
+
+#### [MODIFY] [StandardTrackRow.axaml](file:///c:/Users/quint/OneDrive/Documenten/GitHub/QMUSICSLSK/Views/Avalonia/Controls/StandardTrackRow.axaml)
+- Remove `SharedSizeGroup` from the row layout.
+- Apply matching fixed pixel widths (220, 320, 100) to ensure perfect vertical alignment.
+
+### Verification Plan
+1.  **Load Speed**: Verify the library loads instantly and scrolling is smooth.
+2.  **View Integrity**: Toggle between List, Cards, and Pro views to verify they are all intact and functional.
+3.  **Alignment**: Verify that Artist, Title, and BPM/Key align perfectly with the header labels.
+
+## Phase 1.5: Metadata Visibility Enhancements (Camelot Key & Tech Info)
+
+### Goal
+Improve the clarity and visibility of size and Camelot key information in the Library UI, as requested by the user. Transform keys into high-contrast harmonic pills and enhance technical metadata legibility.
+
+### Proposed Changes
+
+#### [MODIFY] [PlaylistTrackViewModel.cs](file:///c:/Users/quint/OneDrive/Documenten/GitHub/QMUSICSLSK/ViewModels/PlaylistTrackViewModel.cs)
+- Add `CamelotDisplay` property to return the Camelot code (e.g., "8A") using `KeyConverter`.
+- Re-notify `CamelotDisplay` when `MusicalKey` changes.
+
+#### [MODIFY] [StandardTrackRow.axaml](file:///c:/Users/quint/OneDrive/Documenten/GitHub/QMUSICSLSK/Views/Avalonia/Controls/StandardTrackRow.axaml)
+- **Camelot Key Pill**:
+    - Replace the raw `MusicalKey` TextBlock with a `Border` (Pill) using `ColorBrush` for background and `CamelotDisplay` for text.
+    - Set `CornerRadius` to 4 and give it subtle padding for a professional "Rekordbox-style" look.
+- **Technical Info Visibility**:
+    - Increase the contrast of `TechnicalSummary` by changing its `Foreground` color to a lighter, more legible shade (e.g., `#888` or `#AAA`).
+    - Add a subtle icon or vertical separator to give it more presence in the badge tray.
+
+### Verification Plan
+1.  **Camelot Keys**: Verify keys are displayed as colored pills that stand out.
+2.  **Size/Tech Info**: Verify bitrate and file size are clearly readable and don't blend into the background.
+3.  **Layout**: Ensure the new key pills don't break the columnar alignment.
+
+## Phase 1.6: Musical Key Search Enhancements
+
+### Goal
+Allow users to search for tracks by musical key using either Standard (e.g., "Am") or Camelot (e.g., "8A") notation.
+
+### Proposed Changes
+
+#### [MODIFY] [SchemaMigratorService.cs](file:///c:/Users/quint/OneDrive/Documenten/GitHub/QMUSICSLSK/Services/Data/SchemaMigratorService.cs)
+- Update `TracksFts` and `LibraryEntriesFts` schema to include a `Key` or `MusicalKey` field.
+- Update triggers to populate this field with both the raw key and its Camelot equivalent (e.g., "Am 8A").
+- Ensure the seeding logic also incorporates both notations.
+
+#### [MODIFY] [TrackListViewModel.cs](file:///c:/Users/quint/OneDrive/Documenten/GitHub/QMUSICSLSK/ViewModels/Library/TrackListViewModel.cs)
+- Update the in-memory `FilterTracks` method to check the `MusicalKey` and `CamelotDisplay` properties when searching.
+
+### Verification Plan
+- **Standard Search**: Search for "Am" and verify results include A Minor tracks.
+- **Camelot Search**: Search for "8A" and verify results include the same A Minor tracks.
+- **Mixed Search**: Search for "9B" and verify tracks with key "G" appear.
+
+

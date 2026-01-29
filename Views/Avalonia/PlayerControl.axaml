@@ -34,6 +34,15 @@
                     HorizontalAlignment="Center"
                     DragDrop.AllowDrop="True">
                 <Panel>
+                    <!-- Phase 1.7: Vibe Visualizer (Reactive Backdrop) -->
+                    <controls:VibeVisualizer IsPlaying="{Binding IsPlaying}"
+                                             VuLeft="{Binding VuLeft}"
+                                             VuRight="{Binding VuRight}"
+                                             SpectrumData="{Binding SpectrumData}"
+                                             Energy="{Binding CurrentTrack.Energy}"
+                                             MoodTag="{Binding CurrentTrack.MoodTag}"
+                                             Opacity="0.8"/>
+                    
                     <Grid ColumnDefinitions="4,*,4" Margin="4">
                         <!-- VU Meter Left -->
                         <Border Grid.Column="0" VerticalAlignment="Bottom" 

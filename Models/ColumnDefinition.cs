@@ -13,4 +13,7 @@ public class ColumnDefinition
     public bool CanSort { get; set; } = true;
     public string? CellTemplateKey { get; set; } // For "Vibe" coloring or Star Ratings
     public Type? DataType { get; set; } // Helps with numeric sorting (BPM vs Artist)
+    
+    // Phase 25: Helper for SharedSizeGroup alignment
+    public string SharedSizeGroup => $"Col_{Id}";
 }

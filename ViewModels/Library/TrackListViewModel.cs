@@ -333,28 +333,27 @@ public class TrackListViewModel : ReactiveObject, IDisposable
         }
     }
 
+    private bool _isLoadingStyles;
     public async Task LoadStyleFiltersAsync()
     {
+        if (_isLoadingStyles) return;
+        _isLoadingStyles = true;
+        
         try 
         {
             var styles = await _libraryService.GetStyleDefinitionsAsync();
             
             _logger.LogInformation("Loading {Count} style definitions from database", styles.Count);
             
-            // Check for duplicates in the source data
-            var duplicates = styles.GroupBy(s => s.Id).Where(g => g.Count() > 1).ToList();
-            if (duplicates.Any())
-            {
-                _logger.LogWarning("Found {Count} duplicate style IDs in database: {Ids}", 
-                    duplicates.Count, 
-                    string.Join(", ", duplicates.Select(g => g.Key)));
-            }
-            
-            // Deduplicate by ID before loading
-            var uniqueStyles = styles.GroupBy(s => s.Id).Select(g => g.First()).ToList();
+            // Deduplicate by Name to prevent redundant UI chips (User's specific request)
+            var uniqueStyles = styles
+                .GroupBy(s => s.Name)
+                .Select(g => g.First())
+                .OrderBy(s => s.Name)
+                .ToList();
             
             // Updates on UI Thread
-            Dispatcher.UIThread.Post(() =>
+            await Dispatcher.UIThread.InvokeAsync(() =>
             {
                 // Detach event handlers before clearing
                 foreach (var item in StyleFilters) 
@@ -370,11 +369,15 @@ public class TrackListViewModel : ReactiveObject, IDisposable
                 }
                 
                 _logger.LogInformation("Loaded {Count} unique style filters into UI", StyleFilters.Count);
-            });
+            }, DispatcherPriority.Normal);
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Failed to load style filters");
+        }
+        finally
+        {
+            _isLoadingStyles = false;
         }
     }
 
@@ -839,7 +842,9 @@ public class TrackListViewModel : ReactiveObject, IDisposable
 
         var search = SearchText.Trim();
         return (track.Artist?.Contains(search, StringComparison.OrdinalIgnoreCase) == true) ||
-               (track.Title?.Contains(search, StringComparison.OrdinalIgnoreCase) == true);
+               (track.Title?.Contains(search, StringComparison.OrdinalIgnoreCase) == true) ||
+               (track.MusicalKey?.Contains(search, StringComparison.OrdinalIgnoreCase) == true) ||
+               (track.CamelotDisplay?.Contains(search, StringComparison.OrdinalIgnoreCase) == true);
     }
 
     private void UpdateSelectionState()

@@ -82,275 +82,89 @@
         <Panel>
             <!-- Phase 5B: Removed waveform underlay - was visually noisy in list context -->
             
-        <Grid ColumnDefinitions="50, 12, *, Auto" RowDefinitions="Auto, Auto">
-        
-            <!-- Column 0: Album Art / Status Icon -->
-            <Border Grid.Row="0" Grid.RowSpan="2" Grid.Column="0" 
-                    Width="48" Height="48" 
-                    CornerRadius="4" ClipToBounds="True" Background="{DynamicResource SurfaceBrush}">
+        <!-- Column 0: Art & Health, 1: Artist, 2: Title, 3: BPM/Key, 4: Badges, 5: Actions -->
+        <Grid RowDefinitions="Auto" Margin="0,2">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="58"/>
+                <ColumnDefinition Width="220"/> <!-- Artist -->
+                <ColumnDefinition Width="320"/> <!-- Title -->
+                <ColumnDefinition Width="100"/> <!-- BPM/Key -->
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+            </Grid.ColumnDefinitions>
+            
+            <!-- Column 0: Album Art / Status / Health -->
+            <Border Grid.Column="0" Width="44" Height="44" Margin="6,4,8,4" CornerRadius="4" ClipToBounds="True" Background="{DynamicResource SurfaceBrush}" VerticalAlignment="Center">
                 <Panel>
-                    <!-- Actual Image -->
-                    <Image Source="{Binding Artwork.Image}" 
-                           Stretch="UniformToFill"
-                           IsVisible="{Binding Artwork.Image, Converter={x:Static ObjectConverters.IsNotNull}}"/>
-                           
-                    <!-- Placeholder/Status Overlay if no art or if downloading -->
-                    <PathIcon Data="{StaticResource music_regular}" 
-                              Foreground="{DynamicResource TextTertiaryBrush}" 
-                              Width="24" Height="24"
-                              IsVisible="{Binding AlbumArtUrl, Converter={x:Static StringConverters.IsNullOrEmpty}}"/>
-                              
-                    <!-- Download Progress Overlay (Circular) -->
-                    <Arc Width="40" Height="40"
-                         StartAngle="-90"
-                         SweepAngle="{Binding Progress, Converter={StaticResource PercentageToAngleConverter}}"
-                         Stroke="#00BFFF" StrokeThickness="3"
-                         IsVisible="{Binding IsActive}"
-                         Opacity="0.8"/>
+                    <Image Source="{Binding Artwork.Image}" Stretch="UniformToFill" IsVisible="{Binding Artwork.Image, Converter={x:Static ObjectConverters.IsNotNull}}"/>
+                    <PathIcon Data="{StaticResource music_regular}" Foreground="#333" Width="20" Height="20" IsVisible="{Binding Artwork.Image, Converter={x:Static ObjectConverters.IsNull}}"/>
+                    <!-- Progress Overlay -->
+                    <Arc Width="36" Height="36" StartAngle="-90" SweepAngle="{Binding Progress, Converter={StaticResource PercentageToAngleConverter}}" Stroke="#00BFFF" StrokeThickness="2" IsVisible="{Binding IsActive}" Opacity="0.8"/>
                 </Panel>
             </Border>
             
-            <!-- Health Bar (Traffic Light) -->
-            <Rectangle Grid.Row="0" Grid.RowSpan="2" Grid.Column="0"
-                       Width="4" HorizontalAlignment="Left"
-                       Fill="{Binding QualityColor}"
-                       RadiusX="2" RadiusY="2">
+            <!-- Health Bar -->
+            <Rectangle Grid.Column="0" Width="3" HorizontalAlignment="Left" Fill="{Binding QualityColor}" RadiusX="1.5" RadiusY="1.5" Margin="2,8">
                 <Rectangle.IsVisible>
-                    <MultiBinding Converter="{x:Static BoolConverters.And}">
-                        <Binding Path="IsCompleted"/>
-                        <Binding Path="$parent[views:LibraryPage].DataContext.ViewSettings.ShowQualityBar"/>
-                    </MultiBinding>
+                    <MultiBinding Converter="{x:Static BoolConverters.And}"><Binding Path="IsCompleted"/><Binding Path="$parent[views:LibraryPage].DataContext.ViewSettings.ShowQualityBar"/></MultiBinding>
                 </Rectangle.IsVisible>
             </Rectangle>
-            
-            <!-- Column 1: Spacer -->
-            
-            <!-- Column 2: Main Content -->
-             <StackPanel Grid.Row="0" Grid.Column="2" Orientation="Vertical" VerticalAlignment="Center" Spacing="2">
-                <!-- Line 1: Artist - Title -->
+
+            <!-- Column 1: Artist (Shared) -->
+            <Border Grid.Column="1" Padding="8,0" VerticalAlignment="Center">
+                <TextBlock Text="{Binding ArtistName}" FontWeight="SemiBold" Foreground="{DynamicResource TextBrush}" FontSize="13" TextTrimming="CharacterEllipsis"/>
+            </Border>
+
+            <!-- Column 2: Title (Shared) -->
+            <Border Grid.Column="2" Padding="8,0" VerticalAlignment="Center">
                 <StackPanel Orientation="Horizontal" Spacing="6">
-                   <TextBlock Text="{Binding ArtistName}" FontWeight="SemiBold" Foreground="{DynamicResource TextBrush}" FontSize="14" TextTrimming="CharacterEllipsis"/>
-                   <TextBlock Text="-" Foreground="{DynamicResource TextTertiaryBrush}"/>
-                   <TextBlock Text="{Binding TrackTitle}" Foreground="{DynamicResource TextBrush}" FontSize="14" TextTrimming="CharacterEllipsis"/>
-                   
-                   <!-- Interaction Hub -->
-                   <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="8,0" Spacing="8">
-                        <TextBlock Text="❤️" IsVisible="{Binding IsLiked}" FontSize="12" VerticalAlignment="Center"/>
-                        <StackPanel Orientation="Horizontal" Spacing="2" Opacity="0.6">
-                            <TextBlock Text="🎧" FontSize="10" VerticalAlignment="Center"/>
-                            <TextBlock Text="{Binding PlayCount}" FontSize="9" VerticalAlignment="Center" FontWeight="Bold"/>
-                        </StackPanel>
-                   </StackPanel>
-                   
-                   <!--Curation Trust Badge (Phase 11.5) -->
-                   <Border CornerRadius="2" Padding="4,1" Margin="0,0,6,0" VerticalAlignment="Center" 
-                           BorderThickness="1" BorderBrush="{Binding CurationColor}"
-                           ToolTip.Tip="{Binding ProvenanceTooltip}">
-                       <Border.IsVisible>
-                           <MultiBinding Converter="{x:Static BoolConverters.And}">
-                               <Binding Path="CurationIcon" Converter="{x:Static StringConverters.IsNotNullOrEmpty}"/>
-                               <Binding Path="$parent[views:LibraryPage].DataContext.ViewSettings.ShowBadges"/>
-                           </MultiBinding>
-                       </Border.IsVisible>
-                       <TextBlock Text="{Binding CurationIcon}" FontSize="10" VerticalAlignment="Center"/>
-                   </Border>
-
-                   <!-- Integrity Check Badge -->
-                   <Border Classes="IntegrityBadge Secure">
-                       <Border.IsVisible>
-                           <MultiBinding Converter="{x:Static BoolConverters.And}">
-                               <Binding Path="IsSecure"/>
-                               <Binding Path="IsCompleted"/>
-                               <Binding Path="$parent[views:LibraryPage].DataContext.ViewSettings.ShowBadges"/>
-                           </MultiBinding>
-                       </Border.IsVisible>
-                       <TextBlock Text="✓ VERIFIED" FontSize="9" FontWeight="Bold" Foreground="#00FF00"/>
-                   </Border>
-
-                    <!-- Discovery Match Badge -->
-                    <Border Background="#209C27B0" CornerRadius="2" Padding="4,1" Margin="0,0,6,0" VerticalAlignment="Center"
-                            BorderBrush="#9C27B0" BorderThickness="1"
-                            IsVisible="{Binding DiscoveryReason, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
-                        <StackPanel Orientation="Horizontal" Spacing="4">
-                            <TextBlock Text="✨" FontSize="10" VerticalAlignment="Center"/>
-                            <TextBlock Text="{Binding DiscoveryReason}" FontSize="9" FontWeight="Bold" Foreground="#D05CE3" VerticalAlignment="Center"/>
-                        </StackPanel>
-                    </Border>
-
-                    <!-- Stem Availability Badge (Phase 21) -->
-                    <Border Background="#20E91E63" CornerRadius="2" Padding="4,1" Margin="0,0,6,0" VerticalAlignment="Center"
-                            BorderBrush="#E91E63" BorderThickness="1"
-                            IsVisible="{Binding HasStems}">
-                        <StackPanel Orientation="Horizontal" Spacing="4">
-                            <TextBlock Text="🎹" FontSize="10" VerticalAlignment="Center"/>
-                            <TextBlock Text="STEMS" FontSize="9" FontWeight="Bold" Foreground="#EC407A" VerticalAlignment="Center"/>
-                        </StackPanel>
-                    </Border>
-
-                   <!-- Preparation Badge (Phase 10) -->
-                   <Border Classes="PrepBadge" 
-                           Background="{Binding PreparationColor}" 
-                           Opacity="0.8">
-                       <TextBlock Text="{Binding PreparationStatus}" FontSize="8" FontWeight="Bold" Foreground="White"/>
-                   </Border>
-                   
-                   <!-- Primary Genre Tag (Pill) -->
-                   <Border Background="{DynamicResource TertiaryBackgroundBrush}" CornerRadius="10" Padding="8,1" Margin="0,0,6,0">
-                       <Border.IsVisible>
-                           <MultiBinding Converter="{x:Static BoolConverters.And}">
-                               <Binding Path="PrimaryGenre" Converter="{x:Static StringConverters.IsNotNullOrEmpty}"/>
-                               <Binding Path="IsCompleted"/>
-                           </MultiBinding>
-                       </Border.IsVisible>
-                       <TextBlock Text="{Binding PrimaryGenre}" FontSize="10" Foreground="{DynamicResource TextSecondaryBrush}" FontWeight="SemiBold"/>
-                   </Border>
-
-                   <!-- Vibe Pill (AI Sonic Classification - Phase 12.7) -->
-                   <Button Background="{Binding VibeColor}" 
-                           Classes.pending="{Binding !IsCompleted}"
-                           Command="{Binding FilterByVibeCommand}"
-                           BorderThickness="0" CornerRadius="10" Padding="8,1" Margin="0,0,6,0" 
-                           ToolTip.Tip="{Binding SubGenreConfidence, StringFormat='AI Confidence: {0:P0}. Click to filter by this vibe.'}">
-                       <Button.IsVisible>
-                           <MultiBinding Converter="{x:Static BoolConverters.And}">
-                               <Binding Path="DetectedSubGenre" Converter="{x:Static StringConverters.IsNotNullOrEmpty}"/>
-                               <Binding Path="$parent[views:LibraryPage].DataContext.ViewSettings.ShowBadges"/>
-                           </MultiBinding>
-                       </Button.IsVisible>
-                       <TextBlock Text="{Binding DetectedSubGenre}" FontSize="10" Foreground="White" FontWeight="Bold"/>
-                   </Button>
-
-                   <!-- Technical Summary -->
-                   <TextBlock Classes.pending="{Binding !IsCompleted}"
-                            Text="{Binding TechnicalSummary}" 
-                            FontSize="11" 
-                            VerticalAlignment="Center" 
-                            Margin="0,0,8,0">
-                        <TextBlock.Styles>
-                            <Style Selector="TextBlock">
-                                <Setter Property="Foreground" Value="#888"/>
-                            </Style>
-                            <Style Selector="TextBlock.pending">
-                                <Setter Property="FontStyle" Value="Italic"/>
-                                <Setter Property="Foreground" Value="{DynamicResource TextTertiaryBrush}"/>
-                            </Style>
-                        </TextBlock.Styles>
-                   </TextBlock>
-
-                   <!-- Year Tag (Pill) -->
-                   <Border Background="#1AFFFFFF" CornerRadius="10" Padding="8,1">
-                       <Border.IsVisible>
-                           <MultiBinding Converter="{x:Static BoolConverters.And}">
-                               <Binding Path="YearDisplay" Converter="{x:Static StringConverters.IsNotNullOrEmpty}"/>
-                               <Binding Path="$parent[views:LibraryPage].DataContext.ViewSettings.ShowReleaseYear"/>
-                           </MultiBinding>
-                       </Border.IsVisible>
-                       <TextBlock Text="{Binding YearDisplay}" FontSize="10" Foreground="#AAA" FontWeight="SemiBold"/>
-                   </Border>
+                    <TextBlock Text="{Binding TrackTitle}" Foreground="{DynamicResource TextBrush}" FontSize="13" TextTrimming="CharacterEllipsis"/>
+                    <TextBlock Text="❤️" IsVisible="{Binding IsLiked}" FontSize="11" VerticalAlignment="Center"/>
                 </StackPanel>
+            </Border>
+
+            <!-- Column 3: BPM & Key (Shared) -->
+            <Border Grid.Column="3" Padding="12,0" VerticalAlignment="Center">
+                <StackPanel Orientation="Horizontal" Spacing="10">
+                    <TextBlock Text="{Binding BPM, StringFormat='{}{0:0}'}" Foreground="#AAA" FontSize="11" Width="32" TextAlignment="Right" VerticalAlignment="Center"/>
+                    <Border Background="{Binding ColorBrush}" CornerRadius="4" Padding="4,1" MinWidth="32" VerticalAlignment="Center">
+                        <TextBlock Text="{Binding CamelotDisplay}" Foreground="White" FontSize="10" FontWeight="Bold" HorizontalAlignment="Center"/>
+                    </Border>
+                </StackPanel>
+            </Border>
+
+            <!-- Column 4: Badge Tray (Flexible) -->
+            <StackPanel Grid.Column="4" Orientation="Horizontal" VerticalAlignment="Center" Spacing="6" Margin="8,0">
+                <!-- Curation/Trust -->
+                <Border BorderBrush="{Binding CurationColor}" BorderThickness="1" CornerRadius="2" Padding="3,0" IsVisible="{Binding CurationIcon, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
+                    <TextBlock Text="{Binding CurationIcon}" FontSize="9" VerticalAlignment="Center"/>
+                </Border>
+                <!-- Verified -->
+                <Border Background="#2000FF00" BorderBrush="#00FF00" BorderThickness="1" CornerRadius="2" Padding="3,0" IsVisible="{Binding IsSecure}">
+                    <TextBlock Text="✓" FontSize="9" Foreground="#00FF00" FontWeight="Bold"/>
+                </Border>
+                <!-- Stems -->
+                <Border Background="#10E91E63" BorderBrush="#E91E63" BorderThickness="1" CornerRadius="2" Padding="3,0" IsVisible="{Binding HasStems}">
+                    <TextBlock Text="🎹" FontSize="9"/>
+                </Border>
+                <!-- Vibe -->
+                <Border Background="{Binding VibeColor}" CornerRadius="10" Padding="8,1" IsVisible="{Binding DetectedSubGenre, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
+                    <TextBlock Text="{Binding DetectedSubGenre}" FontSize="9" Foreground="White" FontWeight="Bold"/>
+                </Border>
+                <!-- Tech Info (High Contrast) -->
+                <TextBlock Text="{Binding TechnicalSummary}" FontSize="10" Foreground="#AAA" VerticalAlignment="Center" Margin="6,0" FontWeight="SemiBold"/>
             </StackPanel>
-            
-            <StackPanel Grid.Row="1" Grid.Column="2" Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
-                <!-- Line 2: Tech Specs & Curation Data -->
-                
-                <!-- Status/Speed -->
-                <StackPanel Orientation="Horizontal" Spacing="4">
-                    <TextBlock Text="⚠️" IsVisible="{Binding IsFailed}" Foreground="OrangeRed" FontSize="12" ToolTip.Tip="{Binding DetailedStatusText}"/>
-                    <TextBlock Text="{Binding StatusText}" Foreground="{Binding StatusColor}" FontSize="11" FontWeight="Medium" 
-                               TextTrimming="CharacterEllipsis" MaxWidth="200"
-                               ToolTip.Tip="{Binding DetailedStatusText}"/>
-                </StackPanel>
-                
-                <!-- Tech Summary & Quality Badge -->
-                <StackPanel Orientation="Horizontal" Spacing="4">
-                    <TextBlock Text="•" Foreground="{DynamicResource TextTertiaryBrush}" Margin="0,0,6,0"/>
-                    <Border Background="Transparent" CornerRadius="3" Padding="2,0" 
-                            ToolTip.Tip="{Binding Tier}">
-                        <TextBlock Text="{Binding TierBadge}" FontSize="16" VerticalAlignment="Center"/>
-                    </Border>
-                    
-                    <TextBlock Text="{Binding TechnicalSummary}" 
-                               Classes.pending="{Binding !IsCompleted}"
-                               Foreground="{DynamicResource TextSecondaryBrush}" 
-                               FontSize="11" 
-                               FontFamily="Consolas" 
-                               VerticalAlignment="Center"/>
-                </StackPanel>
-                
-                <!-- NEW: Duration (only show if completed) -->
-                <StackPanel Orientation="Horizontal" Spacing="4" IsVisible="{Binding IsCompleted}">
-                    <TextBlock Text="•" Foreground="{DynamicResource TextTertiaryBrush}" Margin="0,0,6,0"/>
-                    <TextBlock Text="⏱" FontSize="11" Foreground="{DynamicResource TextTertiaryBrush}"/>
-                    <TextBlock Text="{Binding Duration}" Foreground="{DynamicResource TextSecondaryBrush}" FontSize="11" FontFamily="Consolas"/>
-                </StackPanel>
-                
-                <!-- NEW: File Size (only show if completed) -->
-                <StackPanel Orientation="Horizontal" Spacing="4" IsVisible="{Binding IsCompleted}">
-                    <TextBlock Text="•" Foreground="{DynamicResource TextTertiaryBrush}" Margin="0,0,6,0"/>
-                    <TextBlock Text="💾" FontSize="11" Foreground="{DynamicResource TextTertiaryBrush}"/>
-                    <TextBlock Text="{Binding FileSizeDisplay}" Foreground="{DynamicResource TextSecondaryBrush}" FontSize="11" FontFamily="Consolas"/>
-                </StackPanel>
-                
-                
-                <!-- BPM/Key Pills -->
-                <StackPanel Orientation="Horizontal" Spacing="6" IsVisible="{Binding IsCompleted}">
-                    <TextBlock Text="•" Foreground="{DynamicResource TextTertiaryBrush}" Margin="0,0,6,0"/>
-                    <Border Background="{DynamicResource SecondaryBackgroundBrush}" CornerRadius="10" Padding="8,1" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1">
-                        <TextBlock Text="{Binding BpmDisplay}" Foreground="{DynamicResource TextSecondaryBrush}" FontSize="11" FontFamily="Consolas" FontWeight="Bold"/>
-                    </Border>
-                    <Border Background="{DynamicResource SecondaryBackgroundBrush}" CornerRadius="10" Padding="8,1" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1">
-                         <TextBlock Text="{Binding KeyDisplay}" Foreground="{DynamicResource TextSecondaryBrush}" FontSize="11" FontFamily="Consolas" FontWeight="Bold"/>
-                    </Border>
-                </StackPanel>
 
-                <!-- Phase 13C: Vibe Pills (Optimized) -->
-                <controls:VibePillContainer Items="{Binding VibePills}"
-                                            Margin="8,0,0,0"
-                                            VerticalAlignment="Center"
-                                            IsVisible="{Binding IsCompleted}">
-                    <controls:VibePillContainer.IsVisible>
-                         <MultiBinding Converter="{x:Static BoolConverters.And}">
-                               <Binding Path="IsCompleted"/>
-                               <Binding Path="$parent[views:LibraryPage].DataContext.ViewSettings.ShowVibePills"/>
-                         </MultiBinding>
-                    </controls:VibePillContainer.IsVisible>
-                </controls:VibePillContainer>
+            <!-- Column 5: Action Hub (Fixed) -->
+            <StackPanel Grid.Column="5" Orientation="Horizontal" Spacing="2" VerticalAlignment="Center" Margin="0,0,8,0">
+                <Button Classes="ActionBtn" Command="{Binding PlayCommand}" IsVisible="{Binding IsCompleted}" ToolTip.Tip="Play"><PathIcon Data="{StaticResource play_circle_regular}" Width="18" Height="18" Foreground="#00BFFF"/></Button>
+                <Button Classes="ActionBtn" Command="{Binding RevealFileCommand}" IsVisible="{Binding IsCompleted}" ToolTip.Tip="Open Folder"><PathIcon Data="{StaticResource folder_open_regular}" Width="16" Height="16"/></Button>
+                <Button Classes="ActionBtn" Command="{Binding AddToProjectCommand}" IsVisible="{Binding IsCompleted}" ToolTip.Tip="Add to Project"><PathIcon Data="{StaticResource add_circle_regular}" Width="16" Height="16"/></Button>
+                <Button Classes="ActionBtn" Command="{Binding PauseCommand}" IsVisible="{Binding IsActive}" ToolTip.Tip="Pause"><PathIcon Data="{StaticResource pause_regular}" Width="14" Height="14"/></Button>
+                <Button Classes="ActionBtn" Command="{Binding CancelCommand}" IsVisible="{Binding IsActive}" ToolTip.Tip="Cancel"><PathIcon Data="{StaticResource dismiss_regular}" Width="14" Height="14" Foreground="#FF6666"/></Button>
+                <Button Classes="ActionBtn" Command="{Binding RetryCommand}" IsVisible="{Binding IsFailed}"><PathIcon Data="{StaticResource arrow_counterclockwise_regular}" Width="14" Height="14"/></Button>
             </StackPanel>
-            
-            <!-- Column 3: Action Zone -->
-            <StackPanel Grid.Row="0" Grid.RowSpan="2" Grid.Column="3" Orientation="Horizontal" Spacing="4" VerticalAlignment="Center">
-            
-                <!-- PLAY BUTTON (Success only) -->
-                <Button Classes="ActionBtn" Command="{Binding PlayCommand}" IsVisible="{Binding IsCompleted}" ToolTip.Tip="Play Now">
-                    <PathIcon Data="{StaticResource play_circle_regular}" Width="20" Height="20" Foreground="#00BFFF"/>
-                </Button>
-                
-                <!-- REVEAL BUTTON (Success only) -->
-                 <Button Classes="ActionBtn" Command="{Binding RevealFileCommand}" IsVisible="{Binding IsCompleted}" ToolTip.Tip="Show in Explorer">
-                    <PathIcon Data="{StaticResource folder_open_regular}" Width="18" Height="18"/>
-                </Button>
-                
-                 <!-- ADD TO PROJECT (Success only) -->
-                 <Button Classes="ActionBtn" Command="{Binding AddToProjectCommand}" IsVisible="{Binding IsCompleted}" ToolTip.Tip="Add to Project">
-                    <PathIcon Data="{StaticResource add_circle_regular}" Width="18" Height="18"/>
-                </Button>
-                
-                <!-- CANCEL/PAUSE (Active only) -->
-                <Button Classes="ActionBtn" Command="{Binding PauseCommand}" IsVisible="{Binding IsActive}" ToolTip.Tip="Pause">
-                    <PathIcon Data="{StaticResource pause_regular}" Width="16" Height="16"/>
-                </Button>
-                
-                 <Button Classes="ActionBtn" Command="{Binding CancelCommand}" IsVisible="{Binding IsActive}" ToolTip.Tip="Cancel">
-                    <PathIcon Data="{StaticResource dismiss_regular}" Width="16" Height="16" Foreground="#FF6666"/>
-                </Button>
-                
-                <!-- RETRY (Failed only) -->
-                <Button Classes="ActionBtn" Command="{Binding RetryCommand}" IsVisible="{Binding IsFailed}" ToolTip.Tip="Retry">
-                    <PathIcon Data="{StaticResource arrow_counterclockwise_regular}" Width="16" Height="16"/>
-                </Button>
 
-            </StackPanel>
-            
         </Grid>
         </Panel>
     </Border>
