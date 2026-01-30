@@ -303,6 +303,18 @@
                             </StackPanel>
                         </Grid>
                     </Button>
+
+                    <Button Classes="nav" 
+                            Command="{Binding NavigateTheaterCommand}"
+                            Classes.selected="{Binding CurrentPageType, Converter={StaticResource EqualityConverter}, ConverterParameter={x:Static models:PageType.TheaterMode}}">
+                        <Grid ColumnDefinitions="Auto,*">
+                            <Border Grid.ColumnSpan="2" CornerRadius="4" IsVisible="False"/>
+                            <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="12">
+                                <TextBlock Text="✨" FontSize="16"/>
+                                <TextBlock Text="Theater Mode" FontSize="14"/>
+                            </StackPanel>
+                        </Grid>
+                    </Button>
                 </StackPanel>
             </Border>
 
@@ -448,5 +460,6 @@
         <views:IntelligenceCenterView Grid.RowSpan="3"
                                     DataContext="{Binding IntelligenceCenter}"
                                     ZIndex="2500"/>
-    </Grid>
+
+        </Grid>
 </Window>

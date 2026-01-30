@@ -744,6 +744,7 @@ public partial class App : Application
         services.AddSingleton<ImportHistoryViewModel>();
         services.AddSingleton<SpotifyImportViewModel>();
         services.AddSingleton<ViewModels.LibrarySourcesViewModel>();
+        services.AddSingleton<TheaterModeViewModel>();
 
         // Utilities
         services.AddSingleton<SearchQueryNormalizer>();
@@ -768,6 +769,7 @@ public partial class App : Application
         services.AddTransient<Views.Avalonia.InspectorPage>();
         services.AddTransient<Views.Avalonia.AnalysisQueuePage>();
         services.AddTransient<Views.Avalonia.StyleLabPage>();
+        services.AddTransient<Views.Avalonia.TheaterModePage>();
         
         services.AddSingleton<ViewModels.TrackInspectorViewModel>();
         services.AddSingleton<ViewModels.ForensicLabViewModel>();

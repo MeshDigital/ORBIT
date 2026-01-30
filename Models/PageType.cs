@@ -11,5 +11,6 @@ public enum PageType
     UpgradeScout,
     Inspector,
     AnalysisQueue,
-    StyleLab
+    StyleLab,
+    TheaterMode
 }

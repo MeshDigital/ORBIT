@@ -19,23 +19,47 @@
                     ClipToBounds="True" 
                     BoxShadow="0 4 8 0 #40000000">
                 <Panel>
-                    <!-- Phase 1.7: Vibe Visualizer (Mini-Glow) -->
-                    <controls:VibeVisualizer IsPlaying="{Binding IsPlaying}"
-                                             VuLeft="{Binding VuLeft}"
-                                             VuRight="{Binding VuRight}"
-                                             SpectrumData="{Binding SpectrumData}"
-                                             Energy="{Binding CurrentTrack.Energy}"
-                                             MoodTag="{Binding CurrentTrack.MoodTag}"
-                                             Opacity="0.6"/>
-                    <Image Source="{Binding CurrentTrack.ArtworkBitmap}" 
-                           Stretch="UniformToFill"
-                           IsVisible="{Binding CurrentTrack.ArtworkBitmap, Converter={x:Static ObjectConverters.IsNotNull}}"/>
-                    <Path Data="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 14.5v-9l6 4.5-6 4.5z" 
-                          Fill="#404040" 
-                          Width="30" Height="30" 
-                          Stretch="Uniform"
-                          IsVisible="{Binding CurrentTrack.ArtworkBitmap, Converter={x:Static ObjectConverters.IsNull}}"/>
-                    
+                    <Button Command="{Binding CycleVisualStyleCommand}" 
+                            Padding="0" 
+                            Background="Transparent" 
+                            BorderThickness="0"
+                            HorizontalAlignment="Stretch"
+                            VerticalAlignment="Stretch">
+                        <Panel>
+                            <!-- Phase 1.7: Vibe Visualizer (Mini-Glow) -->
+                            <controls:VibeVisualizer IsPlaying="{Binding IsPlaying}"
+                                                 VuLeft="{Binding VuLeft}"
+                                                 VuRight="{Binding VuRight}"
+                                                 SpectrumData="{Binding SpectrumData}"
+                                                 Energy="{Binding CurrentTrack.Energy}"
+                                                 MoodTag="{Binding CurrentTrack.MoodTag}"
+                                                 Style="{Binding CurrentVisualStyle}"
+                                                 Opacity="0.6"/>
+                            <Image Source="{Binding CurrentTrack.ArtworkBitmap}" 
+                                   Stretch="UniformToFill"
+                                   IsVisible="{Binding CurrentTrack.ArtworkBitmap, Converter={x:Static ObjectConverters.IsNotNull}}"/>
+                            
+                            <!-- Immersive Hover Overlay -->
+                            <Border Name="ImmersiveOverlay" Background="#AA000000" Opacity="0" Transitions="{StaticResource ControlOpacityTransitions}">
+                                <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
+                                    <TextBlock Text="✨" FontSize="16" HorizontalAlignment="Center"/>
+                                    <TextBlock Text="IMMERSIVE" FontSize="8" FontWeight="Bold" Foreground="White" HorizontalAlignment="Center"/>
+                                </StackPanel>
+                            </Border>
+                            <Panel.Styles>
+                                <Style Selector="Panel:pointerover > Border#ImmersiveOverlay">
+                                    <Setter Property="Opacity" Value="1"/>
+                                </Style>
+                            </Panel.Styles>
+
+                            <Path Data="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 14.5v-9l6 4.5-6 4.5z" 
+                                  Fill="#404040" 
+                                  Width="30" Height="30" 
+                                  Stretch="Uniform"
+                                  IsVisible="{Binding CurrentTrack.ArtworkBitmap, Converter={x:Static ObjectConverters.IsNull}}"/>
+                        </Panel>
+                    </Button>
+                        
                     <!-- Loading Spinner Overlay -->
                     <ProgressBar IsIndeterminate="True" 
                                  VerticalAlignment="Bottom" 
@@ -55,6 +79,16 @@
                            FontSize="12" 
                            Foreground="#B3B3B3" 
                            TextTrimming="CharacterEllipsis"/>
+                
+                <!-- Metadata Badges -->
+                <StackPanel Orientation="Horizontal" Spacing="6" Margin="0,2,0,0">
+                    <Border Background="#3E3E3E" CornerRadius="3" Padding="4,1">
+                        <TextBlock Text="{Binding CurrentTrack.Bitrate, StringFormat='{}{0} KBPS'}" FontSize="9" Foreground="#4EC9B0" FontWeight="Bold"/>
+                    </Border>
+                    <Border Background="#3E3E3E" CornerRadius="3" Padding="4,1">
+                        <TextBlock Text="{Binding CurrentTrack.Format}" FontSize="9" Foreground="#B3B3B3" FontWeight="Bold"/>
+                    </Border>
+                </StackPanel>
             </StackPanel>
         </Grid>
 
@@ -170,6 +204,23 @@
                         ToolTip.Tip="Queue">
                     <TextBlock Text="📋" FontSize="14" 
                                Foreground="{Binding IsQueueOpen, Converter={StaticResource BoolToColorConverter}}"/>
+                </Button>
+
+                <Rectangle Width="1" Height="24" Fill="#3E3E3E"/>
+
+                <Button Command="{Binding ToggleTheaterModeCommand}" 
+                        Classes="icon-button" 
+                        ToolTip.Tip="Visualizer (Theater Mode)"
+                        Padding="8,4"
+                        Background="#331DB954"
+                        BorderBrush="#1DB954"
+                        BorderThickness="1">
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                        <TextBlock Text="✨" FontSize="18" 
+                                   Foreground="{Binding IsTheaterMode, Converter={StaticResource BoolToColorConverter}}"/>
+                        <TextBlock Text="THEATER MODE" FontSize="10" FontWeight="Bold" 
+                                   VerticalAlignment="Center" Foreground="White" Opacity="0.9"/>
+                    </StackPanel>
                 </Button>
             </StackPanel>
         </StackPanel>

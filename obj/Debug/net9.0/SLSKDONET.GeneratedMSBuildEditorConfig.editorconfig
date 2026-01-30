@@ -172,6 +172,9 @@ build_metadata.AdditionalFiles.SourceItemGroup = AvaloniaXaml
 [C:/Users/quint/OneDrive/Documenten/GitHub/QMUSICSLSK/Views/Avalonia/StyleLabPage.axaml]
 build_metadata.AdditionalFiles.SourceItemGroup = AvaloniaXaml
 
+[C:/Users/quint/OneDrive/Documenten/GitHub/QMUSICSLSK/Views/Avalonia/TheaterModePage.axaml]
+build_metadata.AdditionalFiles.SourceItemGroup = AvaloniaXaml
+
 [C:/Users/quint/OneDrive/Documenten/GitHub/QMUSICSLSK/Views/Avalonia/TrackInspectorView.axaml]
 build_metadata.AdditionalFiles.SourceItemGroup = AvaloniaXaml
 

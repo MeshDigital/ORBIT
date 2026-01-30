@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("SLSKDONET.Tests")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+6c50ee05f65af8c99ea3ee1d75162f4d6108db76")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+67223e8a6a772930734ba52ae8db00e8d1481feb")]
 [assembly: System.Reflection.AssemblyProductAttribute("SLSKDONET.Tests")]
 [assembly: System.Reflection.AssemblyTitleAttribute("SLSKDONET.Tests")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]

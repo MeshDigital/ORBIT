@@ -5,6 +5,26 @@ Unify the visual design of the Download Center by applying the "Card" style (cur
 
 ## Proposed Changes
 
+### UI Layer
+
+#### [MODIFY] [ProjectPickerDialog.axaml.cs](file:///c:/Users/quint/OneDrive/Documenten/GitHub/QMUSICSLSK/Views/Avalonia/Controls/ProjectPickerDialog.axaml.cs)
+- Add a public parameterless constructor to satisfy Avalonia's runtime/XAML loader requirements (fixes AVLN3001 warning).
+
+---
+
+### Performance & Stability
+
+#### [MODIFY] [PlayerViewModel.cs](file:///c:/Users/quint/OneDrive/Documenten/GitHub/QMUSICSLSK/ViewModels/PlayerViewModel.cs)
+- **Debounce Queue Persistence**: Replace immediate `SaveQueueAsync` calls in `OnQueueCollectionChanged` with a debounced call (e.g., wait 500ms after last change) to prevent UI freezes during bulk additions (like enqueuing an album).
+- **Asynchronous ANLZ Probing**: Move `AnlzFileParser.TryFindAndParseAnlz` and subsequent waveform generation checks to a background task in `PlayTrackAtIndex` to prevent blocking the UI thread during track transitions.
+- **Bulk Addition Optimization**: Add a "suppress save" flag or use `AddRange` equivalents if possible (though `ObservableCollection` doesn't support it natively, we can wrap the bulk update).
+- **Event Bus Subscription**: Ensure `AddToQueueRequestEvent` handler is efficient and doesn't trigger redundant updates.
+
+#### [MODIFY] [AnalysisQueueService.cs](file:///c:/Users/quint/OneDrive/Documenten/GitHub/QMUSICSLSK/Services/AnalysisQueueService.cs)
+- **Dynamic Parallelism Tuning**: Consider lowering the default max threads or ensuring `AnalysisWorker` threads have `ProcessPriorityClass.Idle` by default to preserve UI responsiveness during heavy analysis bursts. (Note: It already has some logic for this, but could be more conservative).
+
+---
+
 ### Controls
 #### [MODIFY] [StandardTrackRow.axaml](file:///c:/Users/quint/OneDrive/Documenten/GitHub/QMUSICSLSK/Views/Avalonia/Controls/StandardTrackRow.axaml)
 - Move root `Border` properties to Styles.

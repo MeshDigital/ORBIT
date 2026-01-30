@@ -27,6 +27,8 @@
         <converters:BoolToBackgroundConverter x:Key="BoolToBackgroundConverter"/>
         <converters:BoolToFontWeightConverter x:Key="BoolToFontWeightConverter"/>
         <converters:BooleanToStatusColorConverter x:Key="BooleanToStatusColorConverter"/>
+        <conv_root:BoolOpacityConverter x:Key="BoolToOpacityConverter"/>
+        <converters:BoolToWidthConverter x:Key="BoolToWidthConverter"/>
         
         <!-- Utility Converters -->
         <converters:RepeatModeIconConverter x:Key="RepeatModeIconConverter"/>

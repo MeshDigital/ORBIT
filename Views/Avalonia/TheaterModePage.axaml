@@ -1,0 +1,249 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:vm="clr-namespace:SLSKDONET.ViewModels"
+             xmlns:controls="clr-namespace:SLSKDONET.Views.Avalonia.Controls"
+             mc:Ignorable="d" d:DesignWidth="1400" d:DesignHeight="900"
+             x:Class="SLSKDONET.Views.Avalonia.TheaterModePage"
+             x:DataType="vm:TheaterModeViewModel">
+
+    <UserControl.Styles>
+        <Style Selector="Border.collapsible">
+            <Setter Property="Transitions">
+                <Transitions>
+                    <DoubleTransition Property="Width" Duration="0:0:0.4" Easing="QuarticEaseOut"/>
+                    <DoubleTransition Property="Opacity" Duration="0:0:0.3"/>
+                    <TransformOperationsTransition Property="RenderTransform" Duration="0:0:0.4" Easing="QuarticEaseOut"/>
+                </Transitions>
+            </Setter>
+        </Style>
+    </UserControl.Styles>
+
+    <Grid Background="#F2000000">
+        <Panel>
+            <!-- Full-Screen Visualizer -->
+            <controls:VibeVisualizer Mode="Full"
+                                     IsPlaying="{Binding Player.IsPlaying}"
+                                     VuLeft="{Binding Player.VuLeft}"
+                                     VuRight="{Binding Player.VuRight}"
+                                     SpectrumData="{Binding Player.SpectrumData}"
+                                     Energy="{Binding Player.CurrentTrack.Energy}"
+                                     MoodTag="{Binding Player.CurrentTrack.MoodTag}"
+                                     Style="{Binding Player.CurrentVisualStyle}"
+                                     Opacity="0.8"/>
+            
+            <!-- Content Area -->
+            <Grid ColumnDefinitions="Auto,*,Auto" RowDefinitions="Auto,*,Auto" Margin="40">
+                <!-- Top Minimal Nav -->
+                <Grid Grid.Row="0" Grid.ColumnSpan="3" ColumnDefinitions="*,Auto" Margin="0,0,0,20">
+                    <StackPanel Spacing="10" VerticalAlignment="Center">
+                        <TextBlock Text="ORBIT IMMERSIVE" FontSize="14" FontWeight="Bold" Foreground="#4EC9B0" Opacity="0.5" LetterSpacing="2"/>
+                        <Rectangle Height="1" Width="100" Fill="#4EC9B0" HorizontalAlignment="Left" Opacity="0.3"/>
+                    </StackPanel>
+                    
+                    <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="10">
+                        <ToggleButton IsChecked="{Binding IsLibraryVisible}" 
+                                      Background="Transparent" BorderThickness="0" Padding="12"
+                                      ToolTip.Tip="Toggle Music Crate">
+                            <TextBlock Text="🗃️" FontSize="20" Opacity="{Binding IsLibraryVisible, Converter={StaticResource BoolToOpacityConverter}}"/>
+                        </ToggleButton>
+                        <ToggleButton IsChecked="{Binding IsTechnicalVisible}" 
+                                      Background="Transparent" BorderThickness="0" Padding="12"
+                                      ToolTip.Tip="Toggle Technical Specs">
+                            <TextBlock Text="📊" FontSize="20" Opacity="{Binding IsTechnicalVisible, Converter={StaticResource BoolToOpacityConverter}}"/>
+                        </ToggleButton>
+                        <Button Command="{Binding CloseTheaterCommand}"
+                                Background="Transparent" 
+                                BorderThickness="0"
+                                Padding="12"
+                                ToolTip.Tip="Exit Immersive Mode">
+                            <TextBlock Text="✕" FontSize="32" Foreground="White" Opacity="0.4"/>
+                        </Button>
+                    </StackPanel>
+                </Grid>
+
+                <!-- Left: Queue & Library -->
+                <Border Grid.Row="1" Grid.Column="0" 
+                        Classes="collapsible"
+                        Width="{Binding IsLibraryVisible, Converter={StaticResource BoolToWidthConverter}, ConverterParameter=450}"
+                        Opacity="{Binding IsLibraryVisible, Converter={StaticResource BoolToOpacityConverter}}"
+                        Background="#2A000000" CornerRadius="16" Margin="0,0,40,0" Padding="24"
+                        BorderBrush="#30FFFFFF" BorderThickness="1"
+                        IsVisible="{Binding IsLibraryVisible}">
+                    <DockPanel>
+                        <!-- Search Bar -->
+                        <Border DockPanel.Dock="Top" Background="#30FFFFFF" CornerRadius="10" Padding="12" Margin="0,0,0,20">
+                            <Grid ColumnDefinitions="Auto,*">
+                                <TextBlock Text="🔍" VerticalAlignment="Center" Margin="0,0,10,0" Opacity="0.5"/>
+                                <TextBox Grid.Column="1" Text="{Binding SearchText}" 
+                                         Watermark="Search Library..." 
+                                         Background="Transparent" BorderThickness="0" Padding="0"/>
+                            </Grid>
+                        </Border>
+
+                        <TabControl Background="Transparent" BorderThickness="0">
+                            <TabItem Header="UPCOMING">
+                                <ScrollViewer Margin="0,20,0,0">
+                                    <ItemsControl ItemsSource="{Binding Player.Queue}">
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate>
+                                                <Button Background="Transparent" Padding="0" HorizontalAlignment="Stretch" BorderThickness="0"
+                                                        Command="{Binding $parent[UserControl].((vm:TheaterModeViewModel)DataContext).PlayTrackCommand}"
+                                                        CommandParameter="{Binding}">
+                                                    <Border Margin="0,0,0,12" Padding="12" Background="#08FFFFFF" CornerRadius="8">
+                                                        <Grid ColumnDefinitions="Auto,*">
+                                                            <Border Width="40" Height="40" CornerRadius="4" ClipToBounds="True" Background="#20FFFFFF">
+                                                                <Image Source="{Binding ArtworkBitmap}" Stretch="UniformToFill"/>
+                                                            </Border>
+                                                            <StackPanel Grid.Column="1" Margin="12,0,0,0" VerticalAlignment="Center">
+                                                                <TextBlock Text="{Binding Title}" FontWeight="SemiBold" Foreground="White" TextTrimming="CharacterEllipsis"/>
+                                                                <TextBlock Text="{Binding Artist}" FontSize="12" Foreground="#999" TextTrimming="CharacterEllipsis"/>
+                                                            </StackPanel>
+                                                        </Grid>
+                                                    </Border>
+                                                </Button>
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+                                </ScrollViewer>
+                            </TabItem>
+                            <TabItem Header="RESULTS">
+                                <ScrollViewer Margin="0,20,0,0">
+                                    <ItemsControl ItemsSource="{Binding SearchResults}">
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate>
+                                                <Button Background="Transparent" Padding="0" HorizontalAlignment="Stretch" BorderThickness="0"
+                                                        Command="{Binding $parent[UserControl].((vm:TheaterModeViewModel)DataContext).PlayTrackCommand}"
+                                                        CommandParameter="{Binding}">
+                                                    <Border Margin="0,0,0,12" Padding="12" Background="#15FFFFFF" CornerRadius="8">
+                                                        <Grid ColumnDefinitions="Auto,*,Auto">
+                                                            <Border Width="40" Height="40" CornerRadius="4" ClipToBounds="True" Background="#20FFFFFF">
+                                                                <Image Source="{Binding ArtworkBitmap}" Stretch="UniformToFill"/>
+                                                            </Border>
+                                                            <StackPanel Grid.Column="1" Margin="12,0,0,0" VerticalAlignment="Center">
+                                                                <TextBlock Text="{Binding Title}" FontWeight="SemiBold" Foreground="White" TextTrimming="CharacterEllipsis"/>
+                                                                <TextBlock Text="{Binding Artist}" FontSize="12" Foreground="#999" TextTrimming="CharacterEllipsis"/>
+                                                            </StackPanel>
+                                                            <Button Grid.Column="2" 
+                                                                    Command="{Binding $parent[UserControl].((vm:TheaterModeViewModel)DataContext).AddToQueueCommand}"
+                                                                    CommandParameter="{Binding}"
+                                                                    Background="#30FFFFFF" CornerRadius="4" Padding="8,4" Margin="10,0,0,0"
+                                                                    ToolTip.Tip="Add to Queue">
+                                                                <TextBlock Text="+" Foreground="White" FontWeight="Bold"/>
+                                                            </Button>
+                                                        </Grid>
+                                                    </Border>
+                                                </Button>
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+                                </ScrollViewer>
+                            </TabItem>
+                        </TabControl>
+                    </DockPanel>
+                </Border>
+
+                <!-- Center: Core Focus -->
+                <Grid Grid.Row="1" Grid.Column="1">
+                    <StackPanel VerticalAlignment="Center" Spacing="40" Margin="0,-40,0,0">
+                        <Button Command="{Binding Player.CycleVisualStyleCommand}" Padding="0" Background="Transparent" BorderThickness="0" HorizontalAlignment="Center">
+                             <Border Width="500" Height="500" CornerRadius="20" ClipToBounds="True" BoxShadow="0 40 100 0 #A0000000">
+                                <Panel>
+                                    <Image Source="{Binding Player.CurrentTrack.ArtworkBitmap}" Stretch="UniformToFill"/>
+                                    <Border Background="#40000000" Opacity="0" Transitions="{StaticResource ControlOpacityTransitions}">
+                                        <TextBlock Text="CYCLE VISUALS" VerticalAlignment="Center" HorizontalAlignment="Center" FontWeight="Bold" Foreground="White"/>
+                                    </Border>
+                                </Panel>
+                            </Border>
+                        </Button>
+                        
+                        <StackPanel Spacing="16" HorizontalAlignment="Center">
+                            <TextBlock Text="{Binding Player.TrackTitle}" 
+                                       FontSize="56" FontWeight="ExtraBold" Foreground="White" 
+                                       TextAlignment="Center" HorizontalAlignment="Center"/>
+                            <TextBlock Text="{Binding Player.TrackArtist}" 
+                                       FontSize="32" Foreground="#B3B3B3" 
+                                       TextAlignment="Center" HorizontalAlignment="Center" Opacity="0.8"/>
+                        </StackPanel>
+                    </StackPanel>
+                </Grid>
+
+                <!-- Right: High-End Technical Details -->
+                <Border Grid.Row="1" Grid.Column="2" 
+                        Classes="collapsible"
+                        Width="{Binding IsTechnicalVisible, Converter={StaticResource BoolToWidthConverter}, ConverterParameter=400}"
+                        Opacity="{Binding IsTechnicalVisible, Converter={StaticResource BoolToOpacityConverter}}"
+                        Background="#2A000000" CornerRadius="16" Margin="40,0,0,0" Padding="24"
+                        BorderBrush="#30FFFFFF" BorderThickness="1"
+                        IsVisible="{Binding IsTechnicalVisible}">
+                    <StackPanel Spacing="32">
+                        <TextBlock Text="TECHNICAL SPEC" FontSize="12" FontWeight="Bold" Foreground="#C586C0" Opacity="0.8" LetterSpacing="1"/>
+                        
+                        <Grid RowDefinitions="Auto,Auto,Auto,Auto,Auto" ColumnDefinitions="*,*">
+                            <!-- Format & Quality -->
+                            <StackPanel Grid.Row="0" Grid.ColumnSpan="2" Spacing="8" Margin="0,0,0,20">
+                                <TextBlock Text="AUDIO PIPELINE" FontSize="10" Foreground="#555" FontWeight="Bold"/>
+                                <Border Background="#252526" Padding="12" CornerRadius="8">
+                                    <StackPanel Orientation="Horizontal" Spacing="16">
+                                        <TextBlock Text="{Binding Player.CurrentTrack.Format}" Foreground="#4EC9B0" FontWeight="Bold" FontSize="18"/>
+                                        <Rectangle Width="1" Fill="#444"/>
+                                        <TextBlock Text="{Binding Player.CurrentTrack.Bitrate, StringFormat='{}{0} KBPS'}" Foreground="White" VerticalAlignment="Center"/>
+                                    </StackPanel>
+                                </Border>
+                            </StackPanel>
+
+                            <!-- Key -->
+                            <StackPanel Grid.Row="1" Grid.Column="0" Spacing="8" Margin="0,0,0,20">
+                                <TextBlock Text="HARMONIC KEY" FontSize="10" Foreground="#555" FontWeight="Bold"/>
+                                <TextBlock Text="{Binding Player.CurrentTrack.KeyDisplay}" FontSize="24" Foreground="White" FontWeight="SemiBold"/>
+                            </StackPanel>
+
+                            <!-- BPM -->
+                            <StackPanel Grid.Row="1" Grid.Column="1" Spacing="8" Margin="0,0,0,20">
+                                <TextBlock Text="TEMPO" FontSize="10" Foreground="#555" FontWeight="Bold"/>
+                                <TextBlock Text="{Binding Player.CurrentTrack.BpmDisplay}" FontSize="24" Foreground="White" FontWeight="SemiBold"/>
+                            </StackPanel>
+
+                            <!-- Energy -->
+                            <StackPanel Grid.Row="2" Grid.ColumnSpan="2" Spacing="8" Margin="0,0,0,20">
+                                <TextBlock Text="VIBE ENERGY" FontSize="10" Foreground="#555" FontWeight="Bold"/>
+                                <ProgressBar Value="{Binding Player.CurrentTrack.Energy}" Minimum="0" Maximum="100" Height="4" Foreground="#FF9800" Background="#20FFFFFF"/>
+                            </StackPanel>
+
+                            <!-- Integrity -->
+                            <StackPanel Grid.Row="3" Grid.ColumnSpan="2" Spacing="8">
+                                <TextBlock Text="SONIC INTEGRITY" FontSize="10" Foreground="#555" FontWeight="Bold"/>
+                                <Border Background="#20FFFFFF" Padding="10" CornerRadius="6">
+                                    <StackPanel Orientation="Horizontal" Spacing="10">
+                                        <TextBlock Text="{Binding Player.CurrentTrack.IntegritySymbol}" FontSize="20" Foreground="{Binding Player.CurrentTrack.IntegrityColor}"/>
+                                        <TextBlock Text="{Binding Player.CurrentTrack.IntegrityText}" Foreground="#CCC" VerticalAlignment="Center"/>
+                                    </StackPanel>
+                                </Border>
+                            </StackPanel>
+                        </Grid>
+                    </StackPanel>
+                </Border>
+
+                <!-- Bottom: Seeker Override -->
+                <Border Grid.Row="2" Grid.ColumnSpan="3" Background="#44000000" CornerRadius="20" Padding="40,30" Margin="0,20" BorderBrush="#20FFFFFF" BorderThickness="1">
+                    <StackPanel Spacing="16">
+                        <controls:WaveformControl WaveformData="{Binding Player.WaveformData}" 
+                                                 LowBand="{Binding Player.CurrentTrack.LowData}"
+                                                 MidBand="{Binding Player.CurrentTrack.MidData}"
+                                                 HighBand="{Binding Player.CurrentTrack.HighData}"
+                                                 Progress="{Binding Player.Position}"
+                                                 Background="Transparent"
+                                                 PlayheadBrush="#1DB954"
+                                                 SeekCommand="{Binding Player.SeekCommand}"
+                                                 Height="100"/>
+                        <Grid ColumnDefinitions="Auto,*,Auto">
+                            <TextBlock Grid.Column="0" Text="{Binding Player.CurrentTimeStr}" Foreground="#888" FontSize="16" FontWeight="Bold"/>
+                            <TextBlock Grid.Column="2" Text="{Binding Player.TotalTimeStr}" Foreground="#888" FontSize="16" FontWeight="Bold"/>
+                        </Grid>
+                    </StackPanel>
+                </Border>
+            </Grid>
+        </Panel>
+    </Grid>
+</UserControl>

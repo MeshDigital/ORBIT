@@ -564,10 +564,8 @@ public class PlaylistTrackViewModel : INotifyPropertyChanged, Library.ILibraryNo
     public string TruePeakDisplay => Model.TruePeak.HasValue ? $"{Model.TruePeak:F1} dBTP" : "—";
     public string DynamicRangeDisplay => Model.DynamicRange.HasValue ? $"{Model.DynamicRange:F1} LU" : "—";
     
-    public string IntegritySymbol => Model.IsTrustworthy == false ? "⚠️" : "✓";
-    public string IntegrityText => Model.IsTrustworthy == false || Model.Integrity == Data.IntegrityLevel.Suspicious 
-        ? "Upscale Detected" 
-        : "Clean";
+    public string IntegritySymbol => IntegrityBadge;
+    public string IntegrityText => IntegrityTooltip;
     
     // Phase 21: Stem Separation Support
     private bool? _hasStems;

@@ -40,6 +40,9 @@ namespace SLSKDONET.ViewModels
         private readonly Services.Rekordbox.AnlzFileParser _anlzParser;
         private readonly WaveformAnalysisService _waveformService;
         private readonly ArtworkCacheService _artworkCacheService;
+        private readonly IEventBus _eventBus;
+        private readonly System.Threading.Timer _saveQueueTimer;
+        private bool _suppressSave;
 
         
         private string _trackTitle = "No Track Playing";
@@ -158,6 +161,20 @@ namespace SLSKDONET.ViewModels
             get => _isQueueOpen;
             set => SetProperty(ref _isQueueOpen, value);
         }
+
+        private bool _isTheaterMode;
+        public bool IsTheaterMode
+        {
+            get => _isTheaterMode;
+            set => SetProperty(ref _isTheaterMode, value);
+        }
+
+        private SLSKDONET.Views.Avalonia.Controls.VisualizerStyle _currentVisualStyle = SLSKDONET.Views.Avalonia.Controls.VisualizerStyle.Glow;
+        public SLSKDONET.Views.Avalonia.Controls.VisualizerStyle CurrentVisualStyle
+        {
+            get => _currentVisualStyle;
+            set => SetProperty(ref _currentVisualStyle, value);
+        }
         
         // Phase 9.2: Loading & Error States
         private bool _isLoading;
@@ -255,6 +272,8 @@ namespace SLSKDONET.ViewModels
         public ICommand ToggleQueueCommand { get; }
         public ICommand ToggleLikeCommand { get; } // Phase 9.3
         public ICommand SeekCommand { get; } // Phase 12.6: Waveform Seeking
+        public ICommand ToggleTheaterModeCommand { get; }
+        public ICommand CycleVisualStyleCommand { get; }
 
         // Phase 5C: UI Throttling
         private DateTime _lastTimeUpdate = DateTime.MinValue;
@@ -266,13 +285,45 @@ namespace SLSKDONET.ViewModels
             _anlzParser = anlzParser;
             _waveformService = waveformService;
             _artworkCacheService = artworkCacheService;
+            _eventBus = eventBus;
+            
+            _saveQueueTimer = new System.Threading.Timer(_ => 
+            {
+                _ = SaveQueueAsync();
+            }, null, System.Threading.Timeout.Infinite, System.Threading.Timeout.Infinite);
             
             // Phase 6B: Subscribe to playback requests
             eventBus.GetEvent<PlayTrackRequestEvent>().Subscribe(evt => 
             {
                 if (evt.Track != null && !string.IsNullOrEmpty(evt.Track.Model.ResolvedFilePath))
                 {
-                    PlayTrack(evt.Track.Model.ResolvedFilePath, evt.Track.Title ?? "Unknown", evt.Track.Artist ?? "Unknown");
+                    Dispatcher.UIThread.Post(() =>
+                    {
+                        // 1. Check if track is already in queue
+                        var existing = Queue.FirstOrDefault(t => t.Model.TrackUniqueHash == evt.Track.Model.TrackUniqueHash);
+                        if (existing != null)
+                        {
+                            var index = Queue.IndexOf(existing);
+                            CurrentQueueIndex = index;
+                            PlayTrackAtIndex(index);
+                        }
+                        else
+                        {
+                            // 2. Add to queue and play
+                            Queue.Add(evt.Track);
+                            var index = Queue.Count - 1;
+                            CurrentQueueIndex = index;
+                            PlayTrackAtIndex(index);
+                        }
+                    });
+                }
+            }).DisposeWith(_disposables);
+
+            eventBus.GetEvent<AddToQueueRequestEvent>().Subscribe(evt => 
+            {
+                if (evt.Track != null)
+                {
+                    AddToQueue(evt.Track);
                 }
             }).DisposeWith(_disposables);
 
@@ -283,18 +334,27 @@ namespace SLSKDONET.ViewModels
                 
                 Dispatcher.UIThread.Post(() =>
                 {
-                    // 1. Clear existing queue
-                    ClearQueue();
-                    
-                    // 2. Add all tracks to queue
-                    foreach (var track in evt.Tracks)
+                    _suppressSave = true;
+                    try
                     {
-                        // Only add tracks with valid file paths
-                        if (!string.IsNullOrEmpty(track.ResolvedFilePath))
+                        // 1. Clear existing queue
+                        ClearQueue();
+                        
+                        // 2. Add all tracks to queue
+                        foreach (var track in evt.Tracks)
                         {
-                            var vm = new PlaylistTrackViewModel(track, eventBus, null, _artworkCacheService);
-                            Queue.Add(vm);
+                            // Only add tracks with valid file paths
+                            if (!string.IsNullOrEmpty(track.ResolvedFilePath))
+                            {
+                                var vm = new PlaylistTrackViewModel(track, eventBus, null, _artworkCacheService);
+                                Queue.Add(vm);
+                            }
                         }
+                    }
+                    finally
+                    {
+                        _suppressSave = false;
+                        DebounceSaveQueue();
                     }
                     
                     // 3. Play first track if any were added
@@ -367,6 +427,8 @@ namespace SLSKDONET.ViewModels
             ToggleQueueCommand = new RelayCommand(ToggleQueue);
             ToggleLikeCommand = new AsyncRelayCommand(ToggleLikeAsync); // Phase 9.3
             SeekCommand = new RelayCommand<float>(Seek);
+            ToggleTheaterModeCommand = new RelayCommand(() => _eventBus.Publish(new RequestTheaterModeEvent()));
+            CycleVisualStyleCommand = new RelayCommand(CycleVisualStyle);
             
             // Phase 0: Queue persistence - auto-save on changes
             Queue.CollectionChanged += OnQueueCollectionChanged;
@@ -384,14 +446,28 @@ namespace SLSKDONET.ViewModels
                     Seek((float)(evt.Seconds * 1000.0 / _playerService.Length));
                 }
             }).DisposeWith(_disposables);
-
             // Load saved queue on startup
             _ = LoadQueueAsync();
         }
 
-        private async void OnQueueCollectionChanged(object? sender, System.Collections.Specialized.NotifyCollectionChangedEventArgs e)
+        private void CycleVisualStyle()
         {
-             await SaveQueueAsync();
+            var styles = (SLSKDONET.Views.Avalonia.Controls.VisualizerStyle[])Enum.GetValues(typeof(SLSKDONET.Views.Avalonia.Controls.VisualizerStyle));
+            int nextIndex = ((int)CurrentVisualStyle + 1) % styles.Length;
+            CurrentVisualStyle = styles[nextIndex];
+        }
+
+        private void OnQueueCollectionChanged(object? sender, System.Collections.Specialized.NotifyCollectionChangedEventArgs e)
+        {
+             if (!_suppressSave)
+             {
+                 DebounceSaveQueue();
+             }
+        }
+
+        private void DebounceSaveQueue()
+        {
+            _saveQueueTimer.Change(500, System.Threading.Timeout.Infinite);
         }
 
         public void Dispose()
@@ -652,40 +728,43 @@ namespace SLSKDONET.ViewModels
 
             if (!string.IsNullOrEmpty(filePath))
             {
-                // Max Ultra Waveform Logic
-                // 1. Try Rekordbox ANLZ (Fastest, Pre-analyzed)
-                var anlz = _anlzParser.TryFindAndParseAnlz(filePath);
-                if (anlz != null && anlz.WaveformData != null && anlz.WaveformData.Length > 0)
+                // Max Ultra Waveform Logic - Offloaded to background to prevent UI stutter
+                _ = Task.Run(async () => 
                 {
-                     // Convert legacy byte[] to new high-res format (Peak only, assume RMS = Peak for simple view)
-                     WaveformData = new WaveformAnalysisData 
-                     { 
-                         PeakData = anlz.WaveformData,
-                         RmsData = anlz.WaveformData, 
-                         LowData = anlz.LowData,
-                         MidData = anlz.MidData,
-                         HighData = anlz.HighData,
-                         PointsPerSecond = 100 
-                     };
-                }
-                else
-                {
-                     // 2. Generate High-Fidelity Waveform with FFmpeg (Async)
-                     // Fire and forget, UI will update when handy
-                     WaveformData = new WaveformAnalysisData(); // Clear old
-                     _ = Task.Run(async () => 
-                     {
-                         try 
-                         {
-                             var waveform = await _waveformService.GenerateWaveformAsync(filePath);
-                             Dispatcher.UIThread.Post(() => WaveformData = waveform);
-                         }
-                         catch (Exception ex)
-                         {
-                             Console.WriteLine($"[PlayerViewModel] Waveform generation failed: {ex.Message}");
-                         }
-                     });
-                }
+                    try 
+                    {
+                        // 1. Try Rekordbox ANLZ (Fastest, Pre-analyzed)
+                        // This involves file I/O and parsing, so we do it in the background
+                        var anlz = _anlzParser.TryFindAndParseAnlz(filePath);
+                        if (anlz != null && anlz.WaveformData != null && anlz.WaveformData.Length > 0)
+                        {
+                            // Convert legacy byte[] to new high-res format (Peak only, assume RMS = Peak for simple view)
+                            var waveform = new WaveformAnalysisData 
+                            { 
+                                PeakData = anlz.WaveformData,
+                                RmsData = anlz.WaveformData, 
+                                LowData = anlz.LowData,
+                                MidData = anlz.MidData,
+                                HighData = anlz.HighData,
+                                PointsPerSecond = 100 
+                            };
+                            Dispatcher.UIThread.Post(() => WaveformData = waveform);
+                        }
+                        else
+                        {
+                            // 2. Generate High-Fidelity Waveform with FFmpeg (Async)
+                            // Fire and forget, UI will update when handy
+                            Dispatcher.UIThread.Post(() => WaveformData = new WaveformAnalysisData()); // Clear old
+                            
+                            var waveform = await _waveformService.GenerateWaveformAsync(filePath);
+                            Dispatcher.UIThread.Post(() => WaveformData = waveform);
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        Console.WriteLine($"[PlayerViewModel] Waveform/ANLZ processing failed: {ex.Message}");
+                    }
+                });
                 
                 PlayTrack(filePath, track.Title ?? "Unknown", track.Artist ?? "Unknown");
             }

@@ -39,8 +39,10 @@ public record PlaybackProgressEvent(TimeSpan Position, TimeSpan Duration);
 public record NavigationEvent(PageType PageType);
 public record TrackSelectionChangedEvent(PlaylistTrack? Track); // Phase 12.6: Inspector Sync
 public record PlayTrackRequestEvent(PlaylistTrackViewModel Track);
+public record AddToQueueRequestEvent(PlaylistTrackViewModel Track);
 public record PlayAlbumRequestEvent(System.Collections.Generic.IEnumerable<PlaylistTrack> Tracks);
 public record DownloadAlbumRequestEvent(object Album); // object to handle AlbumNode or PlaylistJob
+public record RequestTheaterModeEvent();
 
 
 public record AddToProjectRequestEvent(System.Collections.Generic.IEnumerable<PlaylistTrack> Tracks); // Phase 12.7: Context Menu Actions

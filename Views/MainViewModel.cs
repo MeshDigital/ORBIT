@@ -60,6 +60,7 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
     
     // Operation Glass Console: Unified Intelligence Center
     public IntelligenceCenterViewModel IntelligenceCenter { get; }
+    public TheaterModeViewModel TheaterModeViewModel { get; }
 
 
     public event PropertyChangedEventHandler? PropertyChanged;
@@ -108,7 +109,8 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
         IDialogService dialogService,
         ILibraryService libraryService,
         ViewModels.Stem.StemWorkspaceViewModel stemWorkspaceViewModel,
-        IntelligenceCenterViewModel intelligenceCenter)
+        IntelligenceCenterViewModel intelligenceCenter,
+        TheaterModeViewModel theaterModeViewModel)
 
     {
         _logger = logger;
@@ -141,6 +143,7 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
         BulkOperationViewModel = bulkOperationViewModel;
         StemWorkspaceViewModel = stemWorkspaceViewModel;
         IntelligenceCenter = intelligenceCenter;
+        TheaterModeViewModel = theaterModeViewModel;
 
 
         // Initialize commands
@@ -150,6 +153,7 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
         NavigateProjectsCommand = new RelayCommand(NavigateToProjects);
         NavigateSettingsCommand = new RelayCommand(NavigateToSettings);
         NavigateUpgradeScoutCommand = new RelayCommand(NavigateUpgradeScout);
+        NavigateTheaterCommand = new RelayCommand(NavigateToTheater);
         NavigateInspectorCommand = new RelayCommand(NavigateAnalysisQueue);
         NavigateStyleLabCommand = new RelayCommand(() => _navigationService.NavigateTo("StyleLab"));
         NavigateImportCommand = new RelayCommand(NavigateToImport); // Phase 6D
@@ -229,8 +233,13 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
                // Show Workspace Overlay
                StemWorkspaceViewModel.IsVisible = true;
                // Load the requested track
-               _ = StemWorkspaceViewModel.LoadTrackAsync(evt.TrackGlobalId);
+                _ = StemWorkspaceViewModel.LoadTrackAsync(evt.TrackGlobalId);
             });
+        }));
+
+        _disposables.Add(_eventBus.GetEvent<RequestTheaterModeEvent>().Subscribe(_ =>
+        {
+            Dispatcher.UIThread.Post(NavigateToTheater);
         }));
         // Sync initial state in case events fired before subscription
         AnalysisQueueCount = _analysisQueue.QueuedCount;
@@ -288,6 +297,7 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
         _navigationService.RegisterPage("Inspector", typeof(Avalonia.InspectorPage));
         _navigationService.RegisterPage("AnalysisQueue", typeof(Avalonia.AnalysisQueuePage));
         _navigationService.RegisterPage("StyleLab", typeof(Avalonia.StyleLabPage));
+        _navigationService.RegisterPage("Theater", typeof(Avalonia.TheaterModePage));
         
         // Subscribe to navigation events
         _navigationService.Navigated += OnNavigated;
@@ -488,8 +498,8 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
     public bool HasETA => !string.IsNullOrEmpty(AnalysisETA);
 
 
-    public bool IsPlayerInSidebar => !IsPlayerAtBottom && IsPlayerSidebarVisible;
-    public bool IsPlayerAtBottomVisible => IsPlayerAtBottom && IsPlayerSidebarVisible;
+    public bool IsPlayerInSidebar => !IsPlayerAtBottom && IsPlayerSidebarVisible && CurrentPageType != PageType.TheaterMode;
+    public bool IsPlayerAtBottomVisible => IsPlayerAtBottom && IsPlayerSidebarVisible && CurrentPageType != PageType.TheaterMode;
 
     private double _baseFontSize = 14.0;
     public double BaseFontSize
@@ -597,6 +607,7 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
     public ICommand NavigateUpgradeScoutCommand { get; }
     public ICommand NavigateInspectorCommand { get; }
     public ICommand NavigateStyleLabCommand { get; }
+    public ICommand NavigateTheaterCommand { get; }
 
     public ICommand NavigateImportCommand { get; } // Phase 6D
     public ICommand ToggleNavigationCommand { get; }
@@ -628,14 +639,15 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
         if (page != null)
         {
             CurrentPage = page;
+            string pageName = page.GetType().Name;
             
             // Sync CurrentPageType based on the view type to keep UI highlights correct
-            CurrentPageType = page.GetType().Name switch
+            CurrentPageType = pageName switch
             {
                 "HomePage" => PageType.Home,
                 "SearchPage" => PageType.Search,
                 "LibraryPage" => PageType.Library,
-                "DownloadsPage" => PageType.Projects,
+                "DownloadsPage" => PageType.Home,
                 "SettingsPage" => PageType.Settings,
                 "ImportPage" => PageType.Import,
                 "ImportPreviewPage" => PageType.Import, // Map preview to Import category
@@ -643,8 +655,24 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
                 "InspectorPage" => PageType.Inspector,
                 "AnalysisQueuePage" => PageType.AnalysisQueue,
                 "StyleLabPage" => PageType.StyleLab,
+                "TheaterModePage" => PageType.TheaterMode,
                 _ => CurrentPageType
             };
+
+            // Handle Theater Mode Layout (Navigation is special because it affects sidebar size)
+            if (CurrentPageType == PageType.TheaterMode)
+            {
+                IsNavigationCollapsed = true;
+            }
+            else
+            {
+                // Restore defaults if we weren't already collapsed
+                IsNavigationCollapsed = false; 
+            }
+
+            // Player visibility is now computed based on CurrentPageType
+            OnPropertyChanged(nameof(IsPlayerInSidebar));
+            OnPropertyChanged(nameof(IsPlayerAtBottomVisible));
             
             _logger.LogInformation("Navigation sync: CurrentPage updated to {PageType}", CurrentPageType);
 
@@ -701,6 +729,11 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
     private void NavigateToImport()
     {
         _navigationService.NavigateTo("Import");
+    }
+
+    private void NavigateToTheater()
+    {
+        _navigationService.NavigateTo("Theater");
     }
 
 

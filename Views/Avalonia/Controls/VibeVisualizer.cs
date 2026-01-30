@@ -8,6 +8,9 @@ using System.Linq;
 
 namespace SLSKDONET.Views.Avalonia.Controls
 {
+    public enum VisualizerMode { Mini, Full }
+    public enum VisualizerStyle { Glow, Particles, Waves }
+
     public class VibeVisualizer : Control
     {
         public static readonly StyledProperty<float> VuLeftProperty =
@@ -40,19 +43,53 @@ namespace SLSKDONET.Views.Avalonia.Controls
 
         public bool IsPlaying { get => GetValue(IsPlayingProperty); set => SetValue(IsPlayingProperty, value); }
 
+        public static readonly StyledProperty<VisualizerMode> ModeProperty =
+            AvaloniaProperty.Register<VibeVisualizer, VisualizerMode>(nameof(Mode), VisualizerMode.Mini);
+
+        public VisualizerMode Mode { get => GetValue(ModeProperty); set => SetValue(ModeProperty, value); }
+
+        public static readonly StyledProperty<VisualizerStyle> StyleProperty =
+            AvaloniaProperty.Register<VibeVisualizer, VisualizerStyle>(nameof(Style), VisualizerStyle.Glow);
+
+        public VisualizerStyle Style { get => GetValue(StyleProperty); set => SetValue(StyleProperty, value); }
+
         private readonly Random _random = new();
         private readonly List<Particle> _particles = new();
         private float[] _smoothedSpectrum = Array.Empty<float>();
         private float _heartbeatValue = 0f;
+        private readonly DispatcherTimer _renderTimer;
 
         static VibeVisualizer()
         {
-            AffectsRender<VibeVisualizer>(VuLeftProperty, VuRightProperty, EnergyProperty, IsPlayingProperty, SpectrumDataProperty, MoodTagProperty);
+            AffectsRender<VibeVisualizer>(VuLeftProperty, VuRightProperty, EnergyProperty, IsPlayingProperty, SpectrumDataProperty, MoodTagProperty, ModeProperty, StyleProperty);
+        }
+
+        protected override void OnPropertyChanged(AvaloniaPropertyChangedEventArgs change)
+        {
+            base.OnPropertyChanged(change);
+            if (change.Property == IsPlayingProperty)
+            {
+                if (change.GetNewValue<bool>())
+                {
+                    _renderTimer.Start();
+                }
+                else
+                {
+                    _renderTimer.Stop();
+                }
+            }
         }
 
         public VibeVisualizer()
         {
-            for (int i = 0; i < 30; i++) _particles.Add(CreateParticle());
+            for (int i = 0; i < 50; i++) _particles.Add(CreateParticle());
+            
+            // Throttle render loop to ~30 FPS instead of running at max speed
+            _renderTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(33) };
+            _renderTimer.Tick += (_, _) => 
+            {
+                if (IsPlaying) InvalidateVisual();
+            };
         }
 
         private Particle CreateParticle() => new()
@@ -109,7 +146,26 @@ namespace SLSKDONET.Views.Avalonia.Controls
             // 5. Retro Post-Processing (Scanlines)
             RenderScanlines(context, w, h);
 
-            if (IsPlaying) Dispatcher.UIThread.Post(InvalidateVisual, DispatcherPriority.Render);
+            // 6. Style-Specific Effects
+            var baseBrush = new SolidColorBrush(baseColor);
+            if (Style == VisualizerStyle.Waves)
+            {
+                RenderSpectrumWaves(context, w, h, baseBrush);
+            }
+
+            // 7. Camera Shake (Full Mode only)
+            if (Mode == VisualizerMode.Full && intensity > 0.7)
+            {
+                // We can't easily transform the whole drawing context here without affecting everything, 
+                // but we've already drawn. For real shake we'd need to wrap the whole Render logic.
+                // Instead, let's just add a lightning flash or something.
+                if (_random.NextDouble() > 0.95)
+                {
+                     context.DrawRectangle(new SolidColorBrush(Colors.White, 0.1f), null, new Rect(0, 0, w, h));
+                }
+            }
+
+            // Render loop is now driven by DispatcherTimer, not by self-invalidation
         }
 
         private void RenderSpectrum(DrawingContext context, double w, double h, Color baseColor)
@@ -143,6 +199,26 @@ namespace SLSKDONET.Views.Avalonia.Controls
                 
                 // Top cap glow
                 context.DrawRectangle(glowBrush, null, new Rect(i * barW, h - barH, barW - 1, 2));
+            }
+        }
+
+        private void RenderSpectrumWaves(DrawingContext context, double w, double h, IBrush brush)
+        {
+            var data = SpectrumData;
+            if (data == null || data.Length < 10) return;
+
+            // Simple wave path
+            var points = new List<Point>();
+            double step = w / (data.Length - 1);
+            for (int i = 0; i < data.Length; i++)
+            {
+                double val = data[i] * h * 0.4;
+                points.Add(new Point(i * step, h / 2 - val));
+            }
+
+            for (int i = 0; i < points.Count - 1; i++)
+            {
+                context.DrawLine(new Pen(brush, 2), points[i], points[i + 1]);
             }
         }
 
@@ -184,6 +260,11 @@ namespace SLSKDONET.Views.Avalonia.Controls
 
         private void UpdateParticles()
         {
+            int limit = Mode == VisualizerMode.Full ? 50 : 20;
+            // Adaptive particle count
+            while (_particles.Count < limit) _particles.Add(CreateParticle());
+            while (_particles.Count > limit) _particles.RemoveAt(0);
+
             foreach (var p in _particles)
             {
                 p.X += p.SpeedX; p.Y += p.SpeedY;

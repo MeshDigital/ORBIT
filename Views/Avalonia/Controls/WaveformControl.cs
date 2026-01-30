@@ -247,11 +247,11 @@ namespace SLSKDONET.Views.Avalonia.Controls
             var lowData = LowBand ?? data.LowData;
             var midData = MidBand ?? data.MidData;
             var highData = HighBand ?? data.HighData;
-            bool hasRgb = lowData != null && midData != null && highData != null;
+            bool hasRgb = lowData != null && midData != null && highData != null && lowData.Length > 0;
 
             if (hasRgb)
             {
-                RenderRgbBands(context, data, width, mid, samples, step, lowData!, midData!, highData!);
+                RenderTrueRgb(context, data, width, mid, samples, step, lowData!, midData!, highData!, false);
             }
             else
             {
@@ -294,12 +294,45 @@ namespace SLSKDONET.Views.Avalonia.Controls
             context.DrawGeometry(null, StaticPlayedPen, playedGeom);
         }
 
-        private void RenderRgbBands(DrawingContext context, WaveformAnalysisData data, double width, double mid, int samples, double step, byte[] low, byte[] midB, byte[] high)
+        private void RenderTrueRgb(DrawingContext context, WaveformAnalysisData data, double width, double mid, int samples, double step, byte[] low, byte[] midB, byte[] high, bool isRolling, double currentXOffset = 0)
         {
             var playedLimit = (int)(Progress * samples);
-            DrawBandBatch(context, low, samples, step, mid, playedLimit, LowBasePen, LowPlayedPen);
-            DrawBandBatch(context, midB, samples, step, mid, playedLimit, MidBasePen, MidPlayedPen);
-            DrawBandBatch(context, high, samples, step, mid, playedLimit, HighBasePen, HighPlayedPen);
+            var peak = data.PeakData!;
+            
+            // Professional Neon Palette
+            var lowColor = Color.FromRgb(255, 40, 100);    // Hot Pink / Red
+            var midColor = Color.FromRgb(0, 255, 120);    // Neon Green
+            var highColor = Color.FromRgb(0, 200, 255);   // Cyan / Blue
+
+            for (int i = 0; i < Math.Min(samples, low.Length); i++)
+            {
+                if (i >= peak.Length) break;
+                
+                double h = (peak[i] / 255.0) * mid;
+                if (h < 0.5) continue;
+
+                double x = (i * step) + currentXOffset;
+                if (x < -step || x > width + step) continue;
+
+                // Intensity-based blending
+                double l = low[i] / 255.0;
+                double m = midB[i] / 255.0;
+                double hf = high[i] / 255.0;
+                double total = l + m + hf;
+
+                if (total > 0)
+                {
+                    byte r = (byte)Math.Clamp((l * lowColor.R + m * midColor.R + hf * highColor.R) / total, 0, 255);
+                    byte g = (byte)Math.Clamp((l * lowColor.G + m * midColor.G + hf * highColor.G) / total, 0, 255);
+                    byte b = (byte)Math.Clamp((l * lowColor.B + m * midColor.B + hf * highColor.B) / total, 0, 255);
+                    
+                    bool isPlayed = isRolling ? (i <= playedLimit) : (x < Progress * width);
+                    float opacity = isPlayed ? 1.0f : 0.35f;
+                    
+                    var col = Color.FromArgb((byte)(opacity * 255), r, g, b);
+                    context.DrawLine(new Pen(new SolidColorBrush(col), 1), new Point(x, mid - h), new Point(x, mid + h));
+                }
+            }
         }
 
         private void DrawBandBatch(DrawingContext context, byte[] data, int samples, double step, double mid, int playedLimit, Pen basePen, Pen playedPen)
@@ -339,35 +372,49 @@ namespace SLSKDONET.Views.Avalonia.Controls
             double pixelsPerSec = width / windowSec;
             double currentSec = Progress * data.DurationSeconds;
             double startSec = currentSec - (windowSec / 2);
-            double endSec = currentSec + (windowSec / 2);
             
             int samplesPerSec = (int)(data.PeakData!.Length / data.DurationSeconds);
             int startIdx = (int)(startSec * samplesPerSec);
-            int endIdx = (int)(endSec * samplesPerSec);
-            int playedLimit = (int)(Progress * data.PeakData.Length);
+            double startX = (width / 2) + ( (startSec - currentSec) * pixelsPerSec );
 
-            var playedGeom = new StreamGeometry();
-            var baseGeom = new StreamGeometry();
-            
-            using (var pCtx = playedGeom.Open())
-            using (var bCtx = baseGeom.Open())
+            var lowData = LowBand ?? data.LowData;
+            var midData = MidBand ?? data.MidData;
+            var highData = HighBand ?? data.HighData;
+            bool hasRgb = lowData != null && midData != null && highData != null && lowData.Length > 0;
+
+            if (hasRgb)
             {
-                for (int i = startIdx; i <= endIdx; i++)
-                {
-                    if (i < 0 || i >= data.PeakData.Length) continue;
-                    
-                    double sampleSec = (double)i / samplesPerSec;
-                    double x = (width / 2) + (sampleSec - currentSec) * pixelsPerSec;
-                    double h = (data.PeakData[i] / 255.0) * mid;
-
-                    var ctx = i <= playedLimit ? pCtx : bCtx;
-                    ctx.BeginFigure(new Point(x, mid - h), false);
-                    ctx.LineTo(new Point(x, mid + h));
-                }
+                // step = pixels per sample. 
+                // pixelsPerSec = width / 10.0
+                // samplesPerSec = total_samples / duration
+                // step = pixelsPerSec / samplesPerSec
+                double step = pixelsPerSec / samplesPerSec;
+                RenderTrueRgb(context, data, width, mid, data.PeakData.Length, step, lowData!, midData!, highData!, true, (width / 2) - (currentSec * pixelsPerSec));
             }
-            
-            context.DrawGeometry(null, StaticPlayedPen, playedGeom);
-            context.DrawGeometry(null, StaticBasePen, baseGeom);
+            else
+            {
+                // Fallback to static blue if no RGB
+                int endIdx = startIdx + (int)(windowSec * samplesPerSec);
+                int playedLimit = (int)(Progress * data.PeakData.Length);
+                var playedGeom = new StreamGeometry();
+                var baseGeom = new StreamGeometry();
+                using (var pCtx = playedGeom.Open())
+                using (var bCtx = baseGeom.Open())
+                {
+                    for (int i = startIdx; i <= endIdx; i++)
+                    {
+                        if (i < 0 || i >= data.PeakData.Length) continue;
+                        double sampleSec = (double)i / samplesPerSec;
+                        double x = (width / 2) + (sampleSec - currentSec) * pixelsPerSec;
+                        double h = (data.PeakData[i] / 255.0) * mid;
+                        var ctx = i <= playedLimit ? pCtx : bCtx;
+                        ctx.BeginFigure(new Point(x, mid - h), false);
+                        ctx.LineTo(new Point(x, mid + h));
+                    }
+                }
+                context.DrawGeometry(null, StaticPlayedPen, playedGeom);
+                context.DrawGeometry(null, StaticBasePen, baseGeom);
+            }
         }
 
         private void RenderCues(DrawingContext context, double width, double height)

@@ -28,6 +28,12 @@ public partial class ProjectPickerDialog : Window, INotifyPropertyChanged
 
     public bool CanSave => SelectedProject != null;
 
+    public ProjectPickerDialog()
+    {
+        InitializeComponent();
+        DataContext = this;
+    }
+
     public ProjectPickerDialog(IEnumerable<PlaylistJob> projects)
     {
         InitializeComponent();

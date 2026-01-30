@@ -973,6 +973,12 @@ public class SchemaMigratorService
                     command.CommandText = @"ALTER TABLE ""Projects"" ADD COLUMN ""SmartCriteriaJson"" TEXT NULL;";
                     await command.ExecuteNonQueryAsync();
                 }
+                if (!ColumnExists("Projects", "AnalysisStatus"))
+                {
+                    _logger.LogInformation("Patching Schema: Adding AnalysisStatus to Projects...");
+                    command.CommandText = @"ALTER TABLE ""Projects"" ADD COLUMN ""AnalysisStatus"" INTEGER NOT NULL DEFAULT 0;";
+                    await command.ExecuteNonQueryAsync();
+                }
             }
 
             // 10. Phase 18.2: Sonic Visualizations
@@ -1106,6 +1112,12 @@ public class SchemaMigratorService
                     command.CommandText = @"ALTER TABLE ""PlaylistTracks"" ADD COLUMN ""EnrichmentAttempts"" INTEGER NOT NULL DEFAULT 0;";
                     await command.ExecuteNonQueryAsync();
                 }
+                if (!ColumnExists("PlaylistTracks", "AnalysisStatus"))
+                {
+                    _logger.LogInformation("Patching Schema: Adding AnalysisStatus to PlaylistTracks...");
+                    command.CommandText = @"ALTER TABLE ""PlaylistTracks"" ADD COLUMN ""AnalysisStatus"" INTEGER NOT NULL DEFAULT 0;";
+                    await command.ExecuteNonQueryAsync();
+                }
             }
             if (TableExists("LibraryEntries"))
             {
@@ -1137,6 +1149,12 @@ public class SchemaMigratorService
                 {
                     _logger.LogInformation("Patching Schema: Adding DynamicRange to LibraryEntries...");
                     command.CommandText = @"ALTER TABLE ""LibraryEntries"" ADD COLUMN ""DynamicRange"" REAL NULL;";
+                    await command.ExecuteNonQueryAsync();
+                }
+                if (!ColumnExists("LibraryEntries", "AnalysisStatus"))
+                {
+                    _logger.LogInformation("Patching Schema: Adding AnalysisStatus to LibraryEntries...");
+                    command.CommandText = @"ALTER TABLE ""LibraryEntries"" ADD COLUMN ""AnalysisStatus"" INTEGER NOT NULL DEFAULT 0;";
                     await command.ExecuteNonQueryAsync();
                 }
             }
