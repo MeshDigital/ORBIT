@@ -355,9 +355,17 @@
                                                           CommandParameter="{x:Static vm:ActiveWorkspace.Forensic}">
                                                     <MenuItem.Icon><TextBlock Text="🕵️"/></MenuItem.Icon>
                                                 </MenuItem>
+                                                <MenuItem Header="Add Selected to Timeline" IsVisible="{Binding $parent[UserControl].DataContext.Tracks.HasMultiSelection}"
+                                                          Command="{Binding $parent[UserControl].DataContext.AddToTimelineCommand}" 
+                                                          CommandParameter="{Binding $parent[UserControl].DataContext.Tracks.SelectedTracks}">
+                                                    <MenuItem.Icon><TextBlock Text="⏱️"/></MenuItem.Icon>
+                                                </MenuItem>
                                                 <MenuItem Header="Industrial Prep (Bulk)" Command="{Binding $parent[UserControl].DataContext.Operations.IndustrialPrepCommand}" CommandParameter="{Binding $parent[UserControl].DataContext.Tracks.SelectedTracks}"><MenuItem.Icon><TextBlock Text="🏭"/></MenuItem.Icon></MenuItem>
                                                 <MenuItem Header="Open File Location" Command="{Binding $parent[UserControl].DataContext.Operations.OpenFolderCommand}" CommandParameter="{Binding}"><MenuItem.Icon><TextBlock Text="📁"/></MenuItem.Icon></MenuItem>
                                                 <MenuItem Header="Add to Another Project..." Command="{Binding $parent[UserControl].DataContext.Operations.AddToProjectCommand}" CommandParameter="{Binding}"><MenuItem.Icon><TextBlock Text="➕"/></MenuItem.Icon></MenuItem>
+                                                <MenuItem Header="Add to Timeline" Command="{Binding $parent[UserControl].DataContext.AddToTimelineCommand}" CommandParameter="{Binding}">
+                                                    <MenuItem.Icon><TextBlock Text="⏱️"/></MenuItem.Icon>
+                                                </MenuItem>
                                                 <MenuItem Header="Create Independent Physical Copy" Command="{Binding $parent[UserControl].DataContext.Operations.CloneTrackCommand}" CommandParameter="{Binding}" ToolTip.Tip="Create a physical copy of this file with independent cues"><MenuItem.Icon><TextBlock Text="📄"/></MenuItem.Icon></MenuItem>
                                                 <Separator/>
                                                 <MenuItem Header="Retry Download" Command="{Binding $parent[UserControl].DataContext.Operations.HardRetryCommand}" CommandParameter="{Binding}" IsVisible="{Binding CanHardRetry}"><MenuItem.Icon><TextBlock Text="🔄"/></MenuItem.Icon></MenuItem>

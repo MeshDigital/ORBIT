@@ -1,0 +1,78 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:vm="clr-namespace:SLSKDONET.ViewModels.Timeline"
+             xmlns:controls="clr-namespace:SLSKDONET.Views.Avalonia.Controls"
+             mc:Ignorable="d" d:DesignWidth="1200" d:DesignHeight="800"
+             x:Class="SLSKDONET.Views.Avalonia.Timeline.SetDesignerView"
+             x:DataType="vm:SetDesignerViewModel"
+             Background="#121216">
+
+    <Grid RowDefinitions="120, *, 80">
+        <!-- Top: Energy Map & Global Stats -->
+        <Border Grid.Row="0" Background="#1A1A20" BorderBrush="#333" BorderThickness="0,0,0,1">
+            <Grid ColumnDefinitions="*, Auto">
+                <controls:SetEnergyMap 
+                    Tracks="{Binding Lanes}"
+                    TotalDurationSamples="{Binding TotalDurationSamples}"
+                    PlayheadPosition="{Binding CurrentPosition}"
+                    Margin="10" />
+                
+                <StackPanel Grid.Column="1" VerticalAlignment="Center" Margin="20,0">
+                    <TextBlock Text="SET ENERGY" FontSize="10" Foreground="Gray" HorizontalAlignment="Center"/>
+                    <TextBlock Text="84%" FontSize="24" FontWeight="Bold" Foreground="#FF5064" HorizontalAlignment="Center"/>
+                </StackPanel>
+            </Grid>
+        </Border>
+
+        <!-- Center: Timeline -->
+        <Border Grid.Row="1" Background="#0C0C0E">
+            <controls:TimelineCanvas 
+                Lanes="{Binding Lanes}"
+                CurrentSamplePosition="{Binding CurrentPosition}"
+                ZoomLevel="{Binding ZoomLevel}"
+                ScrollOffset="{Binding ScrollOffset}"
+                ProjectBpm="128" />
+        </Border>
+
+        <!-- Bottom: Transport & Master -->
+        <Border Grid.Row="2" Background="#1A1A20" BorderBrush="#333" BorderThickness="0,1,0,0">
+            <Grid ColumnDefinitions="Auto, *, Auto">
+                <!-- Transport -->
+                <StackPanel Orientation="Horizontal" Spacing="15" Margin="20,0">
+                    <Button Command="{Binding StopCommand}" Background="Transparent" Padding="5">
+                        <Path Data="M0,0 L12,0 L12,12 L0,12 Z" Fill="White" Width="12" Height="12"/>
+                    </Button>
+                    <Button Command="{Binding PlayCommand}" IsVisible="{Binding !IsPlaying}" Background="Transparent" Padding="5">
+                        <Path Data="M0,0 L12,6 L0,12 Z" Fill="#4CAF50" Width="12" Height="12"/>
+                    </Button>
+                    <Button Command="{Binding PauseCommand}" IsVisible="{Binding IsPlaying}" Background="Transparent" Padding="5">
+                        <Path Data="M0,0 L4,0 L4,12 L0,12 Z M8,0 L12,0 L12,12 L8,12 Z" Fill="#FFC107" Width="12" Height="12"/>
+                    </Button>
+                    
+                    <Separator Width="1" Height="20" Background="#444" Margin="10,0"/>
+                    
+                    <TextBlock Text="{Binding CurrentPosition}" VerticalAlignment="Center" FontSize="16" FontFamily="Consolas" Foreground="#00FF00"/>
+                </StackPanel>
+
+                <!-- Zoom/Scroll (Placeholder) -->
+                <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Center" Spacing="20">
+                    <Slider Minimum="0.1" Maximum="10" Value="{Binding ZoomLevel}" Width="150" VerticalAlignment="Center"/>
+                    <TextBlock Text="ZOOM" FontSize="10" VerticalAlignment="Center" Foreground="Gray"/>
+                </StackPanel>
+
+                <!-- Master Output -->
+                <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="15" Margin="20,0">
+                    <TextBlock Text="MASTER" FontSize="10" VerticalAlignment="Center" Foreground="Gray"/>
+                    <Slider Value="{Binding MasterVolume}" Minimum="0" Maximum="1" Width="120" VerticalAlignment="Center"/>
+                    
+                    <!-- VU Meter Placeholder -->
+                    <Border Width="12" Height="40" Background="#111" CornerRadius="2" VerticalAlignment="Center">
+                        <Border Width="12" Height="25" Background="#4CAF50" VerticalAlignment="Bottom" CornerRadius="1"/>
+                    </Border>
+                </StackPanel>
+            </Grid>
+        </Border>
+    </Grid>
+</UserControl>

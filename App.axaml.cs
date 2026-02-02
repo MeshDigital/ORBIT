@@ -723,6 +723,11 @@ public partial class App : Application
         services.AddTransient<Services.Audio.RealTimeStemEngine>();
         services.AddSingleton<ViewModels.Stem.StemWorkspaceViewModel>(); // Root VM for workspace
         
+        // Phase 4: Set Designer (DAW)
+        services.AddSingleton<Services.Audio.MultiTrackEngine>();
+        services.AddSingleton<Services.Audio.TransitionEngine>();
+        services.AddSingleton<ViewModels.Timeline.SetDesignerViewModel>();
+        
         // Phase 0: ViewModel Refactoring - Library child ViewModels
         services.AddTransient<ViewModels.Library.ProjectListViewModel>();
         services.AddTransient<ViewModels.Library.TrackListViewModel>(sp => 
@@ -776,6 +781,7 @@ public partial class App : Application
         services.AddTransient<Views.Avalonia.StyleLabPage>();
         services.AddTransient<Views.Avalonia.TheaterModePage>();
         services.AddTransient<Views.Avalonia.CrateDiggerView>();
+        services.AddTransient<Views.Avalonia.Timeline.SetDesignerView>();
         
         services.AddSingleton<ViewModels.TrackInspectorViewModel>();
         services.AddSingleton<ViewModels.ForensicLabViewModel>();

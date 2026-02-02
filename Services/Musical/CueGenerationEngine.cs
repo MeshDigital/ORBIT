@@ -197,4 +197,59 @@ public class CueGenerationEngine
             Intro: 0
         );
     }
+
+    /// <summary>
+    /// Generates SmartCue objects for the Set Designer timeline.
+    /// Converts OrbitCue to the timeline-compatible SmartCue format.
+    /// </summary>
+    public async Task<List<ViewModels.Timeline.SmartCue>> GenerateSmartCuesForTimelineAsync(
+        WaveformAnalysisData data, 
+        double duration, 
+        int sampleRate = 44100,
+        string? genre = null)
+    {
+        var orbitCues = await GenerateCuesAsync(data, duration, genre);
+        return orbitCues.Select(c => new ViewModels.Timeline.SmartCue
+        {
+            TimestampSeconds = c.Timestamp,
+            SamplePosition = (long)(c.Timestamp * sampleRate),
+            Label = c.Name,
+            Type = MapCueRole(c.Role),
+            Color = c.Color,
+            Confidence = (float)c.Confidence
+        }).ToList();
+    }
+
+    /// <summary>
+    /// Generates SmartCue objects from technical entity data.
+    /// </summary>
+    public async Task<List<ViewModels.Timeline.SmartCue>> GenerateSmartCuesForTimelineAsync(
+        SLSKDONET.Data.Entities.TrackTechnicalEntity technicalData,
+        int sampleRate = 44100,
+        string? genre = null)
+    {
+        var orbitCues = await GenerateCuesAsync(technicalData, genre);
+        return orbitCues.Select(c => new ViewModels.Timeline.SmartCue
+        {
+            TimestampSeconds = c.Timestamp,
+            SamplePosition = (long)(c.Timestamp * sampleRate),
+            Label = c.Name,
+            Type = MapCueRole(c.Role),
+            Color = c.Color,
+            Confidence = (float)c.Confidence
+        }).ToList();
+    }
+
+    private ViewModels.Timeline.CueType MapCueRole(CueRole role)
+    {
+        return role switch
+        {
+            CueRole.Intro => ViewModels.Timeline.CueType.Intro,
+            CueRole.KickIn => ViewModels.Timeline.CueType.Build,
+            CueRole.Drop => ViewModels.Timeline.CueType.Drop,
+            CueRole.Outro => ViewModels.Timeline.CueType.Outro,
+            CueRole.Custom => ViewModels.Timeline.CueType.Custom,
+            _ => ViewModels.Timeline.CueType.Custom
+        };
+    }
 }

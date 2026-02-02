@@ -62,6 +62,7 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
     public IntelligenceCenterViewModel IntelligenceCenter { get; }
     public TheaterModeViewModel TheaterModeViewModel { get; }
     public ViewModels.Discovery.CrateDiggerViewModel CrateDiggerViewModel { get; }
+    public ViewModels.Timeline.SetDesignerViewModel SetDesignerViewModel { get; }
 
 
     public event PropertyChangedEventHandler? PropertyChanged;
@@ -112,7 +113,8 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
         ViewModels.Stem.StemWorkspaceViewModel stemWorkspaceViewModel,
         IntelligenceCenterViewModel intelligenceCenter,
         TheaterModeViewModel theaterModeViewModel,
-        ViewModels.Discovery.CrateDiggerViewModel crateDiggerViewModel)
+        ViewModels.Discovery.CrateDiggerViewModel crateDiggerViewModel,
+        ViewModels.Timeline.SetDesignerViewModel setDesignerViewModel)
 
     {
         _logger = logger;
@@ -147,6 +149,7 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
         IntelligenceCenter = intelligenceCenter;
         TheaterModeViewModel = theaterModeViewModel;
         CrateDiggerViewModel = crateDiggerViewModel;
+        SetDesignerViewModel = setDesignerViewModel;
 
 
         // Initialize commands
@@ -161,6 +164,7 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
         NavigateStyleLabCommand = new RelayCommand(() => _navigationService.NavigateTo("StyleLab"));
         NavigateImportCommand = new RelayCommand(NavigateToImport); // Phase 6D
         NavigateCrateDiggerCommand = new RelayCommand(NavigateToCrateDigger);
+        NavigateDawCommand = new RelayCommand(NavigateToDaw);
         ToggleNavigationCommand = new RelayCommand(() => IsNavigationCollapsed = !IsNavigationCollapsed);
         TogglePlayerCommand = new RelayCommand(() => IsPlayerSidebarVisible = !IsPlayerSidebarVisible);
         TogglePlayerLocationCommand = new RelayCommand(() => IsPlayerAtBottom = !IsPlayerAtBottom);
@@ -298,6 +302,7 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
         _navigationService.RegisterPage("Import", typeof(Avalonia.ImportPage));
         _navigationService.RegisterPage("ImportPreview", typeof(Avalonia.ImportPreviewPage));
         _navigationService.RegisterPage("UpgradeScout", typeof(Avalonia.UpgradeScoutView));
+        _navigationService.RegisterPage("DawTimeline", typeof(Avalonia.Timeline.SetDesignerView));
         _navigationService.RegisterPage("Inspector", typeof(Avalonia.InspectorPage));
         _navigationService.RegisterPage("AnalysisQueue", typeof(Avalonia.AnalysisQueuePage));
         _navigationService.RegisterPage("StyleLab", typeof(Avalonia.StyleLabPage));
@@ -1036,5 +1041,12 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
             _logger.LogError(ex, "Failed to handle Add to Project request");
             StatusText = "Failed to add tracks to project";
         }
+    }
+
+    public ICommand NavigateDawCommand { get; }
+    private void NavigateToDaw()
+    {
+        CurrentPageType = PageType.DawTimeline;
+        _navigationService.NavigateTo(PageType.DawTimeline);
     }
 }

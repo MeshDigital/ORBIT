@@ -43,6 +43,7 @@ public record AddToQueueRequestEvent(PlaylistTrackViewModel Track);
 public record PlayAlbumRequestEvent(System.Collections.Generic.IEnumerable<PlaylistTrack> Tracks);
 public record DownloadAlbumRequestEvent(object Album); // object to handle AlbumNode or PlaylistJob
 public record RequestTheaterModeEvent();
+public record AddToTimelineRequestEvent(System.Collections.Generic.IEnumerable<PlaylistTrack> Tracks);
 
 
 public record AddToProjectRequestEvent(System.Collections.Generic.IEnumerable<PlaylistTrack> Tracks); // Phase 12.7: Context Menu Actions

@@ -58,6 +58,7 @@ public partial class LibraryViewModel
 
     public ICommand SwitchWorkspaceCommand { get; set; } = null!;
     public ICommand QuickLookCommand { get; set; } = null!;
+    public ICommand AddToTimelineCommand { get; set; } = null!;
     public ICommand SmartEscapeCommand { get; set; } = null!;
     public ICommand ToggleUpgradeScoutCommand { get; set; } = null!;
     public ICommand ToggleColumnCommand { get; set; } = null!;
@@ -199,6 +200,7 @@ public partial class LibraryViewModel
         SetViewModeCommand = new RelayCommand<TrackViewMode>(mode => ViewSettings.ViewMode = mode);
         ToggleColumnCommand = new RelayCommand<ColumnDefinition>(ExecuteToggleColumn);
         ResetViewCommand = new AsyncRelayCommand(ExecuteResetViewAsync);
+        AddToTimelineCommand = new RelayCommand<object>(ExecuteAddToTimeline);
     }
 
     public ICommand SetViewModeCommand { get; set; } = null!;
@@ -711,5 +713,23 @@ public partial class LibraryViewModel
     {
         // Called from View when columns are reordered or resized
         _columnConfigService.SaveConfiguration(AvailableColumns.ToList());
+    }
+
+    private void ExecuteAddToTimeline(object? param)
+    {
+        if (param is PlaylistTrackViewModel trackVM)
+        {
+            _eventBus.Publish(new AddToTimelineRequestEvent(new[] { trackVM.Model }));
+            _notificationService.Show("Added to Timeline", $"{trackVM.Artist} - {trackVM.Title}", NotificationType.Information);
+        }
+        else if (param is System.Collections.Generic.IEnumerable<PlaylistTrackViewModel> tracks)
+        {
+            var trackList = tracks.ToList();
+            if (trackList.Any())
+            {
+                _eventBus.Publish(new AddToTimelineRequestEvent(trackList.Select(t => t.Model)));
+                _notificationService.Show("Added to Timeline", $"{trackList.Count} tracks added.", NotificationType.Information);
+            }
+        }
     }
 }
