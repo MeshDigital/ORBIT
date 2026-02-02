@@ -1055,6 +1055,11 @@ public class AnalysisWorker : BackgroundService
             track.MusicalKey = result.MusicalResult.Key + (result.MusicalResult.Scale == "minor" ? "m" : "");
             track.Energy = result.MusicalResult.Energy;
             track.Danceability = result.MusicalResult.Danceability;
+            track.Valence = result.MusicalResult.Valence;
+            track.MoodTag = result.MusicalResult.MoodTag;
+            track.InstrumentalProbability = result.MusicalResult.InstrumentalProbability;
+            track.DetectedSubGenre = result.MusicalResult.DetectedSubGenre;
+            track.PrimaryGenre = result.MusicalResult.ElectronicSubgenre;
         }
         else if (track.AnalysisStatus == AnalysisStatus.None || track.AnalysisStatus == AnalysisStatus.Pending)
         {
@@ -1151,6 +1156,10 @@ public class AnalysisWorker : BackgroundService
             entry.Energy = result.MusicalResult.Energy;
             entry.Danceability = result.MusicalResult.Danceability;
             entry.Valence = result.MusicalResult.Valence;
+            // Map missing AI fields
+            entry.DetectedSubGenre = result.MusicalResult.DetectedSubGenre;
+            entry.PrimaryGenre = result.MusicalResult.ElectronicSubgenre;
+            entry.InstrumentalProbability = result.MusicalResult.InstrumentalProbability;
         }
 
         if (result.WaveformData != null)

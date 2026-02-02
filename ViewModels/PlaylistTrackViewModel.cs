@@ -242,6 +242,8 @@ public class PlaylistTrackViewModel : INotifyPropertyChanged, Library.ILibraryNo
         Valence, 
         Model.InstrumentalProbability ?? 0.0);
     
+    public double InstrumentalProbability => Model.InstrumentalProbability ?? 0.0;
+    
     public double BPM => Model.BPM ?? 0.0;
     public string MusicalKey => Model.MusicalKey ?? "—";
     
@@ -493,7 +495,23 @@ public class PlaylistTrackViewModel : INotifyPropertyChanged, Library.ILibraryNo
     public string ProvenanceTooltip => $"Confidence: {Model.CurationConfidence}\nSource: {Model.Source}";
 
     public string? DetectedSubGenre => Model.DetectedSubGenre;
-    public Avalonia.Media.IBrush VibeColor => Avalonia.Media.Brushes.Gray; // Simplified for now
+    public Avalonia.Media.IBrush VibeColor => GetGenreColor(DetectedSubGenre);
+
+    public string VibeTooltip
+    {
+        get
+        {
+            var list = new List<string>();
+            if (!string.IsNullOrEmpty(DetectedSubGenre)) list.Add($"Sub-Genre: {DetectedSubGenre}");
+            if (!string.IsNullOrEmpty(PrimaryGenre)) list.Add($"Primary Genre: {PrimaryGenre}");
+            if (!string.IsNullOrEmpty(MoodTag)) list.Add($"Mood: {MoodTag}");
+            if (Energy > 0) list.Add($"Energy: {Energy:P0}");
+            if (Valence > 0) list.Add($"Valence: {Valence:P0}");
+            if (Model.InstrumentalProbability > 0) list.Add($"Instrumental: {Model.InstrumentalProbability:P0}");
+            
+            return list.Count > 0 ? string.Join("\n", list) : "No AI analysis data";
+        }
+    }
 
     // public record VibePill(string Icon, string Label, Avalonia.Media.IBrush Color); // Moved to VibePillRecord.cs
 
@@ -529,6 +547,11 @@ public class PlaylistTrackViewModel : INotifyPropertyChanged, Library.ILibraryNo
             if (Valence > 0.75) list.Add(new VibePill("😎", "Positive", Avalonia.Media.Brushes.LimeGreen));
             else if (Valence < 0.25 && Valence > 0.05) list.Add(new VibePill("💀", "Dark", Avalonia.Media.Brushes.DarkSlateGray));
             
+            if (!string.IsNullOrEmpty(MoodTag) && MoodTag != "Neutral")
+            {
+                list.Add(new VibePill("🎭", MoodTag, Avalonia.Media.Brushes.MediumSlateBlue));
+            }
+
             if (Model.InstrumentalProbability > 0.85)
             {
                 list.Add(new VibePill("🎤", "Instrumental", Avalonia.Media.Brushes.DarkCyan));
@@ -841,6 +864,8 @@ public class PlaylistTrackViewModel : INotifyPropertyChanged, Library.ILibraryNo
                      Model.IsReviewNeeded = updatedTrack.IsReviewNeeded; // Phase 10.4
                      Model.Label = updatedTrack.Label;
                      Model.Comments = updatedTrack.Comments;
+                     Model.DetectedSubGenre = updatedTrack.DetectedSubGenre;
+                     Model.PrimaryGenre = updatedTrack.PrimaryGenre;
                      
                      // NEW: Sync Waveform and Technical Analysis results
                      Model.WaveformData = updatedTrack.WaveformData;
@@ -886,14 +911,15 @@ public class PlaylistTrackViewModel : INotifyPropertyChanged, Library.ILibraryNo
              // Notify Extended Props
              OnPropertyChanged(nameof(BPM));
              OnPropertyChanged(nameof(MusicalKey));
-             OnPropertyChanged(nameof(KeyDisplay)); // Assuming KeyDisplay is a computed property that uses MusicalKey
-             OnPropertyChanged(nameof(BpmDisplay)); // Assuming BpmDisplay is a computed property that uses BPM
+             OnPropertyChanged(nameof(CamelotDisplay));
+             OnPropertyChanged(nameof(ColorBrush));
              OnPropertyChanged(nameof(LoudnessDisplay));
              OnPropertyChanged(nameof(Energy));
              OnPropertyChanged(nameof(Danceability));
              OnPropertyChanged(nameof(Valence));
              OnPropertyChanged(nameof(MoodTag));
              OnPropertyChanged(nameof(HasMood));
+             OnPropertyChanged(nameof(SonicProfile));
              OnPropertyChanged(nameof(Genres));
              OnPropertyChanged(nameof(Genres));
              OnPropertyChanged(nameof(Popularity));
@@ -902,6 +928,13 @@ public class PlaylistTrackViewModel : INotifyPropertyChanged, Library.ILibraryNo
              OnPropertyChanged(nameof(Source));
              OnPropertyChanged(nameof(DurationFormatted));
              OnPropertyChanged(nameof(BitrateFormatted));
+             OnPropertyChanged(nameof(DetectedSubGenre));
+             OnPropertyChanged(nameof(PrimaryGenre));
+             OnPropertyChanged(nameof(VibePills));
+             OnPropertyChanged(nameof(MatchConfidence));
+             OnPropertyChanged(nameof(VibeColor));
+             OnPropertyChanged(nameof(VibeTooltip));
+             OnPropertyChanged(nameof(InstrumentalProbability));
              
              // NEW: Notify Waveform and technical props
              OnPropertyChanged(nameof(WaveformData));

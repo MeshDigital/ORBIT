@@ -5,6 +5,7 @@
              xmlns:vm="clr-namespace:SLSKDONET.ViewModels"
              xmlns:views="clr-namespace:SLSKDONET.Views.Avalonia"
              xmlns:controls="clr-namespace:SLSKDONET.Views.Avalonia.Controls"
+             xmlns:converters="clr-namespace:SLSKDONET.Views.Avalonia.Converters"
              mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="60"
              x:Class="SLSKDONET.Views.Avalonia.Controls.StandardTrackRow"
              x:DataType="vm:PlaylistTrackViewModel">
@@ -210,10 +211,28 @@
                 <Border Background="#10E91E63" BorderBrush="#E91E63" BorderThickness="1" CornerRadius="2" Padding="3,0" IsVisible="{Binding HasStems}">
                     <TextBlock Text="🎹" FontSize="9"/>
                 </Border>
-                <!-- Vibe -->
-                <Border Background="{Binding VibeColor}" CornerRadius="10" Padding="8,1" IsVisible="{Binding DetectedSubGenre, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
+                <!-- Vibe (Genre) -->
+                <Border Background="{Binding VibeColor}" CornerRadius="10" Padding="8,1" 
+                        IsVisible="{Binding DetectedSubGenre, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"
+                        ToolTip.Tip="{Binding VibeTooltip}">
                     <TextBlock Text="{Binding DetectedSubGenre}" FontSize="9" Foreground="White" FontWeight="Bold"/>
                 </Border>
+                
+                <!-- Mood -->
+                <Border Background="#337B68EE" BorderBrush="#7B68EE" BorderThickness="1" CornerRadius="10" Padding="8,1" 
+                        IsVisible="{Binding HasMood}"
+                        ToolTip.Tip="{Binding MoodTag}">
+                    <StackPanel Orientation="Horizontal" Spacing="4">
+                        <TextBlock Text="🎭" FontSize="9"/>
+                        <TextBlock Text="{Binding MoodTag}" FontSize="9" Foreground="White" FontWeight="Bold"/>
+                    </StackPanel>
+                </Border>
+                <!-- Instrumental -->
+                <Border Background="#2000CED1" BorderBrush="#00CED1" BorderThickness="1" CornerRadius="10" Padding="8,1" 
+                        IsVisible="{Binding InstrumentalProbability, Converter={x:Static converters:NumericConverters.GreaterThan}, ConverterParameter=0.8}">
+                    <TextBlock Text="INSTR" FontSize="9" Foreground="#00CED1" FontWeight="Bold"/>
+                </Border>
+                
                 <!-- Tech Info (High Contrast) -->
                 <TextBlock Text="{Binding TechnicalSummary}" FontSize="10" Foreground="#AAA" VerticalAlignment="Center" Margin="6,0" FontWeight="SemiBold"/>
             </StackPanel>

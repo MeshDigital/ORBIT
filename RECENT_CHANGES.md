@@ -1,5 +1,22 @@
 # Recent Changes
 
+## [0.1.0-alpha.9.3] - AI Intelligence Alignment & UI Badges (Feb 02, 2026 - Current)
+
+### New Features
+* **AI Vibe Badges**: Integrated `MoodTag` (🎭) and `Instrumental` (INSTR) badges into `StandardTrackRow`.
+* **Deep Tooltips**: Added comprehensive AI breakdown tooltips to the Vibe pill, showing Sub-Genre, Primary Genre, and Instrumental confidence.
+* **Numeric Converters**: Created `NumericConverters` for flexible XAML visibility logic (e.g., matching confidence > 0, instrumental > 0.8).
+
+### 🚨 Critical Build Restoration
+* **Service Alignment**: Fixed `MainViewModel` constructor to properly inject `CrateDiggerViewModel` following Phase 1-2 refactors.
+* **Data Schema Mapping**: Corrected property mismatches between `MusicalResult` (Brain) and `AudioFeaturesEntity` (`DetectedSubGenre`/`ElectronicSubgenre`).
+* **Discovery Robustness**: Fixed a critical scoping error in `DownloadDiscoveryService` tiered search where `log` was referenced before initialization.
+
+### Improvements
+* **Camelot Integration**: Ensured Camelot notation is correctly calculated and updated in the UI when library metadata changes.
+* **Live Refresh**: Added missing `OnPropertyChanged` triggers for all AI-enriched properties to ensure real-time UI updates.
+
+
 ## [0.1.0-alpha.9.2] - Build Recovery & Stability (Feb 02, 2026)
 
 ### 🚨 Critical Fixes

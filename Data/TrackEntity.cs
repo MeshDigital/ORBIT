@@ -253,6 +253,7 @@ public class PlaylistTrackEntity
     public bool IsPrepared { get; set; } = false; // Phase 10
     
     public AnalysisStatus AnalysisStatus { get; set; } = AnalysisStatus.None;
+    public string? MoodTag { get; set; }
 
     // Phase 15
     public string? DetectedSubGenre { get; set; }
@@ -360,6 +361,7 @@ public class LibraryEntryEntity
     public AnalysisStatus AnalysisStatus { get; set; } = AnalysisStatus.None;
     public string? PrimaryGenre { get; set; } // Phase 10
     public string? CuePointsJson { get; set; } // Phase 10
+    public string? MoodTag { get; set; }
 
     // Phase 12.7: Style Classification
     public string? DetectedSubGenre { get; set; }

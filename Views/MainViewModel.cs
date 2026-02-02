@@ -111,7 +111,8 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
         ILibraryService libraryService,
         ViewModels.Stem.StemWorkspaceViewModel stemWorkspaceViewModel,
         IntelligenceCenterViewModel intelligenceCenter,
-        TheaterModeViewModel theaterModeViewModel)
+        TheaterModeViewModel theaterModeViewModel,
+        ViewModels.Discovery.CrateDiggerViewModel crateDiggerViewModel)
 
     {
         _logger = logger;
@@ -145,7 +146,7 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
         StemWorkspaceViewModel = stemWorkspaceViewModel;
         IntelligenceCenter = intelligenceCenter;
         TheaterModeViewModel = theaterModeViewModel;
-        CrateDiggerViewModel = Services.GetRequiredService<ViewModels.Discovery.CrateDiggerViewModel>();
+        CrateDiggerViewModel = crateDiggerViewModel;
 
 
         // Initialize commands

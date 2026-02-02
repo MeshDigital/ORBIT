@@ -860,6 +860,8 @@ public class LibraryService : ILibraryService
             Valence = entity.Valence,
             Label = entity.Label,
             Comments = entity.Comments,
+            MoodTag = entity.MoodTag,
+            PrimaryGenre = entity.PrimaryGenre,
 
             // Phase 21: AI Brain - Mapped below via AudioFeatures
             // Sadness = entity.Sadness, // Removed
@@ -944,6 +946,8 @@ public class LibraryService : ILibraryService
             Valence = track.Valence,
             Label = track.Label,
             Comments = track.Comments,
+            MoodTag = track.MoodTag,
+            PrimaryGenre = track.PrimaryGenre,
             AnalysisOffset = track.AnalysisOffset,
             BitrateScore = track.BitrateScore,
             Bitrate = track.Bitrate ?? 0,
@@ -1004,6 +1008,8 @@ public class LibraryService : ILibraryService
             MusicalKey = entity.MusicalKey,
             Label = entity.Label,
             Comments = entity.Comments,
+            MoodTag = entity.MoodTag,
+            PrimaryGenre = entity.PrimaryGenre,
 
             // Phase 21: AI Brain
             Sadness = entity.AudioFeatures?.Sadness,
@@ -1056,6 +1062,8 @@ public class LibraryService : ILibraryService
         entity.IsEnriched = entry.IsEnriched;
         entity.Label = entry.Label;
         entity.Comments = entry.Comments;
+        entity.MoodTag = entry.MoodTag;
+        entity.PrimaryGenre = entry.PrimaryGenre;
         
         // Phase 17: Technical Audio Analysis
         entity.Loudness = entry.Loudness;

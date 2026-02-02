@@ -70,6 +70,7 @@ public class DownloadDiscoveryService
     public async Task<DiscoveryResult> FindBestMatchAsync(PlaylistTrack track, CancellationToken ct, HashSet<string>? blacklistedUsers = null)
     {
         var tiers = _autoCleaner.Clean($"{track.Artist} - {track.Title}");
+        var log = new SearchAttemptLog();
         var queryTiers = new[] { tiers.Dirty, tiers.Smart, tiers.Aggressive };
         var tierNames = new[] { "Dirty", "Smart", "Aggressive" };
 
