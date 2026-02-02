@@ -21,9 +21,14 @@
 *   [ ] **Key Overlay**: Show color-coded regions on the waveform where key modulation occurs.
 
 ### Phase 3: The Editor
-*   [ ] **Timeline View**: Move from a simple seeker to a zoomable, scrollable timeline.
+*   [ ] **Timeline View (Phase 4)**: Basic Zoomable/Scrollable Multi-track canvas. [x]
 *   [ ] **Slicing**: Allow user to split Stem waveform objects.
 *   [ ] **Warping**: Elastic Audio (Time stretching) to align tracks to a master BPM.
+
+### Phase 4: Mashup Lab & Flow Builder (The "MIK Killer")
+*   [ ] **Mashup Lab**: Dual-slot "A/B" environment with real-time key shifting and auto-stem routing.
+*   [ ] **Flow Builder**: List-driven set curation with "Predicted Transition" points.
+*   [ ] **Forensic Matching**: Visual proof/alignment logs for every suggested transition.
 
 ---
 

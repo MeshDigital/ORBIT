@@ -23,7 +23,9 @@ The navigation will be restructured to guide the user through a linear sequence 
 *   **Features**: Beatgrid alignment, Camelot Key detection, and Structural segmentation (Intro/Outro). [/]
 
 ### 🎧 Set Designer (The DAW) [/]
-*   **Timeline View (formerly Theater Mode)**: A multi-track view for testing transitions and placing "Smart Cues" based on AI-detected drops/breaks. [/]
+*   **Timeline View (Phase 4)**: A multi-track view for testing transitions and placing "Smart Cues" based on AI-detected drops/breaks. [x]
+*   **Mashup Lab (Phase 5)**: A dual-deck "A/B" environment for rapid mashup testing, key shifting, and one-click stem isolation. [ ]
+*   **Flow Builder (Phase 6)**: A list-driven curation assistant for sculpting sets based on harmonic flow and energy curves. [ ]
 
 ---
 
@@ -42,7 +44,9 @@ The navigation will be restructured to guide the user through a linear sequence 
 ### Phase C: Harmonic DAW Prep
 7.  **Key-Space View**: A **Camelot Wheel** overlay plotting playlist tracks by harmonic compatibility.
 8.  **Energy Profiling**: Visualizing the set's "Energy Map" to avoid plateauing.
-9.  **Export**: Seamless export to **Rekordbox** or **Serato** with pre-set Hot Cues and metadata.
+9.  **Mashup Lab**: Loading tracks into Slot A/B; Orbit surfacing **Blend Candidates** and offering **Key Shift Intelligence**.
+10. **Flow Builder**: List-driven "Flow Suggestions" suggesting the smoothest transition points and structural alignment.
+11. **Export**: Seamless export to **Rekordbox** or **Serato** with pre-set Hot Cues and metadata.
 
 ---
 
@@ -54,6 +58,20 @@ The navigation will be restructured to guide the user through a linear sequence 
 | **Settings** | **AI Preferences** | Adjust "Smart Cues" and "Key Detection" sensitivity. |
 | **Track List** | **The Matchmaker** | Split-view showing a track and its AI-matched neighbors. |
 | **Waveform** | **The Semantic Timeline** | Color-coded regions (Vocal vs. Instrumental vs. Drop). |
+| **Set Designer** | **Mashup Lab** | A/B testing environment with one-click stems & key shifting. |
+| **Playlist View** | **Flow Builder** | Recommendation-driven curation list with transition predicting. |
+
+---
+
+## 4. Orbit vs. Mixed In Key (The Competitive Edge)
+
+Orbit is built on **Forensic Transparency**. Unlike MIK's "Black Box," Orbit provides proof.
+
+### Orbit-Exclusive Upgrades:
+- **Forensic Timeline**: Every suggestion comes with *alignment proof* — why it works, where it matches.
+- **Cue Intelligence**: Auto-suggest cues based on *structural phrase matching*, not just peaks.
+- **Track-Scoped Logging**: Every mashup test and transition trial is logged for revisit.
+- **Waveform-Aware Matching**: Matching specific musical moments (e.g., "Outro tail matches Intro lead").
 
 ---
 
