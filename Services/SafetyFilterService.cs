@@ -110,11 +110,19 @@ public class SafetyFilterService : ISafetyFilterService
         }
 
         // 5. Duration Check (if target provided)
-        if (targetDuration.HasValue && candidate.Length.HasValue)
+        if (targetDuration.HasValue && candidate.Length.HasValue && targetDuration.Value > 0)
         {
-             if (!ValidateDuration(candidate.Length.Value, targetDuration.Value))
+             int delta = Math.Abs(candidate.Length.Value - targetDuration.Value);
+             if (delta > 10)
              {
-                 return new SafetyCheckResult(false, "Duration Mismatch", $"Length {candidate.Length}s != Target {targetDuration}s");
+                 return new SafetyCheckResult(false, "High-Risk Duration Mismatch", 
+                    $"Length {candidate.Length}s != Target {targetDuration}s (Delta: {delta}s). High probability of wrong version (Extended vs Radio).");
+             }
+             else if (delta > 3)
+             {
+                 // Small warning for scores but don't reject yet? 
+                 // Actually, Matcher handles scoring. SafetyFilter handles REJECTION.
+                 // So we reject > 10s.
              }
         }
 
@@ -209,10 +217,10 @@ public class SafetyFilterService : ISafetyFilterService
     {
         if (targetSeconds <= 0) return true; // No target to match against
 
-        // Strict Mode: +/- 3 seconds
-        const int ToleranceSeconds = 5;
+        // User requested > 10s as high-risk mismatch.
+        const int MaxAllowedDelta = 10;
 
-        return Math.Abs(candidateSeconds - targetSeconds) <= ToleranceSeconds;
+        return Math.Abs(candidateSeconds - targetSeconds) <= MaxAllowedDelta;
     }
 }
 

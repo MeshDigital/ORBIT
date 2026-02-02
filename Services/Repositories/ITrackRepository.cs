@@ -44,4 +44,5 @@ public interface ITrackRepository
     Task<int> GetTotalLibraryTrackCountAsync(string? filter = null, bool? downloadedOnly = null);
     Task<List<PlaylistTrackEntity>> GetPagedAllTracksAsync(int skip, int take, string? filter = null, bool? downloadedOnly = null);
     Task<List<LibraryEntryEntity>> SearchLibraryFtsAsync(string searchTerm, int limit = 100);
+    Task UpdateAllInstancesMetadataAsync(string trackHash, TrackEnrichmentResult result);
 }

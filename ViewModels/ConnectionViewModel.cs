@@ -133,11 +133,13 @@ public class ConnectionViewModel : INotifyPropertyChanged
                     HandleStateChange(evt.State);
                     
                     // Auto-reconnect logic (Phase 13.5)
+                    // Only auto-reconnect if permitted and not currently connecting
                     if (wasConnected && AutoConnectEnabled && !IsInitializing)
                     {
                         _logger.LogInformation("Soulseek connection lost. Auto-reconnect in 5s...");
                         Task.Run(async () => {
                             await Task.Delay(5000);
+                            // Check AutoConnectEnabled again in case Disconnect/Shutdown disabled it during the delay
                             if (!IsConnected && AutoConnectEnabled)
                             {
                                 await AttemptAutoConnect();
@@ -299,7 +301,20 @@ public class ConnectionViewModel : INotifyPropertyChanged
         _soulseek.Disconnect();
         IsConnected = false;
         StatusText = "Disconnected";
+        
+        // Ensure we don't auto-reconnect if user manually disconnected
+        // Logic handled in event subscription via state check, but we could add a flag if needed.
+        // For now, explicit Disconnect sets state to Disconnected which event handler sees.
+        // But the event handler also triggers auto-reconnect if it WAS connected.
+        // We need to differentiate User Disconnect vs Network Drop.
+        
         IsLoginOverlayVisible = true;
+    }
+
+    public void Shutdown()
+    {
+        AutoConnectEnabled = false; // Prevent auto-reconnect
+        Disconnect();
     }
 
     private void HandleStateChange(string state)

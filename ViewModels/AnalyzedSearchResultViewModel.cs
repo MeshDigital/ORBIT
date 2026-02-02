@@ -41,6 +41,18 @@ namespace SLSKDONET.ViewModels
         public bool IsGoldenMatch { get; }
         public bool IsFake { get; }
         public bool IsSuspicious => IsFake;
+        
+        public double MatchConfidence => Math.Clamp(_result.CurrentRank, 0, 100);
+        
+        public string MatchConfidenceColor => MatchConfidence switch
+        {
+            >= 90 => "#1DB954", // Green
+            >= 70 => "#FFD700", // Yellow/Gold
+            _ => "#E91E63"      // Red
+        };
+
+        public bool IsHighRisk => _result.Model.IsFlagged;
+        public string? FlagReason => _result.Model.FlagReason;
 
         public IBrush ItemBackground
         {

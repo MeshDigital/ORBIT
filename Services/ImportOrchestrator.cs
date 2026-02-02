@@ -131,6 +131,80 @@ public class ImportOrchestrator
         }
     }
 
+    /// <summary>
+    /// Import directly to library/downloader without preview UI.
+    /// Useful for background syncing or "Import All" scenarios.
+    /// </summary>
+    public async Task SilentImportAsync(IImportProvider provider, string input)
+    {
+        try
+        {
+            _logger.LogInformation("Starting silent/background import from {Provider}: {Input}", provider.Name, input);
+
+            if (provider is IStreamingImportProvider streamProvider)
+            {
+                var newJobId = Utils.GuidGenerator.CreateFromUrl(input);
+                var existingJob = await _libraryService.FindPlaylistJobAsync(newJobId);
+                
+                string sourceTitle = provider.Name;
+                var allTracks = new System.Collections.Generic.List<PlaylistTrack>();
+
+                await foreach (var batch in streamProvider.ImportStreamAsync(input))
+                {
+                    if (!string.IsNullOrEmpty(batch.SourceTitle) && sourceTitle == provider.Name)
+                        sourceTitle = batch.SourceTitle;
+                    
+                    var convertedTracks = batch.Tracks.Select(t => new PlaylistTrack 
+                    {
+                        Id = Guid.NewGuid(),
+                        Artist = t.Artist ?? string.Empty,
+                        Title = t.Title ?? string.Empty,
+                        Album = t.Album ?? string.Empty,
+                        TrackUniqueHash = t.TrackHash ?? string.Empty,
+                        SpotifyTrackId = t.SpotifyTrackId,
+                        SpotifyAlbumId = t.SpotifyAlbumId,
+                        SpotifyArtistId = t.SpotifyArtistId,
+                        AlbumArtUrl = t.AlbumArtUrl,
+                        ArtistImageUrl = t.ArtistImageUrl,
+                        Genres = t.Genres,
+                        Popularity = t.Popularity,
+                        CanonicalDuration = t.CanonicalDuration,
+                        ReleaseDate = t.ReleaseDate,
+                        Status = TrackStatus.Missing,
+                        AddedAt = DateTime.UtcNow
+                    }).ToList();
+
+                    allTracks.AddRange(convertedTracks);
+                }
+
+                if (allTracks.Count == 0)
+                {
+                    _logger.LogWarning("Silent import for {Input} yielded 0 tracks. Skipping.", input);
+                    return;
+                }
+
+                // Create and start job
+                var job = new PlaylistJob
+                {
+                    Id = newJobId,
+                    SourceUrl = input,
+                    SourceTitle = sourceTitle,
+                    SourceType = provider.Name,
+                    PlaylistTracks = allTracks,
+                    CreatedAt = DateTime.UtcNow
+                };
+
+                await _downloadManager.QueueProject(job);
+                _notificationService.Show("Import Complete", $"Successfully synced {allTracks.Count} tracks from '{sourceTitle}'", Views.NotificationType.Success);
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to perform silent import for {Input}", input);
+            _notificationService.Show("Import Error", $"Silent import failed: {ex.Message}", Views.NotificationType.Error);
+        }
+    }
+
     private async Task StreamPreviewAsync(IStreamingImportProvider provider, string input)
     {
         try

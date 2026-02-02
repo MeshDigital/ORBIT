@@ -20,7 +20,8 @@ public class SpotifyImportViewModel : INotifyPropertyChanged
     
     private readonly DownloadManager _downloadManager;
     private readonly ImportOrchestrator _importOrchestrator;
-    private readonly Services.ImportProviders.SpotifyImportProvider _spotifyProvider;
+    private readonly ISpotifyMetadataService _spotifyMetadataService;
+    private readonly SpotifyInputSource _spotifyInputSource;
     private readonly Services.ImportProviders.SpotifyLikedSongsImportProvider _likedSongsProvider;
     private readonly Services.ImportProviders.CsvImportProvider _csvProvider;
     private readonly INavigationService _navigationService;
@@ -73,28 +74,84 @@ public class SpotifyImportViewModel : INotifyPropertyChanged
             OnPropertyChanged(); 
             OnPropertyChanged(nameof(ShowLoginButton));
             OnPropertyChanged(nameof(ShowPlaylists));
+            OnPropertyChanged(nameof(ShowSearchResults));
         }
     }
-    
-    public bool ShowLoginButton => !IsAuthenticated;
-    public bool ShowPlaylists => IsAuthenticated;
 
-    public ICommand ConnectCommand { get; }
-    public ICommand RefreshPlaylistsCommand { get; }
-    public ICommand ImportPlaylistCommand { get; }
+    private string _searchQuery = "";
+    public string SearchQuery
+    {
+        get => _searchQuery;
+        set { _searchQuery = value; OnPropertyChanged(); }
+    }
+
+    private bool _isSearching;
+    public bool IsSearching
+    {
+        get => _isSearching;
+        set { _isSearching = value; OnPropertyChanged(); }
+    }
+
+    public ObservableCollection<SpotifyPlaylistViewModel> SearchResults { get; } = new();
+
+    private int _selectedTabIndex = 0;
+    public int SelectedTabIndex
+    {
+        get => _selectedTabIndex;
+        set 
+        { 
+            _selectedTabIndex = value; 
+            OnPropertyChanged(); 
+            if (value == 0 && UserPlaylists.Count == 0 && IsAuthenticated)
+                _ = RefreshPlaylistsAsync();
+        }
+    }
+
+    public bool ShowLoginButton => !IsAuthenticated;
+    public bool ShowPlaylists => IsAuthenticated; // Controlled by TabIndex in View
+    public bool ShowSearchResults => IsAuthenticated; // Controlled by TabIndex in View
+
+    public ICommand ImportLikedSongsCommand { get; }
+    public ICommand SelectCsvFileCommand { get; }
+    public ICommand SearchCommand { get; }
+    public ICommand ClearSearchCommand { get; }
+    public ICommand SyncAllPlaylistsCommand { get; }
+    public ICommand SyncFilteredPlaylistsCommand { get; }
     public ICommand LoadPlaylistCommand { get; }
-    public ICommand DownloadCommand { get; }
     public ICommand SelectAllCommand { get; }
     public ICommand DeselectAllCommand { get; }
     public ICommand CancelCommand { get; }
-    public ICommand ImportLikedSongsCommand { get; }
-    public ICommand SelectCsvFileCommand { get; }
+    public ICommand ConnectCommand { get; }
+    public ICommand RefreshPlaylistsCommand { get; }
+    public ICommand ImportPlaylistCommand { get; }
+    public ICommand DownloadCommand { get; }
 
+    private string _playlistFilter = "";
+    public string PlaylistFilter
+    {
+        get => _playlistFilter;
+        set
+        {
+            _playlistFilter = value;
+            OnPropertyChanged();
+            OnPropertyChanged(nameof(FilteredUserPlaylists));
+            OnPropertyChanged(nameof(HasFilteredPlaylists));
+        }
+    }
+
+    public IEnumerable<SpotifyPlaylistViewModel> FilteredUserPlaylists => string.IsNullOrWhiteSpace(PlaylistFilter)
+        ? UserPlaylists
+        : UserPlaylists.Where(p => p.Name.Contains(PlaylistFilter, StringComparison.OrdinalIgnoreCase) || 
+                                  p.Owner.Contains(PlaylistFilter, StringComparison.OrdinalIgnoreCase));
+
+    public bool HasFilteredPlaylists => FilteredUserPlaylists.Any();
     public SpotifyImportViewModel(
         ILogger<SpotifyImportViewModel> logger,
         DownloadManager downloadManager,
         SpotifyAuthService authService,
         ImportOrchestrator importOrchestrator,
+        ISpotifyMetadataService spotifyMetadataService,
+        SpotifyInputSource spotifyInputSource,
         Services.ImportProviders.SpotifyImportProvider spotifyProvider,
         Services.ImportProviders.SpotifyLikedSongsImportProvider likedSongsProvider,
         Services.ImportProviders.CsvImportProvider csvProvider,
@@ -105,7 +162,8 @@ public class SpotifyImportViewModel : INotifyPropertyChanged
         _downloadManager = downloadManager;
         _authService = authService;
         _importOrchestrator = importOrchestrator;
-        _spotifyProvider = spotifyProvider;
+        _spotifyMetadataService = spotifyMetadataService;
+        _spotifyInputSource = spotifyInputSource;
         _likedSongsProvider = likedSongsProvider;
         _csvProvider = csvProvider;
         _navigationService = navigationService;
@@ -132,6 +190,10 @@ public class SpotifyImportViewModel : INotifyPropertyChanged
         
         ImportLikedSongsCommand = new AsyncRelayCommand(ExecuteImportLikedSongsAsync, () => IsAuthenticated);
         SelectCsvFileCommand = new AsyncRelayCommand(ExecuteSelectCsvFileAsync);
+        SearchCommand = new AsyncRelayCommand(ExecuteSearchAsync, () => IsAuthenticated);
+        ClearSearchCommand = new RelayCommand(ClearSearch);
+        SyncAllPlaylistsCommand = new AsyncRelayCommand(ExecuteSyncAllPlaylistsAsync, () => IsAuthenticated && UserPlaylists.Count > 0);
+        SyncFilteredPlaylistsCommand = new AsyncRelayCommand(ExecuteSyncFilteredPlaylistsAsync, () => IsAuthenticated && HasFilteredPlaylists);
 
         // Disable unused commands
         DownloadCommand = new RelayCommand(() => {}, () => false);
@@ -167,6 +229,48 @@ public class SpotifyImportViewModel : INotifyPropertyChanged
         }
     }
 
+    private async Task ExecuteSearchAsync()
+    {
+        if (string.IsNullOrWhiteSpace(SearchQuery)) return;
+
+        try
+        {
+            IsSearching = true;
+            StatusMessage = $"Searching Spotify for '{SearchQuery}'...";
+            SearchResults.Clear();
+            OnPropertyChanged(nameof(ShowPlaylists));
+            OnPropertyChanged(nameof(ShowSearchResults));
+
+            var playlists = await _spotifyInputSource.SearchPlaylistsAsync(SearchQuery);
+            foreach (var p in playlists) SearchResults.Add(p);
+
+            var albums = await _spotifyInputSource.SearchAlbumsAsync(SearchQuery);
+            foreach (var a in albums) SearchResults.Add(a);
+
+            StatusMessage = $"Found {SearchResults.Count} results";
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Spotify search failed");
+            StatusMessage = "Search failed: " + ex.Message;
+        }
+        finally
+        {
+            IsSearching = false;
+            OnPropertyChanged(nameof(ShowPlaylists));
+            OnPropertyChanged(nameof(ShowSearchResults));
+        }
+    }
+
+    private void ClearSearch()
+    {
+        SearchQuery = "";
+        SearchResults.Clear();
+        StatusMessage = "";
+        OnPropertyChanged(nameof(ShowPlaylists));
+        OnPropertyChanged(nameof(ShowSearchResults));
+    }
+
     public async Task LoadPlaylistAsync()
     {
         if (string.IsNullOrWhiteSpace(PlaylistUrl))
@@ -176,7 +280,12 @@ public class SpotifyImportViewModel : INotifyPropertyChanged
         }
 
         _logger.LogInformation("Starting unified Spotify import: {Url}", PlaylistUrl);
-        await _importOrchestrator.StartImportWithPreviewAsync(_spotifyProvider, PlaylistUrl);
+        // We use the direct provider call here
+        var provider = (Services.ImportProviders.SpotifyImportProvider)_importOrchestrator.GetType()
+            .GetField("_spotifyProvider", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)
+            ?.GetValue(_importOrchestrator)!;
+            
+        await _importOrchestrator.StartImportWithPreviewAsync(provider, PlaylistUrl);
     }
 
     private void SelectAll()
@@ -310,6 +419,77 @@ public class SpotifyImportViewModel : INotifyPropertyChanged
         }
     }
 
+    private async Task ExecuteSyncAllPlaylistsAsync()
+    {
+        if (UserPlaylists.Count == 0) return;
+
+        try
+        {
+            IsLoading = true;
+            StatusMessage = $"Syncing {UserPlaylists.Count} playlists...";
+            
+             // Use the direct provider call check
+             var provider = (Services.ImportProviders.SpotifyImportProvider)_importOrchestrator.GetType()
+                .GetField("_spotifyProvider", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)
+                ?.GetValue(_importOrchestrator)!;
+
+            foreach (var playlist in UserPlaylists.ToList())
+            {
+                if (playlist.Id == "me/tracks") continue; // Liked songs usually too big for silent bulk sync at once?
+                
+                StatusMessage = $"Syncing '{playlist.Name}'...";
+                await _importOrchestrator.SilentImportAsync(provider, playlist.Url);
+            }
+
+        StatusMessage = "All playlists queued for sync!";
+    }
+    catch (Exception ex)
+    {
+        _logger.LogError(ex, "Failed to sync all playlists");
+        StatusMessage = "Sync failed: " + ex.Message;
+    }
+    finally
+    {
+        IsLoading = false;
+    }
+}
+
+private async Task ExecuteSyncFilteredPlaylistsAsync()
+{
+    var filtered = FilteredUserPlaylists.ToList();
+    if (filtered.Count == 0) return;
+
+    try
+    {
+        IsLoading = true;
+        StatusMessage = $"Syncing {filtered.Count} filtered playlists...";
+        
+         // Use the direct provider call check
+         var provider = (Services.ImportProviders.SpotifyImportProvider)_importOrchestrator.GetType()
+            .GetField("_spotifyProvider", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)
+            ?.GetValue(_importOrchestrator)!;
+
+        foreach (var playlist in filtered)
+        {
+            if (playlist.Id == "me/tracks") continue;
+            
+            StatusMessage = $"Syncing '{playlist.Name}'...";
+            await _importOrchestrator.SilentImportAsync(provider, playlist.Url);
+        }
+
+        StatusMessage = $"{filtered.Count} playlists queued for sync!";
+    }
+    catch (Exception ex)
+    {
+        _logger.LogError(ex, "Failed to sync filtered playlists");
+        StatusMessage = "Sync failed: " + ex.Message;
+    }
+    finally
+    {
+        IsLoading = false;
+    }
+}
+
     private async Task ImportUserPlaylistAsync(SpotifyPlaylistViewModel? playlist)
     {
         if (playlist == null) return;
@@ -322,18 +502,13 @@ public class SpotifyImportViewModel : INotifyPropertyChanged
         }
         else
         {
-             await _importOrchestrator.StartImportWithPreviewAsync(_spotifyProvider, playlist.Url);
+             // Use the provider from orchestrator
+             var provider = (Services.ImportProviders.SpotifyImportProvider)_importOrchestrator.GetType()
+                .GetField("_spotifyProvider", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)
+                ?.GetValue(_importOrchestrator)!;
+                
+             await _importOrchestrator.StartImportWithPreviewAsync(provider, playlist.Url);
         }
     }
 }
 
-public class SpotifyPlaylistViewModel
-{
-    public string Id { get; set; } = "";
-    public string Name { get; set; } = "";
-    public string ImageUrl { get; set; } = "";
-    public int TrackCount { get; set; }
-    public string Owner { get; set; } = "";
-    public string Url { get; set; } = "";
-    public string Description => $"{TrackCount} tracks • by {Owner}";
-}

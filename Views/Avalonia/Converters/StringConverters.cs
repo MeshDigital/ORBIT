@@ -11,5 +11,8 @@ namespace SLSKDONET.Views.Avalonia.Converters
             
         public static readonly IValueConverter ToLower =
             new FuncValueConverter<string?, string?>(x => x?.ToLowerInvariant());
+            
+        public static readonly IValueConverter IsNotNullOrEmpty =
+            new FuncValueConverter<string?, bool>(x => !string.IsNullOrEmpty(x));
     }
 }

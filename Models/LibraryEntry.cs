@@ -57,6 +57,7 @@ public class LibraryEntry
     // Spotify Metadata
     public string? SpotifyTrackId { get; set; }
     public string? ISRC { get; set; }
+    public string? MusicBrainzId { get; set; }
     public string? SpotifyAlbumId { get; set; }
     public string? SpotifyArtistId { get; set; }
     public string? AlbumArtUrl { get; set; }

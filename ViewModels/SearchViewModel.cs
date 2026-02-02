@@ -815,6 +815,17 @@ public partial class SearchViewModel : ReactiveObject, IDisposable
             options: new TextColumnOptions<AnalyzedSearchResultViewModel> { CanUserSortColumn = true }));
 
         SearchSource.Columns.Add(new TemplateColumn<AnalyzedSearchResultViewModel>(
+            "Match", 
+            CreateMatchConfidenceTemplate(),
+            width: new GridLength(80),
+            options: new TemplateColumnOptions<AnalyzedSearchResultViewModel> 
+            { 
+                CanUserSortColumn = true,
+                CompareAscending = (x, y) => x.MatchConfidence.CompareTo(y.MatchConfidence),
+                CompareDescending = (x, y) => y.MatchConfidence.CompareTo(x.MatchConfidence)
+            }));
+
+        SearchSource.Columns.Add(new TemplateColumn<AnalyzedSearchResultViewModel>(
             "Track Details", 
             CreateSearchDetailsTemplate(),
             width: new GridLength(1, GridUnitType.Star),
@@ -889,6 +900,25 @@ public partial class SearchViewModel : ReactiveObject, IDisposable
             badgeBorder.Child = badgePanel;
             root.Children.Add(badgeBorder);
 
+            // High Risk Badge in Detail
+            var riskBorder = new Avalonia.Controls.Border 
+            { 
+                CornerRadius = new Avalonia.CornerRadius(4),
+                Padding = new Avalonia.Thickness(6, 1),
+                HorizontalAlignment = Avalonia.Layout.HorizontalAlignment.Left,
+                Margin = new Avalonia.Thickness(0, 2),
+                Background = Avalonia.Media.Brush.Parse("#E91E63")
+            };
+            riskBorder.Bind(Avalonia.Controls.Border.IsVisibleProperty, new Avalonia.Data.Binding(nameof(AnalyzedSearchResultViewModel.IsHighRisk)));
+            riskBorder.Bind(Avalonia.Controls.ToolTip.TipProperty, new Avalonia.Data.Binding(nameof(AnalyzedSearchResultViewModel.FlagReason)));
+            
+            var riskPanel = new Avalonia.Controls.StackPanel { Orientation = Avalonia.Layout.Orientation.Horizontal, Spacing = 4 };
+            riskPanel.Children.Add(new Avalonia.Controls.TextBlock { Text = "⚠️", FontSize = 10, Foreground = Avalonia.Media.Brushes.White });
+            riskPanel.Children.Add(new Avalonia.Controls.TextBlock { Text = "HIGH RISK", FontSize = 10, FontWeight = Avalonia.Media.FontWeight.Bold, Foreground = Avalonia.Media.Brushes.White });
+            
+            riskBorder.Child = riskPanel;
+            root.Children.Add(riskBorder);
+
             // Sub-info
             var infoPanel = new Avalonia.Controls.StackPanel { Orientation = Avalonia.Layout.Orientation.Horizontal, Spacing = 6 };
             
@@ -927,6 +957,31 @@ public partial class SearchViewModel : ReactiveObject, IDisposable
             textBlock.Bind(Avalonia.Controls.TextBlock.TextProperty, new Avalonia.Data.Binding(nameof(AnalyzedSearchResultViewModel.TierBadge)));
             textBlock.Bind(Avalonia.Controls.ToolTip.TipProperty, new Avalonia.Data.Binding(nameof(AnalyzedSearchResultViewModel.TierDescription)));
             return textBlock;
+        }, false);
+    }
+
+    private Avalonia.Controls.Templates.IDataTemplate CreateMatchConfidenceTemplate()
+    {
+        return new Avalonia.Controls.Templates.FuncDataTemplate<AnalyzedSearchResultViewModel>((vm, _) => 
+        {
+            var border = new Avalonia.Controls.Border 
+            { 
+                CornerRadius = new Avalonia.CornerRadius(4),
+                Padding = new Avalonia.Thickness(6, 4),
+                VerticalAlignment = Avalonia.Layout.VerticalAlignment.Center,
+                HorizontalAlignment = Avalonia.Layout.HorizontalAlignment.Center
+            };
+            border.Bind(Avalonia.Controls.Border.BackgroundProperty, new Avalonia.Data.Binding(nameof(AnalyzedSearchResultViewModel.MatchConfidenceColor)));
+            
+            var panel = new Avalonia.Controls.StackPanel { Orientation = Avalonia.Layout.Orientation.Horizontal, Spacing = 4 };
+            panel.Children.Add(new Avalonia.Controls.TextBlock { Text = "🎯", FontSize = 10 });
+            
+            var text = new Avalonia.Controls.TextBlock { FontSize = 10, FontWeight = Avalonia.Media.FontWeight.Bold, Foreground = Avalonia.Media.Brushes.Black };
+            text.Bind(Avalonia.Controls.TextBlock.TextProperty, new Avalonia.Data.Binding(nameof(AnalyzedSearchResultViewModel.MatchConfidence)) { StringFormat = "{0:0}%" });
+            panel.Children.Add(text);
+            
+            border.Child = panel;
+            return border;
         }, false);
     }
 }

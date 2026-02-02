@@ -42,6 +42,16 @@ public class SonicMatch
     /// Human-readable reason for the match (Twin Vibe, Energy Match, etc.)
     /// </summary>
     public string MatchReason { get; set; } = "Compatible";
+
+    /// <summary>
+    /// Source of the match (ISRC, AI, Hybrid, etc.)
+    /// </summary>
+    public string MatchSource { get; set; } = "AI";
+
+    /// <summary>
+    /// Confidence in the match result (0.0 - 1.0)
+    /// </summary>
+    public double Confidence { get; set; }
     
     /// <summary>
     /// Similarity as a percentage (100% = identical, 0% = completely different)

@@ -10,6 +10,7 @@ using SLSKDONET.Models;
 using SLSKDONET.Data.Entities;
 using SLSKDONET.Utils;
 using Avalonia.Threading;
+using Microsoft.EntityFrameworkCore;
 
 namespace SLSKDONET.Services;
 
@@ -835,6 +836,7 @@ public class LibraryService : ILibraryService
             // Spotify Metadata
             SpotifyTrackId = entity.SpotifyTrackId,
             ISRC = entity.ISRC,
+            MusicBrainzId = entity.MusicBrainzId,
             SpotifyAlbumId = entity.SpotifyAlbumId,
             SpotifyArtistId = entity.SpotifyArtistId,
             AlbumArtUrl = entity.AlbumArtUrl,
@@ -923,6 +925,7 @@ public class LibraryService : ILibraryService
             // Spotify Metadata
             SpotifyTrackId = track.SpotifyTrackId,
             ISRC = track.ISRC,
+            MusicBrainzId = track.MusicBrainzId,
             SpotifyAlbumId = track.SpotifyAlbumId,
             SpotifyArtistId = track.SpotifyArtistId,
             AlbumArtUrl = track.AlbumArtUrl,
@@ -992,6 +995,8 @@ public class LibraryService : ILibraryService
             
             // Scientific Fields
             SpotifyTrackId = entity.SpotifyTrackId,
+            ISRC = entity.ISRC,
+            MusicBrainzId = entity.MusicBrainzId,
             Energy = entity.Energy,
             Danceability = entity.Danceability,
             Valence = entity.Valence,
@@ -1041,6 +1046,8 @@ public class LibraryService : ILibraryService
         
         // Scientific Fields
         entity.SpotifyTrackId = entry.SpotifyTrackId;
+        entity.ISRC = entry.ISRC;
+        entity.MusicBrainzId = entry.MusicBrainzId;
         entity.Energy = entry.Energy;
         entity.Danceability = entry.Danceability;
         entity.Valence = entry.Valence;
@@ -1274,5 +1281,33 @@ public class LibraryService : ILibraryService
             _logger.LogError(ex, "Failed to add tracks to project {Id}", targetProjectId);
             throw;
         }
+    }
+
+    public async Task UpdateTrackCuePointsAsync(string trackHash, string cuePointsJson)
+    {
+        using var db = new AppDbContext();
+        
+        // 1. Update Library Entry
+        var entry = await db.LibraryEntries.FirstOrDefaultAsync(e => e.UniqueHash == trackHash);
+        if (entry != null)
+        {
+            entry.CuePointsJson = cuePointsJson;
+        }
+
+        // 2. Update all Playlist Tracks
+        var playlistTracks = await db.PlaylistTracks.Where(t => t.TrackUniqueHash == trackHash).ToListAsync();
+        foreach (var track in playlistTracks)
+        {
+            track.CuePointsJson = cuePointsJson;
+            
+            // Also update technical details if they exist
+            var tech = await db.TechnicalDetails.FirstOrDefaultAsync(td => td.PlaylistTrackId == track.Id);
+            if (tech != null)
+            {
+                tech.CuePointsJson = cuePointsJson;
+            }
+        }
+
+        await db.SaveChangesAsync();
     }
 }

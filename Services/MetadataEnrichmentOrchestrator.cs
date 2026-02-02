@@ -4,6 +4,7 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using SLSKDONET.Services.Repositories;
 using SLSKDONET.Models;
+using SLSKDONET.Services.Models;
 using SLSKDONET.Events;
 using SLSKDONET.Data.Entities;
 using SLSKDONET.Data;
@@ -20,8 +21,10 @@ public class MetadataEnrichmentOrchestrator : IDisposable
     private readonly ILogger<MetadataEnrichmentOrchestrator> _logger;
     private readonly IEnrichmentTaskRepository _taskRepository;
     private readonly ISpotifyMetadataService _metadataService;
+    private readonly IMusicBrainzService _musicBrainzService;
     private readonly ITaggerService _taggerService;
     private readonly DatabaseService _databaseService;
+    private readonly ITrackRepository _trackRepository;
     private readonly SpotifyAuthService _spotifyAuthService;
     private readonly SonicIntegrityService _sonicIntegrityService;
     private readonly IEventBus _eventBus;
@@ -34,18 +37,22 @@ public class MetadataEnrichmentOrchestrator : IDisposable
         ILogger<MetadataEnrichmentOrchestrator> logger,
         IEnrichmentTaskRepository taskRepository,
         ISpotifyMetadataService metadataService,
+        IMusicBrainzService musicBrainzService,
         ITaggerService taggerService,
         DatabaseService databaseService,
+        ITrackRepository trackRepository,
         SpotifyAuthService spotifyAuthService,
         SonicIntegrityService sonicIntegrityService,
         IEventBus eventBus,
         Configuration.AppConfig config)
     {
         _logger = logger;
-        _taskRepository = taskRepository; // [NEW] Persistent Repository
+        _taskRepository = taskRepository; 
         _metadataService = metadataService;
+        _musicBrainzService = musicBrainzService;
         _taggerService = taggerService;
         _databaseService = databaseService;
+        _trackRepository = trackRepository;
         _spotifyAuthService = spotifyAuthService;
         _sonicIntegrityService = sonicIntegrityService;
         _eventBus = eventBus;
@@ -153,28 +160,46 @@ public class MetadataEnrichmentOrchestrator : IDisposable
             // D. Save Updates to DB
             if (enriched)
             {
-                trackEntity.SpotifyTrackId = model.SpotifyTrackId;
-                trackEntity.SpotifyAlbumId = model.SpotifyAlbumId;
-                trackEntity.SpotifyArtistId = model.SpotifyArtistId;
-                trackEntity.CoverArtUrl = model.AlbumArtUrl;
-                trackEntity.AlbumArtUrl = model.AlbumArtUrl;
-                trackEntity.BPM = model.BPM;
-                trackEntity.MusicalKey = model.MusicalKey;
-                trackEntity.Genres = model.Genres;
-                trackEntity.Popularity = model.Popularity;
-                trackEntity.CanonicalDuration = model.CanonicalDuration;
-                trackEntity.ReleaseDate = model.ReleaseDate;
-                trackEntity.Energy = model.Energy;
-                trackEntity.Danceability = model.Danceability;
-                trackEntity.Valence = model.Valence;
-                trackEntity.IsEnriched = true;
-                
+                // Sync TrackEnrichmentResult for global propagation
+                var enrichmentResult = new TrackEnrichmentResult
+                {
+                    Success = true,
+                    SpotifyId = model.SpotifyTrackId ?? "",
+                    OfficialArtist = model.Artist,
+                    OfficialTitle = model.Title,
+                    AlbumArtUrl = model.AlbumArtUrl ?? "",
+                    SpotifyAlbumId = model.SpotifyAlbumId ?? "",
+                    SpotifyArtistId = model.SpotifyArtistId ?? "",
+                    ISRC = model.ISRC,
+                    Bpm = model.BPM,
+                    MusicalKey = model.MusicalKey,
+                    Genres = model.Genres?.Split(", ", StringSplitOptions.RemoveEmptyEntries).ToList(),
+                    Energy = model.Energy,
+                    Danceability = model.Danceability,
+                    Valence = model.Valence,
+                    CanonicalDuration = model.CanonicalDuration
+                };
+
+                // 1. Spotify Global Propagation
+                await _trackRepository.UpdateAllInstancesMetadataAsync(trackEntity.GlobalId, enrichmentResult);
+
+                // 2. MusicBrainz Bridge (Immediate secondary enrichment if ISRC exists)
+                if (!string.IsNullOrEmpty(model.ISRC))
+                {
+                    _logger.LogInformation("🌉 Triggering MusicBrainz bridge for ISRC: {Isrc}", model.ISRC);
+                    await _musicBrainzService.EnrichTrackWithIsrcAsync(trackEntity.GlobalId, model.ISRC);
+                }
+
                 // Phase 13C: Apply Tri-State Auto-Tagging after enrichment
-                await ApplyAutoTaggingAsync(trackEntity);
-                
-                await _databaseService.SaveTrackAsync(trackEntity);
-                _eventBus.Publish(new TrackMetadataUpdatedEvent(trackEntity.GlobalId));
-                _logger.LogInformation("✨ Enriched: {Artist} - {Title}", trackEntity.Artist, trackEntity.Title);
+                // We reload the track to get the most recent data (including MBID potentially)
+                var updatedTrack = await _databaseService.FindTrackAsync(task.TrackId);
+                if (updatedTrack != null)
+                {
+                    await ApplyAutoTaggingAsync(updatedTrack);
+                    await _databaseService.SaveTrackAsync(updatedTrack);
+                    _eventBus.Publish(new TrackMetadataUpdatedEvent(updatedTrack.GlobalId));
+                    _logger.LogInformation("✨ Enriched: {Artist} - {Title}", updatedTrack.Artist, updatedTrack.Title);
+                }
             }
             else
             {

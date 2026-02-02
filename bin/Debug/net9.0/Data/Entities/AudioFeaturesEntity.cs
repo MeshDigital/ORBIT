@@ -320,6 +320,11 @@ public class AudioFeaturesEntity
     public string AiEmbeddingJson { get; set; } = string.Empty;
 
     /// <summary>
+    /// MusicBrainz Recording ID for deep credit/lineup matching.
+    /// </summary>
+    public string MusicBrainzId { get; set; } = string.Empty;
+
+    /// <summary>
     /// The final "Vibe" or genre predicted by the ML model.
     /// </summary>
     public string PredictedVibe { get; set; } = string.Empty;

@@ -272,13 +272,29 @@ public class EssentiaAnalyzerService : IAudioIntelligenceService, IDisposable
                 };
                 
                 // Sanitize JSON content (strip control characters)
+                // Sanitize JSON content (strip control characters)
                 jsonContent = SanitizeJson(jsonContent);
 
-                var data = JsonSerializer.Deserialize<EssentiaOutput>(jsonContent, options);
+                if (string.IsNullOrWhiteSpace(jsonContent))
+                {
+                    _logger.LogWarning("Essentia produced empty JSON output for {File}", filePath);
+                    return null;
+                }
+
+                EssentiaOutput? data = null;
+                try
+                {
+                    data = JsonSerializer.Deserialize<EssentiaOutput>(jsonContent, options);
+                }
+                catch (JsonException jex)
+                {
+                     _logger.LogError(jex, "JSON Deserialization failed for {File}. Content length: {Len}", filePath, jsonContent.Length);
+                     // Allow fallback to null return
+                }
 
                 if (data == null)
                 {
-                    _logger.LogWarning("Failed to parse Essentia JSON for {File}", filePath);
+                    _logger.LogWarning("Failed to parse Essentia JSON for {File} (Result was null)", filePath);
                     _forensicLogger.Error(cid, ForensicStage.MusicalAnalysis, "Failed to parse JSON result", trackUniqueHash);
                     return null;
                 }
@@ -403,21 +419,29 @@ public class EssentiaAnalyzerService : IAudioIntelligenceService, IDisposable
                 {
                     foreach (var kvp in data.HighLevel.ExtensionData)
                     {
-                        // Look for the discogs-effnet model output
+                        // Look for the discogs-effnet model output - prioritize the 128D embedding (BS64-1)
                         if (kvp.Key.Contains("discogs", StringComparison.OrdinalIgnoreCase) && 
                             kvp.Key.Contains("effnet", StringComparison.OrdinalIgnoreCase))
                         {
                             var embedding = ExtractEmbeddingFromJson(kvp.Value);
                             if (embedding != null && embedding.Length > 0)
                             {
-                                entity.AiEmbeddingJson = JsonSerializer.Serialize(embedding);
-                                
-                                // Phase 21: AI Brain Vector Storage
-                                // Store as float array directly (handled by NotMapped property wrapper)
-                                entity.VectorEmbedding = embedding;
+                                // Prioritize the 128-dimensional embedding from the bs64-1 model
+                                if (entity.VectorEmbedding == null || embedding.Length == 128)
+                                {
+                                    entity.AiEmbeddingJson = JsonSerializer.Serialize(embedding);
+                                    
+                                    // Phase 21: AI Brain Vector Storage
+                                    entity.VectorEmbedding = embedding;
 
-                                // Calculate L2 Norm (Magnitude) for efficient Cosine Similarity
-                                entity.EmbeddingMagnitude = (float)Math.Sqrt(embedding.Sum(x => x * x));
+                                    // Calculate L2 Norm (Magnitude) for efficient Cosine Similarity
+                                    entity.EmbeddingMagnitude = (float)Math.Sqrt(embedding.Sum(x => x * x));
+                                    
+                                    if (embedding.Length == 128)
+                                    {
+                                        _logger.LogDebug("🧠 UNIVERSAL: Extracted 128D AI Embedding from {Key}", kvp.Key);
+                                    }
+                                }
                             }
                         }
                         
@@ -582,7 +606,7 @@ public class EssentiaAnalyzerService : IAudioIntelligenceService, IDisposable
     /// </summary>
     private static string SanitizeJson(string json)
     {
-        if (string.IsNullOrEmpty(json)) return json;
+        if (string.IsNullOrWhiteSpace(json)) return string.Empty;
         // Regex matches control characters (0-31) EXCEPT 9 (\t), 10 (\n), 13 (\r)
         return System.Text.RegularExpressions.Regex.Replace(json, @"[\u0000-\u0008\u000B\u000C\u000E-\u001F]", string.Empty);
     }

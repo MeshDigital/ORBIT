@@ -32,6 +32,8 @@ namespace SLSKDONET.ViewModels
         private readonly Services.ILibraryService _libraryService;
         private readonly Services.Tagging.IUniversalCueService _cueService;
         private readonly Services.TrackForensicLogger _forensicLogger;
+        private readonly Services.AI.ISonicMatchService _sonicMatchService;
+        private readonly Services.IMusicBrainzService _musicBrainzService;
         private readonly TrackOperationsViewModel _trackOperations; // Phase 11.6
         private readonly ILogger<TrackInspectorViewModel> _logger;
         private readonly CompositeDisposable _disposables = new();
@@ -105,6 +107,7 @@ namespace SLSKDONET.ViewModels
 
         // Pro DJ Features
         public ObservableCollection<Services.HarmonicMatchResult> MixesWellMatches { get; } = new();
+        public ObservableCollection<Services.AI.SonicMatch> SonicMatches { get; } = new(); // Phase 25
         public ObservableCollection<PlaylistTrack> OtherVersions { get; } = new();
         public ObservableCollection<OrbitCue> Cues { get; } = new(); // Phase 10
         
@@ -139,6 +142,13 @@ namespace SLSKDONET.ViewModels
         public System.Windows.Input.ICommand RevealFileCommand { get; }
         public System.Windows.Input.ICommand OpenStemWorkspaceCommand { get; } // Phase 24
 
+        private MusicBrainzCredits? _mbCredits;
+        public MusicBrainzCredits? MbCredits
+        {
+            get => _mbCredits;
+            set => SetProperty(ref _mbCredits, value);
+        }
+
         public TrackInspectorViewModel(
             Services.IAudioAnalysisService audioAnalysisService, 
             Services.AnalysisQueueService analysisQueue,
@@ -149,6 +159,8 @@ namespace SLSKDONET.ViewModels
             Services.ILibraryService libraryService,
             Services.Tagging.IUniversalCueService cueService,
             Services.TrackForensicLogger forensicLogger,
+            Services.AI.ISonicMatchService sonicMatchService,
+            Services.IMusicBrainzService musicBrainzService,
             TrackOperationsViewModel trackOperations,
             ILogger<TrackInspectorViewModel> logger)
         {
@@ -161,6 +173,8 @@ namespace SLSKDONET.ViewModels
             _libraryService = libraryService;
             _cueService = cueService;
             _forensicLogger = forensicLogger;
+            _sonicMatchService = sonicMatchService;
+            _musicBrainzService = musicBrainzService;
             _logger = logger;
             _trackOperations = trackOperations;
 
@@ -497,6 +511,34 @@ namespace SLSKDONET.ViewModels
                 OnPropertyChanged(nameof(HasProDjFeatures));
                 OnPropertyChanged(nameof(VibeEnergy));
                 OnPropertyChanged(nameof(VibeDance));
+
+                // 3. Sonic Matches (AI Similarity)
+                SonicMatches.Clear();
+                var sonicMatches = await _sonicMatchService.FindSonicMatchesAsync(Track.TrackUniqueHash, limit: 10);
+                foreach (var match in sonicMatches)
+                {
+                    SonicMatches.Add(match);
+                }
+
+                // 4. MusicBrainz Credits
+                MbCredits = null;
+                if (!string.IsNullOrEmpty(Track.MusicBrainzId))
+                {
+                    MbCredits = await _musicBrainzService.GetCreditsAsync(Track.MusicBrainzId);
+                }
+                else if (libraryEntry != null && !string.IsNullOrEmpty(libraryEntry.MusicBrainzId))
+                {
+                    MbCredits = await _musicBrainzService.GetCreditsAsync(libraryEntry.MusicBrainzId);
+                }
+                else if (!string.IsNullOrEmpty(Track.ISRC))
+                {
+                     // Try to resolve on the fly if we have ISRC but no MBID yet
+                     var mbid = await _musicBrainzService.ResolveMbidFromIsrcAsync(Track.ISRC);
+                     if (!string.IsNullOrEmpty(mbid))
+                     {
+                         MbCredits = await _musicBrainzService.GetCreditsAsync(mbid);
+                     }
+                }
             }
             catch (Exception ex)
             {

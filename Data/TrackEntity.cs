@@ -45,6 +45,7 @@ public class TrackEntity
     // Spotify Metadata (Phase 0: Metadata Gravity Well)
     public string? SpotifyTrackId { get; set; }
     public string? ISRC { get; set; }
+    public string? MusicBrainzId { get; set; }
     public string? SpotifyAlbumId { get; set; }
     public string? SpotifyArtistId { get; set; }
     public string? AlbumArtUrl { get; set; }
@@ -189,6 +190,7 @@ public class PlaylistTrackEntity
     // Spotify Metadata
     public string? SpotifyTrackId { get; set; }
     public string? ISRC { get; set; }
+    public string? MusicBrainzId { get; set; }
     public string? SpotifyAlbumId { get; set; }
     public string? SpotifyArtistId { get; set; }
     public string? AlbumArtUrl { get; set; }
@@ -311,6 +313,7 @@ public class LibraryEntryEntity
     // Spotify Metadata
     public string? SpotifyTrackId { get; set; }
     public string? ISRC { get; set; }
+    public string? MusicBrainzId { get; set; }
     public string? SpotifyAlbumId { get; set; }
     public string? SpotifyArtistId { get; set; }
     public string? AlbumArtUrl { get; set; }

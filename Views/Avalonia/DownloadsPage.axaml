@@ -139,7 +139,7 @@
         <Border Grid.Row="0" Background="#252526" Padding="24,20" BorderBrush="#3E3E3E" BorderThickness="0,0,0,1">
             <Grid ColumnDefinitions="*,Auto">
                 <StackPanel Grid.Column="0" Spacing="8">
-                    <TextBlock Text="Download Center" FontSize="28" FontWeight="Bold" Foreground="White"/>
+                    <TextBlock Text="The In-Box" FontSize="28" FontWeight="Bold" Foreground="White"/>
                     <StackPanel Orientation="Horizontal" Spacing="16">
                         <TextBlock Foreground="#A0A0A0" FontSize="13">
                             <Run Text="{Binding ActiveCount}"/>

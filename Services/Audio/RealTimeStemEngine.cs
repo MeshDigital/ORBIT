@@ -153,15 +153,51 @@ public class RealTimeStemEngine : IDisposable
         }
     }
     
+    public TimeSpan CurrentTime
+    {
+        get
+        {
+            lock (_lock)
+            {
+                // Return position of the first active reader
+                foreach (var chain in _processors.Values)
+                {
+                    if (chain.Reader != null) return chain.Reader.CurrentTime;
+                }
+                return TimeSpan.Zero;
+            }
+        }
+    }
+
+    public TimeSpan TotalTime
+    {
+        get
+        {
+            lock (_lock)
+            {
+                foreach (var chain in _processors.Values)
+                {
+                    if (chain.Reader != null) return chain.Reader.TotalTime;
+                }
+                return TimeSpan.Zero;
+            }
+        }
+    }
+
     public void Seek(double seconds)
     {
          lock (_lock)
          {
+             var time = TimeSpan.FromSeconds(seconds);
              foreach(var chain in _processors.Values)
              {
                  if (chain.Reader != null)
                  {
-                     chain.Reader.CurrentTime = TimeSpan.FromSeconds(seconds);
+                     // Clamp to total time to prevent exceptions
+                     if (time > chain.Reader.TotalTime) time = chain.Reader.TotalTime;
+                     if (time < TimeSpan.Zero) time = TimeSpan.Zero;
+                     
+                     chain.Reader.CurrentTime = time;
                  }
              }
          }

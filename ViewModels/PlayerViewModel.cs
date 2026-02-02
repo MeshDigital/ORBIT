@@ -8,8 +8,10 @@ using Microsoft.Extensions.Logging;
 using SLSKDONET.Models;
 using SLSKDONET.Services;
 using SLSKDONET.Views;
+
 // using DraggingService; // TODO: Fix drag-drop library reference
 
+using System.Reactive; // Added for ReactiveCommand<Unit, Unit>
 using System.Reactive.Linq;
 using System.Reactive.Disposables;
 using ReactiveUI;
@@ -100,6 +102,13 @@ namespace SLSKDONET.ViewModels
             }
         }
 
+        private long _lengthMs;
+        public long LengthMs
+        {
+            get => _lengthMs;
+            set => SetProperty(ref _lengthMs, value);
+        }
+
         private bool _isPlayerInitialized;
         public bool IsPlayerInitialized
         {
@@ -169,8 +178,8 @@ namespace SLSKDONET.ViewModels
             set => SetProperty(ref _isTheaterMode, value);
         }
 
-        private SLSKDONET.Views.Avalonia.Controls.VisualizerStyle _currentVisualStyle = SLSKDONET.Views.Avalonia.Controls.VisualizerStyle.Glow;
-        public SLSKDONET.Views.Avalonia.Controls.VisualizerStyle CurrentVisualStyle
+        private VisualizerStyle _currentVisualStyle = VisualizerStyle.Glow;
+        public VisualizerStyle CurrentVisualStyle
         {
             get => _currentVisualStyle;
             set => SetProperty(ref _currentVisualStyle, value);
@@ -265,6 +274,10 @@ namespace SLSKDONET.ViewModels
         public ICommand PreviousTrackCommand { get; }
         public ICommand AddToQueueCommand { get; }
         public ICommand RemoveFromQueueCommand { get; }
+        public ReactiveCommand<Unit, Unit> ConfirmDeleteCommand { get; }
+        
+        // Visual Style Commands
+        public ReactiveCommand<Unit, Unit> CycleVisualStyleCommand { get; }
         public ICommand ClearQueueCommand { get; }
         public ICommand ToggleShuffleCommand { get; }
         public ICommand ToggleRepeatCommand { get; }
@@ -273,7 +286,6 @@ namespace SLSKDONET.ViewModels
         public ICommand ToggleLikeCommand { get; } // Phase 9.3
         public ICommand SeekCommand { get; } // Phase 12.6: Waveform Seeking
         public ICommand ToggleTheaterModeCommand { get; }
-        public ICommand CycleVisualStyleCommand { get; }
 
         // Phase 5C: UI Throttling
         private DateTime _lastTimeUpdate = DateTime.MinValue;
@@ -395,8 +407,14 @@ namespace SLSKDONET.ViewModels
                 .DisposeWith(_disposables);
 
             Observable.FromEventPattern<long>(h => _playerService.LengthChanged += h, h => _playerService.LengthChanged -= h)
-                .Subscribe(e => Dispatcher.UIThread.Post(() => TotalTimeStr = TimeSpan.FromMilliseconds(e.EventArgs).ToString(@"m\:ss")))
+                .Subscribe(e => Dispatcher.UIThread.Post(() => 
+                {
+                    LengthMs = e.EventArgs;
+                    TotalTimeStr = TimeSpan.FromMilliseconds(e.EventArgs).ToString(@"m\:ss");
+                }))
                 .DisposeWith(_disposables);
+
+
 
             Observable.FromEventPattern<AudioLevelsEventArgs>(h => _playerService.AudioLevelsChanged += h, h => _playerService.AudioLevelsChanged -= h)
                 .Sample(TimeSpan.FromMilliseconds(40)) // 25fps for VU meters - visually smooth but efficient
@@ -420,6 +438,14 @@ namespace SLSKDONET.ViewModels
             PreviousTrackCommand = new RelayCommand(PlayPreviousTrack, () => HasPreviousTrack());
             AddToQueueCommand = new RelayCommand<PlaylistTrackViewModel>(AddToQueue);
             RemoveFromQueueCommand = new RelayCommand<PlaylistTrackViewModel>(RemoveFromQueue);
+            ConfirmDeleteCommand = ReactiveCommand.CreateFromTask(ConfirmDeleteAsync);
+            
+            CycleVisualStyleCommand = ReactiveCommand.Create(() => 
+            {
+                var values = Enum.GetValues<VisualizerStyle>();
+                int next = ((int)CurrentVisualStyle + 1) % values.Length;
+                CurrentVisualStyle = (VisualizerStyle)next;
+            });
             ClearQueueCommand = new RelayCommand(ClearQueue, () => Queue.Any());
             ToggleShuffleCommand = new RelayCommand(ToggleShuffle);
             ToggleRepeatCommand = new RelayCommand(ToggleRepeat);
@@ -428,7 +454,7 @@ namespace SLSKDONET.ViewModels
             ToggleLikeCommand = new AsyncRelayCommand(ToggleLikeAsync); // Phase 9.3
             SeekCommand = new RelayCommand<float>(Seek);
             ToggleTheaterModeCommand = new RelayCommand(() => _eventBus.Publish(new RequestTheaterModeEvent()));
-            CycleVisualStyleCommand = new RelayCommand(CycleVisualStyle);
+
             
             // Phase 0: Queue persistence - auto-save on changes
             Queue.CollectionChanged += OnQueueCollectionChanged;
@@ -450,11 +476,11 @@ namespace SLSKDONET.ViewModels
             _ = LoadQueueAsync();
         }
 
-        private void CycleVisualStyle()
+
+
+        private async System.Threading.Tasks.Task ConfirmDeleteAsync()
         {
-            var styles = (SLSKDONET.Views.Avalonia.Controls.VisualizerStyle[])Enum.GetValues(typeof(SLSKDONET.Views.Avalonia.Controls.VisualizerStyle));
-            int nextIndex = ((int)CurrentVisualStyle + 1) % styles.Length;
-            CurrentVisualStyle = styles[nextIndex];
+            await System.Threading.Tasks.Task.CompletedTask;
         }
 
         private void OnQueueCollectionChanged(object? sender, System.Collections.Specialized.NotifyCollectionChangedEventArgs e)

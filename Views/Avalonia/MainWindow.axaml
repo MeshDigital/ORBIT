@@ -182,140 +182,135 @@
                     BorderThickness="0,0,1,0"
                     Width="220"
                     IsVisible="{Binding !IsNavigationCollapsed}">
-                <StackPanel Margin="0,16,0,0" Spacing="4">
-                    <Button Classes="nav" 
-                            Command="{Binding NavigateHomeCommand}"
-                            Classes.selected="{Binding CurrentPageType, Converter={StaticResource EqualityConverter}, ConverterParameter={x:Static models:PageType.Home}}">
-                        <Grid ColumnDefinitions="Auto,*">
-                            <Border Grid.ColumnSpan="2" CornerRadius="4" IsVisible="False"/>
-                            <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="12">
+                <ScrollViewer>
+                    <StackPanel Margin="0,16,0,0" Spacing="4">
+                        <!-- DISCOVERY HUB -->
+                        <TextBlock Text="DISCOVERY" FontSize="11" FontWeight="Bold" Foreground="#666" Margin="16,8,0,4" LetterSpacing="1"/>
+                        <Button Classes="nav" 
+                                Command="{Binding NavigateHomeCommand}"
+                                Classes.selected="{Binding CurrentPageType, Converter={StaticResource EqualityConverter}, ConverterParameter={x:Static models:PageType.Home}}">
+                            <StackPanel Orientation="Horizontal" Spacing="12" Margin="16,0">
                                 <TextBlock Text="🏠" FontSize="16"/>
-                                <TextBlock Text="Home" FontSize="14"/>
+                                <TextBlock Text="Dashboard" FontSize="14"/>
                             </StackPanel>
-                        </Grid>
-                    </Button>
+                        </Button>
 
-                    <Button Classes="nav" 
-                            Command="{Binding NavigateSearchCommand}"
-                            Classes.selected="{Binding CurrentPageType, Converter={StaticResource EqualityConverter}, ConverterParameter={x:Static models:PageType.Search}}">
-                        <Grid ColumnDefinitions="Auto,*">
-                            <Border Grid.ColumnSpan="2" CornerRadius="4" IsVisible="False"/>
-                            <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="12">
+                        <Button Classes="nav" 
+                                Command="{Binding NavigateCrateDiggerCommand}"
+                                Classes.selected="{Binding CurrentPageType, Converter={StaticResource EqualityConverter}, ConverterParameter={x:Static models:PageType.CrateDigger}}">
+                            <StackPanel Orientation="Horizontal" Spacing="12" Margin="16,0">
+                                <TextBlock Text="⛏️" FontSize="16"/>
+                                <TextBlock Text="Crate Digger" FontSize="14"/>
+                            </StackPanel>
+                        </Button>
+
+                        <Button Classes="nav" 
+                                Command="{Binding NavigateSearchCommand}"
+                                Classes.selected="{Binding CurrentPageType, Converter={StaticResource EqualityConverter}, ConverterParameter={x:Static models:PageType.Search}}">
+                            <StackPanel Orientation="Horizontal" Spacing="12" Margin="16,0">
                                 <TextBlock Text="🔍" FontSize="16"/>
                                 <TextBlock Text="Search" FontSize="14"/>
                             </StackPanel>
-                        </Grid>
-                    </Button>
+                        </Button>
 
-                    <Button Classes="nav" 
-                            Command="{Binding NavigateImportCommand}"
-                            Classes.selected="{Binding CurrentPageType, Converter={StaticResource EqualityConverter}, ConverterParameter={x:Static models:PageType.Import}}">
-                        <Grid ColumnDefinitions="Auto,*">
-                            <Border Grid.ColumnSpan="2" CornerRadius="4" IsVisible="False"/>
-                            <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="12">
+                        <Border Height="1" Background="#333" Margin="12,12"/>
+
+                        <!-- INGESTION HUB -->
+                        <TextBlock Text="INGESTION" FontSize="11" FontWeight="Bold" Foreground="#666" Margin="16,0,0,4" LetterSpacing="1"/>
+                        <Button Classes="nav" 
+                                Command="{Binding NavigateProjectsCommand}"
+                                Classes.selected="{Binding CurrentPageType, Converter={StaticResource EqualityConverter}, ConverterParameter={x:Static models:PageType.Projects}}">
+                            <StackPanel Orientation="Horizontal" Spacing="12" Margin="16,0">
                                 <TextBlock Text="📥" FontSize="16"/>
+                                <TextBlock Text="The In-Box" FontSize="14"/>
+                            </StackPanel>
+                        </Button>
+
+                        <Button Classes="nav" 
+                                Command="{Binding NavigateImportCommand}"
+                                Classes.selected="{Binding CurrentPageType, Converter={StaticResource EqualityConverter}, ConverterParameter={x:Static models:PageType.Import}}">
+                            <StackPanel Orientation="Horizontal" Spacing="12" Margin="16,0">
+                                <TextBlock Text="🔗" FontSize="16"/>
                                 <TextBlock Text="Import" FontSize="14"/>
                             </StackPanel>
-                        </Grid>
-                    </Button>
-                    
-                    <Button Classes="nav" 
-                            Command="{Binding NavigateLibraryCommand}"
-                            Classes.selected="{Binding CurrentPageType, Converter={StaticResource EqualityConverter}, ConverterParameter={x:Static models:PageType.Library}}">
-                        <Grid ColumnDefinitions="Auto,*">
-                            <Border Grid.ColumnSpan="2" CornerRadius="4" IsVisible="False"/>
-                            <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="12">
-                                <TextBlock Text="📚" FontSize="16"/>
-                                <TextBlock Text="Library" FontSize="14"/>
-                            </StackPanel>
-                        </Grid>
-                    </Button>
-                    
-                    <Button Classes="nav" 
-                            Command="{Binding NavigateProjectsCommand}"
-                            Classes.selected="{Binding CurrentPageType, Converter={StaticResource EqualityConverter}, ConverterParameter={x:Static models:PageType.Projects}}">
-                        <Grid ColumnDefinitions="Auto,*">
-                            <Border Grid.ColumnSpan="2" CornerRadius="4" IsVisible="False"/>
-                            <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="12">
-                                <TextBlock Text="📂" FontSize="16"/>
-                                <TextBlock Text="Projects" FontSize="14"/>
-                            </StackPanel>
-                        </Grid>
-                    </Button>
-                    
-                    <Button Classes="nav" 
-                            Command="{Binding NavigateUpgradeScoutCommand}"
-                            Classes.selected="{Binding CurrentPageType, Converter={StaticResource EqualityConverter}, ConverterParameter={x:Static models:PageType.UpgradeScout}}">
-                        <Grid ColumnDefinitions="Auto,*">
-                            <Border Grid.ColumnSpan="2" CornerRadius="4" IsVisible="False"/>
-                            <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="12">
-                                <TextBlock Text="💎" FontSize="16"/>
-                                <TextBlock Text="Upgrade Scout" FontSize="14"/>
-                            </StackPanel>
-                        </Grid>
-                    </Button>
+                        </Button>
 
-                    <!-- Analysis Queue Dashboard -->
-                    <Button Classes="nav" 
-                            Command="{Binding NavigateInspectorCommand}"
-                            Classes.selected="{Binding CurrentPageType, Converter={StaticResource EqualityConverter}, ConverterParameter={x:Static models:PageType.AnalysisQueue}}">
-                        <Grid ColumnDefinitions="Auto,*">
-                            <Border Grid.ColumnSpan="2" CornerRadius="4" IsVisible="False"/>
-                            <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="12">
-                                <TextBlock Text="📊" FontSize="16"/>
-                                <TextBlock Text="Analysis Queue" FontSize="14"/>
-                            </StackPanel>
-                        </Grid>
-                    </Button>
+                        <Border Height="1" Background="#333" Margin="12,12"/>
 
-                    <Button Classes="nav" 
-                            Command="{Binding NavigateSettingsCommand}"
-                            Classes.selected="{Binding CurrentPageType, Converter={StaticResource EqualityConverter}, ConverterParameter={x:Static models:PageType.Settings}}">
-                        <Grid ColumnDefinitions="Auto,*">
-                            <Border Grid.ColumnSpan="2" CornerRadius="4" IsVisible="False"/>
-                            <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="12">
-                                <TextBlock Text="⚙️" FontSize="16"/>
-                                <TextBlock Text="Settings" FontSize="14"/>
+                        <!-- AI LAB -->
+                        <TextBlock Text="AI LAB" FontSize="11" FontWeight="Bold" Foreground="#666" Margin="16,0,0,4" LetterSpacing="1"/>
+                        <Button Classes="nav" 
+                                Command="{Binding NavigateInspectorCommand}"
+                                Classes.selected="{Binding CurrentPageType, Converter={StaticResource EqualityConverter}, ConverterParameter={x:Static models:PageType.AnalysisQueue}}">
+                            <StackPanel Orientation="Horizontal" Spacing="12" Margin="16,0">
+                                <TextBlock Text="🧠" FontSize="16"/>
+                                <TextBlock Text="The Processor" FontSize="14"/>
                             </StackPanel>
-                        </Grid>
-                    </Button>
-                    
-                    <Button Classes="nav" 
-                            Command="{Binding ToggleStemWorkspaceCommand}"
-                            Classes.selected="{Binding StemWorkspaceViewModel.IsVisible}">
-                        <Grid ColumnDefinitions="Auto,*">
-                            <Border Grid.ColumnSpan="2" CornerRadius="4" IsVisible="False"/>
-                            <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="12">
-                                <TextBlock Text="🧬" FontSize="16"/>
-                                <TextBlock Text="Stems" FontSize="14"/>
-                            </StackPanel>
-                        </Grid>
-                    </Button>
+                        </Button>
 
-                    <Button Classes="nav" 
-                            Command="{Binding NavigateStyleLabCommand}"
-                            Classes.selected="{Binding CurrentPageType, Converter={StaticResource EqualityConverter}, ConverterParameter={x:Static models:PageType.StyleLab}}">
-                        <Grid ColumnDefinitions="Auto,*">
-                            <Border Grid.ColumnSpan="2" CornerRadius="4" IsVisible="False"/>
-                            <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="12">
+                        <Button Classes="nav" 
+                                Command="{Binding NavigateStyleLabCommand}"
+                                Classes.selected="{Binding CurrentPageType, Converter={StaticResource EqualityConverter}, ConverterParameter={x:Static models:PageType.StyleLab}}">
+                            <StackPanel Orientation="Horizontal" Spacing="12" Margin="16,0">
                                 <TextBlock Text="🧪" FontSize="16"/>
                                 <TextBlock Text="Style Lab" FontSize="14"/>
                             </StackPanel>
-                        </Grid>
-                    </Button>
+                        </Button>
 
-                    <Button Classes="nav" 
-                            Command="{Binding NavigateTheaterCommand}"
-                            Classes.selected="{Binding CurrentPageType, Converter={StaticResource EqualityConverter}, ConverterParameter={x:Static models:PageType.TheaterMode}}">
-                        <Grid ColumnDefinitions="Auto,*">
-                            <Border Grid.ColumnSpan="2" CornerRadius="4" IsVisible="False"/>
-                            <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="12">
-                                <TextBlock Text="✨" FontSize="16"/>
-                                <TextBlock Text="Theater Mode" FontSize="14"/>
+                        <Button Classes="nav" 
+                                Command="{Binding ToggleStemWorkspaceCommand}"
+                                Classes.selected="{Binding StemWorkspaceViewModel.IsVisible}">
+                            <StackPanel Orientation="Horizontal" Spacing="12" Margin="16,0">
+                                <TextBlock Text="🧬" FontSize="16"/>
+                                <TextBlock Text="Stems" FontSize="14"/>
                             </StackPanel>
-                        </Grid>
-                    </Button>
-                </StackPanel>
+                        </Button>
+
+                        <Border Height="1" Background="#333" Margin="12,12"/>
+
+                        <!-- SET DESIGNER -->
+                        <TextBlock Text="SET DESIGNER" FontSize="11" FontWeight="Bold" Foreground="#666" Margin="16,0,0,4" LetterSpacing="1"/>
+                        <Button Classes="nav" 
+                                Command="{Binding NavigateTheaterCommand}"
+                                Classes.selected="{Binding CurrentPageType, Converter={StaticResource EqualityConverter}, ConverterParameter={x:Static models:PageType.TheaterMode}}">
+                            <StackPanel Orientation="Horizontal" Spacing="12" Margin="16,0">
+                                <TextBlock Text="⏱️" FontSize="16"/>
+                                <TextBlock Text="DAW Timeline" FontSize="14"/>
+                            </StackPanel>
+                        </Button>
+
+                        <Border Height="1" Background="#333" Margin="12,12"/>
+
+                        <!-- SYSTEM -->
+                        <TextBlock Text="SYSTEM" FontSize="11" FontWeight="Bold" Foreground="#666" Margin="16,0,0,4" LetterSpacing="1"/>
+                        <Button Classes="nav" 
+                                Command="{Binding NavigateLibraryCommand}"
+                                Classes.selected="{Binding CurrentPageType, Converter={StaticResource EqualityConverter}, ConverterParameter={x:Static models:PageType.Library}}">
+                            <StackPanel Orientation="Horizontal" Spacing="12" Margin="16,0">
+                                <TextBlock Text="📚" FontSize="16"/>
+                                <TextBlock Text="Library" FontSize="14"/>
+                            </StackPanel>
+                        </Button>
+
+                        <Button Classes="nav" 
+                                Command="{Binding NavigateUpgradeScoutCommand}"
+                                Classes.selected="{Binding CurrentPageType, Converter={StaticResource EqualityConverter}, ConverterParameter={x:Static models:PageType.UpgradeScout}}">
+                            <StackPanel Orientation="Horizontal" Spacing="12" Margin="16,0">
+                                <TextBlock Text="💎" FontSize="16"/>
+                                <TextBlock Text="Upgrades" FontSize="14"/>
+                            </StackPanel>
+                        </Button>
+
+                        <Button Classes="nav" 
+                                Command="{Binding NavigateSettingsCommand}"
+                                Classes.selected="{Binding CurrentPageType, Converter={StaticResource EqualityConverter}, ConverterParameter={x:Static models:PageType.Settings}}">
+                            <StackPanel Orientation="Horizontal" Spacing="12" Margin="16,0">
+                                <TextBlock Text="⚙️" FontSize="16"/>
+                                <TextBlock Text="Settings" FontSize="14"/>
+                            </StackPanel>
+                        </Button>
+                    </StackPanel>
+                </ScrollViewer>
             </Border>
 
             <!-- Center Content Area with Page Transitions -->

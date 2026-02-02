@@ -9,6 +9,8 @@ public class TrackEnrichmentResult
     public string SpotifyAlbumId { get; set; } = string.Empty;
     public string SpotifyArtistId { get; set; } = string.Empty;
     public string? ISRC { get; set; }
+    public string? MusicBrainzId { get; set; }
+    public int? CanonicalDuration { get; set; }
     
     // Audio Features
     public double? Bpm { get; set; }

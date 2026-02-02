@@ -33,7 +33,7 @@
                                                  SpectrumData="{Binding SpectrumData}"
                                                  Energy="{Binding CurrentTrack.Energy}"
                                                  MoodTag="{Binding CurrentTrack.MoodTag}"
-                                                 Style="{Binding CurrentVisualStyle}"
+                                                 VisualStyle="{Binding CurrentVisualStyle}"
                                                  Opacity="0.6"/>
                             <Image Source="{Binding CurrentTrack.ArtworkBitmap}" 
                                    Stretch="UniformToFill"

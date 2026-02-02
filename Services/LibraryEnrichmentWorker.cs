@@ -20,6 +20,7 @@ public class LibraryEnrichmentWorker : IDisposable
     private readonly ILogger<LibraryEnrichmentWorker> _logger;
     private readonly DatabaseService _databaseService;
     private readonly SpotifyEnrichmentService _enrichmentService;
+    private readonly IMusicBrainzService _musicBrainzService;
     private readonly IStyleClassifierService _styleClassifier;
     private readonly IEventBus _eventBus;
     private readonly Configuration.AppConfig _config;
@@ -35,6 +36,7 @@ public class LibraryEnrichmentWorker : IDisposable
         ILogger<LibraryEnrichmentWorker> logger,
         DatabaseService databaseService,
         SpotifyEnrichmentService enrichmentService,
+        IMusicBrainzService musicBrainzService,
         IStyleClassifierService styleClassifier,
         IEventBus eventBus,
         Configuration.AppConfig config)
@@ -42,6 +44,7 @@ public class LibraryEnrichmentWorker : IDisposable
         _logger = logger;
         _databaseService = databaseService;
         _enrichmentService = enrichmentService;
+        _musicBrainzService = musicBrainzService;
         _styleClassifier = styleClassifier;
         _eventBus = eventBus;
         _config = config;
@@ -241,6 +244,38 @@ public class LibraryEnrichmentWorker : IDisposable
             
             enrichedCount += localEnriched;
             didWork = true;
+        }
+
+        // --- STAGE 2: MusicBrainz Deep Enrichment (ISRC Bridge) ---
+        var needingMb = await _databaseService.GetLibraryEntriesNeedingMusicBrainzEnrichmentAsync(BatchSize);
+        if (needingMb.Any())
+        {
+            _logger.LogInformation("Enrichment Stage 2: MusicBrainz resolution for {Count} tracks", needingMb.Count);
+            int localMbEnriched = 0;
+
+            foreach (var track in needingMb)
+            {
+                if (ct.IsCancellationRequested) break;
+
+                try
+                {
+                    // EnrichTrackWithIsrcAsync handles resolution, credits, and database updates
+                    bool success = await _musicBrainzService.EnrichTrackWithIsrcAsync(track.UniqueHash, track.ISRC!);
+                    if (success)
+                    {
+                        _logger.LogDebug("MusicBrainz enrichment successful for {Artist} - {Title}", track.Artist, track.Title);
+                        localMbEnriched++;
+                        _eventBus.Publish(new TrackMetadataUpdatedEvent(track.UniqueHash));
+                    }
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Stage 2 failed for track {Hash}", track.UniqueHash);
+                }
+            }
+
+            enrichedCount += localMbEnriched;
+            if (localMbEnriched > 0) didWork = true;
         }
 
 

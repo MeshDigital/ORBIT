@@ -599,6 +599,9 @@ public partial class App : Application
         // Phase 18: Sonic Match Engine - AI-powered vibe similarity
         services.AddSingleton<Services.AI.ISonicMatchService, Services.AI.SonicMatchService>();
 
+        // Phase 25: Universal Music Engine (MusicBrainz Integration)
+        services.AddSingleton<IMusicBrainzService, MusicBrainzService>();
+
         // Phase 2.5: Path provider for safe folder structure
         services.AddSingleton<PathProviderService>();
         
@@ -745,6 +748,8 @@ public partial class App : Application
         services.AddSingleton<SpotifyImportViewModel>();
         services.AddSingleton<ViewModels.LibrarySourcesViewModel>();
         services.AddSingleton<TheaterModeViewModel>();
+        services.AddSingleton<ViewModels.Discovery.CrateDiggerViewModel>();
+        services.AddSingleton<Services.Import.AutoCleanerService>();
 
         // Utilities
         services.AddSingleton<SearchQueryNormalizer>();
@@ -770,6 +775,7 @@ public partial class App : Application
         services.AddTransient<Views.Avalonia.AnalysisQueuePage>();
         services.AddTransient<Views.Avalonia.StyleLabPage>();
         services.AddTransient<Views.Avalonia.TheaterModePage>();
+        services.AddTransient<Views.Avalonia.CrateDiggerView>();
         
         services.AddSingleton<ViewModels.TrackInspectorViewModel>();
         services.AddSingleton<ViewModels.ForensicLabViewModel>();

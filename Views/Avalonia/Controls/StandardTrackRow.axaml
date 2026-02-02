@@ -98,8 +98,51 @@
                 <Panel>
                     <Image Source="{Binding Artwork.Image}" Stretch="UniformToFill" IsVisible="{Binding Artwork.Image, Converter={x:Static ObjectConverters.IsNotNull}}"/>
                     <PathIcon Data="{StaticResource music_regular}" Foreground="#333" Width="20" Height="20" IsVisible="{Binding Artwork.Image, Converter={x:Static ObjectConverters.IsNull}}"/>
+                    
                     <!-- Progress Overlay -->
                     <Arc Width="36" Height="36" StartAngle="-90" SweepAngle="{Binding Progress, Converter={StaticResource PercentageToAngleConverter}}" Stroke="#00BFFF" StrokeThickness="2" IsVisible="{Binding IsActive}" Opacity="0.8"/>
+                    
+                    <!-- Enrichment Progress (Phase 2.1) -->
+                    <Arc Stroke="#C586C0" StrokeThickness="2" StartAngle="0" SweepAngle="300" Width="42" Height="42" IsVisible="{Binding IsAnalyzing}">
+                        <Arc.RenderTransform>
+                            <RotateTransform Angle="0"/>
+                        </Arc.RenderTransform>
+                        <Arc.Styles>
+                            <Style Selector="Arc">
+                                <Style.Animations>
+                                    <Animation Duration="0:0:1.5" IterationCount="Infinite">
+                                        <KeyFrame KeyTime="0:0:0">
+                                            <Setter Property="RotateTransform.Angle" Value="0"/>
+                                        </KeyFrame>
+                                        <KeyFrame KeyTime="0:0:1.5">
+                                            <Setter Property="RotateTransform.Angle" Value="360"/>
+                                        </KeyFrame>
+                                    </Animation>
+                                </Style.Animations>
+                            </Style>
+                        </Arc.Styles>
+                    </Arc>
+
+                    <!-- Spotify/MB Enrichment Progress (Phase 2.1) -->
+                    <Arc Stroke="#1DB954" StrokeThickness="2" StartAngle="180" SweepAngle="120" Width="48" Height="48" IsVisible="{Binding IsEnriching}">
+                        <Arc.RenderTransform>
+                            <RotateTransform Angle="0"/>
+                        </Arc.RenderTransform>
+                        <Arc.Styles>
+                            <Style Selector="Arc">
+                                <Style.Animations>
+                                    <Animation Duration="0:0:2" IterationCount="Infinite">
+                                        <KeyFrame KeyTime="0:0:0">
+                                            <Setter Property="RotateTransform.Angle" Value="360"/>
+                                        </KeyFrame>
+                                        <KeyFrame KeyTime="0:0:2">
+                                            <Setter Property="RotateTransform.Angle" Value="0"/>
+                                        </KeyFrame>
+                                    </Animation>
+                                </Style.Animations>
+                            </Style>
+                        </Arc.Styles>
+                    </Arc>
                 </Panel>
             </Border>
             
@@ -136,6 +179,26 @@
             <!-- Column 4: Badge Tray (Flexible) -->
             <StackPanel Grid.Column="4" Orientation="Horizontal" VerticalAlignment="Center" Spacing="6" Margin="8,0">
                 <!-- Curation/Trust -->
+                <Border IsVisible="{Binding MatchConfidence, Converter={x:Static converters:NumericConverters.GreaterThan}, ConverterParameter=0}"
+                        Background="{Binding MatchConfidenceColor}"
+                        CornerRadius="4" Padding="6,2" Margin="0,0,4,0">
+                    <StackPanel Orientation="Horizontal" Spacing="4">
+                        <TextBlock Text="🎯" FontSize="10" VerticalAlignment="Center"/>
+                        <TextBlock Text="{Binding MatchConfidence, StringFormat='{}{0:0}%'}" FontSize="10" FontWeight="Bold" Foreground="Black" VerticalAlignment="Center"/>
+                    </StackPanel>
+                </Border>
+
+                <!-- High Risk Flag -->
+                <Border IsVisible="{Binding IsHighRisk}"
+                        Background="#E91E63"
+                        CornerRadius="4" Padding="6,2" Margin="0,0,4,0"
+                        ToolTip.Tip="{Binding FlagReason}">
+                    <StackPanel Orientation="Horizontal" Spacing="4">
+                        <TextBlock Text="⚠️" FontSize="10" VerticalAlignment="Center"/>
+                        <TextBlock Text="HIGH RISK" FontSize="10" FontWeight="Bold" Foreground="White" VerticalAlignment="Center"/>
+                    </StackPanel>
+                </Border>
+
                 <Border BorderBrush="{Binding CurationColor}" BorderThickness="1" CornerRadius="2" Padding="3,0" IsVisible="{Binding CurationIcon, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
                     <TextBlock Text="{Binding CurationIcon}" FontSize="9" VerticalAlignment="Center"/>
                 </Border>

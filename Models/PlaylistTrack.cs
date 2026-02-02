@@ -101,6 +101,7 @@ public class PlaylistTrack
     // Spotify Metadata (Phase 0: Metadata Gravity Well)
     public string? SpotifyTrackId { get; set; }
     public string? ISRC { get; set; }
+    public string? MusicBrainzId { get; set; }
     public string? SpotifyAlbumId { get; set; }
     public string? SpotifyArtistId { get; set; }
     public string? AlbumArtUrl { get; set; }
@@ -151,6 +152,12 @@ public class PlaylistTrack
     public string? QualityDetails { get; set; }
 
     public SLSKDONET.Data.IntegrityLevel Integrity { get; set; } = SLSKDONET.Data.IntegrityLevel.None;
+    
+    /// <summary>
+    /// Phase 2.1: Flagged by Safety Filter (High Risk)
+    /// </summary>
+    public bool IsFlagged { get; set; }
+    public string? FlagReason { get; set; }
     
     // Phase 17: Technical Audio Analysis
     public double? Loudness { get; set; }

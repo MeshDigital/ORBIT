@@ -325,4 +325,58 @@ public class SpotifyInputSource : IInputSource
 
 		return null;
 	}
+
+    public async Task<List<SpotifyPlaylistViewModel>> SearchPlaylistsAsync(string query, int limit = 20)
+    {
+        if (string.IsNullOrWhiteSpace(query)) return new();
+        
+        var client = await GetClientAsync();
+        var searchRequest = new SearchRequest(SearchRequest.Types.Playlist, query) { Limit = limit };
+        var response = await client.Search.Item(searchRequest);
+        
+        var results = new List<SpotifyPlaylistViewModel>();
+        if (response.Playlists?.Items != null)
+        {
+            foreach (var p in response.Playlists.Items)
+            {
+                results.Add(new SpotifyPlaylistViewModel
+                {
+                    Id = p.Id ?? "",
+                    Name = p.Name ?? "Unnamed Playlist",
+                    ImageUrl = p.Images?.FirstOrDefault()?.Url ?? "",
+                    TrackCount = p.Tracks?.Total ?? 0,
+                    Owner = p.Owner?.DisplayName ?? "Unknown",
+                    Url = (p.ExternalUrls != null && p.ExternalUrls.ContainsKey("spotify")) ? p.ExternalUrls["spotify"] : ""
+                });
+            }
+        }
+        return results;
+    }
+
+    public async Task<List<SpotifyPlaylistViewModel>> SearchAlbumsAsync(string query, int limit = 20)
+    {
+        if (string.IsNullOrWhiteSpace(query)) return new();
+
+        var client = await GetClientAsync();
+        var searchRequest = new SearchRequest(SearchRequest.Types.Album, query) { Limit = limit };
+        var response = await client.Search.Item(searchRequest);
+
+        var results = new List<SpotifyPlaylistViewModel>();
+        if (response.Albums?.Items != null)
+        {
+            foreach (var a in response.Albums.Items)
+            {
+                results.Add(new SpotifyPlaylistViewModel
+                {
+                    Id = a.Id ?? "",
+                    Name = a.Name ?? "Unnamed Album",
+                    ImageUrl = a.Images?.FirstOrDefault()?.Url ?? "",
+                    TrackCount = a.TotalTracks,
+                    Owner = a.Artists?.FirstOrDefault()?.Name ?? "Unknown Artist",
+                    Url = (a.ExternalUrls != null && a.ExternalUrls.ContainsKey("spotify")) ? a.ExternalUrls["spotify"] : ""
+                });
+            }
+        }
+        return results;
+    }
 }

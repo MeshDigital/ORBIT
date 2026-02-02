@@ -23,6 +23,7 @@ public class DownloadDiscoveryService
     private readonly IEventBus _eventBus;
     private readonly TrackForensicLogger _forensicLogger;
     private readonly ISafetyFilterService _safetyFilter;
+    private readonly Import.AutoCleanerService _autoCleaner;
 
     public DownloadDiscoveryService(
         ILogger<DownloadDiscoveryService> logger,
@@ -31,7 +32,8 @@ public class DownloadDiscoveryService
         AppConfig config,
         IEventBus eventBus,
         TrackForensicLogger forensicLogger,
-        ISafetyFilterService safetyFilter)
+        ISafetyFilterService safetyFilter,
+        Import.AutoCleanerService autoCleaner)
     {
         _logger = logger;
         _searchOrchestrator = searchOrchestrator;
@@ -40,6 +42,7 @@ public class DownloadDiscoveryService
         _eventBus = eventBus;
         _forensicLogger = forensicLogger;
         _safetyFilter = safetyFilter;
+        _autoCleaner = autoCleaner;
     }
 
     public record DiscoveryResult(Track? BestMatch, SearchAttemptLog? Log)
@@ -66,41 +69,52 @@ public class DownloadDiscoveryService
     /// </summary>
     public async Task<DiscoveryResult> FindBestMatchAsync(PlaylistTrack track, CancellationToken ct, HashSet<string>? blacklistedUsers = null)
     {
-        var log = new SearchAttemptLog { QueryString = $"{track.Artist} - {track.Title}" };
+        var tiers = _autoCleaner.Clean($"{track.Artist} - {track.Title}");
+        var queryTiers = new[] { tiers.Dirty, tiers.Smart, tiers.Aggressive };
+        var tierNames = new[] { "Dirty", "Smart", "Aggressive" };
 
-        // CONNECTIVITY GATING:
-        // WHY: Prevent search spam during reconnect storms
-        // - Soulseek disconnects are common (NAT timeout, server restart)
-        // - Searches while disconnected queue up and spam on reconnect
-        // - This gate waits up to 10 seconds for connection before aborting
-        // 
-        // BENEFIT:
-        // - Reduces failed search count in logs
-        // - Prevents rate-limiting from server (max 5 searches/10 sec)
-        // - Cleaner error messages ("not connected" vs "search timeout")
-        if (!_searchOrchestrator.IsConnected)
+        DiscoveryResult? bestResult = null;
+
+        for (int i = 0; i < queryTiers.Length; i++)
         {
-            _logger.LogInformation("Waiting for Soulseek connection before searching for {Title}...", track.Title);
-            var waitStart = DateTime.UtcNow;
-            while (!_searchOrchestrator.IsConnected && (DateTime.UtcNow - waitStart).TotalSeconds < 10)
+            var query = queryTiers[i];
+            if (string.IsNullOrEmpty(query)) continue;
+
+            _logger.LogInformation("Discovery Tier {Tier} started for: {Query} (GlobalId: {Id})", tierNames[i], query, track.TrackUniqueHash);
+            _forensicLogger.Info(track.TrackUniqueHash, Data.Entities.ForensicStage.Discovery, $"Tier {tierNames[i]} Search Query: \"{query}\"");
+
+            var result = await PerformSearchTierAsync(track, query, ct, blacklistedUsers, log);
+            
+            if (result.BestMatch != null)
             {
-                if (ct.IsCancellationRequested) return new DiscoveryResult(null, log);
-                await Task.Delay(500, ct);
+                // If it's an Aggressive match, we might want to flag it or lower the confidence
+                if (tierNames[i] == "Aggressive" && result.BestMatch.CurrentRank > 0)
+                {
+                    result.BestMatch.CurrentRank *= 0.8; // Penalty for aggressive query match
+                    _logger.LogWarning("Aggressive match found. Reducing confidence score for {Title}.", track.Title);
+                }
+                return result;
             }
 
-            if (!_searchOrchestrator.IsConnected)
-            {
-                _logger.LogWarning("Timeout waiting for Soulseek connection. Search for {Title} aborted.", track.Title);
-                return new DiscoveryResult(null, log);
-            }
+            if (ct.IsCancellationRequested) break;
+            
+            // If we found NO results in Dirty, we move to Smart immediately.
+            // If we found results but NO match, we might wait a bit or just move on.
+            _logger.LogInformation("Tier {Tier} yielded no suitable matches. Moving to next tier...", tierNames[i]);
         }
 
-        var query = $"{track.Artist} {track.Title}";
-        _logger.LogInformation("Discovery started for: {Query} (GlobalId: {Id})", query, track.TrackUniqueHash);
-        _forensicLogger.Info(track.TrackUniqueHash, Data.Entities.ForensicStage.Discovery, $"Search Query: \"{query}\"");
+        return new DiscoveryResult(null, log);
+    }
 
+    private async Task<DiscoveryResult> PerformSearchTierAsync(PlaylistTrack track, string query, CancellationToken ct, HashSet<string>? blacklistedUsers, SearchAttemptLog log)
+    {
         try
         {
+            if (!_searchOrchestrator.IsConnected)
+            {
+                // Connection check inside tier as well (redundant but safe)
+                if (!await WaitForConnectionAsync(ct)) return new DiscoveryResult(null, log);
+            }
             // 1. Configure preferences (Respect per-track overrides)
             var formatsList = !string.IsNullOrEmpty(track.PreferredFormats)
                 ? track.PreferredFormats.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).ToList()
@@ -286,19 +300,36 @@ public class DownloadDiscoveryService
                 }
             }
 
-            _logger.LogWarning("🧠 BRAIN: No suitable match found for {Query}. {Summary}", query, log.GetSummary());
+            _logger.LogWarning("🧠 BRAIN: No suitable match found for query tier. {Summary}", log.GetSummary());
             return new DiscoveryResult(null, log);
         }
         catch (OperationCanceledException)
         {
-            _logger.LogInformation("Discovery cancelled for {Query}", query);
             throw;
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Discovery failed for {Query}", query);
+            _logger.LogError(ex, "Search tier failed for {Query}", query);
             return new DiscoveryResult(null, log);
         }
+    }
+
+    private async Task<bool> WaitForConnectionAsync(CancellationToken ct)
+    {
+        _logger.LogInformation("Waiting for Soulseek connection...");
+        var waitStart = DateTime.UtcNow;
+        while (!_searchOrchestrator.IsConnected && (DateTime.UtcNow - waitStart).TotalSeconds < 10)
+        {
+            if (ct.IsCancellationRequested) return false;
+            await Task.Delay(500, ct);
+        }
+
+        if (!_searchOrchestrator.IsConnected)
+        {
+            _logger.LogWarning("Timeout waiting for Soulseek connection.");
+            return false;
+        }
+        return true;
     }
 
     /// <summary>

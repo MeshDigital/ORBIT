@@ -27,6 +27,7 @@ public class PlaylistTrackViewModel : INotifyPropertyChanged, Library.ILibraryNo
     private string? _coverArtUrl;
     private ArtworkProxy _artwork; // Replaces _artworkBitmap
     private bool _isAnalyzing; // New field for analysis feedback
+    private bool _isEnriching; // New field for metadata enrichment feedback
     private bool _isSelected;
     private List<OrbitCue> _cues = new();
 
@@ -88,6 +89,18 @@ public class PlaylistTrackViewModel : INotifyPropertyChanged, Library.ILibraryNo
 
     public Guid SourceId { get; set; } // Project ID (PlaylistJob.Id)
     public Guid Id => Model.Id;
+    public bool IsAnalyzing
+    {
+        get => _isAnalyzing;
+        set => SetProperty(ref _isAnalyzing, value);
+    }
+
+    public bool IsEnriching
+    {
+        get => _isEnriching;
+        set => SetProperty(ref _isEnriching, value);
+    }
+
     private bool _isExpanded;
     private bool _technicalDataLoaded = false;
     private Data.Entities.TrackTechnicalEntity? _technicalEntity;
@@ -559,6 +572,18 @@ public class PlaylistTrackViewModel : INotifyPropertyChanged, Library.ILibraryNo
     public int SampleRate => Model.BitrateScore ?? 0; // Or add SampleRate to Model
     // Fix: LoudnessDisplay was previously incorrectly bound to QualityConfidence
     public string ConfidenceDisplay => Model.QualityConfidence.HasValue ? $"{Model.QualityConfidence:P0} Confidence" : "—";
+    
+    public double MatchConfidence => (Model.QualityConfidence ?? 0) * 100;
+    
+    public string MatchConfidenceColor => MatchConfidence switch
+    {
+        >= 90 => "#1DB954", // Spotify Green
+        >= 70 => "#FFD700", // Gold/Yellow
+        _ => "#E91E63"      // Pink/Red
+    };
+
+    public bool IsHighRisk => Model.IsFlagged;
+    public string? FlagReason => Model.FlagReason;
     
     public string LoudnessDisplay => Model.Loudness.HasValue ? $"{Model.Loudness:F1} LUFS" : "—";
     public string TruePeakDisplay => Model.TruePeak.HasValue ? $"{Model.TruePeak:F1} dBTP" : "—";

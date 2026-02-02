@@ -61,6 +61,7 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
     // Operation Glass Console: Unified Intelligence Center
     public IntelligenceCenterViewModel IntelligenceCenter { get; }
     public TheaterModeViewModel TheaterModeViewModel { get; }
+    public ViewModels.Discovery.CrateDiggerViewModel CrateDiggerViewModel { get; }
 
 
     public event PropertyChangedEventHandler? PropertyChanged;
@@ -144,6 +145,7 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
         StemWorkspaceViewModel = stemWorkspaceViewModel;
         IntelligenceCenter = intelligenceCenter;
         TheaterModeViewModel = theaterModeViewModel;
+        CrateDiggerViewModel = Services.GetRequiredService<ViewModels.Discovery.CrateDiggerViewModel>();
 
 
         // Initialize commands
@@ -157,6 +159,7 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
         NavigateInspectorCommand = new RelayCommand(NavigateAnalysisQueue);
         NavigateStyleLabCommand = new RelayCommand(() => _navigationService.NavigateTo("StyleLab"));
         NavigateImportCommand = new RelayCommand(NavigateToImport); // Phase 6D
+        NavigateCrateDiggerCommand = new RelayCommand(NavigateToCrateDigger);
         ToggleNavigationCommand = new RelayCommand(() => IsNavigationCollapsed = !IsNavigationCollapsed);
         TogglePlayerCommand = new RelayCommand(() => IsPlayerSidebarVisible = !IsPlayerSidebarVisible);
         TogglePlayerLocationCommand = new RelayCommand(() => IsPlayerAtBottom = !IsPlayerAtBottom);
@@ -298,6 +301,7 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
         _navigationService.RegisterPage("AnalysisQueue", typeof(Avalonia.AnalysisQueuePage));
         _navigationService.RegisterPage("StyleLab", typeof(Avalonia.StyleLabPage));
         _navigationService.RegisterPage("Theater", typeof(Avalonia.TheaterModePage));
+        _navigationService.RegisterPage("CrateDigger", typeof(Avalonia.CrateDiggerView));
         
         // Subscribe to navigation events
         _navigationService.Navigated += OnNavigated;
@@ -608,6 +612,7 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
     public ICommand NavigateInspectorCommand { get; }
     public ICommand NavigateStyleLabCommand { get; }
     public ICommand NavigateTheaterCommand { get; }
+    public ICommand NavigateCrateDiggerCommand { get; }
 
     public ICommand NavigateImportCommand { get; } // Phase 6D
     public ICommand ToggleNavigationCommand { get; }
@@ -647,7 +652,7 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
                 "HomePage" => PageType.Home,
                 "SearchPage" => PageType.Search,
                 "LibraryPage" => PageType.Library,
-                "DownloadsPage" => PageType.Home,
+                "DownloadsPage" => PageType.Projects,
                 "SettingsPage" => PageType.Settings,
                 "ImportPage" => PageType.Import,
                 "ImportPreviewPage" => PageType.Import, // Map preview to Import category
@@ -656,6 +661,7 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
                 "AnalysisQueuePage" => PageType.AnalysisQueue,
                 "StyleLabPage" => PageType.StyleLab,
                 "TheaterModePage" => PageType.TheaterMode,
+                "CrateDiggerView" => PageType.CrateDigger,
                 _ => CurrentPageType
             };
 
@@ -734,6 +740,21 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
     private void NavigateToTheater()
     {
         _navigationService.NavigateTo("Theater");
+        
+        if (CurrentPage is Avalonia.TheaterModePage page)
+        {
+            page.DataContext = TheaterModeViewModel;
+        }
+    }
+
+    private void NavigateToCrateDigger()
+    {
+        _navigationService.NavigateTo("CrateDigger");
+        
+        if (CurrentPage is Avalonia.CrateDiggerView page)
+        {
+            page.DataContext = CrateDiggerViewModel;
+        }
     }
 
 

@@ -24,9 +24,10 @@ namespace SLSKDONET.Services
         public event EventHandler? EndReached;
         public event EventHandler? PausableChanged;
 
-        private float[] _fftBuffer = new float[1024];
-        private int _fftPos = 0;
+
         private DateTime _lastSpectrumUpdate = DateTime.MinValue;
+        private int _vuMeterSkipCounter = 0;
+        private const int VU_METER_SKIP_FRAMES = 5; // Only update VU meter every 5th buffer
 
         private double _pitch = 1.0;
         public double Pitch 
@@ -92,8 +93,8 @@ namespace SLSKDONET.Services
                 // Set up channel and resampler for pitch (turntable style)
                 _sampleChannel = new SampleChannel(_audioFile, true);
                 
-                // 1. Intercept for FFT (Spectrum)
-                var fftProvider = new FftSampleProvider(_sampleChannel, 1024, data => 
+                // 1. Intercept for FFT (Spectrum) - Using larger buffer to reduce frequency
+                var fftProvider = new FftSampleProvider(_sampleChannel, 2048, data => 
                 {
                     var now = DateTime.UtcNow;
                     if ((now - _lastSpectrumUpdate).TotalMilliseconds > 40) // 25fps for spectrum
@@ -124,11 +125,17 @@ namespace SLSKDONET.Services
 
         private void OnStreamVolume(object? sender, StreamVolumeEventArgs e)
         {
-            AudioLevelsChanged?.Invoke(this, new AudioLevelsEventArgs 
-            { 
-                Left = e.MaxSampleValues[0], 
-                Right = e.MaxSampleValues.Length > 1 ? e.MaxSampleValues[1] : e.MaxSampleValues[0] 
-            });
+            // Throttle VU meter updates to reduce event marshalling overhead
+            _vuMeterSkipCounter++;
+            if (_vuMeterSkipCounter >= VU_METER_SKIP_FRAMES)
+            {
+                _vuMeterSkipCounter = 0;
+                AudioLevelsChanged?.Invoke(this, new AudioLevelsEventArgs 
+                { 
+                    Left = e.MaxSampleValues[0], 
+                    Right = e.MaxSampleValues.Length > 1 ? e.MaxSampleValues[1] : e.MaxSampleValues[0] 
+                });
+            }
         }
 
         // Custom FFT Provider (Inline for simplicity or could be moved)
@@ -138,8 +145,10 @@ namespace SLSKDONET.Services
             private readonly int _fftSize;
             private readonly Action<float[]> _onFftCalculated;
             private readonly float[] _buffer;
+            private float[] _processingBuffer;
             private int _pos;
             private readonly System.Numerics.Complex[] _complexBuffer;
+            private int _fftBusy = 0; // Interlocked flag: 0 = free, 1 = busy
 
             public WaveFormat WaveFormat => _source.WaveFormat;
 
@@ -149,6 +158,7 @@ namespace SLSKDONET.Services
                 _fftSize = fftSize;
                 _onFftCalculated = onFftCalculated;
                 _buffer = new float[fftSize];
+                _processingBuffer = new float[fftSize];
                 _complexBuffer = new System.Numerics.Complex[fftSize];
             }
 
@@ -163,7 +173,17 @@ namespace SLSKDONET.Services
 
                     if (_pos >= _fftSize)
                     {
-                        PerformFft();
+                        // Use lock-free check: only start FFT if not already running
+                        if (System.Threading.Interlocked.CompareExchange(ref _fftBusy, 1, 0) == 0)
+                        {
+                            // Copy buffer data (audio thread writes to _buffer, FFT reads from _processingBuffer)
+                            Array.Copy(_buffer, _processingBuffer, _fftSize);
+                            
+                            // Fire-and-forget: run FFT on background thread
+                            _ = System.Threading.Tasks.Task.Run(() => PerformFftAsync());
+                        }
+                        // else: skip this FFT cycle if previous one still processing
+                        
                         _pos = 0;
                     }
                 }
@@ -171,26 +191,34 @@ namespace SLSKDONET.Services
                 return read;
             }
 
-            private void PerformFft()
+            private void PerformFftAsync()
             {
-                for (int i = 0; i < _fftSize; i++)
+                try
                 {
-                    // Apply Hanning Window to reduce leakage
-                    float window = (float)(0.5 * (1.0 - Math.Cos(2.0 * Math.PI * i / (_fftSize - 1))));
-                    _complexBuffer[i] = new System.Numerics.Complex(_buffer[i] * window, 0);
+                    // Work on _processingBuffer (swapped with _buffer)
+                    for (int i = 0; i < _fftSize; i++)
+                    {
+                        // Apply Hanning Window to reduce leakage
+                        float window = (float)(0.5 * (1.0 - Math.Cos(2.0 * Math.PI * i / (_fftSize - 1))));
+                        _complexBuffer[i] = new System.Numerics.Complex(_processingBuffer[i] * window, 0);
+                    }
+
+                    // Use MathNet.Numerics for FFT
+                    MathNet.Numerics.IntegralTransforms.Fourier.Forward(_complexBuffer, MathNet.Numerics.IntegralTransforms.FourierOptions.NoScaling);
+
+                    var magnitude = new float[_fftSize / 2];
+                    for (int i = 0; i < magnitude.Length; i++)
+                    {
+                        magnitude[i] = (float)_complexBuffer[i].Magnitude;
+                    }
+
+                    _onFftCalculated(magnitude);
                 }
-
-                // Use MathNet.Numerics for FFT if available, else a simple fallback
-                // Assuming MathNet for now as seen in project
-                MathNet.Numerics.IntegralTransforms.Fourier.Forward(_complexBuffer, MathNet.Numerics.IntegralTransforms.FourierOptions.NoScaling);
-
-                var magnitude = new float[_fftSize / 2];
-                for (int i = 0; i < magnitude.Length; i++)
+                finally
                 {
-                    magnitude[i] = (float)_complexBuffer[i].Magnitude;
+                    // Release the busy flag
+                    System.Threading.Interlocked.Exchange(ref _fftBusy, 0);
                 }
-
-                _onFftCalculated(magnitude);
             }
         }
 

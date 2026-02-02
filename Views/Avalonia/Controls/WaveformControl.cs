@@ -1,6 +1,8 @@
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Media;
+using Avalonia.Media.Imaging;
+using Avalonia.Platform;
 using System;
 using SLSKDONET.Models;
 
@@ -93,6 +95,27 @@ namespace SLSKDONET.Views.Avalonia.Controls
         private bool _isDraggingCue;
         private bool _isDraggingProgress;
         private const double CueHitThreshold = 10.0;
+
+        // Bitmap Cache
+        private RenderTargetBitmap? _baseBitmap;
+        private RenderTargetBitmap? _activeBitmap;
+        private Size _lastRenderSize;
+        private bool _isDirty = true;
+
+        protected override void OnPropertyChanged(AvaloniaPropertyChangedEventArgs change)
+        {
+            base.OnPropertyChanged(change);
+
+            if (change.Property == WaveformDataProperty ||
+                change.Property == BoundsProperty ||
+                change.Property == LowBandProperty ||
+                change.Property == MidBandProperty ||
+                change.Property == HighBandProperty)
+            {
+                _isDirty = true;
+                InvalidateVisual();
+            }
+        }
 
         protected override void OnPointerPressed(global::Avalonia.Input.PointerPressedEventArgs e)
         {
@@ -202,24 +225,44 @@ namespace SLSKDONET.Views.Avalonia.Controls
         public override void Render(DrawingContext context)
         {
             var data = WaveformData;
-            if (data == null || data.IsEmpty || data.PeakData == null)
+            if (data == null || data.IsEmpty || data.PeakData == null || Bounds.Width <= 0 || Bounds.Height <= 0)
             {
                 context.DrawLine(new Pen(Brushes.Gray, 1), new Point(0, Bounds.Height / 2), new Point(Bounds.Width, Bounds.Height / 2));
                 return;
             }
 
+            // Rebuild cache if needed
+            if (_isDirty || _baseBitmap == null || _activeBitmap == null || _lastRenderSize != Bounds.Size)
+            {
+                UpdateBitmapCache(Bounds.Size);
+                _isDirty = false;
+                _lastRenderSize = Bounds.Size;
+            }
+
             var width = Bounds.Width;
             var height = Bounds.Height;
-            var mid = height / 2;
-            int samples = data.PeakData.Length;
 
             if (IsRolling)
             {
-                RenderRolling(context, data, width, height, mid);
+                // For rolling, we just use the direct render for now as it needs continuous updating
+                // Optimization: Rolling could reuse bitmap but with translation
+                RenderRolling(context, data, width, height, height / 2);
             }
             else
             {
-                RenderStatic(context, data, width, height, mid);
+                // fast render using cached bitmaps
+                if (_baseBitmap != null)
+                    context.DrawImage(_baseBitmap, new Rect(0, 0, width, height));
+
+                if (_activeBitmap != null)
+                {
+                    double playedWidth = Progress * width;
+                    // Clip to played area
+                    using (context.PushClip(new Rect(0, 0, playedWidth, height)))
+                    {
+                        context.DrawImage(_activeBitmap, new Rect(0, 0, width, height));
+                    }
+                }
             }
 
             // Draw Playhead Line
@@ -227,6 +270,59 @@ namespace SLSKDONET.Views.Avalonia.Controls
             context.DrawLine(new Pen(PlayheadBrush ?? Brushes.White, 2), new Point(playheadX, 0), new Point(playheadX, height));
 
             RenderCues(context, width, height);
+        }
+
+        private void UpdateBitmapCache(Size size)
+        {
+            if (size.Width <= 0 || size.Height <= 0) return;
+
+            // Dispose old bitmaps
+            _baseBitmap?.Dispose();
+            _activeBitmap?.Dispose();
+
+            // Create new bitmaps
+            // Note: Pixel size should match visual size * scaling, but for now 1:1 is likely fine or we get DPI
+            var pixelSize = new PixelSize((int)size.Width, (int)size.Height);
+            var dpi = new Vector(96, 96); // Standard DPI
+
+            _baseBitmap = new RenderTargetBitmap(pixelSize, dpi);
+            _activeBitmap = new RenderTargetBitmap(pixelSize, dpi);
+
+            var data = WaveformData;
+            var mid = size.Height / 2;
+            var width = size.Width;
+
+            // Render Unplayed (Base) State
+            using (var ctx = _baseBitmap.CreateDrawingContext())
+            {
+                 RenderStaticToContext(ctx, data, width, size.Height, mid, false);
+            }
+
+            // Render Played (Active) State
+            using (var ctx = _activeBitmap.CreateDrawingContext())
+            {
+                 RenderStaticToContext(ctx, data, width, size.Height, mid, true);
+            }
+        }
+
+        private void RenderStaticToContext(DrawingContext context, WaveformAnalysisData data, double width, double height, double mid, bool isActive)
+        {
+            var samples = data.PeakData!.Length;
+            double step = width / samples;
+            var lowData = LowBand ?? data.LowData;
+            var midData = MidBand ?? data.MidData;
+            var highData = HighBand ?? data.HighData;
+            bool hasRgb = lowData != null && midData != null && highData != null && lowData.Length > 0;
+
+            if (hasRgb)
+            {
+                // Draw FULL waveform in either base or active colors
+                RenderTrueRgb(context, data, width, mid, samples, step, lowData!, midData!, highData!, false, 0, isActive);
+            }
+            else
+            {
+                RenderSingleBandCached(context, data, width, mid, samples, step, isActive);
+            }
         }
 
         private static readonly Pen StaticBasePen = new Pen(Brushes.DimGray, 1);
@@ -240,34 +336,13 @@ namespace SLSKDONET.Views.Avalonia.Controls
         private static readonly Pen HighBasePen = new Pen(new SolidColorBrush(Color.FromRgb(0, 80, 100), 0.35f), 1);
         private static readonly Pen HighPlayedPen = new Pen(new SolidColorBrush(Colors.DeepSkyBlue, 1.0f), 1);
 
-        private void RenderStatic(DrawingContext context, WaveformAnalysisData data, double width, double height, double mid)
+        private void RenderSingleBandCached(DrawingContext context, WaveformAnalysisData data, double width, double mid, int samples, double step, bool isActive)
         {
-            var samples = data.PeakData!.Length;
-            double step = width / samples;
-            var lowData = LowBand ?? data.LowData;
-            var midData = MidBand ?? data.MidData;
-            var highData = HighBand ?? data.HighData;
-            bool hasRgb = lowData != null && midData != null && highData != null && lowData.Length > 0;
-
-            if (hasRgb)
+            // Draw full waveform in one color
+            var geom = new StreamGeometry();
+            using (var ctx = geom.Open())
             {
-                RenderTrueRgb(context, data, width, mid, samples, step, lowData!, midData!, highData!, false);
-            }
-            else
-            {
-                RenderSingleBand(context, data, width, mid, samples, step);
-            }
-        }
-
-        private void RenderSingleBand(DrawingContext context, WaveformAnalysisData data, double width, double mid, int samples, double step)
-        {
-            var playedLimit = (int)(Progress * samples);
-
-            // Draw unplayed part first
-            var baseGeom = new StreamGeometry();
-            using (var ctx = baseGeom.Open())
-            {
-                for (int i = playedLimit; i < samples; i++)
+                for (int i = 0; i < samples; i++)
                 {
                     double x = i * step;
                     double h = (data.PeakData![i] / 255.0) * mid;
@@ -276,25 +351,13 @@ namespace SLSKDONET.Views.Avalonia.Controls
                     ctx.LineTo(new Point(x, mid + h));
                 }
             }
-            context.DrawGeometry(null, StaticBasePen, baseGeom);
-
-            // Draw played part
-            var playedGeom = new StreamGeometry();
-            using (var ctx = playedGeom.Open())
-            {
-                for (int i = 0; i < playedLimit; i++)
-                {
-                    double x = i * step;
-                    double h = (data.PeakData![i] / 255.0) * mid;
-                    if (h < 0.5) continue;
-                    ctx.BeginFigure(new Point(x, mid - h), false);
-                    ctx.LineTo(new Point(x, mid + h));
-                }
-            }
-            context.DrawGeometry(null, StaticPlayedPen, playedGeom);
+            context.DrawGeometry(null, isActive ? StaticPlayedPen : StaticBasePen, geom);
         }
 
-        private void RenderTrueRgb(DrawingContext context, WaveformAnalysisData data, double width, double mid, int samples, double step, byte[] low, byte[] midB, byte[] high, bool isRolling, double currentXOffset = 0)
+
+
+        // Optimzied TrueRGB: Renders FULL waveform with specific opacity/brightness
+        private void RenderTrueRgb(DrawingContext context, WaveformAnalysisData data, double width, double mid, int samples, double step, byte[] low, byte[] midB, byte[] high, bool isRolling, double currentXOffset = 0, bool isActive = true)
         {
             var playedLimit = (int)(Progress * samples);
             var peak = data.PeakData!;
@@ -326,7 +389,7 @@ namespace SLSKDONET.Views.Avalonia.Controls
                     byte g = (byte)Math.Clamp((l * lowColor.G + m * midColor.G + hf * highColor.G) / total, 0, 255);
                     byte b = (byte)Math.Clamp((l * lowColor.B + m * midColor.B + hf * highColor.B) / total, 0, 255);
                     
-                    bool isPlayed = isRolling ? (i <= playedLimit) : (x < Progress * width);
+                    bool isPlayed = isRolling ? (i <= playedLimit) : isActive;
                     float opacity = isPlayed ? 1.0f : 0.35f;
                     
                     var col = Color.FromArgb((byte)(opacity * 255), r, g, b);
@@ -389,7 +452,7 @@ namespace SLSKDONET.Views.Avalonia.Controls
                 // samplesPerSec = total_samples / duration
                 // step = pixelsPerSec / samplesPerSec
                 double step = pixelsPerSec / samplesPerSec;
-                RenderTrueRgb(context, data, width, mid, data.PeakData.Length, step, lowData!, midData!, highData!, true, (width / 2) - (currentSec * pixelsPerSec));
+                RenderTrueRgb(context, data, width, mid, data.PeakData.Length, step, lowData!, midData!, highData!, true, (width / 2) - (currentSec * pixelsPerSec), true);
             }
             else
             {

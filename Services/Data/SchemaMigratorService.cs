@@ -452,6 +452,7 @@ public class SchemaMigratorService
                         ""InstrumentalProbability"" REAL NOT NULL DEFAULT 0,
                         ""MoodTag"" TEXT NOT NULL DEFAULT '',
                         ""MoodConfidence"" REAL NOT NULL DEFAULT 0,
+                        ""MusicBrainzId"" TEXT NOT NULL DEFAULT '',
                         
                         -- EDM Specialist Models
                         ""Arousal"" REAL NOT NULL DEFAULT 5,
@@ -513,6 +514,14 @@ public class SchemaMigratorService
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Failed to patch audio_analysis table");
+            }
+
+            // Patch audio_features for MusicBrainzId
+            if (!ColumnExists("audio_features", "MusicBrainzId"))
+            {
+                _logger.LogInformation("Patching Schema: Adding MusicBrainzId to audio_features...");
+                command.CommandText = @"ALTER TABLE ""audio_features"" ADD COLUMN ""MusicBrainzId"" TEXT NOT NULL DEFAULT '';";
+                await command.ExecuteNonQueryAsync();
             }
 
             // 1C. AnalysisRuns Table (Phase 21: Analysis Run Tracking)
@@ -644,6 +653,12 @@ public class SchemaMigratorService
                     command.CommandText = @"ALTER TABLE ""Tracks"" ADD COLUMN ""SourceProvenance"" TEXT NULL;";
                     await command.ExecuteNonQueryAsync();
                 }
+                if (!ColumnExists("Tracks", "MusicBrainzId"))
+                {
+                    _logger.LogInformation("Patching Schema: Adding MusicBrainzId to Tracks...");
+                    command.CommandText = @"ALTER TABLE ""Tracks"" ADD COLUMN ""MusicBrainzId"" TEXT NULL;";
+                    await command.ExecuteNonQueryAsync();
+                }
             }
 
             // 2. PlaylistTracks Columns
@@ -687,6 +702,12 @@ public class SchemaMigratorService
             {
                 _logger.LogInformation("Patching Schema: Adding SourceProvenance to PlaylistTracks...");
                 command.CommandText = @"ALTER TABLE ""PlaylistTracks"" ADD COLUMN ""SourceProvenance"" TEXT NULL;";
+                await command.ExecuteNonQueryAsync();
+            }
+            if (!ColumnExists("PlaylistTracks", "MusicBrainzId"))
+            {
+                _logger.LogInformation("Patching Schema: Adding MusicBrainzId to PlaylistTracks...");
+                command.CommandText = @"ALTER TABLE ""PlaylistTracks"" ADD COLUMN ""MusicBrainzId"" TEXT NULL;";
                 await command.ExecuteNonQueryAsync();
             }
 
@@ -767,6 +788,12 @@ public class SchemaMigratorService
             {
                 _logger.LogInformation("Patching Schema: Adding SourceProvenance to LibraryEntries...");
                 command.CommandText = @"ALTER TABLE ""LibraryEntries"" ADD COLUMN ""SourceProvenance"" TEXT NULL;";
+                await command.ExecuteNonQueryAsync();
+            }
+            if (!ColumnExists("LibraryEntries", "MusicBrainzId"))
+            {
+                _logger.LogInformation("Patching Schema: Adding MusicBrainzId to LibraryEntries...");
+                command.CommandText = @"ALTER TABLE ""LibraryEntries"" ADD COLUMN ""MusicBrainzId"" TEXT NULL;";
                 await command.ExecuteNonQueryAsync();
             }
             if (!ColumnExists("LibraryEntries", "Rating"))

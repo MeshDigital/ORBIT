@@ -1380,6 +1380,26 @@ public class DatabaseService
         return await context.AudioFeatures.AsNoTracking().FirstOrDefaultAsync(f => f.TrackUniqueHash == uniqueHash);
     }
 
+    public async Task<List<LibraryEntryEntity>> GetLibraryEntriesNeedingMusicBrainzEnrichmentAsync(int count)
+    {
+        using var context = new AppDbContext();
+        return await context.LibraryEntries
+            .Where(e => !string.IsNullOrEmpty(e.ISRC) && string.IsNullOrEmpty(e.MusicBrainzId))
+            .Take(count)
+            .ToListAsync();
+    }
+
+    public async Task UpdateAudioFeaturesAsync(AudioFeaturesEntity features)
+    {
+        using var context = new AppDbContext();
+        var existing = await context.AudioFeatures.FindAsync(features.TrackUniqueHash);
+        if (existing != null)
+        {
+            context.Entry(existing).CurrentValues.SetValues(features);
+            await context.SaveChangesAsync();
+        }
+    }
+
     /// <summary>
     /// Finds AudioFeatures by file path.
     /// Used by PersonalClassifierService to classify tracks on the fly.

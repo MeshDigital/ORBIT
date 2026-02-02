@@ -1,5 +1,15 @@
 # Recent Changes
 
+## [0.1.0-alpha.9.2] - Build Recovery & Stability (Feb 02, 2026)
+
+### 🚨 Critical Fixes
+* **Build Restoration**: Resolved 23 compilation errors affecting Import, Analysis, and UI subsystems.
+* **Type Safety Enforcement**: Fixed dangerous double-to-float implicit conversions in `TrackRepository` and `TheaterModeViewModel`.
+* **Data Flow**: Corrected `ImportOrchestrator` projection logic for Spotify search results.
+* **XAML Modernization**: Removed deprecated `PlaceholderText` in favor of `Watermark` and fixed `x:Static` resource binding issues.
+
+[-> View Detailed Session Report](DOCS/BUILD_REPAIR_SESSION_FEB02.md)
+
 ## [0.1.0-alpha.9.1] - Library UI Customization (Jan 21, 2026 - Latest)
 
 ### New Features

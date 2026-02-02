@@ -3,6 +3,8 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
+using System.Runtime.Intrinsics;
+using System.Runtime.Intrinsics.X86;
 using SLSKDONET.Data;
 using SLSKDONET.Data.Entities;
 
@@ -58,9 +60,10 @@ public class SonicMatchService : ISonicMatchService
 
         try
         {
-            // 1. Get source track's audio features AND track metadata (for BPM)
+            // 1. Get source track's audio features AND track metadata (for BPM, ISRC)
             var sourceFeatures = await _databaseService.GetAudioFeaturesByHashAsync(sourceTrackHash);
             var sourceTrack = await _databaseService.FindTrackAsync(sourceTrackHash);
+            var sourceIsrc = sourceTrack?.ISRC;
             
             if (sourceFeatures == null)
             {
@@ -69,9 +72,9 @@ public class SonicMatchService : ISonicMatchService
             }
 
             // Validate source has the required features
-            if (sourceFeatures.Arousal == 0 && sourceFeatures.Valence == 0 && sourceFeatures.Danceability == 0)
+            if (sourceFeatures.Arousal == 0 && sourceFeatures.Valence == 0 && sourceFeatures.Danceability == 0 && sourceFeatures.VectorEmbedding == null)
             {
-                _logger.LogWarning("Source track has no vibe data: {Hash}", sourceTrackHash);
+                _logger.LogWarning("Source track has no vibe data or embeddings: {Hash}", sourceTrackHash);
                 return new List<SonicMatch>();
             }
 
@@ -90,12 +93,35 @@ public class SonicMatchService : ISonicMatchService
             foreach (var candidate in allFeatures)
             {
                 if (candidate.TrackUniqueHash == sourceTrackHash) continue;
-                if (candidate.Arousal == 0 && candidate.Valence == 0 && candidate.Danceability == 0) continue;
                 
-                // Get candidate track metadata for BPM
+                // Get candidate track metadata for BPM, ISRC
                 var candidateTrack = await _databaseService.FindTrackAsync(candidate.TrackUniqueHash);
+                var candidateIsrc = candidateTrack?.ISRC;
+
+                // Priority 0: ISRC Exact Match (The "True Mirror")
+                if (!string.IsNullOrEmpty(sourceIsrc) && !string.IsNullOrEmpty(candidateIsrc) && sourceIsrc == candidateIsrc)
+                {
+                    matchCandidates.Add(new SonicMatch
+                    {
+                        TrackUniqueHash = candidate.TrackUniqueHash,
+                        Artist = candidateTrack?.Artist ?? "Unknown",
+                        Title = candidateTrack?.Title ?? "Unknown",
+                        Distance = 0,
+                        MatchReason = "🆔 Exact Match (ISRC)",
+                        MatchSource = "ISRC",
+                        Confidence = 1.0,
+                        Arousal = candidate.Arousal ?? 0f,
+                        Valence = candidate.Valence,
+                        Danceability = candidate.Danceability,
+                        MoodTag = candidate.MoodTag,
+                        Bpm = candidate.Bpm
+                    });
+                    continue;
+                }
+
+                if (candidate.Arousal == 0 && candidate.Valence == 0 && candidate.Danceability == 0 && candidate.VectorEmbedding == null) continue;
                 
-                var (distance, matchReason) = CalculateAdvancedDistance(
+                var (distance, matchReason, matchSource, confidence) = CalculateAdvancedDistance(
                     sourceFeatures, candidate,
                     sourceFeatures.Bpm, candidate.Bpm,
                     sourceFeatures.ElectronicSubgenre, candidate.ElectronicSubgenre
@@ -110,6 +136,8 @@ public class SonicMatchService : ISonicMatchService
                         Title = candidateTrack?.Title ?? "Unknown",
                         Distance = distance,
                         MatchReason = matchReason,
+                        MatchSource = matchSource,
+                        Confidence = confidence,
                         Arousal = candidate.Arousal ?? 0f,
                         Valence = candidate.Valence,
                         Danceability = candidate.Danceability,
@@ -143,20 +171,51 @@ public class SonicMatchService : ISonicMatchService
     /// Advanced distance calculation with BPM and genre penalties.
     /// Returns (distance, matchReason) tuple.
     /// </summary>
-    private (double Distance, string MatchReason) CalculateAdvancedDistance(
+    private (double Distance, string MatchReason, string MatchSource, double Confidence) CalculateAdvancedDistance(
         AudioFeaturesEntity source, AudioFeaturesEntity target,
         double sourceBpm, double targetBpm,
         string? sourceGenre, string? targetGenre)
     {
-        // 1. Core Vibe Distance (Weighted Euclidean)
-        var aDance = source.Danceability * DanceabilityScale;
-        var bDance = target.Danceability * DanceabilityScale;
-        
-        var dArousal = ((source.Arousal ?? 0f) - (target.Arousal ?? 0f)) * WeightArousal;
-        var dValence = (source.Valence - target.Valence) * WeightValence;
-        var dDance = (aDance - bDance) * WeightDanceability;
-        
-        double vibeDistance = Math.Sqrt(dArousal * dArousal + dValence * dValence + dDance * dDance);
+        double finalDistance;
+        string matchReason;
+        string matchSource = "AI";
+        double confidence = 0;
+        double vibeDistance;
+
+        // 1. Core Similarity: Universal AI Embedding (128D) or Fallback to Vibe Space (3D)
+        if (source.VectorEmbedding != null && target.VectorEmbedding != null && 
+            source.VectorEmbedding.Length > 0 && target.VectorEmbedding.Length == source.VectorEmbedding.Length)
+        {
+            // Use High-Fidelity SIMD Cosine Similarity
+            float similarity = CalculateCosineSimilaritySIMD(source.VectorEmbedding, target.VectorEmbedding);
+            confidence = similarity;
+            
+            // Convert similarity (1.0 = identical) to distance (0.0 = identical) for the sorting logic
+            vibeDistance = (1.0 - similarity) * 10.0; // Scale to match existing 0-10 range
+            matchReason = DetermineSonicMatchReason(similarity);
+            matchSource = "AI (Embedding)";
+        }
+        else
+        {
+            // Fallback: Core Vibe Distance (Weighted Euclidean 3D)
+            var aDance = source.Danceability * DanceabilityScale;
+            var bDance = target.Danceability * DanceabilityScale;
+            
+            var dArousal = ((source.Arousal ?? 0f) - (target.Arousal ?? 0f)) * WeightArousal;
+            var dValence = (source.Valence - target.Valence) * WeightValence;
+            var dDance = (aDance - bDance) * WeightDanceability;
+            
+            vibeDistance = Math.Sqrt(dArousal * dArousal + dValence * dValence + dDance * dDance);
+            confidence = Math.Max(0, 1.0 - (vibeDistance / 10.0));
+            
+            matchReason = DetermineMatchReason(
+                Math.Abs((source.Arousal ?? 0) - (target.Arousal ?? 0)),
+                Math.Abs(source.Valence - target.Valence),
+                Math.Abs(source.Danceability - target.Danceability),
+                vibeDistance
+            );
+            matchSource = "Vibe Space (3D)";
+        }
 
         // 2. BPM Penalty (The "Tempo Drift" Problem)
         double bpmPenalty = 0;
@@ -169,6 +228,7 @@ public class SonicMatchService : ISonicMatchService
             if (bpmRatio > BpmPenaltyThreshold)
             {
                 bpmPenalty = BpmPenaltyValue;
+                confidence *= 0.5; // Half confidence on tempo mismatch
             }
         }
 
@@ -178,21 +238,27 @@ public class SonicMatchService : ISonicMatchService
         {
             if (!sourceGenre.Equals(targetGenre, StringComparison.OrdinalIgnoreCase))
             {
+                // If it's a vector match but different genre, light penalty
                 genrePenalty = GenrePenaltyValue;
+                confidence *= 0.9; // Slight confidence drop
             }
         }
 
-        double totalDistance = vibeDistance + bpmPenalty + genrePenalty;
+        finalDistance = vibeDistance + bpmPenalty + genrePenalty;
 
-        // 4. Determine Match Reason for UX
-        string matchReason = DetermineMatchReason(
-            Math.Abs((source.Arousal ?? 0) - (target.Arousal ?? 0)),
-            Math.Abs(source.Valence - target.Valence),
-            Math.Abs(source.Danceability - target.Danceability),
-            vibeDistance
-        );
+        return (finalDistance, matchReason, matchSource, confidence);
+    }
 
-        return (totalDistance, matchReason);
+    /// <summary>
+    /// Determines reason based on high-dimensional vector similarity.
+    /// </summary>
+    private string DetermineSonicMatchReason(float similarity)
+    {
+        if (similarity > 0.98f) return "🔮 Sonic Twin";
+        if (similarity > 0.90f) return "🌊 Deep Vibe Match";
+        if (similarity > 0.80f) return "🎵 Close Texture";
+        if (similarity > 0.70f) return "🔄 Compatible";
+        return "📶 Weak Match";
     }
 
     /// <summary>
@@ -229,7 +295,91 @@ public class SonicMatchService : ISonicMatchService
     {
         if (a == null || b == null) return double.MaxValue;
 
-        var (distance, _) = CalculateAdvancedDistance(a, b, 0, 0, null, null);
+        var (distance, _, _, _) = CalculateAdvancedDistance(a, b, 0, 0, null, null);
         return distance;
+    }
+
+    /// <summary>
+    /// Calculates Cosine Similarity between two vectors using SIMD for high performance.
+    /// Assumes vectors are of equal length (typically 128 for Discogs-EffNet).
+    /// </summary>
+    public static float CalculateCosineSimilaritySIMD(float[] vecA, float[] vecB)
+    {
+        if (vecA == null || vecB == null || vecA.Length != vecB.Length || vecA.Length == 0)
+            return 0f;
+
+        int size = vecA.Length;
+        float dotProduct = 0f;
+        float normA = 0f;
+        float normB = 0f;
+
+        int i = 0;
+        if (Avx.IsSupported)
+        {
+            var vDot = Vector256<float>.Zero;
+            var vNormA = Vector256<float>.Zero;
+            var vNormB = Vector256<float>.Zero;
+
+            for (; i <= size - 8; i += 8)
+            {
+                var va = Vector256.Create(vecA[i], vecA[i+1], vecA[i+2], vecA[i+3], vecA[i+4], vecA[i+5], vecA[i+6], vecA[i+7]);
+                var vb = Vector256.Create(vecB[i], vecB[i+1], vecB[i+2], vecB[i+3], vecB[i+4], vecB[i+5], vecB[i+6], vecB[i+7]);
+
+                vDot = Avx.Add(vDot, Avx.Multiply(va, vb));
+                vNormA = Avx.Add(vNormA, Avx.Multiply(va, va));
+                vNormB = Avx.Add(vNormB, Avx.Multiply(vb, vb));
+            }
+
+            // Horizontal sum
+            dotProduct = VectorSum(vDot);
+            normA = VectorSum(vNormA);
+            normB = VectorSum(vNormB);
+        }
+        else if (Sse.IsSupported)
+        {
+            var vDot = Vector128<float>.Zero;
+            var vNormA = Vector128<float>.Zero;
+            var vNormB = Vector128<float>.Zero;
+
+            for (; i <= size - 4; i += 4)
+            {
+                var va = Vector128.Create(vecA[i], vecA[i+1], vecA[i+2], vecA[i+3]);
+                var vb = Vector128.Create(vecB[i], vecB[i+1], vecB[i+2], vecB[i+3]);
+
+                vDot = Sse.Add(vDot, Sse.Multiply(va, vb));
+                vNormA = Sse.Add(vNormA, Sse.Multiply(va, va));
+                vNormB = Sse.Add(vNormB, Sse.Multiply(vb, vb));
+            }
+
+            dotProduct = VectorSum128(vDot);
+            normA = VectorSum128(vNormA);
+            normB = VectorSum128(vNormB);
+        }
+
+        // Remaining elements
+        for (; i < size; i++)
+        {
+            dotProduct += vecA[i] * vecB[i];
+            normA += vecA[i] * vecA[i];
+            normB += vecB[i] * vecB[i];
+        }
+
+        if (normA <= 0 || normB <= 0) return 0f;
+
+        return dotProduct / ((float)Math.Sqrt(normA) * (float)Math.Sqrt(normB));
+    }
+
+    private static float VectorSum(Vector256<float> v)
+    {
+        float sum = 0;
+        for (int i = 0; i < 8; i++) sum += v.GetElement(i);
+        return sum;
+    }
+
+    private static float VectorSum128(Vector128<float> v)
+    {
+        float sum = 0;
+        for (int i = 0; i < 4; i++) sum += v.GetElement(i);
+        return sum;
     }
 }

@@ -894,4 +894,82 @@ public class TrackRepository : ITrackRepository
             .Take(limit)
             .ToListAsync();
     }
+
+    public async Task UpdateAllInstancesMetadataAsync(string trackHash, TrackEnrichmentResult result)
+    {
+        if (string.IsNullOrEmpty(trackHash) || !result.Success) return;
+
+        using var context = new AppDbContext();
+        
+        // 1. Update LibraryEntry
+        var entry = await context.LibraryEntries.FindAsync(trackHash);
+        if (entry != null)
+        {
+            ApplyMetadata(entry, result);
+        }
+
+        // 2. Update all PlaylistTracks
+        var tracks = await context.PlaylistTracks
+            .Where(t => t.TrackUniqueHash == trackHash)
+            .ToListAsync();
+
+        foreach (var t in tracks)
+        {
+            ApplyMetadata(t, result);
+        }
+
+        // 3. Update AudioFeatures if they exist
+        var features = await context.AudioFeatures.FirstOrDefaultAsync(af => af.TrackUniqueHash == trackHash);
+        {
+            if (!string.IsNullOrEmpty(result.MusicBrainzId)) features.MusicBrainzId = result.MusicBrainzId;
+            if (result.Bpm > 0) features.Bpm = (float)result.Bpm.Value;
+            if (result.Energy > 0) features.Energy = (float)result.Energy.Value;
+            if (result.Danceability > 0) features.Danceability = (float)result.Danceability.Value;
+            if (result.Valence > 0) features.Valence = (float)result.Valence.Value;
+            if (!string.IsNullOrEmpty(result.MusicalKey)) features.Key = result.MusicalKey;
+        }
+
+        await context.SaveChangesAsync();
+    }
+
+    private void ApplyMetadata(object entity, TrackEnrichmentResult result)
+    {
+        // Reflection-based helper or manual mapping for shared properties
+        if (entity is LibraryEntryEntity le)
+        {
+            if (!string.IsNullOrEmpty(result.SpotifyId)) le.SpotifyTrackId = result.SpotifyId;
+            if (!string.IsNullOrEmpty(result.SpotifyAlbumId)) le.SpotifyAlbumId = result.SpotifyAlbumId;
+            if (!string.IsNullOrEmpty(result.SpotifyArtistId)) le.SpotifyArtistId = result.SpotifyArtistId;
+            if (!string.IsNullOrEmpty(result.ISRC)) le.ISRC = result.ISRC;
+            if (!string.IsNullOrEmpty(result.MusicBrainzId)) le.MusicBrainzId = result.MusicBrainzId;
+            if (!string.IsNullOrEmpty(result.AlbumArtUrl)) le.AlbumArtUrl = result.AlbumArtUrl;
+            if (result.Bpm > 0) le.BPM = result.Bpm;
+            if (result.Energy > 0) le.Energy = result.Energy;
+            if (result.Danceability > 0) le.Danceability = result.Danceability;
+            if (result.Valence > 0) le.Valence = result.Valence;
+            if (!string.IsNullOrEmpty(result.MusicalKey)) le.MusicalKey = result.MusicalKey;
+            if (result.Genres?.Any() == true) le.Genres = string.Join(", ", result.Genres);
+            if (!string.IsNullOrEmpty(result.DetectedSubGenre)) le.DetectedSubGenre = result.DetectedSubGenre;
+            if (result.SubGenreConfidence > 0) le.SubGenreConfidence = result.SubGenreConfidence;
+            le.IsEnriched = true;
+        }
+        else if (entity is PlaylistTrackEntity pt)
+        {
+            if (!string.IsNullOrEmpty(result.SpotifyId)) pt.SpotifyTrackId = result.SpotifyId;
+            if (!string.IsNullOrEmpty(result.SpotifyAlbumId)) pt.SpotifyAlbumId = result.SpotifyAlbumId;
+            if (!string.IsNullOrEmpty(result.SpotifyArtistId)) pt.SpotifyArtistId = result.SpotifyArtistId;
+            if (!string.IsNullOrEmpty(result.ISRC)) pt.ISRC = result.ISRC;
+            if (!string.IsNullOrEmpty(result.MusicBrainzId)) pt.MusicBrainzId = result.MusicBrainzId;
+            if (!string.IsNullOrEmpty(result.AlbumArtUrl)) pt.AlbumArtUrl = result.AlbumArtUrl;
+            if (result.Bpm > 0) pt.BPM = result.Bpm;
+            if (result.Energy > 0) pt.Energy = result.Energy;
+            if (result.Danceability > 0) pt.Danceability = result.Danceability;
+            if (result.Valence > 0) pt.Valence = result.Valence;
+            if (!string.IsNullOrEmpty(result.MusicalKey)) pt.MusicalKey = result.MusicalKey;
+            if (result.Genres?.Any() == true) pt.Genres = string.Join(", ", result.Genres);
+            if (!string.IsNullOrEmpty(result.DetectedSubGenre)) pt.DetectedSubGenre = result.DetectedSubGenre;
+            if (result.SubGenreConfidence > 0) pt.SubGenreConfidence = result.SubGenreConfidence;
+            pt.IsEnriched = true;
+        }
+    }
 }

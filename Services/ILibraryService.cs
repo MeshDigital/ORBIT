@@ -213,4 +213,9 @@ public interface ILibraryService
     /// Adds existing tracks to a project by creating new relational entries.
     /// </summary>
     Task AddTracksToProjectAsync(System.Collections.Generic.IEnumerable<PlaylistTrack> tracks, Guid targetProjectId);
+
+    /// <summary>
+    /// Updates the cue points for all instances of a track (Library and Playlist entries).
+    /// </summary>
+    Task UpdateTrackCuePointsAsync(string trackHash, string cuePointsJson);
 }

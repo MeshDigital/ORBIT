@@ -4,9 +4,16 @@
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              xmlns:vm="clr-namespace:SLSKDONET.ViewModels"
              xmlns:controls="clr-namespace:SLSKDONET.Views.Avalonia.Controls"
+             xmlns:stem="clr-namespace:SLSKDONET.Views.Avalonia.Stem"
+             xmlns:models="clr-namespace:SLSKDONET.Models;assembly=SLSKDONET"
+             xmlns:conv="clr-namespace:SLSKDONET.Views.Avalonia.Converters"
              mc:Ignorable="d" d:DesignWidth="1400" d:DesignHeight="900"
              x:Class="SLSKDONET.Views.Avalonia.TheaterModePage"
              x:DataType="vm:TheaterModeViewModel">
+
+    <UserControl.Resources>
+        <conv:RelativePositionConverter x:Key="RelativePositionConverter"/>
+    </UserControl.Resources>
 
     <UserControl.Styles>
         <Style Selector="Border.collapsible">
@@ -20,18 +27,28 @@
         </Style>
     </UserControl.Styles>
 
-    <Grid Background="#F2000000">
+    <Grid Background="Transparent">
         <Panel>
+            <!-- High-Fidelity Blurred Background -->
+            <controls:LiveBackground Source="{Binding Player.CurrentTrack.ArtworkBitmap}"
+                                     Energy="{Binding Player.CurrentTrack.Energy, FallbackValue=0.5, TargetNullValue=0.5}"
+                                     HorizontalAlignment="Stretch"
+                                     VerticalAlignment="Stretch"/>
+
             <!-- Full-Screen Visualizer -->
             <controls:VibeVisualizer Mode="Full"
-                                     IsPlaying="{Binding Player.IsPlaying}"
-                                     VuLeft="{Binding Player.VuLeft}"
-                                     VuRight="{Binding Player.VuRight}"
-                                     SpectrumData="{Binding Player.SpectrumData}"
-                                     Energy="{Binding Player.CurrentTrack.Energy}"
-                                     MoodTag="{Binding Player.CurrentTrack.MoodTag}"
-                                     Style="{Binding Player.CurrentVisualStyle}"
-                                     Opacity="0.8"/>
+                                     IsPlaying="{Binding Player.IsPlaying, FallbackValue=False}"
+                                     VuLeft="{Binding Player.VuLeft, FallbackValue=0}"
+                                     VuRight="{Binding Player.VuRight, FallbackValue=0}"
+                                     SpectrumData="{Binding Player.SpectrumData, FallbackValue={x:Null}}"
+                                     Energy="{Binding Player.CurrentTrack.Energy, FallbackValue=0.5, TargetNullValue=0.5}"
+                                     MoodTag="{Binding Player.CurrentTrack.MoodTag, FallbackValue='', TargetNullValue=''}"
+                                     VisualStyle="{Binding Player.CurrentVisualStyle, FallbackValue=Glow}"
+                                     VisualIntensity="{Binding VisualIntensity, Mode=TwoWay}"
+                                     TriggerReset="{Binding IsResetTriggered, Mode=TwoWay}"
+                                     HorizontalAlignment="Stretch"
+                                     VerticalAlignment="Stretch"
+                                     Opacity="1.0"/>
             
             <!-- Content Area -->
             <Grid ColumnDefinitions="Auto,*,Auto" RowDefinitions="Auto,*,Auto" Margin="40">
@@ -68,60 +85,137 @@
                         Classes="collapsible"
                         Width="{Binding IsLibraryVisible, Converter={StaticResource BoolToWidthConverter}, ConverterParameter=450}"
                         Opacity="{Binding IsLibraryVisible, Converter={StaticResource BoolToOpacityConverter}}"
-                        Background="#2A000000" CornerRadius="16" Margin="0,0,40,0" Padding="24"
-                        BorderBrush="#30FFFFFF" BorderThickness="1"
+                        Background="#1AFFFFFF" CornerRadius="16" Margin="0,0,40,0" Padding="24"
+                        BorderBrush="#40FFFFFF" BorderThickness="1"
+                        ClipToBounds="True"
                         IsVisible="{Binding IsLibraryVisible}">
-                    <DockPanel>
-                        <!-- Search Bar -->
-                        <Border DockPanel.Dock="Top" Background="#30FFFFFF" CornerRadius="10" Padding="12" Margin="0,0,0,20">
-                            <Grid ColumnDefinitions="Auto,*">
-                                <TextBlock Text="🔍" VerticalAlignment="Center" Margin="0,0,10,0" Opacity="0.5"/>
-                                <TextBox Grid.Column="1" Text="{Binding SearchText}" 
-                                         Watermark="Search Library..." 
-                                         Background="Transparent" BorderThickness="0" Padding="0"/>
-                            </Grid>
-                        </Border>
+                    <Panel>
+                        <!-- Glass Blur Backdrop -->
+                        <ExperimentalAcrylicBorder CornerRadius="16">
+                            <ExperimentalAcrylicBorder.Material>
+                                <ExperimentalAcrylicMaterial
+                                    BackgroundSource="Digger"
+                                    TintColor="Black"
+                                    TintOpacity="0.4"
+                                    MaterialOpacity="0.8" />
+                            </ExperimentalAcrylicBorder.Material>
+                        </ExperimentalAcrylicBorder>
+                        
+                        <DockPanel>
+                            <!-- Search Bar -->
+                            <Border DockPanel.Dock="Top" Background="#30FFFFFF" CornerRadius="10" Padding="12" Margin="0,0,0,20">
+                                <Grid ColumnDefinitions="Auto,*">
+                                    <TextBlock Text="🔍" VerticalAlignment="Center" Margin="0,0,10,0" Opacity="0.5"/>
+                                    <TextBox Grid.Column="1" Text="{Binding SearchText, Mode=TwoWay}" 
+                                             Watermark="Search Library..." 
+                                             Background="Transparent" BorderThickness="0" Padding="0"/>
+                                </Grid>
+                            </Border>
 
-                        <TabControl Background="Transparent" BorderThickness="0">
-                            <TabItem Header="UPCOMING">
-                                <ScrollViewer Margin="0,20,0,0">
-                                    <ItemsControl ItemsSource="{Binding Player.Queue}">
-                                        <ItemsControl.ItemTemplate>
-                                            <DataTemplate>
-                                                <Button Background="Transparent" Padding="0" HorizontalAlignment="Stretch" BorderThickness="0"
-                                                        Command="{Binding $parent[UserControl].((vm:TheaterModeViewModel)DataContext).PlayTrackCommand}"
-                                                        CommandParameter="{Binding}">
-                                                    <Border Margin="0,0,0,12" Padding="12" Background="#08FFFFFF" CornerRadius="8">
-                                                        <Grid ColumnDefinitions="Auto,*">
-                                                            <Border Width="40" Height="40" CornerRadius="4" ClipToBounds="True" Background="#20FFFFFF">
-                                                                <Image Source="{Binding ArtworkBitmap}" Stretch="UniformToFill"/>
-                                                            </Border>
-                                                            <StackPanel Grid.Column="1" Margin="12,0,0,0" VerticalAlignment="Center">
-                                                                <TextBlock Text="{Binding Title}" FontWeight="SemiBold" Foreground="White" TextTrimming="CharacterEllipsis"/>
-                                                                <TextBlock Text="{Binding Artist}" FontSize="12" Foreground="#999" TextTrimming="CharacterEllipsis"/>
-                                                            </StackPanel>
-                                                        </Grid>
-                                                    </Border>
-                                                </Button>
-                                            </DataTemplate>
-                                        </ItemsControl.ItemTemplate>
-                                    </ItemsControl>
-                                </ScrollViewer>
-                            </TabItem>
-                            <TabItem Header="RESULTS">
-                                <ScrollViewer Margin="0,20,0,0">
-                                    <ItemsControl ItemsSource="{Binding SearchResults}">
-                                        <ItemsControl.ItemTemplate>
-                                            <DataTemplate>
-                                                <Button Background="Transparent" Padding="0" HorizontalAlignment="Stretch" BorderThickness="0"
-                                                        Command="{Binding $parent[UserControl].((vm:TheaterModeViewModel)DataContext).PlayTrackCommand}"
-                                                        CommandParameter="{Binding}">
-                                                    <Border Margin="0,0,0,12" Padding="12" Background="#15FFFFFF" CornerRadius="8">
+                            <TabControl Background="Transparent" BorderThickness="0" SelectedIndex="{Binding LibraryTabIndex}">
+                                <TabItem Header="UPCOMING">
+                                    <ScrollViewer Margin="0,20,0,0">
+                                        <ItemsControl ItemsSource="{Binding Player.Queue}">
+                                            <ItemsControl.ItemTemplate>
+                                                <DataTemplate>
+                                                    <Button Background="Transparent" Padding="0" HorizontalAlignment="Stretch" BorderThickness="0"
+                                                            Command="{Binding $parent[UserControl].((vm:TheaterModeViewModel)DataContext).PlayTrackCommand}"
+                                                            CommandParameter="{Binding}">
+                                                        <Border Margin="0,0,0,12" Padding="12" CornerRadius="12" Background="#10FFFFFF">
+                                                            <Border.Styles>
+                                                                <Style Selector="Border">
+                                                                    <Setter Property="BorderThickness" Value="1"/>
+                                                                    <Setter Property="BorderBrush" Value="Transparent"/>
+                                                                    <Setter Property="Transitions">
+                                                                        <Transitions>
+                                                                            <BrushTransition Property="Background" Duration="0:0:0.2"/>
+                                                                        </Transitions>
+                                                                    </Setter>
+                                                                </Style>
+                                                                <Style Selector="Border[Tag=True]">
+                                                                    <Setter Property="BorderBrush" Value="#4EC9B0"/>
+                                                                    <Setter Property="Background" Value="#254EC9B0"/>
+                                                                </Style>
+                                                                <Style Selector="Border:pointerover">
+                                                                    <Setter Property="Background" Value="#20FFFFFF"/>
+                                                                </Style>
+                                                            </Border.Styles>
+                                                            <Border.Tag>
+                                                                <MultiBinding Converter="{StaticResource EqualityConverter}">
+                                                                    <Binding Path="Model.TrackUniqueHash" />
+                                                                    <Binding Path="$parent[UserControl].((vm:TheaterModeViewModel)DataContext).Player.CurrentTrack.Model.TrackUniqueHash" />
+                                                                </MultiBinding>
+                                                            </Border.Tag>
+                                                            
+                                                            <Grid ColumnDefinitions="Auto,*,Auto">
+                                                                <Border Width="44" Height="44" CornerRadius="6" ClipToBounds="True" Background="#20FFFFFF">
+                                                                    <Image Source="{Binding ArtworkBitmap}" Stretch="UniformToFill"/>
+                                                                </Border>
+                                                                <StackPanel Grid.Column="1" Margin="14,0,0,0" VerticalAlignment="Center">
+                                                                    <TextBlock Text="{Binding Title}" FontWeight="SemiBold" Foreground="White" TextTrimming="CharacterEllipsis"/>
+                                                                    <TextBlock Text="{Binding Artist}" FontSize="12" Foreground="#999" TextTrimming="CharacterEllipsis"/>
+                                                                </StackPanel>
+                                                                
+                                                                <!-- Active Indicator Dot -->
+                                                                <Ellipse Grid.Column="2" Width="8" Height="8" Fill="#4EC9B0" 
+                                                                         IsVisible="{Binding RelativeSource={RelativeSource AncestorType=Border}, Path=Tag}"
+                                                                         VerticalAlignment="Center">
+                                                                    <Ellipse.Styles>
+                                                                        <Style Selector="Ellipse">
+                                                                            <Style.Animations>
+                                                                                <Animation Duration="0:0:2" IterationCount="Infinite">
+                                                                                    <KeyFrame KeyTime="0:0:0">
+                                                                                        <Setter Property="Opacity" Value="1.0"/>
+                                                                                    </KeyFrame>
+                                                                                    <KeyFrame KeyTime="0:0:1">
+                                                                                        <Setter Property="Opacity" Value="0.3"/>
+                                                                                    </KeyFrame>
+                                                                                    <KeyFrame KeyTime="0:0:2">
+                                                                                        <Setter Property="Opacity" Value="1.0"/>
+                                                                                    </KeyFrame>
+                                                                                </Animation>
+                                                                            </Style.Animations>
+                                                                        </Style>
+                                                                    </Ellipse.Styles>
+                                                                </Ellipse>
+                                                            </Grid>
+                                                        </Border>
+                                                    </Button>
+                                                </DataTemplate>
+                                            </ItemsControl.ItemTemplate>
+                                        </ItemsControl>
+                                    </ScrollViewer>
+                                </TabItem>
+                                <TabItem Header="RESULTS">
+                                    <ScrollViewer Margin="0,20,0,0">
+                                        <ItemsControl ItemsSource="{Binding SearchResults}">
+                                            <ItemsControl.ItemTemplate>
+                                                <DataTemplate>
+                                                    <Button Background="Transparent" Padding="0" HorizontalAlignment="Stretch" BorderThickness="0"
+                                                            Command="{Binding $parent[UserControl].((vm:TheaterModeViewModel)DataContext).PlayTrackCommand}"
+                                                            CommandParameter="{Binding}">
+                                                    <Border Margin="0,0,0,12" Padding="12" CornerRadius="12" Background="#15FFFFFF">
+                                                        <Border.Styles>
+                                                            <Style Selector="Border">
+                                                                <Setter Property="BorderThickness" Value="1"/>
+                                                                <Setter Property="BorderBrush" Value="Transparent"/>
+                                                            </Style>
+                                                            <Style Selector="Border[Tag=True]">
+                                                                <Setter Property="BorderBrush" Value="#4EC9B0"/>
+                                                                <Setter Property="Background" Value="#254EC9B0"/>
+                                                            </Style>
+                                                        </Border.Styles>
+                                                        <Border.Tag>
+                                                            <MultiBinding Converter="{StaticResource EqualityConverter}">
+                                                                <Binding Path="Model.TrackUniqueHash" />
+                                                                <Binding Path="$parent[UserControl].((vm:TheaterModeViewModel)DataContext).Player.CurrentTrack.Model.TrackUniqueHash" />
+                                                            </MultiBinding>
+                                                        </Border.Tag>
                                                         <Grid ColumnDefinitions="Auto,*,Auto">
-                                                            <Border Width="40" Height="40" CornerRadius="4" ClipToBounds="True" Background="#20FFFFFF">
+                                                            <Border Width="44" Height="44" CornerRadius="6" ClipToBounds="True" Background="#20FFFFFF">
                                                                 <Image Source="{Binding ArtworkBitmap}" Stretch="UniformToFill"/>
                                                             </Border>
-                                                            <StackPanel Grid.Column="1" Margin="12,0,0,0" VerticalAlignment="Center">
+                                                            <StackPanel Grid.Column="1" Margin="14,0,0,0" VerticalAlignment="Center">
                                                                 <TextBlock Text="{Binding Title}" FontWeight="SemiBold" Foreground="White" TextTrimming="CharacterEllipsis"/>
                                                                 <TextBlock Text="{Binding Artist}" FontSize="12" Foreground="#999" TextTrimming="CharacterEllipsis"/>
                                                             </StackPanel>
@@ -134,37 +228,75 @@
                                                             </Button>
                                                         </Grid>
                                                     </Border>
-                                                </Button>
-                                            </DataTemplate>
-                                        </ItemsControl.ItemTemplate>
-                                    </ItemsControl>
-                                </ScrollViewer>
-                            </TabItem>
-                        </TabControl>
-                    </DockPanel>
+                                                    </Button>
+                                                </DataTemplate>
+                                            </ItemsControl.ItemTemplate>
+                                        </ItemsControl>
+                                    </ScrollViewer>
+                                </TabItem>
+                            </TabControl>
+                        </DockPanel>
+                    </Panel>
                 </Border>
 
                 <!-- Center: Core Focus -->
                 <Grid Grid.Row="1" Grid.Column="1">
-                    <StackPanel VerticalAlignment="Center" Spacing="40" Margin="0,-40,0,0">
-                        <Button Command="{Binding Player.CycleVisualStyleCommand}" Padding="0" Background="Transparent" BorderThickness="0" HorizontalAlignment="Center">
-                             <Border Width="500" Height="500" CornerRadius="20" ClipToBounds="True" BoxShadow="0 40 100 0 #A0000000">
+                    <StackPanel VerticalAlignment="Center" Spacing="50" Margin="0,-40,0,0">
+                        <!-- Advanced Album Art with Reactive Glow -->
+                        <Button Command="{Binding ToggleStyleSelectionCommand}" Padding="0" Background="Transparent" BorderThickness="0" HorizontalAlignment="Center">
+                             <Border Width="540" Height="540" CornerRadius="24" ClipToBounds="True">
+                                <Border.BoxShadow>
+                                    <MultiBinding Converter="{StaticResource PassThroughConverter}">
+                                        <Binding Path="Player.CurrentTrack.VibeColor" />
+                                    </MultiBinding>
+                                </Border.BoxShadow>
                                 <Panel>
                                     <Image Source="{Binding Player.CurrentTrack.ArtworkBitmap}" Stretch="UniformToFill"/>
-                                    <Border Background="#40000000" Opacity="0" Transitions="{StaticResource ControlOpacityTransitions}">
-                                        <TextBlock Text="CYCLE VISUALS" VerticalAlignment="Center" HorizontalAlignment="Center" FontWeight="Bold" Foreground="White"/>
+                                    <Panel IsVisible="{Binding Player.CurrentTrack.ArtworkBitmap, Converter={x:Static ObjectConverters.IsNull}}">
+                                        <Border Background="#1AFFFFFF">
+                                            <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center" Opacity="0.3">
+                                                <TextBlock Text="🎵" FontSize="140" TextAlignment="Center"/>
+                                                <TextBlock Text="NO ARTWORK" FontSize="18" FontWeight="Bold" Margin="0,20,0,0" LetterSpacing="6"/>
+                                            </StackPanel>
+                                        </Border>
+                                    </Panel>
+                                    
+                                    <!-- Play State Overlay -->
+                                    <Border IsVisible="{Binding !Player.IsPlaying}" Background="#AA000000">
+                                        <TextBlock Text="PAUSED" FontSize="24" FontWeight="Black" Foreground="White" 
+                                                   HorizontalAlignment="Center" VerticalAlignment="Center" LetterSpacing="8"/>
                                     </Border>
                                 </Panel>
                             </Border>
                         </Button>
                         
-                        <StackPanel Spacing="16" HorizontalAlignment="Center">
-                            <TextBlock Text="{Binding Player.TrackTitle}" 
-                                       FontSize="56" FontWeight="ExtraBold" Foreground="White" 
-                                       TextAlignment="Center" HorizontalAlignment="Center"/>
-                            <TextBlock Text="{Binding Player.TrackArtist}" 
-                                       FontSize="32" Foreground="#B3B3B3" 
-                                       TextAlignment="Center" HorizontalAlignment="Center" Opacity="0.8"/>
+                        <!-- Cinematic Typography -->
+                        <StackPanel Spacing="24" HorizontalAlignment="Center">
+                            <StackPanel Orientation="Horizontal" Spacing="12" HorizontalAlignment="Center" Opacity="0.6">
+                                <Border Background="#4EC9B0" CornerRadius="4" Padding="8,2">
+                                    <TextBlock Text="NOW PLAYING" FontSize="10" FontWeight="Black" Foreground="Black" LetterSpacing="1"/>
+                                </Border>
+                                <TextBlock Text="{Binding Player.CurrentTrack.Bitrate, StringFormat='{}{0} KBPS'}" FontSize="12" Foreground="White" VerticalAlignment="Center"/>
+                            </StackPanel>
+                            
+                            <StackPanel Spacing="8">
+                                <TextBlock Text="{Binding Player.TrackTitle}" 
+                                           FontSize="72" FontWeight="Black" Foreground="White" 
+                                           TextAlignment="Center" HorizontalAlignment="Center"
+                                           LetterSpacing="-1">
+                                    <TextBlock.Effect>
+                                        <DropShadowEffect BlurRadius="60" Color="Black" Opacity="0.9"/>
+                                    </TextBlock.Effect>
+                                </TextBlock>
+                                <TextBlock Text="{Binding Player.TrackArtist}" 
+                                           FontSize="38" FontWeight="Light" Foreground="#4EC9B0" 
+                                           TextAlignment="Center" HorizontalAlignment="Center" Opacity="0.9"
+                                           LetterSpacing="2">
+                                    <TextBlock.Effect>
+                                        <DropShadowEffect BlurRadius="30" Color="Black" Opacity="0.7"/>
+                                    </TextBlock.Effect>
+                                </TextBlock>
+                            </StackPanel>
                         </StackPanel>
                     </StackPanel>
                 </Grid>
@@ -174,69 +306,303 @@
                         Classes="collapsible"
                         Width="{Binding IsTechnicalVisible, Converter={StaticResource BoolToWidthConverter}, ConverterParameter=400}"
                         Opacity="{Binding IsTechnicalVisible, Converter={StaticResource BoolToOpacityConverter}}"
-                        Background="#2A000000" CornerRadius="16" Margin="40,0,0,0" Padding="24"
-                        BorderBrush="#30FFFFFF" BorderThickness="1"
+                        Background="#1AFFFFFF" CornerRadius="16" Margin="40,0,0,0" Padding="24"
+                        BorderBrush="#40FFFFFF" BorderThickness="1"
+                        ClipToBounds="True"
                         IsVisible="{Binding IsTechnicalVisible}">
-                    <StackPanel Spacing="32">
-                        <TextBlock Text="TECHNICAL SPEC" FontSize="12" FontWeight="Bold" Foreground="#C586C0" Opacity="0.8" LetterSpacing="1"/>
-                        
-                        <Grid RowDefinitions="Auto,Auto,Auto,Auto,Auto" ColumnDefinitions="*,*">
-                            <!-- Format & Quality -->
-                            <StackPanel Grid.Row="0" Grid.ColumnSpan="2" Spacing="8" Margin="0,0,0,20">
-                                <TextBlock Text="AUDIO PIPELINE" FontSize="10" Foreground="#555" FontWeight="Bold"/>
-                                <Border Background="#252526" Padding="12" CornerRadius="8">
-                                    <StackPanel Orientation="Horizontal" Spacing="16">
-                                        <TextBlock Text="{Binding Player.CurrentTrack.Format}" Foreground="#4EC9B0" FontWeight="Bold" FontSize="18"/>
-                                        <Rectangle Width="1" Fill="#444"/>
-                                        <TextBlock Text="{Binding Player.CurrentTrack.Bitrate, StringFormat='{}{0} KBPS'}" Foreground="White" VerticalAlignment="Center"/>
+                    <Panel>
+                         <!-- Glass Blur Backdrop -->
+                        <ExperimentalAcrylicBorder CornerRadius="16">
+                            <ExperimentalAcrylicBorder.Material>
+                                <ExperimentalAcrylicMaterial
+                                    BackgroundSource="Digger"
+                                    TintColor="Black"
+                                    TintOpacity="0.4"
+                                    MaterialOpacity="0.8" />
+                            </ExperimentalAcrylicBorder.Material>
+                        </ExperimentalAcrylicBorder>
+
+                        <TabControl Background="Transparent" BorderThickness="0" Padding="0" SelectedIndex="{Binding RightPanelTabIndex}">
+                            <TabControl.Styles>
+                                <Style Selector="TabItem">
+                                    <Setter Property="FontSize" Value="10"/>
+                                    <Setter Property="FontWeight" Value="Bold"/>
+                                    <Setter Property="Padding" Value="0,0,0,10"/>
+                                    <Setter Property="MinHeight" Value="0"/>
+                                </Style>
+                            </TabControl.Styles>
+                            
+                            <!-- TAB 1: Technical Specs -->
+                            <TabItem Header="SPECS">
+                                <StackPanel Spacing="24" Margin="0,20,0,0">
+                                    <Grid RowDefinitions="Auto,Auto,Auto,Auto" ColumnDefinitions="*,*">
+                                        <!-- Format & Quality -->
+                                        <StackPanel Grid.Row="0" Grid.ColumnSpan="2" Spacing="8" Margin="0,0,0,20">
+                                            <TextBlock Text="AUDIO PIPELINE" FontSize="10" Foreground="#555" FontWeight="Bold"/>
+                                            <Border Background="#252526" Padding="12" CornerRadius="8">
+                                                <StackPanel Orientation="Horizontal" Spacing="16">
+                                                    <TextBlock Text="{Binding Player.CurrentTrack.Format}" Foreground="#4EC9B0" FontWeight="Bold" FontSize="18"/>
+                                                    <Rectangle Width="1" Fill="#444"/>
+                                                    <TextBlock Text="{Binding Player.CurrentTrack.Bitrate, StringFormat='{}{0} KBPS'}" Foreground="White" VerticalAlignment="Center"/>
+                                                </StackPanel>
+                                            </Border>
+                                        </StackPanel>
+
+                                        <!-- Key -->
+                                        <StackPanel Grid.Row="1" Grid.Column="0" Spacing="8" Margin="0,0,0,20">
+                                            <TextBlock Text="HARMONIC KEY" FontSize="10" Foreground="#555" FontWeight="Bold"/>
+                                            <TextBlock Text="{Binding Player.CurrentTrack.KeyDisplay}" FontSize="24" Foreground="White" FontWeight="SemiBold"/>
+                                        </StackPanel>
+
+                                        <!-- BPM -->
+                                        <StackPanel Grid.Row="1" Grid.Column="1" Spacing="8" Margin="0,0,0,20">
+                                            <TextBlock Text="TEMPO" FontSize="10" Foreground="#555" FontWeight="Bold"/>
+                                            <TextBlock Text="{Binding Player.CurrentTrack.BpmDisplay}" FontSize="24" Foreground="White" FontWeight="SemiBold"/>
+                                        </StackPanel>
+
+                                        <!-- Energy -->
+                                        <StackPanel Grid.Row="2" Grid.ColumnSpan="2" Spacing="8" Margin="0,0,0,20">
+                                            <TextBlock Text="VIBE ENERGY" FontSize="10" Foreground="#555" FontWeight="Bold"/>
+                                            <ProgressBar Value="{Binding Player.CurrentTrack.Energy}" Minimum="0" Maximum="100" Height="4" Foreground="#FF9800" Background="#20FFFFFF"/>
+                                        </StackPanel>
+
+                                        <!-- Integrity -->
+                                        <StackPanel Grid.Row="3" Grid.ColumnSpan="2" Spacing="8">
+                                            <TextBlock Text="SONIC INTEGRITY" FontSize="10" Foreground="#555" FontWeight="Bold"/>
+                                            <Border Background="#20FFFFFF" Padding="10" CornerRadius="6">
+                                                <StackPanel Orientation="Horizontal" Spacing="10">
+                                                    <TextBlock Text="{Binding Player.CurrentTrack.IntegritySymbol}" FontSize="20" Foreground="{Binding Player.CurrentTrack.IntegrityColor}"/>
+                                                    <TextBlock Text="{Binding Player.CurrentTrack.IntegrityText}" Foreground="#CCC" VerticalAlignment="Center"/>
+                                                </StackPanel>
+                                            </Border>
+                                        </StackPanel>
+                                    </Grid>
+                                    
+                                    <!-- Visual Controls -->
+                                    <StackPanel Spacing="16" Margin="0,12,0,0">
+                                        <TextBlock Text="VISUALIZATION OVERRIDE" FontSize="10" Foreground="#555" FontWeight="Bold"/>
+                                        <StackPanel Spacing="8">
+                                            <Grid ColumnDefinitions="*,Auto">
+                                                <TextBlock Text="INTENSITY" FontSize="12" Foreground="#888"/>
+                                                <TextBlock Grid.Column="1" Text="{Binding VisualIntensity, StringFormat='{}{0:F1}x'}" FontSize="12" Foreground="#4EC9B0"/>
+                                            </Grid>
+                                            <Slider Value="{Binding VisualIntensity}" Minimum="0.1" Maximum="3.0" />
+                                        </StackPanel>
+                                        <Button Command="{Binding ResetVisualizerCommand}"
+                                                Background="#30FFFFFF" BorderBrush="#40FFFFFF" BorderThickness="1"
+                                                HorizontalAlignment="Stretch" VerticalContentAlignment="Center" HorizontalContentAlignment="Center"
+                                                Padding="10" CornerRadius="8">
+                                            <StackPanel Orientation="Horizontal" Spacing="10">
+                                                <TextBlock Text="🔄" VerticalAlignment="Center"/>
+                                                <TextBlock Text="RESET VISUALS" FontSize="12" FontWeight="Bold"/>
+                                            </StackPanel>
+                                        </Button>
                                     </StackPanel>
-                                </Border>
-                            </StackPanel>
-
-                            <!-- Key -->
-                            <StackPanel Grid.Row="1" Grid.Column="0" Spacing="8" Margin="0,0,0,20">
-                                <TextBlock Text="HARMONIC KEY" FontSize="10" Foreground="#555" FontWeight="Bold"/>
-                                <TextBlock Text="{Binding Player.CurrentTrack.KeyDisplay}" FontSize="24" Foreground="White" FontWeight="SemiBold"/>
-                            </StackPanel>
-
-                            <!-- BPM -->
-                            <StackPanel Grid.Row="1" Grid.Column="1" Spacing="8" Margin="0,0,0,20">
-                                <TextBlock Text="TEMPO" FontSize="10" Foreground="#555" FontWeight="Bold"/>
-                                <TextBlock Text="{Binding Player.CurrentTrack.BpmDisplay}" FontSize="24" Foreground="White" FontWeight="SemiBold"/>
-                            </StackPanel>
-
-                            <!-- Energy -->
-                            <StackPanel Grid.Row="2" Grid.ColumnSpan="2" Spacing="8" Margin="0,0,0,20">
-                                <TextBlock Text="VIBE ENERGY" FontSize="10" Foreground="#555" FontWeight="Bold"/>
-                                <ProgressBar Value="{Binding Player.CurrentTrack.Energy}" Minimum="0" Maximum="100" Height="4" Foreground="#FF9800" Background="#20FFFFFF"/>
-                            </StackPanel>
-
-                            <!-- Integrity -->
-                            <StackPanel Grid.Row="3" Grid.ColumnSpan="2" Spacing="8">
-                                <TextBlock Text="SONIC INTEGRITY" FontSize="10" Foreground="#555" FontWeight="Bold"/>
-                                <Border Background="#20FFFFFF" Padding="10" CornerRadius="6">
-                                    <StackPanel Orientation="Horizontal" Spacing="10">
-                                        <TextBlock Text="{Binding Player.CurrentTrack.IntegritySymbol}" FontSize="20" Foreground="{Binding Player.CurrentTrack.IntegrityColor}"/>
-                                        <TextBlock Text="{Binding Player.CurrentTrack.IntegrityText}" Foreground="#CCC" VerticalAlignment="Center"/>
+                                </StackPanel>
+                            </TabItem>
+                            
+                            <!-- TAB 2: Stem Mixer -->
+                            <TabItem Header="STEMS">
+                                <Panel Margin="0,20,0,0">
+                                    <StackPanel IsVisible="{Binding !IsStemActive}" Spacing="20" VerticalAlignment="Center">
+                                        <TextBlock Text="STEM SEPARATION" FontSize="16" FontWeight="Bold" HorizontalAlignment="Center" Foreground="#4EC9B0"/>
+                                        <TextBlock Text="Split this track into Vocals, Drums, Bass, and Instumentals for real-time remixing." 
+                                                   TextWrapping="Wrap" TextAlignment="Center" Opacity="0.5" FontSize="12"/>
+                                        
+                                        <Button Command="{Binding ToggleStemsCommand}" 
+                                                HorizontalAlignment="Stretch" Padding="20" CornerRadius="12"
+                                                Background="#4EC9B0" Foreground="Black">
+                                            <StackPanel Orientation="Horizontal" Spacing="10" HorizontalAlignment="Center">
+                                                <TextBlock Text="✂️" VerticalAlignment="Center"/>
+                                                <TextBlock Text="START SEPARATION" FontWeight="Bold"/>
+                                            </StackPanel>
+                                        </Button>
                                     </StackPanel>
-                                </Border>
-                            </StackPanel>
-                        </Grid>
-                    </StackPanel>
+
+                                    <Grid IsVisible="{Binding IsStemActive}" RowDefinitions="*,Auto">
+                                        <ScrollViewer>
+                                            <ItemsControl ItemsSource="{Binding StemMixer.Channels}">
+                                                <ItemsControl.ItemTemplate>
+                                                    <DataTemplate>
+                                                        <Border Background="#10FFFFFF" CornerRadius="8" Padding="12" Margin="0,0,0,10">
+                                                            <Grid ColumnDefinitions="Auto,*,Auto,Auto">
+                                                                <TextBlock Text="{Binding Name}" Width="60" VerticalAlignment="Center" FontWeight="Bold" FontSize="11" Foreground="#4EC9B0"/>
+                                                                <Slider Grid.Column="1" Value="{Binding Volume}" Minimum="0" Maximum="1" Margin="10,0"/>
+                                                                <ToggleButton Grid.Column="2" IsChecked="{Binding IsMuted}" Content="M" Width="30" Height="30" Padding="0" HorizontalContentAlignment="Center" VerticalContentAlignment="Center" CornerRadius="4" Margin="5,0"/>
+                                                                <ToggleButton Grid.Column="3" IsChecked="{Binding IsSoloed}" Content="S" Width="30" Height="30" Padding="0" HorizontalContentAlignment="Center" VerticalContentAlignment="Center" CornerRadius="4"/>
+                                                            </Grid>
+                                                        </Border>
+                                                    </DataTemplate>
+                                                </ItemsControl.ItemTemplate>
+                                            </ItemsControl>
+                                        </ScrollViewer>
+                                        
+                                        <Button Grid.Row="1" Command="{Binding ToggleStemsCommand}" 
+                                                Content="DISABLE STEMS" HorizontalAlignment="Stretch" Padding="10" Margin="0,10,0,0"
+                                                Background="#40FF0055" BorderBrush="#FF0055" BorderThickness="1"/>
+                                    </Grid>
+                                    
+                                    <!-- Separating Progress Overlay -->
+                                    <Border IsVisible="{Binding IsSeparating}" Background="#CC000000" CornerRadius="12" ZIndex="10">
+                                        <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center" Spacing="20">
+                                            <controls:VibeVisualizer Mode="Mini" Height="60" Width="100" IsPlaying="True" VisualStyle="Waves" Opacity="0.6"/>
+                                            <TextBlock Text="SEPARATING..." FontWeight="Black" LetterSpacing="4" HorizontalAlignment="Center"/>
+                                            <ProgressBar Value="{Binding SeparationProgress}" Minimum="0" Maximum="100" Width="200" Height="4" Foreground="#4EC9B0"/>
+                                        </StackPanel>
+                                    </Border>
+                                </Panel>
+                            </TabItem>
+                            
+                            <!-- TAB 3: Cue Points -->
+                            <TabItem Header="CUES">
+                                <DockPanel Margin="0,20,0,0">
+                                    <StackPanel DockPanel.Dock="Bottom" Spacing="10" Margin="0,10,0,0">
+                                        <Button Command="{Binding AddCueCommand}" HorizontalAlignment="Stretch" Padding="12" Background="#30FFFFFF" CornerRadius="8">
+                                            <StackPanel Orientation="Horizontal" Spacing="10" HorizontalAlignment="Center">
+                                                <TextBlock Text="📍" VerticalAlignment="Center"/>
+                                                <TextBlock Text="DROP MARKER HERE" FontWeight="Bold"/>
+                                            </StackPanel>
+                                        </Button>
+                                        <Button Command="{Binding SyncCuesCommand}" HorizontalAlignment="Stretch" Padding="10" Background="#204EC9B0" Foreground="#4EC9B0" CornerRadius="8">
+                                            <TextBlock Text="SYNC TO FILE TAGS" FontWeight="Bold" HorizontalAlignment="Center"/>
+                                        </Button>
+                                    </StackPanel>
+                                    
+                                    <ScrollViewer>
+                                        <ItemsControl ItemsSource="{Binding CurrentCues}">
+                                            <ItemsControl.ItemTemplate>
+                                                <DataTemplate>
+                                                     <Border Background="#10FFFFFF" CornerRadius="8" Padding="12" Margin="0,0,0,8">
+                                                        <Grid ColumnDefinitions="Auto,*,Auto">
+                                                            <Border Background="{Binding Color}" Width="4" CornerRadius="2" Margin="0,0,12,0" VerticalAlignment="Stretch"/>
+                                                            <StackPanel Grid.Column="1">
+                                                                <TextBlock Text="{Binding Name}" FontWeight="Bold"/>
+                                                                <TextBlock Text="{Binding Timestamp, StringFormat='{}{0:F2}s'}" FontSize="11" Opacity="0.5"/>
+                                                            </StackPanel>
+                                                            <Button Grid.Column="2" Content="Go" Padding="10,4" CornerRadius="4" Background="#20FFFFFF"
+                                                                    Command="{Binding $parent[UserControl].((vm:TheaterModeViewModel)DataContext).SeekToCueCommand}"
+                                                                    CommandParameter="{Binding}"/>
+                                                        </Grid>
+                                                    </Border>
+                                                </DataTemplate>
+                                            </ItemsControl.ItemTemplate>
+                                        </ItemsControl>
+                                    </ScrollViewer>
+                                </DockPanel>
+                            </TabItem>
+                        </TabControl>
+                    </Panel>
                 </Border>
 
                 <!-- Bottom: Seeker Override -->
-                <Border Grid.Row="2" Grid.ColumnSpan="3" Background="#44000000" CornerRadius="20" Padding="40,30" Margin="0,20" BorderBrush="#20FFFFFF" BorderThickness="1">
-                    <StackPanel Spacing="16">
-                        <controls:WaveformControl WaveformData="{Binding Player.WaveformData}" 
-                                                 LowBand="{Binding Player.CurrentTrack.LowData}"
-                                                 MidBand="{Binding Player.CurrentTrack.MidData}"
-                                                 HighBand="{Binding Player.CurrentTrack.HighData}"
-                                                 Progress="{Binding Player.Position}"
-                                                 Background="Transparent"
-                                                 PlayheadBrush="#1DB954"
-                                                 SeekCommand="{Binding Player.SeekCommand}"
-                                                 Height="100"/>
+                <Border Grid.Row="2" Grid.ColumnSpan="3" Background="#EE111111" CornerRadius="12" Padding="20,10" Margin="0,20" BorderBrush="#333" BorderThickness="1">
+                    <StackPanel Spacing="10">
+                        <!-- Timeline Header -->
+                        <Grid ColumnDefinitions="Auto,*,Auto" Margin="0,0,0,5">
+                            <ToggleButton IsChecked="{Binding IsUnifiedPlaying}" 
+                                          Command="{Binding ToggleUnifiedPlaybackCommand}"
+                                          Background="Transparent" BorderThickness="0" Padding="5">
+                                <TextBlock Text="{Binding IsUnifiedPlaying, Converter={StaticResource BoolToPlayPauseConverter}}" FontSize="20" Foreground="#4EC9B0"/>
+                            </ToggleButton>
+                            <TextBlock Grid.Column="1" Text="TIMELINE" Foreground="#666" FontSize="10" FontWeight="Bold" VerticalAlignment="Center" HorizontalAlignment="Center" LetterSpacing="2"/>
+                            <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="10">
+                                <TextBlock Text="{Binding DisplayCurrentTime}" Foreground="#4EC9B0" FontFamily="Monospace"/>
+                                <TextBlock Text="/" Foreground="#444"/>
+                                <TextBlock Text="{Binding DisplayTotalTime}" Foreground="#888" FontFamily="Monospace"/>
+                            </StackPanel>
+                        </Grid>
+                        
+                        <Border Height="10" Background="#1AFFFFFF" Margin="0,0,0,0" Opacity="0.5">
+                             <Border.Background>
+                                 <VisualBrush TileMode="Tile" SourceRect="0,0,50,10" DestinationRect="0,0,50,10" Stretch="None">
+                                     <VisualBrush.Visual>
+                                         <Canvas Width="50" Height="10">
+                                             <Rectangle Width="1" Height="5" Fill="#666" Canvas.Left="0" Canvas.Top="5"/>
+                                             <Rectangle Width="1" Height="3" Fill="#444" Canvas.Left="10" Canvas.Top="7"/>
+                                             <Rectangle Width="1" Height="3" Fill="#444" Canvas.Left="20" Canvas.Top="7"/>
+                                             <Rectangle Width="1" Height="3" Fill="#444" Canvas.Left="30" Canvas.Top="7"/>
+                                             <Rectangle Width="1" Height="3" Fill="#444" Canvas.Left="40" Canvas.Top="7"/>
+                                         </Canvas>
+                                     </VisualBrush.Visual>
+                                 </VisualBrush>
+                             </Border.Background>
+                        </Border>
+
+                        <Panel>
+                            <!-- Standard Waveform -->
+                            <controls:WaveformControl IsVisible="{Binding !IsStemActive}"
+                                                     WaveformData="{Binding Player.WaveformData}" 
+                                                     LowBand="{Binding Player.CurrentTrack.LowData}"
+                                                     MidBand="{Binding Player.CurrentTrack.MidData}"
+                                                     HighBand="{Binding Player.CurrentTrack.HighData}"
+                                                     Progress="{Binding DisplayPosition}"
+                                                     Background="Transparent"
+                                                     PlayheadBrush="#1DB954"
+                                                     SeekCommand="{Binding SeekUnifiedCommand}"
+                                                     Height="120">
+                            </controls:WaveformControl>
+
+                            <!-- Multi-Stem Waveform -->
+                            <Grid IsVisible="{Binding IsStemActive}" Height="200">
+                                <stem:MultiStemWaveformView DataContext="{Binding StemMixer}" VerticalAlignment="Stretch"/>
+                                
+                                <!-- Shared Playhead Overlay -->
+                                <Canvas HorizontalAlignment="Stretch" VerticalAlignment="Stretch" IsHitTestVisible="False">
+                                    <Border Width="2" Background="#4EC9B0" Height="200">
+                                        <Border.RenderTransform>
+                                            <TranslateTransform>
+                                                <TranslateTransform.X>
+                                                    <MultiBinding Converter="{StaticResource RelativePositionConverter}">
+                                                         <Binding Path="$parent[UserControl].((vm:TheaterModeViewModel)DataContext).DisplayPosition" />
+                                                         <Binding Path="$parent[UserControl].((vm:TheaterModeViewModel)DataContext).DisplayTotalTime" /> <!-- Dummy for converter, we just need 1.0 scale -->
+                                                         <Binding Path="$parent[Canvas].Bounds.Width" />
+                                                    </MultiBinding>
+                                                </TranslateTransform.X>
+                                            </TranslateTransform>
+                                        </Border.RenderTransform>
+                                        <Border.Effect>
+                                            <DropShadowEffect Color="#4EC9B0" BlurRadius="10"/>
+                                        </Border.Effect>
+                                    </Border>
+                                </Canvas>
+                                
+                                <!-- Click to Seek Overlay (Transparent) -->
+                                <!-- TODO: Implement click behavior in MultiStemWaveformView or here -->
+                            </Grid>
+
+                            <!-- Cue Marker Overlay -->
+                            <ItemsControl ItemsSource="{Binding CurrentCues}" IsHitTestVisible="False">
+                                <ItemsControl.ItemsPanel>
+                                    <ItemsPanelTemplate>
+                                        <Canvas Width="{Binding $parent[Border].Bounds.Width}"/>
+                                    </ItemsPanelTemplate>
+                                </ItemsControl.ItemsPanel>
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <Border Width="2" Height="100" Background="{Binding Color}" Opacity="0.8" VerticalAlignment="Stretch">
+                                            <Border.RenderTransform>
+                                                <TranslateTransform>
+                                                    <TranslateTransform.X>
+                                                        <MultiBinding Converter="{StaticResource RelativePositionConverter}">
+                                                            <Binding Path="Timestamp" />
+                                                            <Binding Path="$parent[UserControl].((vm:TheaterModeViewModel)DataContext).Player.TotalTime" />
+                                                            <Binding Path="$parent[Canvas].Bounds.Width" />
+                                                        </MultiBinding>
+                                                    </TranslateTransform.X>
+                                                </TranslateTransform>
+                                            </Border.RenderTransform>
+                                            <TextBlock Text="{Binding Name}" FontSize="9" Foreground="White" Margin="4,0,0,0" VerticalAlignment="Top"/>
+                                        </Border>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                            
+                            <!-- Separating Progress Effect -->
+                            <Border IsVisible="{Binding IsSeparating}" Background="#60000000" CornerRadius="12">
+                                <TextBlock Text="INITIALIZING STEM TERMINAL..." FontSize="18" FontWeight="Black" 
+                                           HorizontalAlignment="Center" VerticalAlignment="Center" LetterSpacing="10" Opacity="0.8"/>
+                            </Border>
+                        </Panel>
                         <Grid ColumnDefinitions="Auto,*,Auto">
                             <TextBlock Grid.Column="0" Text="{Binding Player.CurrentTimeStr}" Foreground="#888" FontSize="16" FontWeight="Bold"/>
                             <TextBlock Grid.Column="2" Text="{Binding Player.TotalTimeStr}" Foreground="#888" FontSize="16" FontWeight="Bold"/>
@@ -244,6 +610,59 @@
                     </StackPanel>
                 </Border>
             </Grid>
+            
+            <!-- Style Selection Overlay -->
+            <Border IsVisible="{Binding IsStyleSelectionOpen}"
+                    Background="#F0000000"
+                    ZIndex="100">
+                <Panel>
+                    <Button Command="{Binding ToggleStyleSelectionCommand}" 
+                            HorizontalAlignment="Stretch" VerticalAlignment="Stretch"
+                            Background="Transparent" BorderThickness="0"/>
+                            
+                    <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center" Spacing="40">
+                        <TextBlock Text="SELECT VISUAL STYLE" 
+                                   FontSize="24" FontWeight="Bold" Foreground="#4EC9B0" 
+                                   HorizontalAlignment="Center" LetterSpacing="4"/>
+                                   
+                        <ItemsControl ItemsSource="{Binding AvailableStyles}">
+                            <ItemsControl.ItemsPanel>
+                                <ItemsPanelTemplate>
+                                    <StackPanel Orientation="Horizontal" Spacing="20" HorizontalAlignment="Center"/>
+                                </ItemsPanelTemplate>
+                            </ItemsControl.ItemsPanel>
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <Button Command="{Binding $parent[UserControl].((vm:TheaterModeViewModel)DataContext).SelectStyleCommand}"
+                                            CommandParameter="{Binding}"
+                                            Background="Transparent" Padding="0" BorderThickness="0">
+                                        <StackPanel Spacing="15">
+                                            <Border Width="240" Height="360" CornerRadius="12" ClipToBounds="True" 
+                                                    BorderBrush="#40FFFFFF" BorderThickness="1"
+                                                    Background="#10FFFFFF">
+                                                <controls:VibeVisualizer Mode="Mini"
+                                                                         VisualStyle="{Binding}"
+                                                                         IsPlaying="True"
+                                                                         VisualIntensity="1.2"
+                                                                         VuLeft="0.4" VuRight="0.6"
+                                                                         HorizontalAlignment="Stretch"
+                                                                         VerticalAlignment="Stretch"/>
+                                            </Border>
+                                            <TextBlock Text="{Binding}" HorizontalAlignment="Center" 
+                                                       FontWeight="SemiBold" Foreground="White" Opacity="0.8"/>
+                                        </StackPanel>
+                                    </Button>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                        
+                        <Button Command="{Binding ToggleStyleSelectionCommand}"
+                                Name="style_select_close_btn"
+                                Content="CANCEL" Background="Transparent" BorderBrush="#30FFFFFF" BorderThickness="1"
+                                HorizontalAlignment="Center" Padding="30,12" CornerRadius="20"/>
+                    </StackPanel>
+                </Panel>
+            </Border>
         </Panel>
     </Grid>
 </UserControl>
