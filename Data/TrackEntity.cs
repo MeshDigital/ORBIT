@@ -368,6 +368,8 @@ public class LibraryEntryEntity
     public float? SubGenreConfidence { get; set; }
 
     public double? InstrumentalProbability { get; set; } // Phase 18.2
+    public string? SpectralHash { get; set; } // Added for Export
+    public string? QualityDetails { get; set; } // Added for Export
     
     // Phase 21: Smart Enrichment Retry System
     public int EnrichmentAttempts { get; set; } = 0;
