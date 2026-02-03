@@ -15,6 +15,7 @@ using SLSKDONET.Services.InputParsers;
 using SLSKDONET.Services.Ranking;
 using SLSKDONET.Services.Audio;
 using SLSKDONET.Services.Library;
+using SLSKDONET.Services.Musical;
 using SLSKDONET.ViewModels;
 using SLSKDONET.Views;
 using System;
@@ -782,14 +783,21 @@ public partial class App : Application
         services.AddTransient<Views.Avalonia.StyleLabPage>();
         services.AddTransient<Views.Avalonia.TheaterModePage>();
         services.AddTransient<Views.Avalonia.Timeline.SetDesignerView>();
+        services.AddTransient<Views.Avalonia.FlowBuilderView>();
         
         services.AddSingleton<ViewModels.TrackInspectorViewModel>();
         services.AddSingleton<ViewModels.ForensicLabViewModel>();
         services.AddSingleton<ViewModels.IntelligenceCenterViewModel>();
+        services.AddSingleton<ViewModels.FlowBuilderViewModel>();
 
         // Phase 2: Surgical Editing Engine
         services.AddSingleton<ISurgicalProcessingService, SurgicalProcessingService>();
         services.AddSingleton<StemCacheService>();
+
+        // Phase 3: Set-Prep Intelligence
+        services.AddSingleton<ITransitionAdvisorService, TransitionAdvisorService>();
+        services.AddSingleton<SetListService>();
+        services.AddSingleton<ITransitionPreviewPlayer, TransitionPreviewPlayer>();
     }
 
     /// <summary>

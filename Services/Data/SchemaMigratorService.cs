@@ -1510,6 +1510,42 @@ public class SchemaMigratorService
                 _logger.LogInformation("✅ Library FTS5 search index seeded successfully.");
             }
 
+            // Phase 3: Set-Prep Intelligence tables
+            if (!TableExists("SetLists"))
+            {
+                _logger.LogInformation("Patching Schema: Creating SetLists table...");
+                command.CommandText = @"
+                    CREATE TABLE ""SetLists"" (
+                        ""Id"" TEXT NOT NULL CONSTRAINT ""PK_SetLists"" PRIMARY KEY,
+                        ""Name"" TEXT NOT NULL,
+                        ""CreatedAt"" TEXT NOT NULL,
+                        ""LastModifiedAt"" TEXT NOT NULL,
+                        ""FlowHealth"" REAL NOT NULL,
+                        ""ForensicLogsJson"" TEXT NULL
+                    );";
+                await command.ExecuteNonQueryAsync();
+            }
+
+            if (!TableExists("SetTracks"))
+            {
+                _logger.LogInformation("Patching Schema: Creating SetTracks table...");
+                command.CommandText = @"
+                    CREATE TABLE ""SetTracks"" (
+                        ""Id"" TEXT NOT NULL CONSTRAINT ""PK_SetTracks"" PRIMARY KEY,
+                        ""SetListId"" TEXT NOT NULL,
+                        ""TrackUniqueHash"" TEXT NOT NULL,
+                        ""Position"" INTEGER NOT NULL,
+                        ""TransitionType"" TEXT NOT NULL,
+                        ""ManualOffset"" REAL NOT NULL,
+                        ""TransitionReasoning"" TEXT NULL,
+                        ""DjNotes"" TEXT NULL,
+                        CONSTRAINT ""FK_SetTracks_SetLists_SetListId"" FOREIGN KEY (""SetListId"") REFERENCES ""SetLists"" (""Id"") ON DELETE CASCADE
+                    );
+                    CREATE INDEX ""IX_SetTracks_SetListId"" ON ""SetTracks"" (""SetListId"");
+                ";
+                await command.ExecuteNonQueryAsync();
+            }
+
             _logger.LogInformation("Schema patching completed.");
         }
         catch (Exception ex)

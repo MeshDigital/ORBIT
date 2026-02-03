@@ -1,0 +1,62 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:vm="clr-namespace:SLSKDONET.ViewModels"
+             mc:Ignorable="d" d:DesignWidth="1200" d:DesignHeight="800"
+             x:Class="SLSKDONET.Views.Avalonia.FlowBuilderView"
+             x:DataType="vm:FlowBuilderViewModel"
+             Background="#121216">
+
+    <Grid RowDefinitions="Auto, *, Auto">
+        <!-- Header: Set Status -->
+        <Border Grid.Row="0" Background="#1A1A20" Padding="20" BorderBrush="#333" BorderThickness="0,0,0,1">
+            <Grid ColumnDefinitions="*, Auto, Auto">
+                <StackPanel Orientation="Horizontal" Spacing="20">
+                    <TextBlock Text="{Binding CurrentSet.Name, FallbackValue='Untitled Set'}" FontSize="24" FontWeight="Bold" VerticalAlignment="Center"/>
+                    <Border Background="#2A2A30" CornerRadius="4" Padding="8,4" VerticalAlignment="Center">
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                            <TextBlock Text="FLOW SCORE:" FontSize="10" Foreground="Gray" VerticalAlignment="Center"/>
+                            <TextBlock Text="{Binding FlowContinuityScore, StringFormat={}{0:P0}}" Foreground="#00FF00" FontWeight="Bold" VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </Border>
+                </StackPanel>
+
+                <Button Grid.Column="1" Content="REFRESH FLOW" Command="{Binding RefreshFlowCommand}" Margin="0,0,10,0"/>
+                <Button Grid.Column="2" Content="SAVE SET" Command="{Binding SaveSetCommand}" Classes="accent"/>
+            </Grid>
+        </Border>
+
+        <!-- Main Workspace: Track List & Timeline -->
+        <ScrollViewer Grid.Row="1">
+            <ItemsControl ItemsSource="{Binding Tracks}">
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate>
+                        <Border Background="#1E1E24" Margin="10" Padding="15" CornerRadius="8" BorderBrush="#333" BorderThickness="1">
+                            <Grid ColumnDefinitions="200, *, 200">
+                                <StackPanel>
+                                    <TextBlock Text="{Binding Title}" FontWeight="Bold"/>
+                                    <TextBlock Text="{Binding Artist}" FontSize="12" Foreground="Gray"/>
+                                </StackPanel>
+
+                                <Border Grid.Column="1" Background="#121216" Margin="20,0" Height="60" CornerRadius="4">
+                                    <TextBlock Text="[WAVEFORM PREVIEW]" HorizontalAlignment="Center" VerticalAlignment="Center" Foreground="#444"/>
+                                </Border>
+
+                                <StackPanel Grid.Column="2" VerticalAlignment="Center">
+                                    <TextBlock Text="{Binding TransitionType}" HorizontalAlignment="Right" Foreground="#FF5064" FontWeight="SemiBold"/>
+                                    <TextBlock Text="{Binding CompatibilityWarning}" FontSize="10" Foreground="#FFA500" TextWrapping="Wrap" HorizontalAlignment="Right"/>
+                                </StackPanel>
+                            </Grid>
+                        </Border>
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
+        </ScrollViewer>
+
+        <!-- Bottom: Preview Player -->
+        <Border Grid.Row="2" Background="#1A1A20" Padding="20" BorderBrush="#333" BorderThickness="0,1,0,0">
+            <TextBlock Text="[TRANSITION PREVIEW PLAYER CONTROLS]" HorizontalAlignment="Center" Foreground="#666"/>
+        </Border>
+    </Grid>
+</UserControl>

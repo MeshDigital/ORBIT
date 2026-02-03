@@ -62,6 +62,7 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
     public IntelligenceCenterViewModel IntelligenceCenter { get; }
     public TheaterModeViewModel TheaterModeViewModel { get; }
     public ViewModels.Timeline.SetDesignerViewModel SetDesignerViewModel { get; }
+    public FlowBuilderViewModel FlowBuilderViewModel { get; }
 
 
     public event PropertyChangedEventHandler? PropertyChanged;
@@ -112,7 +113,8 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
         ViewModels.Stem.StemWorkspaceViewModel stemWorkspaceViewModel,
         IntelligenceCenterViewModel intelligenceCenter,
         TheaterModeViewModel theaterModeViewModel,
-        ViewModels.Timeline.SetDesignerViewModel setDesignerViewModel)
+        ViewModels.Timeline.SetDesignerViewModel setDesignerViewModel,
+        FlowBuilderViewModel flowBuilderViewModel)
 
     {
         _logger = logger;
@@ -147,6 +149,7 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
         IntelligenceCenter = intelligenceCenter;
         TheaterModeViewModel = theaterModeViewModel;
         SetDesignerViewModel = setDesignerViewModel;
+        FlowBuilderViewModel = flowBuilderViewModel;
 
 
         // Initialize commands
@@ -161,6 +164,7 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
         NavigateStyleLabCommand = new RelayCommand(() => _navigationService.NavigateTo("StyleLab"));
         NavigateImportCommand = new RelayCommand(NavigateToImport); // Phase 6D
         NavigateDawCommand = new RelayCommand(NavigateToDaw);
+        NavigateFlowBuilderCommand = new RelayCommand(NavigateToFlowBuilder);
         ToggleNavigationCommand = new RelayCommand(() => IsNavigationCollapsed = !IsNavigationCollapsed);
         TogglePlayerCommand = new RelayCommand(() => IsPlayerSidebarVisible = !IsPlayerSidebarVisible);
         TogglePlayerLocationCommand = new RelayCommand(() => IsPlayerAtBottom = !IsPlayerAtBottom);
@@ -303,6 +307,7 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
         _navigationService.RegisterPage("AnalysisQueue", typeof(Avalonia.AnalysisQueuePage));
         _navigationService.RegisterPage("StyleLab", typeof(Avalonia.StyleLabPage));
         _navigationService.RegisterPage("Theater", typeof(Avalonia.TheaterModePage));
+        _navigationService.RegisterPage("FlowBuilder", typeof(Avalonia.FlowBuilderView));
         
         // Subscribe to navigation events
         _navigationService.Navigated += OnNavigated;
@@ -614,6 +619,7 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
     public ICommand NavigateStyleLabCommand { get; }
     public ICommand NavigateTheaterCommand { get; }
     public ICommand NavigateDawCommand { get; }
+    public ICommand NavigateFlowBuilderCommand { get; }
     public ICommand NavigateImportCommand { get; } // Phase 6D
     public ICommand ToggleNavigationCommand { get; }
     public ICommand TogglePlayerCommand { get; }
@@ -661,6 +667,7 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
                 "AnalysisQueuePage" => PageType.AnalysisQueue,
                 "StyleLabPage" => PageType.StyleLab,
                 "TheaterModePage" => PageType.TheaterMode,
+                "FlowBuilderView" => PageType.FlowBuilder,
                 _ => CurrentPageType
             };
 
@@ -743,6 +750,16 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
         if (CurrentPage is Avalonia.TheaterModePage page)
         {
             page.DataContext = TheaterModeViewModel;
+        }
+    }
+
+    private void NavigateToFlowBuilder()
+    {
+        _navigationService.NavigateTo("FlowBuilder");
+        
+        if (CurrentPage is Avalonia.FlowBuilderView page)
+        {
+            page.DataContext = FlowBuilderViewModel;
         }
     }
 

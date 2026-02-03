@@ -14,5 +14,6 @@ public enum PageType
     StyleLab,
     TheaterMode,
     Processor,
-    DawTimeline
+    DawTimeline,
+    FlowBuilder
 }

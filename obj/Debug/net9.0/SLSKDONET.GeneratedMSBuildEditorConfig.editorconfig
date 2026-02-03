@@ -112,6 +112,9 @@ build_metadata.AdditionalFiles.SourceItemGroup = AvaloniaXaml
 [C:/Users/quint/OneDrive/Documenten/GitHub/QMUSICSLSK/Views/Avalonia/DownloadsPage.axaml]
 build_metadata.AdditionalFiles.SourceItemGroup = AvaloniaXaml
 
+[C:/Users/quint/OneDrive/Documenten/GitHub/QMUSICSLSK/Views/Avalonia/FlowBuilderView.axaml]
+build_metadata.AdditionalFiles.SourceItemGroup = AvaloniaXaml
+
 [C:/Users/quint/OneDrive/Documenten/GitHub/QMUSICSLSK/Views/Avalonia/HomePage.axaml]
 build_metadata.AdditionalFiles.SourceItemGroup = AvaloniaXaml
 
