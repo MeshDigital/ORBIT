@@ -17,7 +17,9 @@ using SLSKDONET.ViewModels.Library;
 
 using Avalonia.Media.Imaging;
 using System.IO;
+using System.Text.Json;
 using SLSKDONET.Services;
+using SLSKDONET.Services.Audio;
 
 namespace SLSKDONET.ViewModels
 {
@@ -113,6 +115,19 @@ namespace SLSKDONET.ViewModels
         
         // Phase 21: Analysis Run Tracking
         public ObservableCollection<Data.Entities.AnalysisRunEntity> AnalysisHistory { get; } = new();
+
+        // Phase 1: Structural Intelligence
+        public ObservableCollection<PhraseSegment> StructuralPhraseSegments { get; } = new();
+        public ObservableCollection<float> StructuralEnergyCurve { get; } = new();
+        public ObservableCollection<float> StructuralVocalDensityCurve { get; } = new();
+        public ObservableCollection<string> StructuralAnomalies { get; } = new();
+        
+        private Dictionary<string, string>? _forensicReasoning;
+        public Dictionary<string, string>? ForensicReasoning
+        {
+            get => _forensicReasoning;
+            set => SetProperty(ref _forensicReasoning, value);
+        }
         
         // Vibe Radar Data (0-100 scale for UI)
         public double VibeEnergy => (AudioFeatures != null && AudioFeatures.Energy > 0 
@@ -772,6 +787,13 @@ namespace SLSKDONET.ViewModels
             OnPropertyChanged(nameof(MoodTag));
             OnPropertyChanged(nameof(HasMood));
 
+            // Phase 1: Structural Notifications
+            UpdateStructuralData();
+            OnPropertyChanged(nameof(StructuralPhraseSegments));
+            OnPropertyChanged(nameof(StructuralEnergyCurve));
+            OnPropertyChanged(nameof(StructuralVocalDensityCurve));
+            OnPropertyChanged(nameof(ForensicReasoning));
+
             // Phase 10.5: Diff View Notifications
             OnPropertyChanged(nameof(CurationConfidence));
             OnPropertyChanged(nameof(AnalysisSource));
@@ -1112,5 +1134,50 @@ namespace SLSKDONET.ViewModels
         }
 
 
+        private void UpdateStructuralData()
+        {
+            StructuralPhraseSegments.Clear();
+            StructuralEnergyCurve.Clear();
+            StructuralVocalDensityCurve.Clear();
+            StructuralAnomalies.Clear();
+
+            if (_audioFeatures == null) return;
+
+            try
+            {
+                if (!string.IsNullOrEmpty(_audioFeatures.PhraseSegmentsJson))
+                {
+                    var segments = JsonSerializer.Deserialize<List<PhraseSegment>>(_audioFeatures.PhraseSegmentsJson);
+                    if (segments != null) foreach (var s in segments) StructuralPhraseSegments.Add(s);
+                }
+
+                if (!string.IsNullOrEmpty(_audioFeatures.EnergyCurveJson))
+                {
+                    var curve = JsonSerializer.Deserialize<List<float>>(_audioFeatures.EnergyCurveJson);
+                    if (curve != null) foreach (var v in curve) StructuralEnergyCurve.Add(v);
+                }
+
+                if (!string.IsNullOrEmpty(_audioFeatures.VocalDensityCurveJson))
+                {
+                    var curve = JsonSerializer.Deserialize<List<float>>(_audioFeatures.VocalDensityCurveJson);
+                    if (curve != null) foreach (var v in curve) StructuralVocalDensityCurve.Add(v);
+                }
+
+                if (!string.IsNullOrEmpty(_audioFeatures.AnalysisReasoningJson))
+                {
+                    ForensicReasoning = JsonSerializer.Deserialize<Dictionary<string, string>>(_audioFeatures.AnalysisReasoningJson);
+                }
+
+                if (!string.IsNullOrEmpty(_audioFeatures.AnomaliesJson))
+                {
+                    var anomalies = JsonSerializer.Deserialize<List<string>>(_audioFeatures.AnomaliesJson);
+                    if (anomalies != null) foreach (var a in anomalies) StructuralAnomalies.Add(a);
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning("Failed to parse structural data JSON: {Msg}", ex.Message);
+            }
+        }
     }
 }

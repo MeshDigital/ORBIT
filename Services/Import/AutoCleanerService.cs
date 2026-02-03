@@ -31,21 +31,30 @@ public class AutoCleanerService
             Dirty = rawInput.Trim()
         };
 
-        // 1. Smart Clean: leverage existing normalization (removes junk like HQ, Official Video)
-        // We assume rawInput might be "Artist - Title"
-        var parts = rawInput.Split(new[] { " - " }, 2, StringSplitOptions.RemoveEmptyEntries);
-        string artist = parts.Length > 0 ? parts[0] : "";
-        string title = parts.Length > 1 ? parts[1] : "";
-
-        if (string.IsNullOrEmpty(title) && !string.IsNullOrEmpty(artist))
+        // 1. Smart Clean: leverage improved CommentTracklistParser
+        var parsedTracks = Utils.CommentTracklistParser.Parse(rawInput);
+        if (parsedTracks.Any())
         {
-            // Handle case where no " - " separator is found
-            title = artist;
-            artist = "";
+            var first = parsedTracks.First();
+            var (normalizedArtist, normalizedTitle) = _normalizationService.NormalizeForSoulseek(first.Artist, first.Title);
+            result.Smart = string.IsNullOrEmpty(normalizedArtist) ? normalizedTitle : $"{normalizedArtist} - {normalizedTitle}";
         }
+        else
+        {
+            // Fallback for single line or non-standard format
+            var parts = rawInput.Split(new[] { " - ", " – ", " — ", " | ", " : " }, 2, StringSplitOptions.RemoveEmptyEntries);
+            string artist = parts.Length > 0 ? parts[0] : "";
+            string title = parts.Length > 1 ? parts[1] : "";
 
-        var (normalizedArtist, normalizedTitle) = _normalizationService.NormalizeForSoulseek(artist, title);
-        result.Smart = string.IsNullOrEmpty(normalizedArtist) ? normalizedTitle : $"{normalizedArtist} - {normalizedTitle}";
+            if (string.IsNullOrEmpty(title) && !string.IsNullOrEmpty(artist))
+            {
+                title = artist;
+                artist = "";
+            }
+
+            var (normalizedArtist, normalizedTitle) = _normalizationService.NormalizeForSoulseek(artist, title);
+            result.Smart = string.IsNullOrEmpty(normalizedArtist) ? normalizedTitle : $"{normalizedArtist} - {normalizedTitle}";
+        }
 
         // 2. Aggressive Clean: Strip "feat.", "Remastered", "Extended Mix", etc.
         // This is where we remove Musical Identity to maximize hits at the cost of precision.

@@ -61,7 +61,6 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
     // Operation Glass Console: Unified Intelligence Center
     public IntelligenceCenterViewModel IntelligenceCenter { get; }
     public TheaterModeViewModel TheaterModeViewModel { get; }
-    public ViewModels.Discovery.CrateDiggerViewModel CrateDiggerViewModel { get; }
     public ViewModels.Timeline.SetDesignerViewModel SetDesignerViewModel { get; }
 
 
@@ -113,7 +112,6 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
         ViewModels.Stem.StemWorkspaceViewModel stemWorkspaceViewModel,
         IntelligenceCenterViewModel intelligenceCenter,
         TheaterModeViewModel theaterModeViewModel,
-        ViewModels.Discovery.CrateDiggerViewModel crateDiggerViewModel,
         ViewModels.Timeline.SetDesignerViewModel setDesignerViewModel)
 
     {
@@ -148,7 +146,6 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
         StemWorkspaceViewModel = stemWorkspaceViewModel;
         IntelligenceCenter = intelligenceCenter;
         TheaterModeViewModel = theaterModeViewModel;
-        CrateDiggerViewModel = crateDiggerViewModel;
         SetDesignerViewModel = setDesignerViewModel;
 
 
@@ -163,7 +160,6 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
         NavigateInspectorCommand = new RelayCommand(NavigateAnalysisQueue);
         NavigateStyleLabCommand = new RelayCommand(() => _navigationService.NavigateTo("StyleLab"));
         NavigateImportCommand = new RelayCommand(NavigateToImport); // Phase 6D
-        NavigateCrateDiggerCommand = new RelayCommand(NavigateToCrateDigger);
         NavigateDawCommand = new RelayCommand(NavigateToDaw);
         ToggleNavigationCommand = new RelayCommand(() => IsNavigationCollapsed = !IsNavigationCollapsed);
         TogglePlayerCommand = new RelayCommand(() => IsPlayerSidebarVisible = !IsPlayerSidebarVisible);
@@ -307,7 +303,6 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
         _navigationService.RegisterPage("AnalysisQueue", typeof(Avalonia.AnalysisQueuePage));
         _navigationService.RegisterPage("StyleLab", typeof(Avalonia.StyleLabPage));
         _navigationService.RegisterPage("Theater", typeof(Avalonia.TheaterModePage));
-        _navigationService.RegisterPage("CrateDigger", typeof(Avalonia.CrateDiggerView));
         
         // Subscribe to navigation events
         _navigationService.Navigated += OnNavigated;
@@ -618,8 +613,7 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
     public ICommand NavigateInspectorCommand { get; }
     public ICommand NavigateStyleLabCommand { get; }
     public ICommand NavigateTheaterCommand { get; }
-    public ICommand NavigateCrateDiggerCommand { get; }
-
+    public ICommand NavigateDawCommand { get; }
     public ICommand NavigateImportCommand { get; } // Phase 6D
     public ICommand ToggleNavigationCommand { get; }
     public ICommand TogglePlayerCommand { get; }
@@ -667,7 +661,6 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
                 "AnalysisQueuePage" => PageType.AnalysisQueue,
                 "StyleLabPage" => PageType.StyleLab,
                 "TheaterModePage" => PageType.TheaterMode,
-                "CrateDiggerView" => PageType.CrateDigger,
                 _ => CurrentPageType
             };
 
@@ -753,15 +746,6 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
         }
     }
 
-    private void NavigateToCrateDigger()
-    {
-        _navigationService.NavigateTo("CrateDigger");
-        
-        if (CurrentPage is Avalonia.CrateDiggerView page)
-        {
-            page.DataContext = CrateDiggerViewModel;
-        }
-    }
 
 
 
@@ -1039,11 +1023,9 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
         catch (Exception ex)
         {
             _logger.LogError(ex, "Failed to handle Add to Project request");
-            StatusText = "Failed to add tracks to project";
         }
     }
 
-    public ICommand NavigateDawCommand { get; }
     private void NavigateToDaw()
     {
         CurrentPageType = PageType.DawTimeline;

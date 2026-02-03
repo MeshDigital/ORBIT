@@ -13,8 +13,6 @@ public enum PageType
     AnalysisQueue,
     StyleLab,
     TheaterMode,
-    CrateDigger,
-    CrateStaging,
     Processor,
     DawTimeline
 }

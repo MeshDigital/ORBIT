@@ -12,11 +12,11 @@ namespace SLSKDONET.Utils;
 /// </summary>
 public static class CommentTracklistParser
 {
-    // Matches timestamps like: 0:00, 00:00, 1:00:00, with optional dash/separator
-    private static readonly Regex TimestampRegex = new(@"^\s*[\d:]{1,8}\s*[-–—]?\s*", RegexOptions.Compiled);
+    // Matches timestamps like: 0:00, 00:00, 1:00:00, (00:00), [00:00] at start or end
+    private static readonly Regex TimestampRegex = new(@"\s*[\[\(]?\d{1,2}:\d{2}(:\d{2})?[\]\)]?\s*", RegexOptions.Compiled);
     
-    // Matches artist/title separator (supports: -, –, —)
-    private static readonly Regex SeparatorRegex = new(@"\s*[-–—]\s*", RegexOptions.Compiled);
+    // Matches artist/title separator (supports: -, –, —, |, :, •)
+    private static readonly Regex SeparatorRegex = new(@"\s*([-–—|:•]|(?<=\S)\s{2,}(?=\S))\s*", RegexOptions.Compiled);
     
     // Keywords that indicate junk lines
     private static readonly string[] JunkKeywords = 
@@ -131,36 +131,24 @@ public static class CommentTracklistParser
     }
 
     /// <summary>
-    /// Remove emojis and special Unicode icons from text.
-    /// This includes common markers like ❎, ❌, ❗, ‼, and other visual symbols.
-    /// Uses a conservative approach to avoid removing legitimate text.
+    /// Remove emojis and special Unicode icons from text using Regex.
     /// </summary>
     private static string RemoveEmojis(string text)
     {
         if (string.IsNullOrWhiteSpace(text))
             return text;
 
-        // Remove specific problematic emoji/symbols only
-        // This is more conservative to avoid removing legitimate text
-        var cleaned = text;
+        // Common symbols and emojis used in tracklists
+        // This regex covers a wide range of symbols, emojis, and math operators used as bullets
+        var cleaned = Regex.Replace(text, @"[\u2700-\u27BF]|[\uE000-\uF8FF]|\uD83C[\uDF00-\uDFFF]|\uD83D[\uDC00-\uDDFF]|[\u2011-\u26FF]|\uD83E[\uDD10-\uDDFF]", string.Empty);
         
-        // Remove common status markers and visual symbols
-        string[] emojiToRemove = new[]
+        // Also remove specific common markers
+        string[] markers = { "✅", "❌", "❎", "✓", "✔", "✗", "✘", "⭐", "❗", "‼", "▶", "⏸" };
+        foreach (var marker in markers)
         {
-            "❎", "❌", "✅", "✓", "✔", "✗", "✘", "⭐", "⚡", 
-            "🎵", "🎶", "🎧", "🎤", "🎸", "🥁", "🎹", "🎺", "🎷",
-            "😀", "😃", "😄", "😁", "😆", "😅", "🤣", "😂", "🙂", "🙃", "😉", "😊",
-            "❗", "❕", "❓", "❔", "‼", "⁉",
-            "🔥", "💯", "💪", "👍", "👎", "🙏", "👏", "🎉", "🎊",
-            "📈", "📉", "📊", "🔴", "🟢", "🟡", "🟠", "🔵", "🟣",
-            "▶", "⏸", "⏹", "⏺", "⏭", "⏮", "⏯", "🔀", "🔁", "🔂"
-        };
-        
-        foreach (var emoji in emojiToRemove)
-        {
-            cleaned = cleaned.Replace(emoji, string.Empty);
+            cleaned = cleaned.Replace(marker, string.Empty);
         }
-        
+
         return cleaned.Trim();
     }
 }

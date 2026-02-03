@@ -435,6 +435,7 @@ public class AnalysisWorker : BackgroundService
     private readonly IForensicLogger _forensicLogger;
     private readonly Services.Musical.CueGenerationEngine _cueEngine;
     private readonly IForensicLockdownService _lockdown;
+    private readonly Services.Audio.PhraseDetectionService _phraseDetector;
 
     
     // Phase 1.2: Dynamic Concurrency & Pressure Monitor
@@ -451,7 +452,7 @@ public class AnalysisWorker : BackgroundService
     private const int BatchSize = 3; // Reduced from 10 to 3 for safer persistence
     private readonly TimeSpan BatchTimeout = TimeSpan.FromSeconds(2); // Reduced from 5s to 2s
 
-    public AnalysisWorker(AnalysisQueueService queue, IServiceProvider serviceProvider, IEventBus eventBus, ILogger<AnalysisWorker> logger, Configuration.AppConfig config, IForensicLogger forensicLogger, Services.Musical.CueGenerationEngine cueEngine, IForensicLockdownService lockdown)
+    public AnalysisWorker(AnalysisQueueService queue, IServiceProvider serviceProvider, IEventBus eventBus, ILogger<AnalysisWorker> logger, Configuration.AppConfig config, IForensicLogger forensicLogger, Services.Musical.CueGenerationEngine cueEngine, IForensicLockdownService lockdown, Services.Audio.PhraseDetectionService phraseDetector)
     {
         _queue = queue;
         _serviceProvider = serviceProvider;
@@ -460,6 +461,7 @@ public class AnalysisWorker : BackgroundService
         _forensicLogger = forensicLogger;
         _cueEngine = cueEngine;
         _lockdown = lockdown;
+        _phraseDetector = phraseDetector;
         
         // Initialize CPU Counter for Pressure Monitor (Windows only)
         if (System.Runtime.InteropServices.RuntimeInformation.IsOSPlatform(System.Runtime.InteropServices.OSPlatform.Windows))
@@ -1014,6 +1016,16 @@ public class AnalysisWorker : BackgroundService
                         {
                             _eventBus.Publish(new TrackMetadataUpdatedEvent(result.TrackHash));
                             
+                            // Phase 1: Structural Intelligence - Run after DB commit
+                            try
+                            {
+                                await _phraseDetector.DetectPhrasesAsync(result.TrackHash);
+                            }
+                            catch (Exception ex)
+                            {
+                                 _logger.LogWarning("Phrase detection failed for {Hash}: {Msg}", result.TrackHash, ex.Message);
+                            }
+
                             // Race Condition Check: Publish Completion events HERE, after DB commit
                             _eventBus.Publish(new TrackAnalysisCompletedEvent(result.TrackHash, true) { DatabaseId = result.DatabaseId });
                             _eventBus.Publish(new AnalysisCompletedEvent(result.TrackHash, true));

@@ -77,9 +77,49 @@ namespace SLSKDONET.Views.Avalonia.Controls
             set => SetValue(CuesProperty, value);
         }
 
+        public static readonly StyledProperty<System.Collections.Generic.IEnumerable<PhraseSegment>?> PhraseSegmentsProperty =
+            AvaloniaProperty.Register<WaveformControl, System.Collections.Generic.IEnumerable<PhraseSegment>?>(nameof(PhraseSegments));
+
+        public System.Collections.Generic.IEnumerable<PhraseSegment>? PhraseSegments
+        {
+            get => GetValue(PhraseSegmentsProperty);
+            set => SetValue(PhraseSegmentsProperty, value);
+        }
+
+        public static readonly StyledProperty<System.Collections.Generic.IEnumerable<float>?> EnergyCurveProperty =
+            AvaloniaProperty.Register<WaveformControl, System.Collections.Generic.IEnumerable<float>?>(nameof(EnergyCurve));
+
+        public System.Collections.Generic.IEnumerable<float>? EnergyCurve
+        {
+            get => GetValue(EnergyCurveProperty);
+            set => SetValue(EnergyCurveProperty, value);
+        }
+
+        public static readonly StyledProperty<System.Collections.Generic.IEnumerable<float>?> VocalDensityCurveProperty =
+            AvaloniaProperty.Register<WaveformControl, System.Collections.Generic.IEnumerable<float>?>(nameof(VocalDensityCurve));
+
+        public System.Collections.Generic.IEnumerable<float>? VocalDensityCurve
+        {
+            get => GetValue(VocalDensityCurveProperty);
+            set => SetValue(VocalDensityCurveProperty, value);
+        }
+
         static WaveformControl()
         {
-            AffectsRender<WaveformControl>(WaveformDataProperty, ProgressProperty, IsRollingProperty, LowBandProperty, MidBandProperty, HighBandProperty, CuesProperty, ForegroundProperty, BackgroundProperty, PlayheadBrushProperty);
+            AffectsRender<WaveformControl>(
+                WaveformDataProperty, 
+                ProgressProperty, 
+                IsRollingProperty, 
+                LowBandProperty, 
+                MidBandProperty, 
+                HighBandProperty, 
+                CuesProperty, 
+                PhraseSegmentsProperty,
+                EnergyCurveProperty,
+                VocalDensityCurveProperty,
+                ForegroundProperty, 
+                BackgroundProperty, 
+                PlayheadBrushProperty);
         }
 
         public static readonly StyledProperty<System.Windows.Input.ICommand?> CueUpdatedCommandProperty =
@@ -242,10 +282,12 @@ namespace SLSKDONET.Views.Avalonia.Controls
             var width = Bounds.Width;
             var height = Bounds.Height;
 
+            // 1. Draw Phrase Segments (Background blocks)
+            RenderPhraseSegments(context, width, height);
+
             if (IsRolling)
             {
                 // For rolling, we just use the direct render for now as it needs continuous updating
-                // Optimization: Rolling could reuse bitmap but with translation
                 RenderRolling(context, data, width, height, height / 2);
             }
             else
@@ -264,6 +306,9 @@ namespace SLSKDONET.Views.Avalonia.Controls
                     }
                 }
             }
+
+            // 2. Draw Curves (Energy, Vocals)
+            RenderCurves(context, width, height);
 
             // Draw Playhead Line
             double playheadX = IsRolling ? width / 2 : Progress * width;
@@ -478,6 +523,78 @@ namespace SLSKDONET.Views.Avalonia.Controls
                 context.DrawGeometry(null, StaticPlayedPen, playedGeom);
                 context.DrawGeometry(null, StaticBasePen, baseGeom);
             }
+        }
+
+        private void RenderPhraseSegments(DrawingContext context, double width, double height)
+        {
+            var segments = PhraseSegments;
+            var data = WaveformData;
+            if (segments == null || data == null || data.DurationSeconds <= 0) return;
+
+            var sorted = System.Linq.Enumerable.OrderBy(segments, s => s.Start).ToList();
+            for (int i = 0; i < sorted.Count; i++)
+            {
+                var s = sorted[i];
+                double x = (s.Start / data.DurationSeconds) * width;
+                double nextX = width;
+                
+                if (i < sorted.Count - 1)
+                {
+                    nextX = (sorted[i + 1].Start / data.DurationSeconds) * width;
+                }
+
+                if (x >= width || nextX <= 0) continue;
+
+                var color = Color.Parse(s.Color ?? "#444444");
+                var brush = new SolidColorBrush(color, 0.15f); // Semi-transparent block
+                
+                context.DrawRectangle(brush, null, new Rect(x, 0, Math.Max(0, nextX - x), height));
+                
+                // Draw Label at the bottom
+                var typeface = new Typeface(FontFamily.Default, FontStyle.Normal, FontWeight.Bold);
+                var formattedText = new FormattedText(s.Label.ToUpper(), System.Globalization.CultureInfo.InvariantCulture, FlowDirection.LeftToRight, typeface, 9, new SolidColorBrush(color, 0.6f));
+                context.DrawText(formattedText, new Point(x + 4, height - formattedText.Height - 4));
+            }
+        }
+
+        private void RenderCurves(DrawingContext context, double width, double height)
+        {
+            var energy = EnergyCurve;
+            var vocals = VocalDensityCurve;
+            
+            if (energy == null && vocals == null) return;
+
+            // Draw Energy Curve (Yellow glow)
+            if (energy != null)
+            {
+                RenderCurve(context, energy, width, height, Color.FromRgb(255, 255, 0), 0.6f);
+            }
+
+            // Draw Vocal Curve (Purple glow)
+            if (vocals != null)
+            {
+                RenderCurve(context, vocals, width, height, Color.FromRgb(189, 16, 224), 0.5f);
+            }
+        }
+
+        private void RenderCurve(DrawingContext context, System.Collections.Generic.IEnumerable<float> points, double width, double height, Color color, float opacity)
+        {
+            var list = System.Linq.Enumerable.ToList(points);
+            if (list.Count < 2) return;
+
+            double step = width / (list.Count - 1);
+            var geom = new StreamGeometry();
+            using (var ctx = geom.Open())
+            {
+                ctx.BeginFigure(new Point(0, height - (list[0] * height)), false);
+                for (int i = 1; i < list.Count; i++)
+                {
+                    ctx.LineTo(new Point(i * step, height - (list[i] * height)));
+                }
+            }
+
+            var brush = new SolidColorBrush(color, opacity);
+            context.DrawGeometry(null, new Pen(brush, 1.5, lineCap: PenLineCap.Round, lineJoin: PenLineJoin.Round), geom);
         }
 
         private void RenderCues(DrawingContext context, double width, double height)

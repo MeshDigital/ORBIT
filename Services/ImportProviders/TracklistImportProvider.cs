@@ -22,8 +22,7 @@ public class TracklistImportProvider : IStreamingImportProvider
     }
 
     /// <summary>
-    /// Check if input looks like a tracklist (has timestamps and multiple lines).
-    /// This is a heuristic check - the provider is primarily manually triggered.
+    /// Check if input looks like a tracklist (multiple lines).
     /// </summary>
     public bool CanHandle(string input)
     {
@@ -31,13 +30,11 @@ public class TracklistImportProvider : IStreamingImportProvider
             return false;
 
         // Check for multi-line input
-        var lines = input.Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries);
-        if (lines.Length < 2)
-            return false;
-
-        // Check if at least one line contains a timestamp pattern
-        return lines.Any(line => 
-            System.Text.RegularExpressions.Regex.IsMatch(line, @"^\s*[\d:]{1,8}\s*[-–—]?\s*"));
+        var lines = input.Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries)
+                         .Where(l => !string.IsNullOrWhiteSpace(l))
+                         .ToList();
+        
+        return lines.Count >= 2;
     }
 
     /// <summary>
@@ -58,7 +55,7 @@ public class TracklistImportProvider : IStreamingImportProvider
                 return Task.FromResult(new ImportResult
                 {
                     Success = false,
-                    ErrorMessage = "No valid tracks found in pasted text.\n\nExpected format:\n0:00 Artist - Title\n3:45 Artist - Title"
+                    ErrorMessage = "No valid tracks found in pasted text.\n\nExpected format:\nArtist - Title\n0:00 Artist - Title"
                 });
             }
 

@@ -196,15 +196,6 @@
                         </Button>
 
                         <Button Classes="nav" 
-                                Command="{Binding NavigateCrateDiggerCommand}"
-                                Classes.selected="{Binding CurrentPageType, Converter={StaticResource EqualityConverter}, ConverterParameter={x:Static models:PageType.CrateDigger}}">
-                            <StackPanel Orientation="Horizontal" Spacing="12" Margin="16,0">
-                                <TextBlock Text="⛏️" FontSize="16"/>
-                                <TextBlock Text="Crate Digger" FontSize="14"/>
-                            </StackPanel>
-                        </Button>
-
-                        <Button Classes="nav" 
                                 Command="{Binding NavigateSearchCommand}"
                                 Classes.selected="{Binding CurrentPageType, Converter={StaticResource EqualityConverter}, ConverterParameter={x:Static models:PageType.Search}}">
                             <StackPanel Orientation="Horizontal" Spacing="12" Margin="16,0">
@@ -212,8 +203,6 @@
                                 <TextBlock Text="Search" FontSize="14"/>
                             </StackPanel>
                         </Button>
-
-                        <Border Height="1" Background="#333" Margin="12,12"/>
 
                         <!-- INGESTION HUB -->
                         <TextBlock Text="INGESTION" FontSize="11" FontWeight="Bold" Foreground="#666" Margin="16,0,0,4" LetterSpacing="1"/>

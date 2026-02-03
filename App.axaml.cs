@@ -683,6 +683,7 @@ public partial class App : Application
 
         services.AddSingleton<AnalysisQueueService>();
         services.AddSingleton<MusicalBrainTestService>();
+        services.AddSingleton<Services.Audio.PhraseDetectionService>(); // Phase 1: Structural Intelligence
         services.AddHostedService<AnalysisWorker>();
         services.AddSingleton<AnalysisQueueViewModel>();
         
@@ -753,7 +754,6 @@ public partial class App : Application
         services.AddSingleton<SpotifyImportViewModel>();
         services.AddSingleton<ViewModels.LibrarySourcesViewModel>();
         services.AddSingleton<TheaterModeViewModel>();
-        services.AddSingleton<ViewModels.Discovery.CrateDiggerViewModel>();
         services.AddSingleton<Services.Import.AutoCleanerService>();
 
         // Utilities
@@ -780,7 +780,6 @@ public partial class App : Application
         services.AddTransient<Views.Avalonia.AnalysisQueuePage>();
         services.AddTransient<Views.Avalonia.StyleLabPage>();
         services.AddTransient<Views.Avalonia.TheaterModePage>();
-        services.AddTransient<Views.Avalonia.CrateDiggerView>();
         services.AddTransient<Views.Avalonia.Timeline.SetDesignerView>();
         
         services.AddSingleton<ViewModels.TrackInspectorViewModel>();

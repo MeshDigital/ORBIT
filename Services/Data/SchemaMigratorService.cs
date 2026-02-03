@@ -486,7 +486,13 @@ public class SchemaMigratorService
                         -- Provenance & Reliability
                         ""CurationConfidence"" INTEGER NOT NULL DEFAULT 0,
                         ""Source"" INTEGER NOT NULL DEFAULT 0,
-                        ""ProvenanceJson"" TEXT NOT NULL DEFAULT ''
+                        ""ProvenanceJson"" TEXT NOT NULL DEFAULT '',
+
+                        -- Phase 1 Foundations: Structural & curves
+                        ""PhraseSegmentsJson"" TEXT NOT NULL DEFAULT '[]',
+                        ""EnergyCurveJson"" TEXT NOT NULL DEFAULT '[]',
+                        ""VocalDensityCurveJson"" TEXT NOT NULL DEFAULT '[]',
+                        ""AnalysisReasoningJson"" TEXT NOT NULL DEFAULT '{}'
                     );
                     CREATE UNIQUE INDEX ""IX_audio_features_TrackUniqueHash"" ON ""audio_features"" (""TrackUniqueHash"");
                 ";
@@ -516,11 +522,60 @@ public class SchemaMigratorService
                 _logger.LogError(ex, "Failed to patch audio_analysis table");
             }
 
-            // Patch audio_features for MusicBrainzId
             if (!ColumnExists("audio_features", "MusicBrainzId"))
             {
                 _logger.LogInformation("Patching Schema: Adding MusicBrainzId to audio_features...");
                 command.CommandText = @"ALTER TABLE ""audio_features"" ADD COLUMN ""MusicBrainzId"" TEXT NOT NULL DEFAULT '';";
+                await command.ExecuteNonQueryAsync();
+            }
+
+            // Phase 1 Foundations: Structural & curves patches
+            if (!ColumnExists("audio_features", "PhraseSegmentsJson"))
+            {
+                _logger.LogInformation("Patching Schema: Adding PhraseSegmentsJson to audio_features...");
+                command.CommandText = @"ALTER TABLE ""audio_features"" ADD COLUMN ""PhraseSegmentsJson"" TEXT NOT NULL DEFAULT '[]';";
+                await command.ExecuteNonQueryAsync();
+            }
+
+            if (!ColumnExists("audio_features", "EnergyCurveJson"))
+            {
+                _logger.LogInformation("Patching Schema: Adding EnergyCurveJson to audio_features...");
+                command.CommandText = @"ALTER TABLE ""audio_features"" ADD COLUMN ""EnergyCurveJson"" TEXT NOT NULL DEFAULT '[]';";
+                await command.ExecuteNonQueryAsync();
+            }
+
+            if (!ColumnExists("audio_features", "VocalDensityCurveJson"))
+            {
+                _logger.LogInformation("Patching Schema: Adding VocalDensityCurveJson to audio_features...");
+                command.CommandText = @"ALTER TABLE ""audio_features"" ADD COLUMN ""VocalDensityCurveJson"" TEXT NOT NULL DEFAULT '[]';";
+                await command.ExecuteNonQueryAsync();
+            }
+
+            if (!ColumnExists("audio_features", "AnalysisReasoningJson"))
+            {
+                _logger.LogInformation("Patching Schema: Adding AnalysisReasoningJson to audio_features...");
+                command.CommandText = @"ALTER TABLE ""audio_features"" ADD COLUMN ""AnalysisReasoningJson"" TEXT NOT NULL DEFAULT '{}';";
+                await command.ExecuteNonQueryAsync();
+            }
+
+            if (!ColumnExists("audio_features", "AnomaliesJson"))
+            {
+                _logger.LogInformation("Patching Schema: Adding AnomaliesJson to audio_features...");
+                command.CommandText = @"ALTER TABLE ""audio_features"" ADD COLUMN ""AnomaliesJson"" TEXT NOT NULL DEFAULT '[]';";
+                await command.ExecuteNonQueryAsync();
+            }
+
+            if (!ColumnExists("audio_features", "StructuralVersion"))
+            {
+                _logger.LogInformation("Patching Schema: Adding StructuralVersion to audio_features...");
+                command.CommandText = @"ALTER TABLE ""audio_features"" ADD COLUMN ""StructuralVersion"" INTEGER NOT NULL DEFAULT 0;";
+                await command.ExecuteNonQueryAsync();
+            }
+
+            if (!ColumnExists("audio_features", "StructuralHash"))
+            {
+                _logger.LogInformation("Patching Schema: Adding StructuralHash to audio_features...");
+                command.CommandText = @"ALTER TABLE ""audio_features"" ADD COLUMN ""StructuralHash"" TEXT NULL;";
                 await command.ExecuteNonQueryAsync();
             }
 
@@ -659,6 +714,12 @@ public class SchemaMigratorService
                     command.CommandText = @"ALTER TABLE ""Tracks"" ADD COLUMN ""MusicBrainzId"" TEXT NULL;";
                     await command.ExecuteNonQueryAsync();
                 }
+                if (!ColumnExists("Tracks", "MoodTag"))
+                {
+                    _logger.LogInformation("Patching Schema: Adding MoodTag to Tracks...");
+                    command.CommandText = @"ALTER TABLE ""Tracks"" ADD COLUMN ""MoodTag"" TEXT NULL;";
+                    await command.ExecuteNonQueryAsync();
+                }
             }
 
             // 2. PlaylistTracks Columns
@@ -708,6 +769,12 @@ public class SchemaMigratorService
             {
                 _logger.LogInformation("Patching Schema: Adding MusicBrainzId to PlaylistTracks...");
                 command.CommandText = @"ALTER TABLE ""PlaylistTracks"" ADD COLUMN ""MusicBrainzId"" TEXT NULL;";
+                await command.ExecuteNonQueryAsync();
+            }
+            if (!ColumnExists("PlaylistTracks", "MoodTag"))
+            {
+                _logger.LogInformation("Patching Schema: Adding MoodTag to PlaylistTracks...");
+                command.CommandText = @"ALTER TABLE ""PlaylistTracks"" ADD COLUMN ""MoodTag"" TEXT NULL;";
                 await command.ExecuteNonQueryAsync();
             }
 
@@ -794,6 +861,12 @@ public class SchemaMigratorService
             {
                 _logger.LogInformation("Patching Schema: Adding MusicBrainzId to LibraryEntries...");
                 command.CommandText = @"ALTER TABLE ""LibraryEntries"" ADD COLUMN ""MusicBrainzId"" TEXT NULL;";
+                await command.ExecuteNonQueryAsync();
+            }
+            if (!ColumnExists("LibraryEntries", "MoodTag"))
+            {
+                _logger.LogInformation("Patching Schema: Adding MoodTag to LibraryEntries...");
+                command.CommandText = @"ALTER TABLE ""LibraryEntries"" ADD COLUMN ""MoodTag"" TEXT NULL;";
                 await command.ExecuteNonQueryAsync();
             }
             if (!ColumnExists("LibraryEntries", "Rating"))
