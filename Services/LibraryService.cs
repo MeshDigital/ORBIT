@@ -1318,4 +1318,22 @@ public class LibraryService : ILibraryService
 
         await db.SaveChangesAsync();
     }
+
+    public async Task UpdateAudioFeaturesAsync(AudioFeaturesEntity entity)
+    {
+        using var db = new AppDbContext();
+        var existing = await db.AudioFeatures.FirstOrDefaultAsync(f => f.TrackUniqueHash == entity.TrackUniqueHash);
+        if (existing != null)
+        {
+            existing.PhraseSegmentsJson = entity.PhraseSegmentsJson;
+            existing.EnergyCurveJson = entity.EnergyCurveJson;
+            existing.VocalDensityCurveJson = entity.VocalDensityCurveJson;
+            existing.AnomaliesJson = entity.AnomaliesJson;
+            existing.StructuralVersion = entity.StructuralVersion;
+            existing.StructuralHash = entity.StructuralHash;
+            existing.AnalysisReasoningJson = entity.AnalysisReasoningJson;
+            
+            await db.SaveChangesAsync();
+        }
+    }
 }

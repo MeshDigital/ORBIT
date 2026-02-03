@@ -20,6 +20,7 @@ using System.IO;
 using System.Text.Json;
 using SLSKDONET.Services;
 using SLSKDONET.Services.Audio;
+using SLSKDONET.ViewModels.Surgical;
 
 namespace SLSKDONET.ViewModels
 {
@@ -132,15 +133,15 @@ namespace SLSKDONET.ViewModels
         // Vibe Radar Data (0-100 scale for UI)
         public double VibeEnergy => (AudioFeatures != null && AudioFeatures.Energy > 0 
             ? AudioFeatures.Energy 
-            : (float)(Track?.Energy ?? 0)) * 100;
+            : (float)(Track?.Energy ?? 0.0)) * 100.0;
 
         public double VibeDance => (AudioFeatures != null && AudioFeatures.Danceability > 0 
             ? AudioFeatures.Danceability 
-            : (float)(Track?.Danceability ?? 0)) * 100;
+            : (float)(Track?.Danceability ?? 0.0)) * 100.0;
 
         public double VibeMood => (AudioFeatures != null && AudioFeatures.MoodConfidence > 0 
             ? AudioFeatures.MoodConfidence 
-            : (float)(Track?.Valence ?? 0)) * 100;
+            : (float)(Track?.Valence ?? 0.0)) * 100.0;
         
         public bool HasProDjFeatures => HasAnalysis && !string.IsNullOrEmpty(CamelotKey);
         public System.Windows.Input.ICommand ForceReAnalyzeCommand { get; }
@@ -156,6 +157,9 @@ namespace SLSKDONET.ViewModels
         public System.Windows.Input.ICommand CloneCommand { get; } // Phase 11.6
         public System.Windows.Input.ICommand RevealFileCommand { get; }
         public System.Windows.Input.ICommand OpenStemWorkspaceCommand { get; } // Phase 24
+        public System.Windows.Input.ICommand ToggleEditModeCommand { get; } // Phase 2
+        public System.Windows.Input.ICommand SegmentUpdatedCommand { get; } // Phase 2
+        public System.Windows.Input.ICommand SurgicalRenderCommand { get; } // Phase 2
 
         private MusicBrainzCredits? _mbCredits;
         public MusicBrainzCredits? MbCredits
@@ -163,6 +167,22 @@ namespace SLSKDONET.ViewModels
             get => _mbCredits;
             set => SetProperty(ref _mbCredits, value);
         }
+
+        private bool _isEditing;
+        public bool IsEditing
+        {
+            get => _isEditing;
+            set => SetProperty(ref _isEditing, value);
+        }
+
+        private SnappingMode _snappingMode = SnappingMode.Soft;
+        public SnappingMode SnappingMode
+        {
+            get => _snappingMode;
+            set => SetProperty(ref _snappingMode, value);
+        }
+
+        public float Bpm => AudioFeatures?.Bpm ?? (float)(Track?.BPM ?? 0.0);
 
         public TrackInspectorViewModel(
             Services.IAudioAnalysisService audioAnalysisService, 
@@ -199,6 +219,23 @@ namespace SLSKDONET.ViewModels
                 {
                     _eventBus.Publish(new RevealFileRequestEvent(Track.ResolvedFilePath));
                 }
+            });
+
+            ToggleEditModeCommand = ReactiveCommand.Create(() => IsEditing = !IsEditing);
+
+            SegmentUpdatedCommand = ReactiveCommand.Create<PhraseSegment>(seg =>
+            {
+                _logger.LogInformation("📏 Surgical Segment Updated: {Label} now {Start}-{End}", seg.Label, seg.Start, seg.Start + seg.Duration);
+                // TODO: Logic to persist these changes back to the database or internal model
+                _ = SaveStructuralDataAsync();
+            });
+
+            SurgicalRenderCommand = ReactiveCommand.CreateFromTask(async () =>
+            {
+                if (Track == null) return;
+                _logger.LogInformation("🚀 Initiating Surgical Render for {Path}", Track.ResolvedFilePath);
+                // TODO: Call SurgicalProcessingService
+                await Task.Delay(1000); 
             });
 
             OpenStemWorkspaceCommand = ReactiveCommand.Create(() =>
@@ -1177,6 +1214,22 @@ namespace SLSKDONET.ViewModels
             catch (Exception ex)
             {
                 _logger.LogWarning("Failed to parse structural data JSON: {Msg}", ex.Message);
+            }
+        }
+
+        public async Task SaveStructuralDataAsync()
+        {
+            if (_audioFeatures == null) return;
+
+            try
+            {
+                _audioFeatures.PhraseSegmentsJson = JsonSerializer.Serialize(StructuralPhraseSegments.ToList());
+                await _libraryService.UpdateAudioFeaturesAsync(_audioFeatures);
+                _logger.LogInformation("💾 Structural data saved for {Track}", Track?.Title);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to save structural data");
             }
         }
     }

@@ -103,9 +103,6 @@ build_metadata.AdditionalFiles.SourceItemGroup = AvaloniaXaml
 [C:/Users/quint/OneDrive/Documenten/GitHub/QMUSICSLSK/Views/Avalonia/Controls/TrackCard.axaml]
 build_metadata.AdditionalFiles.SourceItemGroup = AvaloniaXaml
 
-[C:/Users/quint/OneDrive/Documenten/GitHub/QMUSICSLSK/Views/Avalonia/CrateDiggerView.axaml]
-build_metadata.AdditionalFiles.SourceItemGroup = AvaloniaXaml
-
 [C:/Users/quint/OneDrive/Documenten/GitHub/QMUSICSLSK/Views/Avalonia/Dialogs/CreateSmartPlaylistDialog.axaml]
 build_metadata.AdditionalFiles.SourceItemGroup = AvaloniaXaml
 

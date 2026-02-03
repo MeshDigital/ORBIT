@@ -13,6 +13,7 @@ using SLSKDONET.Data;
 using SLSKDONET.Services;
 using SLSKDONET.Services.InputParsers;
 using SLSKDONET.Services.Ranking;
+using SLSKDONET.Services.Audio;
 using SLSKDONET.Services.Library;
 using SLSKDONET.ViewModels;
 using SLSKDONET.Views;
@@ -785,6 +786,10 @@ public partial class App : Application
         services.AddSingleton<ViewModels.TrackInspectorViewModel>();
         services.AddSingleton<ViewModels.ForensicLabViewModel>();
         services.AddSingleton<ViewModels.IntelligenceCenterViewModel>();
+
+        // Phase 2: Surgical Editing Engine
+        services.AddSingleton<ISurgicalProcessingService, SurgicalProcessingService>();
+        services.AddSingleton<StemCacheService>();
     }
 
     /// <summary>

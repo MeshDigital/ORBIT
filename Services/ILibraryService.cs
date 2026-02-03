@@ -218,4 +218,9 @@ public interface ILibraryService
     /// Updates the cue points for all instances of a track (Library and Playlist entries).
     /// </summary>
     Task UpdateTrackCuePointsAsync(string trackHash, string cuePointsJson);
+
+    /// <summary>
+    /// Phase 2: Updates the surgical structural features for a track.
+    /// </summary>
+    Task UpdateAudioFeaturesAsync(AudioFeaturesEntity entity);
 }

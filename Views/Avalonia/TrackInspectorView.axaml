@@ -134,18 +134,54 @@
                             </Grid>
                         </Border>
                         
-                        <Border Background="#111" CornerRadius="8" Height="100" Padding="1" ClipToBounds="True">
-                            <controls:WaveformControl Name="InspectorWaveform"
-                                                    WaveformData="{Binding Track.WaveformDataObj}"
-                                                    LowBand="{Binding Track.LowData}"
-                                                    MidBand="{Binding Track.MidData}"
-                                                    HighBand="{Binding Track.HighData}"
-                                                    Cues="{Binding Cues}"
-                                                    PhraseSegments="{Binding StructuralPhraseSegments}"
-                                                    EnergyCurve="{Binding StructuralEnergyCurve}"
-                                                    VocalDensityCurve="{Binding StructuralVocalDensityCurve}"
-                                                    Height="100"/>
-                        </Border>
+                        <!-- Waveform & Surgical Toolbar -->
+                        <StackPanel Spacing="10">
+                            <Grid ColumnDefinitions="*,Auto,Auto">
+                                <TextBlock Text="Surgical Workstation" FontSize="14" FontWeight="SemiBold" Foreground="#AAA" VerticalAlignment="Center"/>
+                                <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" Margin="0,0,12,0" IsVisible="{Binding IsEditing}">
+                                    <TextBlock Text="Snap:" VerticalAlignment="Center" FontSize="12" Foreground="#888"/>
+                                    <ComboBox SelectedIndex="{Binding SnappingMode}" FontSize="12" Height="30" Background="#222">
+                                        <ComboBoxItem>Hard</ComboBoxItem>
+                                        <ComboBoxItem>Soft</ComboBoxItem>
+                                        <ComboBoxItem>Free</ComboBoxItem>
+                                    </ComboBox>
+                                </StackPanel>
+                                <ToggleButton Grid.Column="2" 
+                                              IsChecked="{Binding IsEditing}" 
+                                              Content="✂️ Edit Mode" 
+                                              Padding="12,6" 
+                                              FontSize="12" 
+                                              FontWeight="SemiBold"
+                                              Theme="{StaticResource MaterialDesignFlatPrimaryToggleButton}"/>
+                            </Grid>
+
+                            <Border Background="#111" CornerRadius="8" Height="120" Padding="1" ClipToBounds="True">
+                                <controls:WaveformControl Name="InspectorWaveform"
+                                                        WaveformData="{Binding Track.WaveformDataObj}"
+                                                        LowBand="{Binding Track.LowData}"
+                                                        MidBand="{Binding Track.MidData}"
+                                                        HighBand="{Binding Track.HighData}"
+                                                        Cues="{Binding Cues}"
+                                                        PhraseSegments="{Binding StructuralPhraseSegments}"
+                                                        EnergyCurve="{Binding StructuralEnergyCurve}"
+                                                        VocalDensityCurve="{Binding StructuralVocalDensityCurve}"
+                                                        IsEditing="{Binding IsEditing}"
+                                                        SnappingMode="{Binding SnappingMode}"
+                                                        Bpm="{Binding Bpm}"
+                                                        SegmentUpdatedCommand="{Binding SegmentUpdatedCommand}"
+                                                        Height="120"/>
+                            </Border>
+
+                            <Button Command="{Binding SurgicalRenderCommand}" 
+                                    IsVisible="{Binding IsEditing}"
+                                    Classes="accent" 
+                                    HorizontalAlignment="Right">
+                                <StackPanel Orientation="Horizontal" Spacing="8">
+                                    <TextBlock Text="🚀"/>
+                                    <TextBlock Text="Surgical Render (Lossless)"/>
+                                </StackPanel>
+                            </Button>
+                        </StackPanel>
                         
                         <!-- METRICS GRID: Key Analysis Data -->
                         <UniformGrid Columns="2" Rows="2">
