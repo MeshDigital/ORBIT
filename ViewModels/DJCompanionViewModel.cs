@@ -585,54 +585,50 @@ public class DJCompanionViewModel : ReactiveObject
         }
     }
 
-}
+    // Display Models for UI Binding
+    public class HarmonicMatchDisplayItem
+    {
+        public string Title { get; set; } = "";
+        public string Artist { get; set; } = "";
+        public string Album { get; set; } = "";
+        public string KeyMatch { get; set; } = "";
+        public int CompatibilityScore { get; set; }
+        public string KeyRelation { get; set; } = "";
+        public LibraryEntryEntity? Track { get; set; }
+    }
 
-}
+    public class BpmMatchDisplayItem
+    {
+        public string Title { get; set; } = "";
+        public string Artist { get; set; } = "";
+        public string Album { get; set; } = "";
+        public string BpmDisplay { get; set; } = "";
+        public double BpmDifference { get; set; }
+        public LibraryEntryEntity? Track { get; set; }
+    }
 
-// Display Models for UI Binding
-public class HarmonicMatchDisplayItem
-{
-    public string Title { get; set; } = "";
-    public string Artist { get; set; } = "";
-    public string Album { get; set; } = "";
-    public string KeyMatch { get; set; } = "";
-    public int CompatibilityScore { get; set; }
-    public string KeyRelation { get; set; } = "";
-    public LibraryEntryEntity? Track { get; set; }
-}
+    public class EnergyMatchDisplayItem
+    {
+        public string Title { get; set; } = "";
+        public string Artist { get; set; } = "";
+        public string Album { get; set; } = "";
+        public double Energy { get; set; }
+        public string EnergyDirection { get; set; } = "";
+        public LibraryEntryEntity? Track { get; set; }
+    }
 
-public class BpmMatchDisplayItem
-{
-    public string Title { get; set; } = "";
-    public string Artist { get; set; } = "";
-    public string Album { get; set; } = "";
-    public string BpmDisplay { get; set; } = "";
-    public double BpmDifference { get; set; }
-    public LibraryEntryEntity? Track { get; set; }
-}
+    public class StyleMatchDisplayItem
+    {
+        public string Title { get; set; } = "";
+        public string Artist { get; set; } = "";
+        public string Album { get; set; } = "";
+        public string Genre { get; set; } = "";
+        public LibraryEntryEntity? Track { get; set; }
+    }
 
-public class EnergyMatchDisplayItem
-{
-    public string Title { get; set; } = "";
-    public string Artist { get; set; } = "";
-    public string Album { get; set; } = "";
-    public double Energy { get; set; }
-    public string EnergyDirection { get; set; } = "";
-    public LibraryEntryEntity? Track { get; set; }
-}
-
-public class StyleMatchDisplayItem
-{
-    public string Title { get; set; } = "";
-    public string Artist { get; set; } = "";
-    public string Album { get; set; } = "";
-    public string Genre { get; set; } = "";
-    public LibraryEntryEntity? Track { get; set; }
-}
-
-public class MixingAdviceItem
-{
-    public string Title { get; set; } = "";
-    public string Description { get; set; } = "";
-}
+    public class MixingAdviceItem
+    {
+        public string Title { get; set; } = "";
+        public string Description { get; set; } = "";
+    }
 }
