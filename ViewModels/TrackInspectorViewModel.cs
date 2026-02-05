@@ -14,6 +14,7 @@ using System.Linq;
 using System.Collections.Generic;
 using Microsoft.Extensions.Logging;
 using SLSKDONET.ViewModels.Library;
+using System.Windows.Input;
 
 using Avalonia.Media.Imaging;
 using System.IO;
@@ -1339,7 +1340,8 @@ namespace SLSKDONET.ViewModels
                 }
                 else if (trimmedLine.StartsWith("🎯"))
                 {
-                    ForensicVerdicts.Add(Models.ForensicVerdictEntry.Success(trimmedLine.TrimStart('🎯', ' ').Trim()));
+                    var content = trimmedLine.Substring("🎯".Length).TrimStart();
+                    ForensicVerdicts.Add(Models.ForensicVerdictEntry.Success(content));
                 }
                 else if (trimmedLine.StartsWith("═"))
                 {

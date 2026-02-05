@@ -1,6 +1,8 @@
 using System;
 using System.Collections.ObjectModel;
 using System.Linq;
+using System.Reactive;
+using System.Threading.Tasks;
 using ReactiveUI;
 using SLSKDONET.Models;
 using SLSKDONET.Models.Musical;
@@ -9,13 +11,15 @@ using SLSKDONET.Services.Musical;
 namespace SLSKDONET.ViewModels
 {
     /// <summary>
-    /// Phase 5.4: Forensic Inspector ViewModel
+    /// Phase 5.4/6: Forensic Inspector ViewModel
     /// Displays detailed forensic reasoning for selected stress points from the Setlist Stress-Test.
     /// When user clicks a red/yellow segment on the HealthBar, this panel explains:
     /// - Why the transition fails (detailed reasoning)
     /// - What problems were detected
     /// - 1-3 rescue track suggestions with reasoning
     /// - Actionable mentor-style advice
+    /// 
+    /// Phase 6: Added ApplyRescueTrackCommand for one-click rescue application.
     /// </summary>
     public class ForensicInspectorViewModel : ReactiveObject
     {
@@ -23,6 +27,7 @@ namespace SLSKDONET.ViewModels
         private string _displayReasoning = string.Empty;
         private bool _hasRescueSuggestions;
         private int _selectedRescueIndex = -1;
+        private bool _isApplying;
 
         /// <summary>
         /// Currently displayed stress point (from HealthBar selection).
@@ -74,6 +79,15 @@ namespace SLSKDONET.ViewModels
         }
 
         /// <summary>
+        /// True while applying a rescue track to the setlist.
+        /// </summary>
+        public bool IsApplying
+        {
+            get => _isApplying;
+            set => this.RaiseAndSetIfChanged(ref _isApplying, value);
+        }
+
+        /// <summary>
         /// The currently displayed rescue track (if selected).
         /// </summary>
         public RescueSuggestion SelectedRescue
@@ -99,8 +113,23 @@ namespace SLSKDONET.ViewModels
             }
         }
 
+        /// <summary>
+        /// Phase 6: Command to apply the selected rescue track to the setlist.
+        /// Inputs: (transitionIndex, rescueSuggestion)
+        /// Output: ApplyRescueResult with success status and updated report.
+        /// </summary>
+        public ReactiveCommand<Unit, ApplyRescueResult> ApplyRescueTrackCommand { get; private set; }
+
+        /// <summary>
+        /// Handler to notify parent ViewModel when rescue is applied.
+        /// </summary>
+        public Func<int, RescueSuggestion, Task<ApplyRescueResult>> OnApplyRescueTrack { get; set; }
+
         public ForensicInspectorViewModel()
         {
+            // Phase 6: Initialize ApplyRescueTrackCommand
+            ApplyRescueTrackCommand = ReactiveCommand.CreateFromTask<Unit, ApplyRescueResult>(
+                async _ => await ExecuteApplyRescueTrackAsync());
         }
 
         /// <summary>
@@ -238,16 +267,45 @@ namespace SLSKDONET.ViewModels
         }
 
         /// <summary>
-        /// Applies a rescue suggestion to the setlist.
-        /// (Placeholder - will integrate with setlist repo in phase 6)
+        /// Phase 6: Executes the rescue track application.
+        /// Delegates to parent ViewModel (DJCompanionViewModel) which orchestrates the full flow.
         /// </summary>
-        public void ApplyRescueTrack(RescueSuggestion rescue)
+        private async Task<ApplyRescueResult> ExecuteApplyRescueTrackAsync()
         {
-            if (rescue == null || SelectedStressPoint == null)
-                return;
+            if (SelectedStressPoint == null || SelectedRescue == null)
+            {
+                return new ApplyRescueResult
+                {
+                    Success = false,
+                    Message = "No rescue suggestion selected."
+                };
+            }
 
-            // TODO: Phase 6 - Insert rescue track at optimal position
-            // This is a hook for future implementation
+            try
+            {
+                IsApplying = true;
+
+                // Call the handler (wired from DJCompanionViewModel)
+                if (OnApplyRescueTrack != null)
+                {
+                    var result = await OnApplyRescueTrack(
+                        SelectedStressPoint.FromTrackIndex,
+                        SelectedRescue);
+                    return result;
+                }
+                else
+                {
+                    return new ApplyRescueResult
+                    {
+                        Success = false,
+                        Message = "Rescue handler not configured."
+                    };
+                }
+            }
+            finally
+            {
+                IsApplying = false;
+            }
         }
     }
 }

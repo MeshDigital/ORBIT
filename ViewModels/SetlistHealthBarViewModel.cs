@@ -145,6 +145,33 @@ namespace SLSKDONET.ViewModels
         }
 
         /// <summary>
+        /// Updates HealthBar with new report and animates affected segments.
+        /// Used after ApplyRescueTrack to show visual feedback (Red → Green transition).
+        /// </summary>
+        public async Task UpdateReportWithAnimation(StressDiagnosticReport report, int affectedSegmentIndex)
+        {
+            // Update core report
+            UpdateReport(report);
+
+            // Animate the affected segment (pulse or color transition)
+            if (affectedSegmentIndex >= 0 && affectedSegmentIndex < TransitionSegments.Count)
+            {
+                var segment = TransitionSegments[affectedSegmentIndex];
+                
+                // Visual feedback: Flash the segment briefly
+                var originalBrush = segment.BackgroundColorBrush;
+                
+                // Quick flash sequence (200ms total)
+                segment.SeverityScore = Math.Max(0, segment.SeverityScore - 20); // Lighter immediately
+                await Task.Delay(100);
+                segment.SeverityScore = Math.Min(100, segment.SeverityScore + 10); // Settle
+                await Task.Delay(100);
+            }
+
+            StatusMessage = report.QuickSummary;
+        }
+
+        /// <summary>
         /// Builds tooltip text for a segment showing problem and impact.
         /// </summary>
         private string BuildSegmentTooltip(TransitionStressPoint stressPoint)

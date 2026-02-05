@@ -383,13 +383,13 @@
                                                     <!-- Icon Column -->
                                                     <Grid Width="14">
                                                         <TextBlock Text="⚠" Foreground="#CC7700" FontSize="11" TextAlignment="Center" VerticalAlignment="Top" Margin="0,1,0,0"
-                                                                   IsVisible="{Binding Type, Converter="{x:Static conv:EnumConverters.Instance}", ConverterParameter=Warning}"/>
+                                                                   IsVisible="{Binding Type, Converter={x:Static conv:EnumConverters.Instance}, ConverterParameter=Warning}"/>
                                                         <TextBlock Text="✓" Foreground="#22FF22" FontSize="11" TextAlignment="Center" VerticalAlignment="Top" Margin="0,1,0,0"
-                                                                   IsVisible="{Binding Type, Converter="{x:Static conv:EnumConverters.Instance}", ConverterParameter=Success}"/>
+                                                                   IsVisible="{Binding Type, Converter={x:Static conv:EnumConverters.Instance}, ConverterParameter=Success}"/>
                                                         <TextBlock Text="•" Foreground="#555" FontSize="11" TextAlignment="Center" VerticalAlignment="Top" Margin="0,1,0,0"
-                                                                   IsVisible="{Binding Type, Converter="{x:Static conv:EnumConverters.Instance}", ConverterParameter=Bullet}"/>
+                                                                   IsVisible="{Binding Type, Converter={x:Static conv:EnumConverters.Instance}, ConverterParameter=Bullet}"/>
                                                         <TextBlock Text="→" Foreground="#444" FontSize="11" TextAlignment="Center" VerticalAlignment="Top" Margin="0,1,0,0"
-                                                                   IsVisible="{Binding Type, Converter="{x:Static conv:EnumConverters.Instance}", ConverterParameter=Detail}"/>
+                                                                   IsVisible="{Binding Type, Converter={x:Static conv:EnumConverters.Instance}, ConverterParameter=Detail}"/>
                                                     </Grid>
 
                                                     <TextBlock Text="{Binding Content}" FontSize="11" Foreground="#AAA" TextWrapping="Wrap" VerticalAlignment="Top"/>

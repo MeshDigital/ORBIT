@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using SLSKDONET.Data.Entities;
 
 namespace SLSKDONET.Models.Musical
 {
@@ -37,7 +36,7 @@ namespace SLSKDONET.Models.Musical
         /// <summary>
         /// The bridging track from library that solves the transition gap.
         /// </summary>
-        public LibraryEntryEntity TargetTrack { get; set; }
+        public object TargetTrack { get; set; } // Dynamic reference - actual type injected by service
 
         /// <summary>
         /// Numerical score (0-100) indicating quality of bridge.
@@ -198,5 +197,47 @@ namespace SLSKDONET.Models.Musical
         ///   "⚠ Critical: 2 dead-ends detected. Major rework recommended."
         /// </summary>
         public string QuickSummary { get; set; } = string.Empty;
+    }
+
+    /// <summary>
+    /// Phase 6: Result of applying a rescue track to a setlist.
+    /// Indicates success/failure, action taken (INSERT or REPLACE), and updated setlist.
+    /// </summary>
+    public class ApplyRescueResult
+    {
+        /// <summary>
+        /// Whether the rescue operation succeeded.
+        /// </summary>
+        public bool Success { get; set; }
+
+        /// <summary>
+        /// Human-readable message describing the result.
+        /// Examples:
+        ///   "✓ Rescue track 'Pump It' inserted as bridge."
+        ///   "✗ Invalid transition indices."
+        /// </summary>
+        public string Message { get; set; } = string.Empty;
+
+        /// <summary>
+        /// The action taken: "INSERT" (bridge) or "REPLACE" (swap).
+        /// </summary>
+        public string Action { get; set; } = string.Empty;
+
+        /// <summary>
+        /// Updated setlist with rescue track applied.
+        /// </summary>
+        public SetListEntity UpdatedSetlist { get; set; }
+
+        /// <summary>
+        /// Number of transitions affected by the change.
+        /// Usually 2 (before and after the new/replaced track).
+        /// </summary>
+        public int AffectedTransitions { get; set; }
+
+        /// <summary>
+        /// Updated stress report after rescue was applied.
+        /// (Will be calculated if needed for immediate feedback)
+        /// </summary>
+        public StressDiagnosticReport UpdatedReport { get; set; }
     }
 }

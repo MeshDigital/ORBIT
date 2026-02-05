@@ -1,2 +1,8 @@
 C:\Users\quint\OneDrive\Documenten\GitHub\QMUSICSLSK\obj\Debug\net9.0\SLSKDONET.csproj.AssemblyReference.cache
 C:\Users\quint\OneDrive\Documenten\GitHub\QMUSICSLSK\obj\Debug\net9.0\Avalonia\Resources.Inputs.cache
+C:\Users\quint\OneDrive\Documenten\GitHub\QMUSICSLSK\obj\Debug\net9.0\Avalonia\resources
+C:\Users\quint\OneDrive\Documenten\GitHub\QMUSICSLSK\obj\Debug\net9.0\SLSKDONET.GeneratedMSBuildEditorConfig.editorconfig
+C:\Users\quint\OneDrive\Documenten\GitHub\QMUSICSLSK\obj\Debug\net9.0\SLSKDONET.AssemblyInfoInputs.cache
+C:\Users\quint\OneDrive\Documenten\GitHub\QMUSICSLSK\obj\Debug\net9.0\SLSKDONET.AssemblyInfo.cs
+C:\Users\quint\OneDrive\Documenten\GitHub\QMUSICSLSK\obj\Debug\net9.0\SLSKDONET.csproj.CoreCompileInputs.cache
+C:\Users\quint\OneDrive\Documenten\GitHub\QMUSICSLSK\obj\Debug\net9.0\SLSKDONET.sourcelink.json

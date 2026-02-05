@@ -614,5 +614,164 @@ namespace SLSKDONET.Services.Analysis
 
             return string.Join(" + ", parts) + " — Click red segments to see rescue suggestions.";
         }
+
+        /// <summary>
+        /// Phase 6: Applies a rescue track to the setlist at optimal position.
+        /// Determines whether to:
+        /// 1. REPLACE: Swap problematic track with rescue track
+        /// 2. INSERT: Place rescue track as bridge between problematic transition
+        /// 
+        /// Then recalculates severity scores for affected transitions.
+        /// </summary>
+        public async Task<ApplyRescueResult> ApplyRescueTrackAsync(
+            SetListEntity setlist,
+            TransitionStressPoint stressPoint,
+            RescueSuggestion rescueSuggestion)
+        {
+            if (setlist == null || stressPoint == null || rescueSuggestion == null)
+            {
+                return new ApplyRescueResult
+                {
+                    Success = false,
+                    Message = "Invalid parameters for rescue application.",
+                    UpdatedSetlist = setlist
+                };
+            }
+
+            try
+            {
+                // Get the actual tracks from the setlist
+                var setTracks = setlist.Tracks?.ToList() ?? new List<SetTrackEntity>();
+                if (setTracks.Count == 0)
+                {
+                    return new ApplyRescueResult
+                    {
+                        Success = false,
+                        Message = "Setlist is empty.",
+                        UpdatedSetlist = setlist
+                    };
+                }
+
+                var fromTrack = setTracks.ElementAtOrDefault(stressPoint.FromTrackIndex);
+                var toTrack = setTracks.ElementAtOrDefault(stressPoint.ToTrackIndex);
+
+                if (fromTrack == null || toTrack == null)
+                {
+                    return new ApplyRescueResult
+                    {
+                        Success = false,
+                        Message = "Invalid transition indices.",
+                        UpdatedSetlist = setlist
+                    };
+                }
+
+                // Decision: Replace vs Insert
+                // INSERT if: rescue track bridges the gap much better than replacement
+                // REPLACE if: rescue track is better standalone on one side
+                var qualityGainFromReplace = 
+                    Math.Max(
+                        CalculateTransitionQuality(fromTrack, rescueSuggestion.TargetTrack),
+                        CalculateTransitionQuality(rescueSuggestion.TargetTrack, toTrack)
+                    );
+
+                var qualityGainFromBridge =
+                    CalculateTransitionQuality(fromTrack, rescueSuggestion.TargetTrack) +
+                    CalculateTransitionQuality(rescueSuggestion.TargetTrack, toTrack);
+
+                bool shouldInsertBridge = qualityGainFromBridge > (qualityGainFromReplace * 1.3);
+
+                if (shouldInsertBridge)
+                {
+                    // INSERT at optimal position (after fromTrack)
+                    int insertPosition = stressPoint.ToTrackIndex;
+                    var newSetTrack = new SetTrackEntity
+                    {
+                        SetId = setlist.SetId,
+                        Library = rescueSuggestion.TargetTrack,
+                        Position = insertPosition,
+                        IsRescueTrack = true, // Mark as applied rescue
+                        RescueReason = $"Bridge: {stressPoint.PrimaryProblem}"
+                    };
+
+                    // Adjust positions of tracks after insertion
+                    foreach (var track in setTracks.Where(t => t.Position >= insertPosition))
+                    {
+                        track.Position++;
+                    }
+
+                    setTracks.Insert(insertPosition, newSetTrack);
+                    setlist.Tracks = setTracks;
+
+                    return new ApplyRescueResult
+                    {
+                        Success = true,
+                        Message = $"✓ Rescue track '{rescueSuggestion.TargetTrack.Title}' inserted as bridge.",
+                        UpdatedSetlist = setlist,
+                        Action = "INSERT",
+                        AffectedTransitions = 2 // Bridge affects both new transitions
+                    };
+                }
+                else
+                {
+                    // REPLACE the problematic track
+                    // Prefer replacing fromTrack if it's lower quality
+                    int replaceIndex = stressPoint.FromTrackIndex;
+                    if (CalculateTransitionQuality(rescueSuggestion.TargetTrack, toTrack) >
+                        CalculateTransitionQuality(fromTrack, rescueSuggestion.TargetTrack))
+                    {
+                        replaceIndex = stressPoint.ToTrackIndex;
+                    }
+
+                    var oldTrack = setTracks[replaceIndex];
+                    var newSetTrack = new SetTrackEntity
+                    {
+                        SetId = setlist.SetId,
+                        Library = rescueSuggestion.TargetTrack,
+                        Position = replaceIndex,
+                        IsRescueTrack = true,
+                        RescueReason = $"Replaced: {oldTrack.Library?.Title ?? "Unknown"} due to {stressPoint.PrimaryProblem}"
+                    };
+
+                    setTracks[replaceIndex] = newSetTrack;
+                    setlist.Tracks = setTracks;
+
+                    return new ApplyRescueResult
+                    {
+                        Success = true,
+                        Message = $"✓ Track replaced with '{rescueSuggestion.TargetTrack.Title}'.",
+                        UpdatedSetlist = setlist,
+                        Action = "REPLACE",
+                        AffectedTransitions = 2 // Affects transitions before and after
+                    };
+                }
+            }
+            catch (Exception ex)
+            {
+                return new ApplyRescueResult
+                {
+                    Success = false,
+                    Message = $"Error applying rescue track: {ex.Message}",
+                    UpdatedSetlist = setlist
+                };
+            }
+        }
+
+        /// <summary>
+        /// Calculates transition quality between two tracks (0-100, higher is better).
+        /// Uses existing analysis methods.
+        /// </summary>
+        private int CalculateTransitionQuality(LibraryEntryEntity trackA, LibraryEntryEntity trackB)
+        {
+            if (trackA == null || trackB == null) return 30;
+
+            var energyScore = 100 - AnalyzeEnergyFlow(trackA, trackB);
+            var harmonicScore = 100 - AnalyzeHarmonicCompatibility(trackA, trackB);
+            var vocalScore = 100 - AnalyzeVocalCompatibility(trackA, trackB);
+            var tempoScore = 100 - AnalyzeTempoCompatibility(trackA, trackB);
+
+            return (int)((energyScore * 0.25) + (harmonicScore * 0.35) + 
+                         (vocalScore * 0.30) + (tempoScore * 0.10));
+        }
     }
 }
+

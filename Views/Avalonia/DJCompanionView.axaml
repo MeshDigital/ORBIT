@@ -408,6 +408,28 @@
                             </ItemsControl.ItemTemplate>
                         </ItemsControl>
 
+                        <!-- Apply Rescue Track Command (Phase 6) -->
+                        <Button Content="🚀 APPLY RESCUE TRACK" 
+                                Command="{Binding ApplyRescueTrackCommand}"
+                                Background="#FFB300"
+                                Foreground="#0a0a0a"
+                                FontWeight="Bold"
+                                FontSize="10"
+                                Padding="8,6"
+                                CornerRadius="4"
+                                IsVisible="{Binding HasRescueSuggestions}"
+                                IsEnabled="{Binding !IsApplying}"
+                                Margin="0,8,0,0"
+                                HorizontalAlignment="Stretch"
+                                HorizontalContentAlignment="Center"/>
+
+                        <!-- Applying Status -->
+                        <TextBlock Text="⏳ Applying rescue track..." 
+                                   FontSize="9" 
+                                   Foreground="#FFB300"
+                                   IsVisible="{Binding IsApplying}"
+                                   Margin="0,4,0,0"/>
+
                         <!-- No Selection Message -->
                         <TextBlock Text="→ Click a segment on the HealthBar to see details"
                                    FontSize="9"
