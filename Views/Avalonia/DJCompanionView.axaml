@@ -16,10 +16,13 @@
         <conv:RankColorConverter x:Key="RankColorConverter"/>
     </UserControl.Resources>
 
-    <Grid RowDefinitions="Auto,*" ColumnDefinitions="420,*,380">
+    <Grid RowDefinitions="Auto,Auto,*" ColumnDefinitions="420,*,380,320">
+        
+        <!-- HEALTH BAR (NEW Phase 5.4) -->
+        <controls:SetlistHealthBar Grid.Row="0" Grid.ColumnSpan="3" DataContext="{Binding HealthBarViewModel}" Margin="0,0,0,8"/>
         
         <!-- HEADER -->
-        <Border Grid.Row="0" Grid.ColumnSpan="3" Background="#252526" BorderBrush="#3E3E3E" BorderThickness="0,0,0,1" Padding="24,16">
+        <Border Grid.Row="1" Grid.ColumnSpan="3" Background="#252526" BorderBrush="#3E3E3E" BorderThickness="0,0,0,1" Padding="24,16">
             <Grid ColumnDefinitions="Auto,*,Auto,Auto">
                 <TextBlock Grid.Column="0" Text="🎧 DJ COMPANION" FontSize="16" FontWeight="Bold" LetterSpacing="2" VerticalAlignment="Center"/>
                 <TextBlock Grid.Column="1" Text="{Binding HelpText}" FontSize="12" Foreground="#888" Margin="40,0" VerticalAlignment="Center" TextWrapping="Wrap"/>
@@ -33,15 +36,17 @@
                     <TextBlock Text="{Binding PlayButtonLabel}"/>
                 </Button>
                 
-                <Button Grid.Column="3" Content="Settings" 
-                        Background="#333"
+                <Button Grid.Column="3" Command="{Binding RunSetlistStressTestCommand}"
+                        Content="🏥 Check Flow" 
+                        Background="#4EC9B0"
                         Padding="12,6"
-                        CornerRadius="4"/>
+                        CornerRadius="4"
+                        ToolTip.Tip="Run setlist stress-test diagnostic"/>
             </Grid>
         </Border>
 
         <!-- LEFT PANEL: Current Track Detail -->
-        <Border Grid.Row="1" Grid.Column="0" Background="#202020" BorderBrush="#3E3E3E" BorderThickness="0,0,1,0" Padding="16" VerticalAlignment="Top">
+        <Border Grid.Row="2" Grid.Column="0" Background="#202020" BorderBrush="#3E3E3E" BorderThickness="0,0,1,0" Padding="16" VerticalAlignment="Top">
             <ScrollViewer>
                 <StackPanel Spacing="20">
                     
@@ -176,7 +181,7 @@
         </Border>
 
         <!-- CENTER PANEL: Playback & Analysis -->
-        <Border Grid.Row="1" Grid.Column="1" Background="#1E1E1E" Padding="24">
+        <Border Grid.Row="2" Grid.Column="1" Background="#1E1E1E" Padding="24">
             <StackPanel Spacing="20">
                 
                 <!-- Large Playback Display -->
@@ -231,7 +236,7 @@
         </Border>
 
         <!-- RIGHT PANEL: Intelligent Recommendations -->
-        <Border Grid.Row="1" Grid.Column="2" Background="#202020" BorderBrush="#3E3E3E" BorderThickness="0,0,0,0" Padding="16" VerticalAlignment="Stretch">
+        <Border Grid.Row="2" Grid.Column="2" Background="#202020" BorderBrush="#3E3E3E" BorderThickness="0,0,0,0" Padding="16" VerticalAlignment="Stretch">
             <ScrollViewer>
                 <StackPanel Spacing="16">
                     
@@ -339,6 +344,80 @@
                     </Border>
                 </StackPanel>
             </ScrollViewer>
+        </Border>
+
+        <!-- RIGHT PANEL (NEW): Forensic Inspector (Phase 5.4) -->
+        <Border Grid.Row="2" Grid.Column="3" Background="#0a0a0a" BorderBrush="#3E3E3E" BorderThickness="1,0,0,0" Padding="12">
+            <Grid RowDefinitions="Auto,*" Spacing="8">
+                <!-- Header -->
+                <TextBlock Grid.Row="0" Text="📋 FORENSIC INSPECTOR" FontSize="11" FontWeight="Bold" Foreground="#4EC9B0" LetterSpacing="1"/>
+                
+                <!-- Content -->
+                <ScrollViewer Grid.Row="1" Background="Transparent">
+                    <StackPanel DataContext="{Binding ForensicInspectorViewModel}" Spacing="8" Padding="0,0,8,0">
+                        <!-- Context Message -->
+                        <TextBlock Text="{Binding ContextMessage}" 
+                                   FontSize="10" 
+                                   Foreground="#888" 
+                                   TextWrapping="Wrap"
+                                   Margin="0,0,0,8"/>
+                        
+                        <!-- Forensic Verdicts (Parsed from reasoning) -->
+                        <ItemsControl ItemsSource="{Binding ForensicVerdicts}">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <TextBlock Text="{Binding Content}"
+                                               FontSize="9"
+                                               FontFamily="Cascadia Code, JetBrains Mono, Courier New"
+                                               Foreground="{Binding Type, Converter={StaticResource ForensicColorConverter}}"
+                                               TextWrapping="Wrap"
+                                               Margin="0,2,0,2"/>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+
+                        <!-- Divider -->
+                        <Border Height="1" Background="#333" Margin="0,8"/>
+
+                        <!-- Rescue Suggestions -->
+                        <TextBlock Text="RESCUE SUGGESTIONS" FontSize="10" FontWeight="Bold" Foreground="#FFB300" 
+                                   IsVisible="{Binding HasRescueSuggestions}"/>
+
+                        <ItemsControl ItemsSource="{Binding RescueSuggestions}" IsVisible="{Binding HasRescueSuggestions}">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <Border Background="#1A1A1A" CornerRadius="4" Padding="8" Margin="0,4,0,0" BorderBrush="#FFB300" BorderThickness="1">
+                                        <StackPanel Spacing="4">
+                                            <TextBlock Text="{Binding TargetTrack.Artist, StringFormat='{0} - '}" 
+                                                       FontSize="9" 
+                                                       FontWeight="Bold"
+                                                       Foreground="#FFB300"/>
+                                            <TextBlock Text="{Binding TargetTrack.Title}" 
+                                                       FontSize="9" 
+                                                       Foreground="#CCC"
+                                                       TextWrapping="Wrap"/>
+                                            <TextBlock Text="{Binding WhyItFitsFull}" 
+                                                       FontSize="8" 
+                                                       Foreground="#888"
+                                                       TextWrapping="Wrap"
+                                                       Margin="0,4,0,0"/>
+                                            <ProgressBar Value="{Binding BridgeQualityScore}" Maximum="100" Height="4" Background="#333" Foreground="#FFB300" CornerRadius="2" Margin="0,4,0,0"/>
+                                        </StackPanel>
+                                    </Border>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+
+                        <!-- No Selection Message -->
+                        <TextBlock Text="→ Click a segment on the HealthBar to see details"
+                                   FontSize="9"
+                                   Foreground="#666"
+                                   TextWrapping="Wrap"
+                                   IsVisible="{Binding !HasRescueSuggestions}"
+                                   Margin="0,20,0,0"/>
+                    </StackPanel>
+                </ScrollViewer>
+            </Grid>
         </Border>
     </Grid>
 </UserControl>

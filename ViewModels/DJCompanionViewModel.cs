@@ -1,12 +1,15 @@
 using System;
 using System.Collections.ObjectModel;
 using System.Linq;
+using System.Reactive;
 using System.Threading.Tasks;
 using ReactiveUI;
 using SLSKDONET.Data;
+using SLSKDONET.Data.Entities;
 using SLSKDONET.Models;
 using SLSKDONET.Models.Musical;
 using SLSKDONET.Services;
+using SLSKDONET.Services.Analysis;
 using SLSKDONET.Services.Audio;
 using SLSKDONET.Services.Musical;
 
@@ -105,16 +108,37 @@ public class DJCompanionViewModel : ReactiveObject
 
     public string PlayButtonLabel => IsPlaying ? "⏸ Pause" : "▶ Play";
 
+    // Phase 5.4: Setlist Stress-Test Integration
+    private StressDiagnosticReport _stressReport;
+    public StressDiagnosticReport StressReport
+    {
+        get => _stressReport;
+        set => this.RaiseAndSetIfChanged(ref _stressReport, value);
+    }
+
+    private SetListEntity _currentSetlist;
+    public SetListEntity CurrentSetlist
+    {
+        get => _currentSetlist;
+        set => this.RaiseAndSetIfChanged(ref _currentSetlist, value);
+    }
+
+    public SetlistHealthBarViewModel HealthBarViewModel { get; private set; }
+    public ForensicInspectorViewModel ForensicInspectorViewModel { get; private set; }
+
     public System.Windows.Input.ICommand TogglePlayCommand { get; }
     public System.Windows.Input.ICommand PreviewStemCommand { get; }
     public System.Windows.Input.ICommand LoadTrackCommand { get; }
+    public ReactiveCommand<Unit, StressDiagnosticReport> RunSetlistStressTestCommand { get; private set; }
 
     public DJCompanionViewModel(
         HarmonicMatchService harmonicMatchService,
         LibraryService libraryService,
         PersonalClassifierService styleClassifier,
         PlayerViewModel playerViewModel,
-        IEventBus eventBus)
+        IEventBus eventBus,
+        SetlistStressTestService stressTestService = null,
+        AppDbContext dbContext = null)
     {
         _harmonicMatchService = harmonicMatchService;
         _libraryService = libraryService;
@@ -125,6 +149,21 @@ public class DJCompanionViewModel : ReactiveObject
         TogglePlayCommand = ReactiveCommand.Create(TogglePlay);
         PreviewStemCommand = ReactiveCommand.CreateFromTask<string>(PreviewStemAsync);
         LoadTrackCommand = ReactiveCommand.CreateFromTask<UnifiedTrackViewModel>(LoadTrackAsync);
+
+        // Phase 5.4: Initialize Stress-Test Command
+        RunSetlistStressTestCommand = ReactiveCommand.CreateFromTask<Unit, StressDiagnosticReport>(
+            async _ => await RunSetlistStressTestAsync(stressTestService, dbContext));
+
+        // Initialize child ViewModels
+        HealthBarViewModel = new SetlistHealthBarViewModel();
+        ForensicInspectorViewModel = new ForensicInspectorViewModel();
+
+        // Wire segment selection → inspector detail
+        HealthBarViewModel.SegmentSelected.Subscribe(stressPoint =>
+        {
+            if (stressPoint != null)
+                ForensicInspectorViewModel.DisplayStressPointDetail(stressPoint);
+        });
 
         // Subscribe to track changes from player
         _eventBus.Subscribe<TrackSelectedEvent>(OnTrackSelected);
@@ -420,6 +459,45 @@ public class DJCompanionViewModel : ReactiveObject
         if (seedKey == matchKey) return "Perfect Match";
         // Simplified: could use Camelot wheel logic
         return "Compatible";
+    }
+
+    /// <summary>
+    /// Phase 5.4: Runs setlist stress-test diagnostic.
+    /// Analyzes all transitions in the current setlist, identifies dead-ends,
+    /// energy plateaus, vocal clashes, and suggests rescue tracks.
+    /// </summary>
+    private async Task<StressDiagnosticReport> RunSetlistStressTestAsync(
+        SetlistStressTestService stressTestService,
+        AppDbContext dbContext)
+    {
+        if (CurrentSetlist == null || stressTestService == null)
+        {
+            return new StressDiagnosticReport
+            {
+                QuickSummary = "Error: No setlist loaded or stress-test service unavailable."
+            };
+        }
+
+        try
+        {
+            HelpText = "Running setlist stress-test...";
+
+            // Run the comprehensive diagnostic
+            var report = await stressTestService.RunDiagnosticAsync(CurrentSetlist);
+            StressReport = report;
+
+            // Update HealthBar with results
+            HealthBarViewModel.UpdateReport(report);
+
+            HelpText = report.QuickSummary;
+            return report;
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"Error running stress-test: {ex.Message}");
+            HelpText = $"Stress-test error: {ex.Message}";
+            return new StressDiagnosticReport();
+        }
     }
 }
 
