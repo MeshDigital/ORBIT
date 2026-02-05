@@ -436,6 +436,7 @@ public class AnalysisWorker : BackgroundService
     private readonly Services.Musical.CueGenerationEngine _cueEngine;
     private readonly IForensicLockdownService _lockdown;
     private readonly Services.Audio.PhraseDetectionService _phraseDetector;
+    private readonly Services.Musical.VocalIntelligenceService _vocalService;
 
     
     // Phase 1.2: Dynamic Concurrency & Pressure Monitor
@@ -452,7 +453,17 @@ public class AnalysisWorker : BackgroundService
     private const int BatchSize = 3; // Reduced from 10 to 3 for safer persistence
     private readonly TimeSpan BatchTimeout = TimeSpan.FromSeconds(2); // Reduced from 5s to 2s
 
-    public AnalysisWorker(AnalysisQueueService queue, IServiceProvider serviceProvider, IEventBus eventBus, ILogger<AnalysisWorker> logger, Configuration.AppConfig config, IForensicLogger forensicLogger, Services.Musical.CueGenerationEngine cueEngine, IForensicLockdownService lockdown, Services.Audio.PhraseDetectionService phraseDetector)
+    public AnalysisWorker(
+        AnalysisQueueService queue, 
+        IServiceProvider serviceProvider, 
+        IEventBus eventBus, 
+        ILogger<AnalysisWorker> logger, 
+        Configuration.AppConfig config, 
+        IForensicLogger forensicLogger, 
+        Services.Musical.CueGenerationEngine cueEngine, 
+        IForensicLockdownService lockdown, 
+        Services.Audio.PhraseDetectionService phraseDetector,
+        Services.Musical.VocalIntelligenceService vocalService)
     {
         _queue = queue;
         _serviceProvider = serviceProvider;
@@ -462,6 +473,7 @@ public class AnalysisWorker : BackgroundService
         _cueEngine = cueEngine;
         _lockdown = lockdown;
         _phraseDetector = phraseDetector;
+        _vocalService = vocalService;
         
         // Initialize CPU Counter for Pressure Monitor (Windows only)
         if (System.Runtime.InteropServices.RuntimeInformation.IsOSPlatform(System.Runtime.InteropServices.OSPlatform.Windows))
@@ -776,6 +788,27 @@ public class AnalysisWorker : BackgroundService
                         currentKeyConfidence = 0.8f; // Placeholder as Essentia gives key but confidence varies
                         run.BpmConfidence = currentBpmConfidence;
                         run.KeyConfidence = currentKeyConfidence;
+                        
+                        // Phase 3.5: Vocal Intelligence Post-Processing
+                        if (!string.IsNullOrEmpty(resultContext.MusicalResult.VocalDensityCurveJson))
+                        {
+                            try
+                            {
+                                float[] densityCurve = System.Text.Json.JsonSerializer.Deserialize<float[]>(resultContext.MusicalResult.VocalDensityCurveJson) ?? Array.Empty<float>();
+                                double duration = resultContext.MusicalResult.TrackDuration > 0 ? resultContext.MusicalResult.TrackDuration : (double)(resultContext.WaveformData?.DurationSeconds ?? 0);
+                                
+                                var vocalMetrics = _vocalService.AnalyzeVocalDensity(densityCurve, duration);
+                                resultContext.MusicalResult.DetectedVocalType = vocalMetrics.Type;
+                                resultContext.MusicalResult.VocalIntensity = vocalMetrics.Intensity;
+                                resultContext.MusicalResult.VocalStartSeconds = vocalMetrics.StartSeconds;
+                                resultContext.MusicalResult.VocalEndSeconds = vocalMetrics.EndSeconds;
+                            }
+                            catch (Exception ex)
+                            {
+                                _logger.LogWarning("Vocal analysis failed for {Hash}: {Msg}", trackHash, ex.Message);
+                            }
+                        }
+
                         _queue.UpdateThreadStatus(threadId, request.FilePath, "AI Musical Scan Complete", 60, currentBpmConfidence, currentKeyConfidence, currentIntegrityScore, AnalysisStage.Intelligence);
                     }
                 }
@@ -1072,6 +1105,12 @@ public class AnalysisWorker : BackgroundService
             track.InstrumentalProbability = result.MusicalResult.InstrumentalProbability;
             track.DetectedSubGenre = result.MusicalResult.DetectedSubGenre;
             track.PrimaryGenre = result.MusicalResult.ElectronicSubgenre;
+            
+            // Phase 3.5: Vocal Metrics
+            track.VocalType = result.MusicalResult.DetectedVocalType;
+            track.VocalIntensity = result.MusicalResult.VocalIntensity;
+            track.VocalStartSeconds = result.MusicalResult.VocalStartSeconds;
+            track.VocalEndSeconds = result.MusicalResult.VocalEndSeconds;
         }
         else if (track.AnalysisStatus == AnalysisStatus.None || track.AnalysisStatus == AnalysisStatus.Pending)
         {
@@ -1172,6 +1211,12 @@ public class AnalysisWorker : BackgroundService
             entry.DetectedSubGenre = result.MusicalResult.DetectedSubGenre;
             entry.PrimaryGenre = result.MusicalResult.ElectronicSubgenre;
             entry.InstrumentalProbability = result.MusicalResult.InstrumentalProbability;
+
+            // Phase 3.5: Vocal Metrics
+            entry.VocalType = result.MusicalResult.DetectedVocalType;
+            entry.VocalIntensity = result.MusicalResult.VocalIntensity;
+            entry.VocalStartSeconds = result.MusicalResult.VocalStartSeconds;
+            entry.VocalEndSeconds = result.MusicalResult.VocalEndSeconds;
         }
 
         if (result.WaveformData != null)

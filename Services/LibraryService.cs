@@ -75,6 +75,11 @@ public class LibraryService : ILibraryService
         return entity != null ? EntityToLibraryEntry(entity) : null;
     }
 
+    public async Task<LibraryEntryEntity?> GetTrackEntityByHashAsync(string uniqueHash)
+    {
+        return await _databaseService.FindLibraryEntryAsync(uniqueHash).ConfigureAwait(false);
+    }
+
     public async Task<List<LibraryEntry>> LoadAllLibraryEntriesAsync()
     {
         var entities = await _databaseService.GetAllLibraryEntriesAsync().ConfigureAwait(false);

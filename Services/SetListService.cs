@@ -7,6 +7,8 @@ using Microsoft.Extensions.Logging;
 using SLSKDONET.Data;
 using SLSKDONET.Data.Entities;
 using SLSKDONET.Services.Musical;
+using SLSKDONET.Models;
+using SLSKDONET.Models.Musical;
 
 namespace SLSKDONET.Services
 {
@@ -36,9 +38,25 @@ namespace SLSKDONET.Services
         {
             using var context = new AppDbContext();
             return await context.SetLists
-                .Include(s => s.Tracks)
+                .Include(s => s.Tracks.OrderBy(t => t.Position))
                 .OrderByDescending(s => s.LastModifiedAt)
                 .ToListAsync();
+        }
+
+        public async Task<SetListEntity?> GetSetListAsync(Guid id)
+        {
+            using var context = new AppDbContext();
+            return await context.SetLists
+                .Include(s => s.Tracks.OrderBy(t => t.Position))
+                .FirstOrDefaultAsync(s => s.Id == id);
+        }
+
+        public async Task UpdateSetListAsync(SetListEntity setList)
+        {
+            using var context = new AppDbContext();
+            setList.LastModifiedAt = DateTime.UtcNow;
+            context.SetLists.Update(setList);
+            await context.SaveChangesAsync();
         }
 
         public async Task AddTrackToSetAsync(Guid setListId, string trackUniqueHash, int? position = null)
@@ -59,8 +77,13 @@ namespace SLSKDONET.Services
             context.SetTracks.Add(setTrack);
             setList.LastModifiedAt = DateTime.UtcNow;
             
-            // Re-calculate Flow Health
-            setList.FlowHealth = _advisor.CalculateFlowContinuity(setList);
+            // Re-calculate Flow Health with existing weights if present
+            FlowWeightSettings? settings = null;
+            if (!string.IsNullOrEmpty(setList.FlowWeightsJson))
+            {
+                settings = System.Text.Json.JsonSerializer.Deserialize<FlowWeightSettings>(setList.FlowWeightsJson);
+            }
+            setList.FlowHealth = _advisor.CalculateFlowContinuity(setList, settings);
 
             await context.SaveChangesAsync();
         }
@@ -77,7 +100,13 @@ namespace SLSKDONET.Services
             if (setList != null)
             {
                 setList.LastModifiedAt = DateTime.UtcNow;
-                setList.FlowHealth = _advisor.CalculateFlowContinuity(setList);
+                
+                FlowWeightSettings? settings = null;
+                if (!string.IsNullOrEmpty(setList.FlowWeightsJson))
+                {
+                    settings = System.Text.Json.JsonSerializer.Deserialize<FlowWeightSettings>(setList.FlowWeightsJson);
+                }
+                setList.FlowHealth = _advisor.CalculateFlowContinuity(setList, settings);
             }
 
             await context.SaveChangesAsync();

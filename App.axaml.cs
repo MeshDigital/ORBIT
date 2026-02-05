@@ -795,6 +795,7 @@ public partial class App : Application
         services.AddSingleton<StemCacheService>();
 
         // Phase 3: Set-Prep Intelligence
+        services.AddSingleton<VocalIntelligenceService>();
         services.AddSingleton<ITransitionAdvisorService, TransitionAdvisorService>();
         services.AddSingleton<SetListService>();
         services.AddSingleton<ITransitionPreviewPlayer, TransitionPreviewPlayer>();

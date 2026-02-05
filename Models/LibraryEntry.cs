@@ -1,5 +1,7 @@
 using System;
 
+using SLSKDONET.Models.Musical;
+
 namespace SLSKDONET.Models;
 
 /// <summary>
@@ -114,4 +116,10 @@ public class LibraryEntry
     // Phase 21: AI Brain Upgrade
     public double? Sadness { get; set; }
     public float[]? VectorEmbedding { get; set; } // Effnet Embeddings
+
+    // Phase 3.5: Vocal Intelligence
+    public VocalType VocalType { get; set; } = VocalType.Instrumental;
+    public double? VocalIntensity { get; set; }
+    public double? VocalStartSeconds { get; set; }
+    public double? VocalEndSeconds { get; set; }
 }

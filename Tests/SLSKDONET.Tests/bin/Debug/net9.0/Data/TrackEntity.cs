@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 using SLSKDONET.Models;
+using SLSKDONET.Models.Musical;
 using SLSKDONET.Data.Entities;
 
 namespace SLSKDONET.Data;
@@ -278,6 +279,12 @@ public class PlaylistTrackEntity
     // Configured in AppDbContext via Fluent API
     public virtual AudioFeaturesEntity? AudioFeatures { get; set; }
 
+    // Phase 3.5: Vocal Intelligence
+    public VocalType VocalType { get; set; } = VocalType.Instrumental;
+    public double? VocalIntensity { get; set; }
+    public double? VocalStartSeconds { get; set; }
+    public double? VocalEndSeconds { get; set; }
+
     public PlaylistJobEntity? Job { get; set; }
 }
 
@@ -368,6 +375,8 @@ public class LibraryEntryEntity
     public float? SubGenreConfidence { get; set; }
 
     public double? InstrumentalProbability { get; set; } // Phase 18.2
+    public string? SpectralHash { get; set; } // Added for Export
+    public string? QualityDetails { get; set; } // Added for Export
     
     // Phase 21: Smart Enrichment Retry System
     public int EnrichmentAttempts { get; set; } = 0;
@@ -381,6 +390,12 @@ public class LibraryEntryEntity
     public bool IsLiked { get; set; } = false;
     public int PlayCount { get; set; } = 0;
     public DateTime? LastPlayedAt { get; set; }
+
+    // Phase 3.5: Vocal Intelligence
+    public VocalType VocalType { get; set; } = VocalType.Instrumental;
+    public double? VocalIntensity { get; set; }
+    public double? VocalStartSeconds { get; set; }
+    public double? VocalEndSeconds { get; set; }
 
     // Configured in AppDbContext via Fluent API
     public virtual AudioFeaturesEntity? AudioFeatures { get; set; }

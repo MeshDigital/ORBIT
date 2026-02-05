@@ -38,10 +38,10 @@ namespace SLSKDONET.Data.Entities
         public double FlowHealth { get; set; }
 
         /// <summary>
-        /// Set-level forensic logs (e.g., transition warnings, energy drop alerts).
-        /// STORED AS JSON.
+        /// Tunable flow weights for this specific set.
+        /// Stored as JSON (FlowWeightSettings).
         /// </summary>
-        public string? ForensicLogsJson { get; set; }
+        public string? FlowWeightsJson { get; set; }
 
         public virtual ICollection<SetTrackEntity> Tracks { get; set; } = new List<SetTrackEntity>();
     }

@@ -2,6 +2,8 @@ using System;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 
+using SLSKDONET.Models;
+
 namespace SLSKDONET.Data.Entities;
 
 /// <summary>
@@ -19,6 +21,8 @@ public class AudioFeaturesEntity
     /// </summary>
     [Required]
     public string TrackUniqueHash { get; set; } = string.Empty;
+
+    public double TrackDuration { get; set; } // Duration in seconds from analysis
 
     // ============================================
     // Core Musical Features (BPM & Key)
@@ -206,6 +210,18 @@ public class AudioFeaturesEntity
     public float? PitchConfidence { get; set; }
     public string VggishEmbeddingJson { get; set; } = string.Empty;
     public string VisualizationVectorJson { get; set; } = string.Empty;
+    /// <summary>
+    /// Version of the structural analysis algorithm used.
+    /// </summary>
+    public int StructuralVersion { get; set; }
+    /// <summary>
+    /// Hash of the structural analysis data, used for change detection.
+    /// </summary>
+    public string? StructuralHash { get; set; }
+    /// <summary>
+    /// JSON array of detected anomalies or unusual characteristics in the audio.
+    /// </summary>
+    public string? AnomaliesJson { get; set; }
     
     // Raw byte storage for EF Core
     [Column("VectorEmbedding")]
@@ -360,6 +376,56 @@ public class AudioFeaturesEntity
     /// Tracks who changed what (BPM, Key) and when.
     /// </summary>
     public string ProvenanceJson { get; set; } = string.Empty;
+
+    // ============================================
+    // Phase 1 Foundations: Structural & curves
+    // ============================================
+
+    /// <summary>
+    /// JSON serialized list of structural phrase segments (Intro, Verse, Build, etc.).
+    /// Each segment has a label, timestamp, and duration.
+    /// </summary>
+    public string PhraseSegmentsJson { get; set; } = "[]";
+
+    /// <summary>
+    /// Time-series data for energy level throughout the track (JSON array of floats).
+    /// </summary>
+    public string EnergyCurveJson { get; set; } = "[]";
+
+    /// <summary>
+    /// Time-series data for vocal activity/density throughout the track (JSON array of floats).
+    /// </summary>
+    public string VocalDensityCurveJson { get; set; } = "[]";
+
+    /// <summary>
+    /// Detailed forensic reasoning for all major landmarks (Cues, Drop, Segments).
+    /// Stores the "Why" behind the intelligence.
+    /// </summary>
+    public string AnalysisReasoningJson { get; set; } = "{}";
+
+    // ============================================
+    // Phase 3.5: Vocal Intelligence
+    // ============================================
+
+    /// <summary>
+    /// Classification of vocal content (Instrumental, Sparse, Hook, Full Lyrics).
+    /// </summary>
+    public VocalType DetectedVocalType { get; set; } = VocalType.Instrumental;
+
+    /// <summary>
+    /// Overall intensity of vocal presence (0.0 - 1.0).
+    /// </summary>
+    public float VocalIntensity { get; set; }
+
+    /// <summary>
+    /// Timestamp of the first significant vocal activity.
+    /// </summary>
+    public float? VocalStartSeconds { get; set; }
+
+    /// <summary>
+    /// Timestamp of the last significant vocal activity.
+    /// </summary>
+    public float? VocalEndSeconds { get; set; }
 }
 
 public enum CurationConfidence

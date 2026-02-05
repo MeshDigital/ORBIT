@@ -38,6 +38,8 @@ public class AppDbContext : DbContext
     public DbSet<Entities.TrackPhraseEntity> TrackPhrases { get; set; } // Phase 17: Cue Generation
     public DbSet<Entities.GenreCueTemplateEntity> GenreCueTemplates { get; set; } // Phase 17: Cue Generation
     public DbSet<Entities.SmartCrateDefinitionEntity> SmartCrateDefinitions { get; set; } // Phase 23: Smart Crates
+    public DbSet<Entities.SetListEntity> SetLists { get; set; } // Phase 3: Set-Prep Intelligence
+    public DbSet<Entities.SetTrackEntity> SetTracks { get; set; } // Phase 3: Set-Prep Intelligence
 
     protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
     {
@@ -203,5 +205,16 @@ public class AppDbContext : DbContext
             .HasForeignKey(pt => pt.TrackUniqueHash)
             .HasPrincipalKey(af => af.TrackUniqueHash)
             .IsRequired(false);
+
+        // 4. SetList -> SetTrack (1:Many)
+        modelBuilder.Entity<Entities.SetListEntity>()
+            .HasMany(s => s.Tracks)
+            .WithOne(t => t.SetList)
+            .HasForeignKey(t => t.SetListId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        modelBuilder.Entity<Entities.SetTrackEntity>()
+            .Property(e => e.TransitionType)
+            .HasConversion<string>();
     }
 }
