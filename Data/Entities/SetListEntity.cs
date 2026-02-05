@@ -15,6 +15,7 @@ namespace SLSKDONET.Data.Entities
         QuickCut,
         VocalToInstrumental,
         EnergyReset,
+        BuildToDrop,
         Custom
     }
 

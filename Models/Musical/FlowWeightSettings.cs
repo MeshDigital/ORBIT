@@ -72,5 +72,17 @@ namespace SLSKDONET.Models.Musical
             VocalOverlapPenalty = 1.0,
             GenreWeight = 0.4
         };
+
+        /// <summary>
+        /// Returns a "Genre Bender" preset (Rhythm/BPM focus for genre-crossing sets).
+        /// </summary>
+        public static FlowWeightSettings GenreBender => new()
+        {
+            HarmonicWeight = 0.4,
+            EnergyWeight = 0.6,
+            BpmWeight = 1.0,
+            VocalOverlapPenalty = 0.5,
+            GenreWeight = 0.2
+        };
     }
 }

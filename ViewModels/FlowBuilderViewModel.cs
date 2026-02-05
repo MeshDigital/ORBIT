@@ -44,6 +44,21 @@ namespace SLSKDONET.ViewModels
             set => this.RaiseAndSetIfChanged(ref _flowContinuityScore, value);
         }
 
+        // DJ Vibe Presets
+        public IEnumerable<VibePreset> AvailableVibePresets => Enum.GetValues(typeof(VibePreset)).Cast<VibePreset>();
+
+        private VibePreset _selectedVibePreset = VibePreset.SilkySmooth;
+        public VibePreset SelectedVibePreset
+        {
+            get => _selectedVibePreset;
+            set
+            {
+                this.RaiseAndSetIfChanged(ref _selectedVibePreset, value);
+                // Map preset to weights
+                Weights = value.ToSettings();
+            }
+        }
+
         public ObservableCollection<SetTrackViewModel> Tracks { get; } = new();
 
         public ReactiveCommand<Unit, Unit> RefreshFlowCommand { get; }
@@ -102,7 +117,15 @@ namespace SLSKDONET.ViewModels
         private void UpdateFlowAnalysis()
         {
             if (CurrentSet == null) return;
-            FlowContinuityScore = _advisor.CalculateFlowContinuity(CurrentSet, Weights);
+
+            // Use the enriched overload to calculate accurate flow score functionality
+            var sequence = Tracks.Select(t => (t.AudioFeatures, t.TrackEntity));
+            FlowContinuityScore = _advisor.CalculateFlowContinuity(sequence, Weights);
+            
+            if (CurrentSet != null)
+            {
+                CurrentSet.FlowHealth = FlowContinuityScore;
+            }
 
             // Update transition reasoning for each track pair
             for (int i = 0; i < Tracks.Count - 1; i++)

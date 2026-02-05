@@ -286,6 +286,7 @@ The following technical guides provide deep-dives into specific subsystems:
 
 | Subsystem | Documentation | Description |
 | :--- | :--- | :--- |
+| **DJ Companion** | [DJ_COMPANION_ARCHITECTURE.md](DOCS/DJ_COMPANION_ARCHITECTURE.md) | Professional mixing workspace with 4 parallel AI recommendation engines. |
 | **Resilience** | [RESILIENCE.md](DOCS/RESILIENCE.md) | Overview of the crash recovery system and standard patterns. |
 | **Download Health** | [DOWNLOAD_RESILIENCE.md](DOCS/DOWNLOAD_RESILIENCE.md) | Adaptive timeout logic and stall detection (Phase 3B). |
 | **Atomic Downloads** | [ATOMIC_DOWNLOADS.md](DOCS/ATOMIC_DOWNLOADS.md) | Details the "Trust Journal, Truncate Disk" resume pattern. |

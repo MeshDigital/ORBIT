@@ -156,4 +156,21 @@ public class DialogService : IDialogService
             return null;
         });
     }
+
+    public async Task<string?> OpenFolderDialogAsync(string title)
+    {
+        return await Dispatcher.UIThread.InvokeAsync(async () =>
+        {
+            var owner = GetOwnerWindow();
+            if (owner?.StorageProvider == null) return null;
+
+            var folder = await owner.StorageProvider.OpenFolderPickerAsync(new Avalonia.Platform.Storage.FolderPickerOpenOptions
+            {
+                Title = title,
+                AllowMultiple = false
+            });
+
+            return folder?.FirstOrDefault()?.Path.LocalPath;
+        });
+    }
 }

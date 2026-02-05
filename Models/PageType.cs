@@ -14,6 +14,8 @@ public enum PageType
     StyleLab,
     TheaterMode,
     Processor,
+    DJCompanion,
     DawTimeline,
-    FlowBuilder
+    FlowBuilder,
+    Export
 }

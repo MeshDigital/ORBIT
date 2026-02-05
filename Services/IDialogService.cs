@@ -39,4 +39,10 @@ public interface IDialogService
     /// Shows a project picker dialog.
     /// </summary>
     Task<PlaylistJob?> ShowProjectPickerAsync(System.Collections.Generic.IEnumerable<PlaylistJob> projects);
+
+    /// <summary>
+    /// Shows a folder selection dialog.
+    /// </summary>
+    /// <returns>Selected folder path or null if cancelled.</returns>
+    Task<string?> OpenFolderDialogAsync(string title);
 }

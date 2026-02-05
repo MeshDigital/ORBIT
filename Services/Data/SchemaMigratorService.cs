@@ -579,6 +579,14 @@ public class SchemaMigratorService
                 await command.ExecuteNonQueryAsync();
             }
 
+            // Phase 4: DetectedVocalType for Vocal Intelligence
+            if (!ColumnExists("audio_features", "DetectedVocalType"))
+            {
+                _logger.LogInformation("Patching Schema: Adding DetectedVocalType to audio_features...");
+                command.CommandText = @"ALTER TABLE ""audio_features"" ADD COLUMN ""DetectedVocalType"" INTEGER NOT NULL DEFAULT 0;";
+                await command.ExecuteNonQueryAsync();
+            }
+
             // 1C. AnalysisRuns Table (Phase 21: Analysis Run Tracking)
             if (!TableExists("analysis_runs"))
             {

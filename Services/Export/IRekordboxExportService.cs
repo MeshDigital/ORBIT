@@ -23,45 +23,45 @@ namespace SLSKDONET.Services.Export
         /// <param name="setList">The set to export</param>
         /// <param name="targetFolder">Destination folder for XML and rendered audio</param>
         /// <param name="options">Export configuration options</param>
+        /// <param name="progress">Progress reporter for granular steps</param>
         /// <param name="ct">Cancellation token</param>
         /// <returns>Export result with file paths and validation status</returns>
         Task<ExportResult> ExportSetAsync(
             SetListEntity setList, 
             string targetFolder, 
             ExportOptions options,
+            IProgress<SLSKDONET.Models.ExportProgressStep>? progress = null,
             CancellationToken ct = default);
 
         /// <summary>
         /// Exports individual tracks to Rekordbox XML format.
-        /// Useful for exporting library tracks without set context.
         /// </summary>
-        /// <param name="tracks">Tracks to export</param>
-        /// <param name="targetFolder">Destination folder</param>
-        /// <param name="options">Export configuration options</param>
-        /// <param name="ct">Cancellation token</param>
-        /// <returns>Export result</returns>
         Task<ExportResult> ExportTracksAsync(
             IEnumerable<LibraryEntryEntity> tracks,
             string targetFolder,
             ExportOptions options,
+            IProgress<SLSKDONET.Models.ExportProgressStep>? progress = null,
             CancellationToken ct = default);
 
         /// <summary>
         /// Generates Rekordbox XML from export models without writing to disk.
-        /// Useful for preview/validation before export.
         /// </summary>
-        /// <param name="tracks">Normalized export tracks</param>
-        /// <param name="playlists">Normalized export playlists</param>
-        /// <returns>Generated XML string</returns>
         string GenerateXml(IEnumerable<SLSKDONET.Models.ExportTrack> tracks, IEnumerable<SLSKDONET.Models.ExportPlaylist> playlists);
 
         /// <summary>
         /// Validates that a set is ready for export.
-        /// Checks for missing files, invalid cue points, etc.
         /// </summary>
-        /// <param name="setList">Set to validate</param>
-        /// <returns>Validation result with warnings/errors</returns>
         Task<ExportValidation> ValidateSetAsync(SetListEntity setList);
+
+        /// <summary>
+        /// Generates a pre-flight preview for the specified set.
+        /// </summary>
+        Task<SLSKDONET.Models.ExportPreviewModel> GetExportPreviewAsync(SetListEntity setList);
+
+        /// <summary>
+        /// Maps a high-level DJ Intent to specific technical export options.
+        /// </summary>
+        ExportOptions GetOptionsFromIntent(SLSKDONET.Models.ExportIntent intent);
     }
 
     /// <summary>

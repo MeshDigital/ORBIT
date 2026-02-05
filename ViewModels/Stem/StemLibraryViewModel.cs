@@ -1,15 +1,13 @@
 using ReactiveUI;
-using System.Collections.ObjectModel;
 
 namespace SLSKDONET.ViewModels.Stem;
 
+/// <summary>
+/// This ViewModel is maintained for compatibility but is no longer actively used.
+/// The StemWorkspaceViewModel now handles history and track management directly.
+/// </summary>
+[Obsolete("Use StemWorkspaceViewModel for track history management")]
 public class StemLibraryViewModel : ReactiveObject
 {
-    public ObservableCollection<string> SeparatedTracks { get; } = new();
-
-    public StemLibraryViewModel()
-    {
-        SeparatedTracks.Add("Track A (Separated)");
-        SeparatedTracks.Add("Track B (Pending)");
-    }
+    // Placeholder for backwards compatibility
 }

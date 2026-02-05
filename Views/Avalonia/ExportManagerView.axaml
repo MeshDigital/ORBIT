@@ -1,0 +1,324 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:vm="using:SLSKDONET.ViewModels"
+             mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="600"
+             x:DataType="vm:ExportManagerViewModel"
+             x:Class="SLSKDONET.Views.Avalonia.ExportManagerView">
+
+    <Grid RowDefinitions="Auto, *, Auto" Margin="30">
+        <!-- Header -->
+        <StackPanel Grid.Row="0" Spacing="5" Margin="0,0,0,30">
+            <TextBlock Text="REKORDBOX EXPORT MANAGER" 
+                       FontSize="26" FontWeight="Bold" 
+                       Foreground="{DynamicResource SystemAccentColor}"
+                       LetterSpacing="1"/>
+            <TextBlock Text="The Trusted Gig Companion — Deploy your musical intelligence to hardware." 
+                       Opacity="0.6" FontSize="14" FontStyle="Italic"/>
+        </StackPanel>
+
+        <!-- Main Content: Three-Panel Layout -->
+        <Grid Grid.Row="1" ColumnDefinitions="*, 1.2*, 1*">
+            
+            <!-- PANEL 1: SETS READY FOR EXPORT -->
+            <Border Grid.Column="0" Background="{DynamicResource SukiBackground}" CornerRadius="12" Margin="0,0,10,0" Padding="20">
+                <DockPanel>
+                    <TextBlock DockPanel.Dock="Top" Text="SETS READY FOR DEPLOYMENT" FontWeight="SemiBold" FontSize="12" Opacity="0.5" Margin="0,0,0,15"/>
+                    <Button DockPanel.Dock="Bottom" Command="{Binding LoadSetsCommand}" Content="REFRESH LIBRARY" HorizontalAlignment="Stretch" Margin="0,15,0,0"/>
+                    
+                    <ListBox ItemsSource="{Binding AvailableSets}" SelectedItem="{Binding SelectedSet}" Background="Transparent">
+                        <ListBox.Styles>
+                            <Style Selector="ListBoxItem">
+                                <Setter Property="Padding" Value="12,10"/>
+                                <Setter Property="Margin" Value="0,2"/>
+                                <Setter Property="CornerRadius" Value="8"/>
+                            </Style>
+                        </ListBox.Styles>
+                        <ListBox.ItemTemplate>
+                            <DataTemplate>
+                                <Grid ColumnDefinitions="*, Auto">
+                                    <StackPanel Spacing="2">
+                                        <TextBlock Text="{Binding Name}" FontWeight="Medium"/>
+                                        <TextBlock Text="{Binding Tracks.Count, StringFormat='{}{0} Tracks'}" FontSize="11" Opacity="0.5"/>
+                                    </StackPanel>
+                                    <Border Grid.Column="1" Width="30" Height="30" CornerRadius="15" 
+                                            Background="{Binding FlowHealth, Converter={StaticResource FlowHealthColorConverter}}"
+                                            ToolTip.Tip="{Binding FlowHealth, StringFormat='FlowHealth: {0:P0}'}">
+                                        <TextBlock Text="H" VerticalAlignment="Center" HorizontalAlignment="Center" FontSize="10" FontWeight="Bold" Foreground="Black"/>
+                                    </Border>
+                                </Grid>
+                            </DataTemplate>
+                        </ListBox.ItemTemplate>
+                    </ListBox>
+                </DockPanel>
+            </Border>
+
+            <!-- PANEL 2: EXPORT STRATEGY (INTENTS) -->
+            <Border Grid.Column="1" Background="{DynamicResource SukiBackground}" CornerRadius="12" Margin="10,0" Padding="25">
+                <StackPanel Spacing="25">
+                    <TextBlock Text="EXPORT STRATEGY" FontWeight="SemiBold" FontSize="12" Opacity="0.5"/>
+                    
+                    <!-- Destination Selection -->
+                    <StackPanel Spacing="10">
+                        <TextBlock Text="Target Destination" FontSize="13" Opacity="0.8"/>
+                        <Grid ColumnDefinitions="*, Auto">
+                            <TextBox Text="{Binding DestinationPath}" Watermark="Select USB or Folder..." IsReadOnly="True"/>
+                            <Button Grid.Column="1" Command="{Binding BrowseCommand}" Content="BROWSE" Margin="10,0,0,0"/>
+                        </Grid>
+                    </StackPanel>
+
+                    <!-- Intent Presets -->
+                    <StackPanel Spacing="15">
+                        <TextBlock Text="Choose Your Intent" FontSize="13" Opacity="0.8"/>
+                        <ItemsControl ItemsSource="{Binding AvailableIntents}">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <RadioButton GroupName="Intents" 
+                                               Content="{Binding}" 
+                                               IsChecked="{Binding $parent[UserControl].((vm:ExportManagerViewModel)DataContext).SelectedIntent, Converter={StaticResource EqualityConverter}, ConverterParameter={Binding}}"
+                                               Command="{Binding $parent[UserControl].((vm:ExportManagerViewModel)DataContext).UpdatePreviewCommand}"
+                                               Margin="0,5" Padding="15,10">
+                                        <RadioButton.Styles>
+                                            <Style Selector="RadioButton">
+                                                <Setter Property="HorizontalAlignment" Value="Stretch"/>
+                                                <Setter Property="Template">
+                                                    <ControlTemplate>
+                                                        <Border Name="RootBorder" Background="{TemplateBinding Background}" BorderBrush="#333" BorderThickness="1" CornerRadius="8" Padding="{TemplateBinding Padding}">
+                                                            <Grid ColumnDefinitions="Auto, *">
+                                                                <Ellipse Name="CheckMark" Width="10" Height="10" Fill="{DynamicResource SystemAccentColor}" Margin="0,0,15,0" Opacity="0"/>
+                                                                <ContentPresenter Grid.Column="1" Content="{TemplateBinding Content}"/>
+                                                            </Grid>
+                                                        </Border>
+                                                    </ControlTemplate>
+                                                </Setter>
+                                            </Style>
+                                                <Style Selector="RadioButton:checked /template/ Border#RootBorder">
+                                                    <Setter Property="BorderBrush" Value="{DynamicResource SystemAccentColor}"/>
+                                                    <Setter Property="Background" Value="#1AFFFFFF"/>
+                                                </Style>
+                                                <Style Selector="RadioButton:checked /template/ Ellipse#CheckMark">
+                                                    <Setter Property="Opacity" Value="1"/>
+                                                </Style>
+                                            </RadioButton.Styles>
+                                    </RadioButton>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </StackPanel>
+                    
+                    <TextBlock Text="Strategy determines what intelligence (cues, loops, notes) is sent to Rekordbox." 
+                               FontSize="11" Opacity="0.4" FontStyle="Italic" TextWrapping="Wrap"/>
+                </StackPanel>
+            </Border>
+
+            <!-- PANEL 3: LIVE STATUS DASHBOARD (PRE-FLIGHT) -->
+            <Border Grid.Column="2" Background="{DynamicResource SukiBackground}" CornerRadius="12" Margin="10,0,0,0" Padding="25">
+                <DockPanel>
+                    <TextBlock DockPanel.Dock="Top" Text="LIVE STATUS DASHBOARD" FontWeight="SemiBold" FontSize="12" Opacity="0.5" Margin="0,0,0,20"/>
+                    
+                    <ScrollViewer IsVisible="{Binding Preview, Converter={x:Static ObjectConverters.IsNotNull}}">
+                        <StackPanel Spacing="15">
+                            <!-- Metrics Grid -->
+                            <UniformGrid Columns="2" Rows="3">
+                                <StackPanel Margin="0,5">
+                                    <TextBlock Text="{Binding Preview.TrackCount}" FontSize="24" FontWeight="Bold"/>
+                                    <TextBlock Text="TRACKS" FontSize="10" Opacity="0.5"/>
+                                </StackPanel>
+                                <StackPanel Margin="0,5">
+                                    <TextBlock Text="{Binding Preview.TotalDuration, StringFormat='{}{0:hh\\:mm\\:ss}'}" FontSize="24" FontWeight="Bold"/>
+                                    <TextBlock Text="DURATION" FontSize="10" Opacity="0.5"/>
+                                </StackPanel>
+                                <StackPanel Margin="0,5">
+                                    <TextBlock Text="{Binding Preview.CueCount}" FontSize="24" FontWeight="Bold"/>
+                                    <TextBlock Text="CUE POINTS" FontSize="10" Opacity="0.5"/>
+                                </StackPanel>
+                                <StackPanel Margin="0,5">
+                                    <TextBlock Text="{Binding Preview.LoopCount}" FontSize="24" FontWeight="Bold"/>
+                                    <TextBlock Text="LOOPS" FontSize="10" Opacity="0.5"/>
+                                </StackPanel>
+                                <StackPanel Margin="0,5">
+                                    <TextBlock Text="{Binding Preview.HarmonicChanges}" FontSize="24" FontWeight="Bold" Foreground="Cyan"/>
+                                    <TextBlock Text="HARMONIC FLOW" FontSize="10" Opacity="0.5"/>
+                                </StackPanel>
+                                <StackPanel Margin="0,5">
+                                    <TextBlock Text="{Binding Preview.AverageFlowHealth, StringFormat='{}{0:P0}'}" FontSize="24" FontWeight="Bold" Foreground="{Binding Preview.AverageFlowHealth, Converter={StaticResource FlowHealthColorConverter}}"/>
+                                    <TextBlock Text="FLOW SCORE" FontSize="10" Opacity="0.5"/>
+                                </StackPanel>
+                            </UniformGrid>
+
+                            <Separator Margin="0,10" Opacity="0.2"/>
+
+                            <!-- Hardware Confidence -->
+                            <StackPanel Spacing="10">
+                                <TextBlock Text="HARDWARE READINESS" FontSize="12" FontWeight="SemiBold"/>
+                                <Grid ColumnDefinitions="*, Auto">
+                                    <TextBlock Text="USB Detected" Opacity="0.8"/>
+                                    <TextBlock Grid.Column="1" Text="YES" Foreground="Green" IsVisible="{Binding Preview.IsUsbDetected}"/>
+                                    <TextBlock Grid.Column="1" Text="NO" Foreground="Red" IsVisible="{Binding !Preview.IsUsbDetected}"/>
+                                </Grid>
+                                <Grid ColumnDefinitions="*, Auto">
+                                    <TextBlock Text="Format" Opacity="0.8"/>
+                                    <TextBlock Grid.Column="1" Text="{Binding Preview.TargetFormat}" Opacity="0.6"/>
+                                </Grid>
+                            </StackPanel>
+
+                            <Border Background="#1AFFFFFF" CornerRadius="8" Padding="15" Margin="0,10,0,0">
+                                <StackPanel Spacing="5">
+                                    <TextBlock Text="DJ ADVISORY" FontSize="10" FontWeight="Bold" Foreground="Gold"/>
+                                    <TextBlock Text="Everything is gig-ready. Your structural intelligence has been mapped to performance cues." 
+                                               FontSize="11" TextWrapping="Wrap" Opacity="0.8"/>
+                                </StackPanel>
+                            </Border>
+                        </StackPanel>
+                    </ScrollViewer>
+                    
+                    <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center" IsVisible="{Binding Preview, Converter={x:Static ObjectConverters.IsNull}}">
+                        <TextBlock Text="Select a set to view dashboard" Opacity="0.4" FontSize="12"/>
+                    </StackPanel>
+                </DockPanel>
+            </Border>
+        </Grid>
+
+        <!-- Footer / Progress Pipeline -->
+        <Border Grid.Row="2" Background="{DynamicResource SukiBackground}" CornerRadius="12" Padding="25" Margin="0,20,0,0" BorderBrush="#333" BorderThickness="0,1,0,0">
+            <StackPanel Spacing="20">
+                <Grid ColumnDefinitions="*, Auto">
+                    <StackPanel Spacing="5">
+                        <TextBlock Text="{Binding StatusMessage}" FontSize="18" FontWeight="SemiBold"/>
+                        <TextBlock Text="ORBIT Industrial Export Pipeline Active" FontSize="11" Opacity="0.4" FontWeight="Light"/>
+                    </StackPanel>
+                    
+                    <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="15">
+                         <Button Command="{Binding ValidateCommand}" Content="RUN VALIDATION" IsEnabled="{Binding !IsExporting}" Padding="20,10"/>
+                         <Button Command="{Binding ExportCommand}" 
+                                Content="DEPLOY TO HARDWARE" 
+                                Classes="Primary" Padding="35,15" FontSize="16" FontWeight="Bold"
+                                IsEnabled="{Binding !IsExporting}"/>
+                    </StackPanel>
+                </Grid>
+
+                <ProgressBar Value="{Binding Progress}" Height="8" CornerRadius="4"
+                             IsIndeterminate="{Binding IsExporting}"
+                             IsVisible="{Binding IsExporting}"
+                             Opacity="0.4"/>
+
+                <!-- COMMAND CENTER: Pipeline Steps UI -->
+                <Border Background="#0DFFFFFF" CornerRadius="8" Padding="15" Margin="0,10,0,0"
+                        IsVisible="{Binding ShowPipeline}">
+                    <StackPanel Spacing="5">
+                        <TextBlock Text="EXPORT PIPELINE" FontSize="10" FontWeight="Bold" Opacity="0.5" Margin="0,0,0,8"/>
+                        <ItemsControl ItemsSource="{Binding ProgressSteps}">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <Grid ColumnDefinitions="28, *" Margin="0,4">
+                                        <!-- Status Indicator -->
+                                        <Grid Grid.Column="0" Width="18" Height="18">
+                                            <!-- Pending: Dim Circle -->
+                                            <Ellipse Width="8" Height="8" Fill="#444444"
+                                                     IsVisible="{Binding IsPending}"
+                                                     HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                            <!-- Active: Pulsing Arrow -->
+                                            <TextBlock Text="→" FontSize="14" FontWeight="Bold" Foreground="#00BFFF"
+                                                       IsVisible="{Binding IsActive}"
+                                                       HorizontalAlignment="Center" VerticalAlignment="Center">
+                                                <TextBlock.Styles>
+                                                    <Style Selector="TextBlock">
+                                                        <Style.Animations>
+                                                            <Animation Duration="0:0:0.8" IterationCount="Infinite" PlaybackDirection="Alternate">
+                                                                <KeyFrame Cue="0%">
+                                                                    <Setter Property="Opacity" Value="0.5"/>
+                                                                </KeyFrame>
+                                                                <KeyFrame Cue="100%">
+                                                                    <Setter Property="Opacity" Value="1"/>
+                                                                </KeyFrame>
+                                                            </Animation>
+                                                        </Style.Animations>
+                                                    </Style>
+                                                </TextBlock.Styles>
+                                            </TextBlock>
+                                            <!-- Complete: Green Checkmark -->
+                                            <TextBlock Text="✓" FontSize="12" FontWeight="Bold" Foreground="#32CD32"
+                                                       IsVisible="{Binding IsComplete}"
+                                                       HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                            <!-- Error: Warning Triangle -->
+                                            <TextBlock Text="⚠" FontSize="12" FontWeight="Bold" Foreground="#FF2D2D"
+                                                       IsVisible="{Binding IsError}"
+                                                       HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                        </Grid>
+                                        
+                                        <!-- Step Name: State-based visibility for clean styling -->
+                                        <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="2">
+                                            <Grid>
+                                                <!-- Pending: Ghosted -->
+                                                <TextBlock Text="{Binding StepName}" FontSize="13"
+                                                           Foreground="#555555" FontWeight="Normal"
+                                                           IsVisible="{Binding IsPending}"/>
+                                                <!-- Active: Bright White, Bold -->
+                                                <TextBlock Text="{Binding StepName}" FontSize="13"
+                                                           Foreground="#FFFFFF" FontWeight="Bold"
+                                                           IsVisible="{Binding IsActive}"/>
+                                                <!-- Complete: Dimmed Green -->
+                                                <TextBlock Text="{Binding StepName}" FontSize="13"
+                                                           Foreground="#32CD32" FontWeight="Normal" Opacity="0.75"
+                                                           IsVisible="{Binding IsComplete}"/>
+                                                <!-- Error: Neon Red -->
+                                                <TextBlock Text="{Binding StepName}" FontSize="13"
+                                                           Foreground="#FF2D2D" FontWeight="Bold"
+                                                           IsVisible="{Binding IsError}"/>
+                                            </Grid>
+                                            <!-- Error Message (only when errored) -->
+                                            <TextBlock Text="{Binding ErrorMessage}" FontSize="11"
+                                                       Foreground="#FF2D2D" FontStyle="Italic"
+                                                       IsVisible="{Binding HasError}"
+                                                       TextWrapping="Wrap"/>
+                                            <TextBlock Text="{Binding RecoveryHint}" FontSize="10"
+                                                       Foreground="#888888" FontStyle="Italic"
+                                                       IsVisible="{Binding HasError}"
+                                                       TextWrapping="Wrap"/>
+                                        </StackPanel>
+                                    </Grid>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </StackPanel>
+                </Border>
+
+                <!-- GIG BAG CHECKLIST -->
+                <Border Background="#1A00FF00" CornerRadius="8" Padding="15" Margin="0,15,0,0"
+                        IsVisible="{Binding IsMainUsbComplete}">
+                    <StackPanel Spacing="10">
+                        <TextBlock Text="🎒 GIG BAG STATUS" FontSize="11" FontWeight="Bold" Foreground="LimeGreen"/>
+                        <WrapPanel Orientation="Horizontal">
+                            <!-- Main USB -->
+                            <StackPanel Orientation="Horizontal" Margin="0,0,20,0">
+                                <TextBlock Text="✓" Foreground="LimeGreen" FontWeight="Bold" Margin="0,0,5,0" IsVisible="{Binding IsMainUsbComplete}"/>
+                                <TextBlock Text="○" Foreground="Gray" Margin="0,0,5,0" IsVisible="{Binding !IsMainUsbComplete}"/>
+                                <TextBlock Text="Main USB" Opacity="0.8"/>
+                            </StackPanel>
+                            <!-- Backup -->
+                            <StackPanel Orientation="Horizontal" Margin="0,0,20,0">
+                                <TextBlock Text="✓" Foreground="LimeGreen" FontWeight="Bold" Margin="0,0,5,0" IsVisible="{Binding IsBackupComplete}"/>
+                                <TextBlock Text="○" Foreground="Gray" Margin="0,0,5,0" IsVisible="{Binding !IsBackupComplete}"/>
+                                <TextBlock Text="Backup" Opacity="0.8"/>
+                            </StackPanel>
+                            <!-- Emergency Card -->
+                            <StackPanel Orientation="Horizontal" Margin="0,0,20,0">
+                                <TextBlock Text="✓" Foreground="LimeGreen" FontWeight="Bold" Margin="0,0,5,0" IsVisible="{Binding IsEmergencyCardComplete}"/>
+                                <TextBlock Text="○" Foreground="Gray" Margin="0,0,5,0" IsVisible="{Binding !IsEmergencyCardComplete}"/>
+                                <TextBlock Text="Emergency Card" Opacity="0.8"/>
+                            </StackPanel>
+                            <!-- Autopsy -->
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock Text="✓" Foreground="LimeGreen" FontWeight="Bold" Margin="0,0,5,0" IsVisible="{Binding IsAutopsyComplete}"/>
+                                <TextBlock Text="○" Foreground="Gray" Margin="0,0,5,0" IsVisible="{Binding !IsAutopsyComplete}"/>
+                                <TextBlock Text="Set Autopsy" Opacity="0.8"/>
+                            </StackPanel>
+                        </WrapPanel>
+                    </StackPanel>
+                </Border>
+            </StackPanel>
+        </Border>
+    </Grid>
+
+</UserControl>

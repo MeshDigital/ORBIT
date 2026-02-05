@@ -63,6 +63,7 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
     public TheaterModeViewModel TheaterModeViewModel { get; }
     public ViewModels.Timeline.SetDesignerViewModel SetDesignerViewModel { get; }
     public FlowBuilderViewModel FlowBuilderViewModel { get; }
+    public ExportManagerViewModel ExportManagerViewModel { get; }
 
 
     public event PropertyChangedEventHandler? PropertyChanged;
@@ -114,7 +115,8 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
         IntelligenceCenterViewModel intelligenceCenter,
         TheaterModeViewModel theaterModeViewModel,
         ViewModels.Timeline.SetDesignerViewModel setDesignerViewModel,
-        FlowBuilderViewModel flowBuilderViewModel)
+        FlowBuilderViewModel flowBuilderViewModel,
+        ExportManagerViewModel exportManagerViewModel)
 
     {
         _logger = logger;
@@ -150,6 +152,7 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
         TheaterModeViewModel = theaterModeViewModel;
         SetDesignerViewModel = setDesignerViewModel;
         FlowBuilderViewModel = flowBuilderViewModel;
+        ExportManagerViewModel = exportManagerViewModel;
 
 
         // Initialize commands
@@ -164,7 +167,9 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
         NavigateStyleLabCommand = new RelayCommand(() => _navigationService.NavigateTo("StyleLab"));
         NavigateImportCommand = new RelayCommand(NavigateToImport); // Phase 6D
         NavigateDawCommand = new RelayCommand(NavigateToDaw);
+        NavigateDJCompanionCommand = new RelayCommand(NavigateToDJCompanion);
         NavigateFlowBuilderCommand = new RelayCommand(NavigateToFlowBuilder);
+        NavigateExportCommand = new RelayCommand(NavigateToExport);
         ToggleNavigationCommand = new RelayCommand(() => IsNavigationCollapsed = !IsNavigationCollapsed);
         TogglePlayerCommand = new RelayCommand(() => IsPlayerSidebarVisible = !IsPlayerSidebarVisible);
         TogglePlayerLocationCommand = new RelayCommand(() => IsPlayerAtBottom = !IsPlayerAtBottom);
@@ -303,11 +308,13 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
         _navigationService.RegisterPage("ImportPreview", typeof(Avalonia.ImportPreviewPage));
         _navigationService.RegisterPage("UpgradeScout", typeof(Avalonia.UpgradeScoutView));
         _navigationService.RegisterPage("DawTimeline", typeof(Avalonia.Timeline.SetDesignerView));
+        _navigationService.RegisterPage("DJCompanion", typeof(Avalonia.DJCompanionView));
         _navigationService.RegisterPage("Inspector", typeof(Avalonia.InspectorPage));
         _navigationService.RegisterPage("AnalysisQueue", typeof(Avalonia.AnalysisQueuePage));
         _navigationService.RegisterPage("StyleLab", typeof(Avalonia.StyleLabPage));
         _navigationService.RegisterPage("Theater", typeof(Avalonia.TheaterModePage));
         _navigationService.RegisterPage("FlowBuilder", typeof(Avalonia.FlowBuilderView));
+        _navigationService.RegisterPage("Export", typeof(Avalonia.ExportManagerView));
         
         // Subscribe to navigation events
         _navigationService.Navigated += OnNavigated;
@@ -619,7 +626,9 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
     public ICommand NavigateStyleLabCommand { get; }
     public ICommand NavigateTheaterCommand { get; }
     public ICommand NavigateDawCommand { get; }
+    public ICommand NavigateDJCompanionCommand { get; }
     public ICommand NavigateFlowBuilderCommand { get; }
+    public ICommand NavigateExportCommand { get; }
     public ICommand NavigateImportCommand { get; } // Phase 6D
     public ICommand ToggleNavigationCommand { get; }
     public ICommand TogglePlayerCommand { get; }
@@ -668,6 +677,7 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
                 "StyleLabPage" => PageType.StyleLab,
                 "TheaterModePage" => PageType.TheaterMode,
                 "FlowBuilderView" => PageType.FlowBuilder,
+                "ExportManagerView" => PageType.Export,
                 _ => CurrentPageType
             };
 
@@ -760,6 +770,17 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
         if (CurrentPage is Avalonia.FlowBuilderView page)
         {
             page.DataContext = FlowBuilderViewModel;
+        }
+    }
+
+    private void NavigateToExport()
+    {
+        _navigationService.NavigateTo("Export");
+        
+        if (CurrentPage is Avalonia.ExportManagerView page)
+        {
+            page.DataContext = ExportManagerViewModel;
+            _ = ExportManagerViewModel.LoadSetsCommand.ExecuteAsync(null);
         }
     }
 
@@ -1047,5 +1068,11 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
     {
         CurrentPageType = PageType.DawTimeline;
         _navigationService.NavigateTo(PageType.DawTimeline);
+    }
+
+    private void NavigateToDJCompanion()
+    {
+        CurrentPageType = PageType.DJCompanion;
+        _navigationService.NavigateTo("DJCompanion");
     }
 }

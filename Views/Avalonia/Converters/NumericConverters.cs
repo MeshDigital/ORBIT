@@ -27,7 +27,35 @@ public class NumericGreaterThanConverter : IValueConverter
     }
 }
 
+public class NumericIsZeroConverter : IValueConverter
+{
+    public object? Convert(object? value, Type targetType, object? parameter, CultureInfo culture)
+    {
+        if (value is int i) return i == 0;
+        if (value is double d) return d == 0;
+        if (value is float f) return f == 0;
+        return value == null;
+    }
+
+    public object? ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture) => throw new NotImplementedException();
+}
+
+public class NumericIsNotZeroConverter : IValueConverter
+{
+    public object? Convert(object? value, Type targetType, object? parameter, CultureInfo culture)
+    {
+        if (value is int i) return i != 0;
+        if (value is double d) return d != 0;
+        if (value is float f) return f != 0;
+        return value != null;
+    }
+
+    public object? ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture) => throw new NotImplementedException();
+}
+
 public static class NumericConverters
 {
     public static readonly IValueConverter GreaterThan = new NumericGreaterThanConverter();
+    public static readonly IValueConverter IsZero = new NumericIsZeroConverter();
+    public static readonly IValueConverter IsNotZero = new NumericIsNotZeroConverter();
 }

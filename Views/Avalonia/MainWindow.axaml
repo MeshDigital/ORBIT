@@ -260,6 +260,15 @@
                         <!-- SET DESIGNER -->
                         <TextBlock Text="SET DESIGNER" FontSize="11" FontWeight="Bold" Foreground="#666" Margin="16,0,0,4" LetterSpacing="1"/>
                         <Button Classes="nav" 
+                                Command="{Binding NavigateDJCompanionCommand}"
+                                Classes.selected="{Binding CurrentPageType, Converter={StaticResource EqualityConverter}, ConverterParameter={x:Static models:PageType.DJCompanion}}">
+                            <StackPanel Orientation="Horizontal" Spacing="12" Margin="16,0">
+                                <TextBlock Text="🎧" FontSize="16"/>
+                                <TextBlock Text="DJ Companion" FontSize="14"/>
+                            </StackPanel>
+                        </Button>
+
+                        <Button Classes="nav" 
                                 Command="{Binding NavigateDawCommand}"
                                 Classes.selected="{Binding CurrentPageType, Converter={StaticResource EqualityConverter}, ConverterParameter={x:Static models:PageType.DawTimeline}}">
                             <StackPanel Orientation="Horizontal" Spacing="12" Margin="16,0">
@@ -274,6 +283,15 @@
                             <StackPanel Orientation="Horizontal" Spacing="12" Margin="16,0">
                                 <TextBlock Text="🌊" FontSize="16"/>
                                 <TextBlock Text="Flow Builder" FontSize="14"/>
+                            </StackPanel>
+                        </Button>
+
+                        <Button Classes="nav" 
+                                Command="{Binding NavigateExportCommand}"
+                                Classes.selected="{Binding CurrentPageType, Converter={StaticResource EqualityConverter}, ConverterParameter={x:Static models:PageType.Export}}">
+                            <StackPanel Orientation="Horizontal" Spacing="12" Margin="16,0">
+                                <TextBlock Text="🚀" FontSize="16"/>
+                                <TextBlock Text="Export Manager" FontSize="14"/>
                             </StackPanel>
                         </Button>
 

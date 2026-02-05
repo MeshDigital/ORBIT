@@ -138,5 +138,71 @@ namespace SLSKDONET.Models
         public string? TransitionReasoning { get; set; }
         public string? DjNotes { get; set; }
     }
+
+    /// <summary>
+    /// DJ Intention for export, mapping to specific technical configurations.
+    /// </summary>
+    public enum ExportIntent
+    {
+        ClubReady,       // Max performance data: hot cues, loops, quantized grid
+        RadioBroadcast,  // Track markers, radio ID positions, high quality
+        WeddingSafe,     // Explicit warnings, long intros/outros surfaced
+        BackupUSB,       // Raw files + emergency directory + full XML
+    }
+
+    /// <summary>
+    /// Pre-flight overview to build DJ confidence before export.
+    /// </summary>
+    public class ExportPreviewModel
+    {
+        public int TrackCount { get; set; }
+        public TimeSpan TotalDuration { get; set; }
+        public int CueCount { get; set; }
+        public int LoopCount { get; set; }
+        public int HarmonicChanges { get; set; } // Key changes in the flow
+        public double AverageFlowHealth { get; set; }
+        public long EstimatedDiskUsageBytes { get; set; }
+        public bool IsUsbDetected { get; set; }
+        public string TargetFormat { get; set; } = "Rekordbox XML 5.4.1";
+    }
+
+    /// <summary>
+    /// Represents a granular step in the export pipeline for progress reporting.
+    /// </summary>
+    public class ExportProgressStep
+    {
+        // Named export pipeline steps
+        public static readonly string Step_ValidatingMetadata = "Validating metadata";
+        public static readonly string Step_OptimizingWaveforms = "Optimizing waveforms";
+        public static readonly string Step_ConvertingCues = "Converting ORBIT cues";
+        public static readonly string Step_CheckingBpmStability = "Checking BPM stability";
+        public static readonly string Step_WritingXml = "Writing Rekordbox XML";
+        public static readonly string Step_CopyingToUsb = "Copying to USB";
+        public static readonly string Step_VerifyingExport = "Verifying export";
+        public static readonly string Step_CreatingGigBag = "Creating Gig Bag";
+
+        public string StepName { get; set; } = string.Empty;
+        public string Message { get; set; } = string.Empty;
+        public double Percentage { get; set; }
+        public int StepIndex { get; set; }
+        public int TotalSteps { get; set; } = 7;
+        public bool IsCritical { get; set; }
+        public bool IsComplete { get; set; }
+
+        /// <summary>
+        /// Factory method to create a step with proper progress calculation.
+        /// </summary>
+        public static ExportProgressStep Create(string stepName, int stepIndex, int totalSteps, string? detail = null)
+        {
+            return new ExportProgressStep
+            {
+                StepName = stepName,
+                StepIndex = stepIndex,
+                TotalSteps = totalSteps,
+                Message = detail ?? stepName,
+                Percentage = (stepIndex * 100.0) / totalSteps
+            };
+        }
+    }
 }
 

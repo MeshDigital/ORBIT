@@ -268,6 +268,10 @@
               "target": "Package",
               "version": "[0.9.6, )"
             },
+            "QuestPDF": {
+              "target": "Package",
+              "version": "[2024.12.3, )"
+            },
             "SciSharp.TensorFlow.Redist": {
               "target": "Package",
               "version": "[2.16.0, )"

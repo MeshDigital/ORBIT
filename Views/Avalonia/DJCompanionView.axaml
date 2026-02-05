@@ -1,0 +1,344 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:vm="clr-namespace:SLSKDONET.ViewModels"
+             xmlns:controls="clr-namespace:SLSKDONET.Views.Avalonia.Controls"
+             xmlns:conv="clr-namespace:SLSKDONET.Views.Avalonia.Converters"
+             mc:Ignorable="d" d:DesignWidth="1600" d:DesignHeight="900"
+             x:Class="SLSKDONET.Views.Avalonia.DJCompanionView"
+             x:DataType="vm:DJCompanionViewModel"
+             Background="#1E1E1E"
+             Foreground="White">
+
+    <UserControl.Resources>
+        <conv:BitmapValueConverter x:Key="BitmapValueConverter"/>
+        <conv:RankColorConverter x:Key="RankColorConverter"/>
+    </UserControl.Resources>
+
+    <Grid RowDefinitions="Auto,*" ColumnDefinitions="420,*,380">
+        
+        <!-- HEADER -->
+        <Border Grid.Row="0" Grid.ColumnSpan="3" Background="#252526" BorderBrush="#3E3E3E" BorderThickness="0,0,0,1" Padding="24,16">
+            <Grid ColumnDefinitions="Auto,*,Auto,Auto">
+                <TextBlock Grid.Column="0" Text="🎧 DJ COMPANION" FontSize="16" FontWeight="Bold" LetterSpacing="2" VerticalAlignment="Center"/>
+                <TextBlock Grid.Column="1" Text="{Binding HelpText}" FontSize="12" Foreground="#888" Margin="40,0" VerticalAlignment="Center" TextWrapping="Wrap"/>
+                
+                <Button Grid.Column="2" Command="{Binding TogglePlayCommand}" 
+                        Background="#FF4081" 
+                        Foreground="White"
+                        CornerRadius="20"
+                        Padding="16,6"
+                        Margin="0,0,12,0">
+                    <TextBlock Text="{Binding PlayButtonLabel}"/>
+                </Button>
+                
+                <Button Grid.Column="3" Content="Settings" 
+                        Background="#333"
+                        Padding="12,6"
+                        CornerRadius="4"/>
+            </Grid>
+        </Border>
+
+        <!-- LEFT PANEL: Current Track Detail -->
+        <Border Grid.Row="1" Grid.Column="0" Background="#202020" BorderBrush="#3E3E3E" BorderThickness="0,0,1,0" Padding="16" VerticalAlignment="Top">
+            <ScrollViewer>
+                <StackPanel Spacing="20">
+                    
+                    <!-- Now Playing Card -->
+                    <Border Background="#2D2D30" CornerRadius="12" Padding="16" BorderBrush="#3E3E3E" BorderThickness="1">
+                        <StackPanel Spacing="12">
+                            <TextBlock Text="NOW PLAYING" FontSize="11" FontWeight="Bold" Foreground="#888" LetterSpacing="1"/>
+                            
+                            <!-- Album Art -->
+                            <Image Source="{Binding CurrentTrack.ArtworkBitmap, Converter={StaticResource BitmapValueConverter}}"
+                                   Height="240"
+                                   Width="240"
+                                   HorizontalAlignment="Center"
+                                   CornerRadius="8"
+                                   Stretch="UniformToFill"/>
+                            
+                            <!-- Track Info -->
+                            <TextBlock Text="{Binding CurrentTrack.Title}" 
+                                       FontSize="14" 
+                                       FontWeight="Bold" 
+                                       TextAlignment="Center"
+                                       TextTrimming="CharacterEllipsis"/>
+                            <TextBlock Text="{Binding CurrentTrack.Artist}" 
+                                       FontSize="12" 
+                                       Foreground="#AAA"
+                                       TextAlignment="Center"/>
+                            <TextBlock Text="{Binding CurrentTrack.Album}" 
+                                       FontSize="10" 
+                                       Foreground="#666"
+                                       TextAlignment="Center"/>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- Musical Metadata -->
+                    <Border Background="#2D2D30" CornerRadius="8" Padding="12" BorderBrush="#3E3E3E" BorderThickness="1">
+                        <StackPanel Spacing="10">
+                            <TextBlock Text="MUSICAL ANALYSIS" FontSize="11" FontWeight="Bold" Foreground="#888" LetterSpacing="1"/>
+                            
+                            <Grid ColumnDefinitions="*,*" RowDefinitions="Auto,Auto,Auto,Auto" Spacing="8">
+                                <!-- BPM -->
+                                <StackPanel Grid.Row="0" Grid.Column="0" Spacing="4">
+                                    <TextBlock Text="TEMPO" FontSize="9" Foreground="#666" FontWeight="Bold"/>
+                                    <TextBlock Text="{Binding CurrentTrack.BpmDisplay}" FontSize="18" FontWeight="Bold" Foreground="#4EC9B0"/>
+                                </StackPanel>
+                                
+                                <!-- Key -->
+                                <StackPanel Grid.Row="0" Grid.Column="1" Spacing="4">
+                                    <TextBlock Text="KEY" FontSize="9" Foreground="#666" FontWeight="Bold"/>
+                                    <TextBlock Text="{Binding CurrentTrack.KeyDisplay}" FontSize="18" FontWeight="Bold" Foreground="#FF4081"/>
+                                </StackPanel>
+                                
+                                <!-- Energy -->
+                                <StackPanel Grid.Row="1" Grid.Column="0" Spacing="4">
+                                    <TextBlock Text="ENERGY" FontSize="9" Foreground="#666" FontWeight="Bold"/>
+                                    <ProgressBar Value="{Binding CurrentTrack.Energy}" Maximum="1.0" Height="8" Background="#333" Foreground="#FFB300" CornerRadius="4"/>
+                                </StackPanel>
+                                
+                                <!-- Danceability -->
+                                <StackPanel Grid.Row="1" Grid.Column="1" Spacing="4">
+                                    <TextBlock Text="DANCEABILITY" FontSize="9" Foreground="#666" FontWeight="Bold"/>
+                                    <ProgressBar Value="{Binding CurrentTrack.Danceability}" Maximum="1.0" Height="8" Background="#333" Foreground="#00E676" CornerRadius="4"/>
+                                </StackPanel>
+
+                                <!-- Duration -->
+                                <StackPanel Grid.Row="2" Grid.Column="0" Spacing="4">
+                                    <TextBlock Text="DURATION" FontSize="9" Foreground="#666" FontWeight="Bold"/>
+                                    <TextBlock Text="{Binding CurrentTrack.DurationDisplay}" FontSize="12" Foreground="#CCC"/>
+                                </StackPanel>
+
+                                <!-- Genre -->
+                                <StackPanel Grid.Row="2" Grid.Column="1" Spacing="4">
+                                    <TextBlock Text="GENRE" FontSize="9" Foreground="#666" FontWeight="Bold"/>
+                                    <TextBlock Text="{Binding CurrentTrack.PrimaryGenre}" FontSize="12" Foreground="#CCC" TextTrimming="CharacterEllipsis"/>
+                                </StackPanel>
+                            </Grid>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- Waveform & Structure -->
+                    <Border Background="#2D2D30" CornerRadius="8" Padding="12" BorderBrush="#3E3E3E" BorderThickness="1">
+                        <StackPanel Spacing="10">
+                            <TextBlock Text="STRUCTURE" FontSize="11" FontWeight="Bold" Foreground="#888" LetterSpacing="1"/>
+                            
+                            <!-- Waveform -->
+                            <Border Background="#1A1A1A" CornerRadius="4" Height="80" Padding="4">
+                                <controls:WaveformControl 
+                                    WaveformData="{Binding CurrentTrack.WaveformData}"
+                                    Foreground="#4EC9B0"
+                                    IsHitTestVisible="False"
+                                    VerticalAlignment="Stretch"/>
+                            </Border>
+
+                            <!-- Cue Points -->
+                            <ItemsControl ItemsSource="{Binding CurrentTrack.CuePoints}">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <Grid ColumnDefinitions="60,*" Margin="0,0,0,4">
+                                            <TextBlock Grid.Column="0" Text="{Binding Role}" FontSize="10" Foreground="#FFB300" FontWeight="Bold" VerticalAlignment="Center"/>
+                                            <ProgressBar Grid.Column="1" Value="{Binding TimestampPercent}" Maximum="100" Margin="8,0,0,0" Height="6" Background="#333" Foreground="{Binding ColorHex}" CornerRadius="3"/>
+                                        </Grid>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- Stems Explorer -->
+                    <Border Background="#2D2D30" CornerRadius="8" Padding="12" BorderBrush="#3E3E3E" BorderThickness="1">
+                        <StackPanel Spacing="10">
+                            <TextBlock Text="STEMS" FontSize="11" FontWeight="Bold" Foreground="#888" LetterSpacing="1"/>
+                            
+                            <ItemsControl ItemsSource="{Binding AvailableStems}">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <Button Content="{Binding}" 
+                                                Command="{Binding $parent[UserControl].DataContext.PreviewStemCommand}"
+                                                CommandParameter="{Binding}"
+                                                Background="#333"
+                                                BorderBrush="#555"
+                                                BorderThickness="1"
+                                                Padding="8,4"
+                                                CornerRadius="4"
+                                                Margin="0,0,0,4"
+                                                FontSize="10"/>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </StackPanel>
+                    </Border>
+                </StackPanel>
+            </ScrollViewer>
+        </Border>
+
+        <!-- CENTER PANEL: Playback & Analysis -->
+        <Border Grid.Row="1" Grid.Column="1" Background="#1E1E1E" Padding="24">
+            <StackPanel Spacing="20">
+                
+                <!-- Large Playback Display -->
+                <Border Background="#252526" CornerRadius="16" Padding="40" BorderBrush="#3E3E3E" BorderThickness="1">
+                    <StackPanel Spacing="20" HorizontalAlignment="Center" VerticalAlignment="Center">
+                        
+                        <!-- VU Meters -->
+                        <StackPanel Spacing="8">
+                            <Grid ColumnDefinitions="*,*" Spacing="16">
+                                <StackPanel Grid.Column="0" Spacing="4">
+                                    <TextBlock Text="LEFT" FontSize="11" Foreground="#666" FontWeight="Bold"/>
+                                    <ProgressBar Value="{Binding Player.VuLeft}" Maximum="1.0" Height="40" Background="#333" Foreground="#4EC9B0" CornerRadius="6"/>
+                                </StackPanel>
+                                <StackPanel Grid.Column="1" Spacing="4">
+                                    <TextBlock Text="RIGHT" FontSize="11" Foreground="#666" FontWeight="Bold"/>
+                                    <ProgressBar Value="{Binding Player.VuRight}" Maximum="1.0" Height="40" Background="#333" Foreground="#4EC9B0" CornerRadius="6"/>
+                                </StackPanel>
+                            </Grid>
+                        </StackPanel>
+
+                        <!-- Playback Time -->
+                        <StackPanel Spacing="8">
+                            <ProgressBar Value="{Binding PlaybackProgress}" Maximum="100" Height="8" Background="#333" Foreground="#FF4081" CornerRadius="4"/>
+                            <Grid ColumnDefinitions="*,Auto">
+                                <TextBlock Grid.Column="0" Text="{Binding CurrentTimeDisplay}" FontSize="14" Foreground="#CCC"/>
+                                <TextBlock Grid.Column="1" Text="{Binding TotalTimeDisplay}" FontSize="14" Foreground="#666"/>
+                            </Grid>
+                        </StackPanel>
+                    </StackPanel>
+                </Border>
+
+                <!-- Smart Advice section -->
+                <Border Background="#252526" CornerRadius="12" Padding="16" BorderBrush="#3E3E3E" BorderThickness="1">
+                    <StackPanel Spacing="12">
+                        <TextBlock Text="💡 MIXING INTELLIGENCE" FontSize="12" FontWeight="Bold" Foreground="#4EC9B0" LetterSpacing="1"/>
+                        
+                        <ItemsControl ItemsSource="{Binding MixingAdvice}" MaxHeight="200">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <Border Background="#1A1A1A" CornerRadius="6" Padding="10" Margin="0,0,0,6">
+                                        <StackPanel Spacing="4">
+                                            <TextBlock Text="{Binding Title}" FontSize="11" FontWeight="SemiBold" Foreground="#FF4081"/>
+                                            <TextBlock Text="{Binding Description}" FontSize="10" Foreground="#AAA" TextWrapping="Wrap"/>
+                                        </StackPanel>
+                                    </Border>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </StackPanel>
+                </Border>
+            </StackPanel>
+        </Border>
+
+        <!-- RIGHT PANEL: Intelligent Recommendations -->
+        <Border Grid.Row="1" Grid.Column="2" Background="#202020" BorderBrush="#3E3E3E" BorderThickness="0,0,0,0" Padding="16" VerticalAlignment="Stretch">
+            <ScrollViewer>
+                <StackPanel Spacing="16">
+                    
+                    <!-- Harmonic Matches -->
+                    <Border Background="#2D2D30" CornerRadius="8" Padding="12" BorderBrush="#3E3E3E" BorderThickness="1">
+                        <StackPanel Spacing="10">
+                            <TextBlock Text="🎼 HARMONIC MATCHES" FontSize="11" FontWeight="Bold" Foreground="#FF4081" LetterSpacing="1"/>
+                            <TextBlock Text="{Binding HarmonicMatchCount, StringFormat='Found {0} compatible'}" FontSize="10" Foreground="#888"/>
+                            
+                            <ItemsControl ItemsSource="{Binding HarmonicMatches}" MaxHeight="280">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <Border Background="#1A1A1A" CornerRadius="6" Padding="8" Margin="0,0,0,4" 
+                                                BorderBrush="#FF4081" BorderThickness="1"
+                                                PointerEnter="OnMatchHover">
+                                            <StackPanel Spacing="3">
+                                                <TextBlock Text="{Binding Title}" FontSize="10" FontWeight="SemiBold"/>
+                                                <TextBlock Text="{Binding Artist}" FontSize="9" Foreground="#AAA"/>
+                                                <Grid ColumnDefinitions="*,Auto" Margin="0,4,0,0">
+                                                    <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="8">
+                                                        <TextBlock Text="{Binding KeyMatch}" FontSize="10" Foreground="#FF4081" FontWeight="Bold"/>
+                                                        <TextBlock Text="{Binding CompatibilityScore, StringFormat='{}{0}%'}" FontSize="9" Foreground="#888"/>
+                                                    </StackPanel>
+                                                    <TextBlock Grid.Column="1" Text="{Binding KeyRelation}" FontSize="9" Foreground="#666"/>
+                                                </Grid>
+                                            </StackPanel>
+                                        </Border>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- BPM Matches -->
+                    <Border Background="#2D2D30" CornerRadius="8" Padding="12" BorderBrush="#3E3E3E" BorderThickness="1">
+                        <StackPanel Spacing="10">
+                            <TextBlock Text="⏭️ TEMPO SYNC" FontSize="11" FontWeight="Bold" Foreground="#FFB300" LetterSpacing="1"/>
+                            <TextBlock Text="{Binding BpmMatchCount, StringFormat='Found {0} in range'}" FontSize="10" Foreground="#888"/>
+                            
+                            <ItemsControl ItemsSource="{Binding BpmMatches}" MaxHeight="280">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <Border Background="#1A1A1A" CornerRadius="6" Padding="8" Margin="0,0,0,4"
+                                                BorderBrush="#FFB300" BorderThickness="1">
+                                            <StackPanel Spacing="3">
+                                                <TextBlock Text="{Binding Title}" FontSize="10" FontWeight="SemiBold"/>
+                                                <TextBlock Text="{Binding Artist}" FontSize="9" Foreground="#AAA"/>
+                                                <Grid ColumnDefinitions="*,Auto" Margin="0,4,0,0">
+                                                    <TextBlock Grid.Column="0" Text="{Binding BpmDisplay}" FontSize="10" Foreground="#FFB300" FontWeight="Bold"/>
+                                                    <TextBlock Grid.Column="1" Text="{Binding BpmDifference, StringFormat='±{0:F1} BPM'}" FontSize="9" Foreground="#888"/>
+                                                </Grid>
+                                            </StackPanel>
+                                        </Border>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- Energy Flow -->
+                    <Border Background="#2D2D30" CornerRadius="8" Padding="12" BorderBrush="#3E3E3E" BorderThickness="1">
+                        <StackPanel Spacing="10">
+                            <TextBlock Text="⚡ ENERGY FLOW" FontSize="11" FontWeight="Bold" Foreground="#00E676" LetterSpacing="1"/>
+                            
+                            <ItemsControl ItemsSource="{Binding EnergyMatches}" MaxHeight="280">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <Border Background="#1A1A1A" CornerRadius="6" Padding="8" Margin="0,0,0,4"
+                                                BorderBrush="#00E676" BorderThickness="1">
+                                            <StackPanel Spacing="3">
+                                                <TextBlock Text="{Binding Title}" FontSize="10" FontWeight="SemiBold"/>
+                                                <TextBlock Text="{Binding Artist}" FontSize="9" Foreground="#AAA"/>
+                                                <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,4,0,0">
+                                                    <ProgressBar Value="{Binding Energy}" Maximum="1.0" Width="120" Height="6" Background="#333" Foreground="#00E676" CornerRadius="3"/>
+                                                    <TextBlock Text="{Binding EnergyDirection}" FontSize="9" Foreground="#888" VerticalAlignment="Center"/>
+                                                </StackPanel>
+                                            </StackPanel>
+                                        </Border>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- Style/Genre Matches -->
+                    <Border Background="#2D2D30" CornerRadius="8" Padding="12" BorderBrush="#3E3E3E" BorderThickness="1">
+                        <StackPanel Spacing="10">
+                            <TextBlock Text="🎵 STYLE MATCHES" FontSize="11" FontWeight="Bold" Foreground="#4EC9B0" LetterSpacing="1"/>
+                            
+                            <ItemsControl ItemsSource="{Binding StyleMatches}" MaxHeight="280">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <Border Background="#1A1A1A" CornerRadius="6" Padding="8" Margin="0,0,0,4"
+                                                BorderBrush="#4EC9B0" BorderThickness="1">
+                                            <StackPanel Spacing="3">
+                                                <TextBlock Text="{Binding Title}" FontSize="10" FontWeight="SemiBold"/>
+                                                <TextBlock Text="{Binding Artist}" FontSize="9" Foreground="#AAA"/>
+                                                <TextBlock Text="{Binding Genre}" FontSize="9" Foreground="#4EC9B0" Margin="0,4,0,0"/>
+                                            </StackPanel>
+                                        </Border>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </StackPanel>
+                    </Border>
+                </StackPanel>
+            </ScrollViewer>
+        </Border>
+    </Grid>
+</UserControl>

@@ -171,6 +171,24 @@
                                                         SegmentUpdatedCommand="{Binding SegmentUpdatedCommand}"
                                                         Height="120"/>
                             </Border>
+                            
+                            <!-- Phase 5.1: Vocal Pocket Heatmap -->
+                            <Border Background="#0D0D0D" CornerRadius="4" Margin="0,-2,0,0" Padding="1" ClipToBounds="True">
+                                <controls:VocalPocketRenderer Model="{Binding VocalPockets}" 
+                                                        SelectedSegment="{Binding SelectedVocalZone, Mode=TwoWay}"
+                                                        SegmentSelectedCommand="{Binding SelectZoneCommand}"
+                                                        Height="12"/>
+                            </Border>
+                            <Grid ColumnDefinitions="*,*" Margin="0,2,0,0">
+                                <StackPanel Orientation="Horizontal" Spacing="4" HorizontalAlignment="Left">
+                                    <Border Width="8" Height="8" Background="#22FF22" CornerRadius="2" Opacity="0.6"/>
+                                    <TextBlock Text="SAFE" FontSize="8" Foreground="#22FF22" VerticalAlignment="Center" FontWeight="Bold"/>
+                                </StackPanel>
+                                <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="4" HorizontalAlignment="Right">
+                                    <TextBlock Text="DANGER" FontSize="8" Foreground="#CC2222" VerticalAlignment="Center" FontWeight="Bold"/>
+                                    <Border Width="8" Height="8" Background="#CC2222" CornerRadius="2"/>
+                                </StackPanel>
+                            </Grid>
 
                             <Button Command="{Binding SurgicalRenderCommand}" 
                                     IsVisible="{Binding IsEditing}"
@@ -303,28 +321,87 @@
 
                         </UniformGrid>
                         
-                        <!-- NEW: Forensic Reasoning (Phase 1) -->
+                        <!-- NEW: Forensic Reasoning (Phase 5.2) -->
                         <Border Background="#252526" CornerRadius="12" Padding="20">
-                            <StackPanel Spacing="12">
-                                <StackPanel Orientation="Horizontal" Spacing="8">
-                                    <TextBlock Text="🧠" FontSize="20"/>
-                                    <TextBlock Text="Forensic Intelligence" FontSize="14" FontWeight="SemiBold" Foreground="#AAA"/>
-                                </StackPanel>
+                            <StackPanel Spacing="16">
+                                <Grid ColumnDefinitions="*,Auto">
+                                    <StackPanel Orientation="Horizontal" Spacing="8">
+                                        <TextBlock Text="🧠" FontSize="20"/>
+                                        <TextBlock Text="Forensic Intelligence" FontSize="14" FontWeight="SemiBold" Foreground="#AAA" VerticalAlignment="Center"/>
+                                    </StackPanel>
+                                    
+                                    <!-- Dynamic Context Badge -->
+                                    <Border Grid.Column="1" Background="#333" CornerRadius="4" Padding="8,4" IsVisible="{Binding HasSelectedZone}">
+                                        <StackPanel Orientation="Horizontal" Spacing="6">
+                                            <TextBlock Text="{Binding SelectedZoneLabel}" FontSize="10" FontWeight="Bold" Foreground="#1DB954"/>
+                                            <TextBlock Text="{Binding SelectedZoneTimeRange}" FontSize="10" Foreground="#888"/>
+                                        </StackPanel>
+                                    </Border>
+                                </Grid>
+
+                                <!-- Interactive Zone Advice -->
+                                <Border Background="#111" CornerRadius="8" Padding="12" IsVisible="{Binding HasSelectedZone}" BorderBrush="#333" BorderThickness="1">
+                                    <StackPanel Spacing="4">
+                                        <TextBlock Text="ZONE ANALYSIS" FontSize="9" Foreground="#666" FontWeight="Bold"/>
+                                        <TextBlock Text="{Binding SelectedZoneAdvice}" FontSize="12" Foreground="#CCC" TextWrapping="Wrap"/>
+                                    </StackPanel>
+                                </Border>
                                 
-                                <ItemsControl ItemsSource="{Binding ForensicReasoning}">
+                                <ItemsControl ItemsSource="{Binding ForensicVerdicts}">
                                     <ItemsControl.ItemTemplate>
                                         <DataTemplate>
-                                            <Grid ColumnDefinitions="100,*" Margin="0,4">
-                                                <TextBlock Text="{Binding Key}" Foreground="#CCC" FontWeight="Bold" FontSize="11" VerticalAlignment="Center"/>
-                                                <TextBlock Grid.Column="1" Text="{Binding Value}" Foreground="#888" FontSize="11" TextWrapping="Wrap"/>
+                                            <Grid Margin="0,2">
+                                                <!-- Section Header -->
+                                                <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,10,0,4">
+                                                    <StackPanel.IsVisible>
+                                                        <Binding Path="Type" Converter="{x:Static conv:EnumConverters.Instance}" ConverterParameter="Section"/>
+                                                    </StackPanel.IsVisible>
+                                                    <TextBlock Text="▓" Foreground="#888" FontSize="11" VerticalAlignment="Center"/>
+                                                    <TextBlock Text="{Binding Content}" Foreground="#888" FontWeight="Bold" FontSize="11" LetterSpacing="1" VerticalAlignment="Center"/>
+                                                </StackPanel>
+
+                                                <!-- Final Verdict -->
+                                                <Border Background="#1a1a1a" BorderBrush="#1DB954" BorderThickness="0,0,0,2" CornerRadius="4" Padding="12" Margin="0,8">
+                                                    <Border.IsVisible>
+                                                        <Binding Path="Type" Converter="{x:Static conv:EnumConverters.Instance}" ConverterParameter="Verdict"/>
+                                                    </Border.IsVisible>
+                                                    <StackPanel Spacing="4">
+                                                        <TextBlock Text="FINAL VERDICT" FontSize="9" Foreground="#1DB954" FontWeight="Bold"/>
+                                                        <TextBlock Text="{Binding Content}" Foreground="White" FontSize="13" FontWeight="SemiBold" TextWrapping="Wrap"/>
+                                                    </StackPanel>
+                                                </Border>
+
+                                                <!-- Standard Entries (Bullets, Warnings, Success, Detail) -->
+                                                <StackPanel Orientation="Horizontal" Spacing="12" Margin="0,2">
+                                                    <StackPanel.IsVisible>
+                                                        <MultiBinding Converter="{x:Static conv:BooleanConverters.And}">
+                                                            <Binding Path="Type" Converter="{x:Static conv:EnumConverters.NegatedInstance}" ConverterParameter="Section"/>
+                                                            <Binding Path="Type" Converter="{x:Static conv:EnumConverters.NegatedInstance}" ConverterParameter="Verdict"/>
+                                                        </MultiBinding>
+                                                    </StackPanel.IsVisible>
+
+                                                    <!-- Icon Column -->
+                                                    <Grid Width="14">
+                                                        <TextBlock Text="⚠" Foreground="#CC7700" FontSize="11" TextAlignment="Center" VerticalAlignment="Top" Margin="0,1,0,0"
+                                                                   IsVisible="{Binding Type, Converter="{x:Static conv:EnumConverters.Instance}", ConverterParameter=Warning}"/>
+                                                        <TextBlock Text="✓" Foreground="#22FF22" FontSize="11" TextAlignment="Center" VerticalAlignment="Top" Margin="0,1,0,0"
+                                                                   IsVisible="{Binding Type, Converter="{x:Static conv:EnumConverters.Instance}", ConverterParameter=Success}"/>
+                                                        <TextBlock Text="•" Foreground="#555" FontSize="11" TextAlignment="Center" VerticalAlignment="Top" Margin="0,1,0,0"
+                                                                   IsVisible="{Binding Type, Converter="{x:Static conv:EnumConverters.Instance}", ConverterParameter=Bullet}"/>
+                                                        <TextBlock Text="→" Foreground="#444" FontSize="11" TextAlignment="Center" VerticalAlignment="Top" Margin="0,1,0,0"
+                                                                   IsVisible="{Binding Type, Converter="{x:Static conv:EnumConverters.Instance}", ConverterParameter=Detail}"/>
+                                                    </Grid>
+
+                                                    <TextBlock Text="{Binding Content}" FontSize="11" Foreground="#AAA" TextWrapping="Wrap" VerticalAlignment="Top"/>
+                                                </StackPanel>
                                             </Grid>
                                         </DataTemplate>
                                     </ItemsControl.ItemTemplate>
                                 </ItemsControl>
                                 
-                                <TextBlock Text="No anomalies or structural landmarks recorded." 
+                                <TextBlock Text="No forensic data available for this track." 
                                            Foreground="#666" FontStyle="Italic" FontSize="11"
-                                           IsVisible="{Binding ForensicReasoning, Converter={x:Static ObjectConverters.IsNull}}"/>
+                                           IsVisible="{Binding ForensicVerdicts.Count, Converter={x:Static conv:NumericConverters.IsZero}}"/>
                             </StackPanel>
                         </Border>
 

@@ -594,6 +594,10 @@ public partial class App : Application
         services.AddSingleton<Services.Rekordbox.AnlzFileParser>();
         services.AddSingleton<RekordboxXmlExporter>();
         services.AddSingleton<Services.Export.RekordboxService>();
+        services.AddSingleton<Services.Export.IRekordboxExportService, Services.Export.RekordboxExportService>();
+        services.AddSingleton<Services.Export.ExportValidator>();
+        services.AddSingleton<Services.Export.ExportPackOrganizer>();
+        services.AddSingleton<Services.Export.IGigBagService, Services.Export.GigBagService>();
         
         // Harmonic matching service (DJ feature)
         services.AddSingleton<HarmonicMatchService>();
@@ -659,6 +663,7 @@ public partial class App : Application
         services.AddSingleton<SettingsViewModel>();
         services.AddSingleton<HomeViewModel>(); // [NEW] Command Center ViewModel
         services.AddSingleton<BulkOperationViewModel>();
+        services.AddSingleton<ExportManagerViewModel>();
 
         // [NEW] Library Scanning
         services.AddSingleton<LibraryFolderScannerService>();

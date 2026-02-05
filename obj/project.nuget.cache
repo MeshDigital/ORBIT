@@ -1,6 +1,6 @@
 {
   "version": 2,
-  "dgSpecHash": "8XwmWwUd3bE=",
+  "dgSpecHash": "tnokRros368=",
   "success": true,
   "projectFilePath": "C:\\Users\\quint\\OneDrive\\Documenten\\GitHub\\QMUSICSLSK\\SLSKDONET.csproj",
   "expectedPackageFiles": [
@@ -111,6 +111,7 @@
     "C:\\Users\\quint\\.nuget\\packages\\nwaves\\0.9.6\\nwaves.0.9.6.nupkg.sha512",
     "C:\\Users\\quint\\.nuget\\packages\\oneof\\3.0.263\\oneof.3.0.263.nupkg.sha512",
     "C:\\Users\\quint\\.nuget\\packages\\protobuf.text\\0.7.2\\protobuf.text.0.7.2.nupkg.sha512",
+    "C:\\Users\\quint\\.nuget\\packages\\questpdf\\2024.12.3\\questpdf.2024.12.3.nupkg.sha512",
     "C:\\Users\\quint\\.nuget\\packages\\razorvine.pickle\\1.4.0\\razorvine.pickle.1.4.0.nupkg.sha512",
     "C:\\Users\\quint\\.nuget\\packages\\reactiveui\\20.1.1\\reactiveui.20.1.1.nupkg.sha512",
     "C:\\Users\\quint\\.nuget\\packages\\scisharp.tensorflow.redist\\2.16.0\\scisharp.tensorflow.redist.2.16.0.nupkg.sha512",
@@ -173,10 +174,10 @@
     "C:\\Users\\quint\\.nuget\\packages\\tmds.dbus.protocol\\0.20.0\\tmds.dbus.protocol.0.20.0.nupkg.sha512",
     "C:\\Users\\quint\\.nuget\\packages\\unosquare.swan.lite\\3.1.0\\unosquare.swan.lite.3.1.0.nupkg.sha512",
     "C:\\Users\\quint\\.nuget\\packages\\xabe.ffmpeg\\5.2.6\\xabe.ffmpeg.5.2.6.nupkg.sha512",
-    "C:\\Users\\quint\\.nuget\\packages\\microsoft.netcore.app.ref\\9.0.11\\microsoft.netcore.app.ref.9.0.11.nupkg.sha512",
-    "C:\\Users\\quint\\.nuget\\packages\\microsoft.windowsdesktop.app.ref\\9.0.11\\microsoft.windowsdesktop.app.ref.9.0.11.nupkg.sha512",
     "C:\\Users\\quint\\.nuget\\packages\\microsoft.aspnetcore.app.ref\\9.0.11\\microsoft.aspnetcore.app.ref.9.0.11.nupkg.sha512",
-    "C:\\Users\\quint\\.nuget\\packages\\microsoft.netcore.app.host.win-x64\\9.0.11\\microsoft.netcore.app.host.win-x64.9.0.11.nupkg.sha512"
+    "C:\\Users\\quint\\.nuget\\packages\\microsoft.netcore.app.host.win-x64\\9.0.11\\microsoft.netcore.app.host.win-x64.9.0.11.nupkg.sha512",
+    "C:\\Users\\quint\\.nuget\\packages\\microsoft.netcore.app.ref\\9.0.11\\microsoft.netcore.app.ref.9.0.11.nupkg.sha512",
+    "C:\\Users\\quint\\.nuget\\packages\\microsoft.windowsdesktop.app.ref\\9.0.11\\microsoft.windowsdesktop.app.ref.9.0.11.nupkg.sha512"
   ],
   "logs": []
 }

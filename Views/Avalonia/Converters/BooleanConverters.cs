@@ -215,4 +215,38 @@ namespace SLSKDONET.Views.Avalonia.Converters
             throw new NotImplementedException();
         }
     }
+    public class BooleanAndConverter : IMultiValueConverter
+    {
+        public object Convert(System.Collections.Generic.IList<object?> values, Type targetType, object? parameter, CultureInfo culture)
+        {
+            foreach (var value in values)
+            {
+                if (value is bool b && !b) return false;
+            }
+            return true;
+        }
+
+        public object[] ConvertBack(object value, Type[] targetTypes, object parameter, CultureInfo culture) => throw new NotImplementedException();
+    }
+
+    public class BooleanOrConverter : IMultiValueConverter
+    {
+        public object Convert(System.Collections.Generic.IList<object?> values, Type targetType, object? parameter, CultureInfo culture)
+        {
+            foreach (var value in values)
+            {
+                if (value is bool b && b) return true;
+            }
+            return false;
+        }
+
+        public object[] ConvertBack(object value, Type[] targetTypes, object parameter, CultureInfo culture) => throw new NotImplementedException();
+    }
+
+    public static class BooleanConverters
+    {
+        public static readonly IMultiValueConverter And = new BooleanAndConverter();
+        public static readonly IMultiValueConverter Or = new BooleanOrConverter();
+        public static readonly IValueConverter Invert = new BoolInverseConverter();
+    }
 }

@@ -123,6 +123,71 @@ namespace SLSKDONET.ViewModels
         public ObservableCollection<float> StructuralVocalDensityCurve { get; } = new();
         public ObservableCollection<string> StructuralAnomalies { get; } = new();
         
+        // Phase 5.1: Vocal Intelligence UI
+        private Services.Musical.VocalPocketRenderModel? _vocalPockets;
+        public Services.Musical.VocalPocketRenderModel? VocalPockets
+        {
+            get => _vocalPockets;
+            private set => SetProperty(ref _vocalPockets, value);
+        }
+        
+        // Phase 5.2: Forensic Inspector Panel
+        private Services.Musical.VocalPocketSegment? _selectedVocalZone;
+        public Services.Musical.VocalPocketSegment? SelectedVocalZone
+        {
+            get => _selectedVocalZone;
+            set
+            {
+                if (SetProperty(ref _selectedVocalZone, value))
+                {
+                    OnPropertyChanged(nameof(HasSelectedZone));
+                    OnPropertyChanged(nameof(SelectedZoneLabel));
+                    OnPropertyChanged(nameof(SelectedZoneTimeRange));
+                    OnPropertyChanged(nameof(SelectedZoneAdvice));
+                }
+            }
+        }
+        
+        public bool HasSelectedZone => _selectedVocalZone != null;
+        
+        public string SelectedZoneLabel => _selectedVocalZone?.ZoneType switch
+        {
+            Services.Musical.VocalZoneType.Instrumental => "✅ SAFE ZONE",
+            Services.Musical.VocalZoneType.Sparse => "⚠️ SPARSE VOCALS",
+            Services.Musical.VocalZoneType.Hook => "⚠️ HOOK / CHORUS",
+            Services.Musical.VocalZoneType.Dense => "❌ DANGER - DENSE VOCALS",
+            _ => "No zone selected"
+        };
+        
+        public string SelectedZoneTimeRange => _selectedVocalZone != null
+            ? $"{_selectedVocalZone.StartSeconds:F1}s → {_selectedVocalZone.EndSeconds:F1}s"
+            : "";
+        
+        public string SelectedZoneAdvice => _selectedVocalZone?.ZoneType switch
+        {
+            Services.Musical.VocalZoneType.Instrumental => 
+                "SAFE HARBOR: Perfect for long melodic blends or bringing in complex vocals from Track B. Recommended exit/entry point.",
+            Services.Musical.VocalZoneType.Sparse =>
+                "LIGHT VOCALS: Ad-libs or vocal chops detected. Use a High-Pass Filter (HPF) on Track B to avoid low-end mud. Safe for quick cuts.",
+            Services.Musical.VocalZoneType.Hook =>
+                "CHORUS DETECTED: Strong melodic focus. Avoid layering—suggest a 'Power Cut' at the next phrase change or wait for instrumental pocket.",
+            Services.Musical.VocalZoneType.Dense =>
+                "VOCAL CLASH WARNING: Full lyrics active. DO NOT layer vocals. Recommendation: 'Drop-Swap' or immediate transition to clear frequency.",
+            _ => ""
+        };
+        
+        public ICommand SelectZoneCommand { get; }
+        
+        private void OnZoneSelected(object? parameter)
+        {
+            if (parameter is Services.Musical.VocalPocketSegment segment)
+            {
+                SelectedVocalZone = segment;
+            }
+        }
+        
+        public ObservableCollection<Models.ForensicVerdictEntry> ForensicVerdicts { get; } = new();
+        
         private Dictionary<string, string>? _forensicReasoning;
         public Dictionary<string, string>? ForensicReasoning
         {
@@ -212,6 +277,8 @@ namespace SLSKDONET.ViewModels
             _musicBrainzService = musicBrainzService;
             _logger = logger;
             _trackOperations = trackOperations;
+
+            SelectZoneCommand = ReactiveCommand.Create<object?>(OnZoneSelected);
 
             RevealFileCommand = ReactiveCommand.Create(() =>
             {
@@ -1177,6 +1244,9 @@ namespace SLSKDONET.ViewModels
             StructuralEnergyCurve.Clear();
             StructuralVocalDensityCurve.Clear();
             StructuralAnomalies.Clear();
+            VocalPockets = null; // Phase 5.1: Clear vocal pockets
+            ForensicVerdicts.Clear(); // Phase 5.2: Clear verdicts
+            SelectedVocalZone = null;
 
             if (_audioFeatures == null) return;
 
@@ -1197,12 +1267,28 @@ namespace SLSKDONET.ViewModels
                 if (!string.IsNullOrEmpty(_audioFeatures.VocalDensityCurveJson))
                 {
                     var curve = JsonSerializer.Deserialize<List<float>>(_audioFeatures.VocalDensityCurveJson);
-                    if (curve != null) foreach (var v in curve) StructuralVocalDensityCurve.Add(v);
+                    if (curve != null)
+                    {
+                        foreach (var v in curve) StructuralVocalDensityCurve.Add(v);
+                        
+                        // Phase 5.1: Generate VocalPockets render model
+                        float duration = (Track?.CanonicalDuration ?? 0) / 1000f;
+                        VocalPockets = Services.Musical.VocalPocketMapper.Map(curve, duration);
+                    }
                 }
 
                 if (!string.IsNullOrEmpty(_audioFeatures.AnalysisReasoningJson))
                 {
                     ForensicReasoning = JsonSerializer.Deserialize<Dictionary<string, string>>(_audioFeatures.AnalysisReasoningJson);
+                    
+                    // Phase 5.2: Parse structured verdicts
+                    if (ForensicReasoning != null)
+                    {
+                        foreach (var kvp in ForensicReasoning)
+                        {
+                            ParseMentorReasoning(kvp.Value);
+                        }
+                    }
                 }
 
                 if (!string.IsNullOrEmpty(_audioFeatures.AnomaliesJson))
@@ -1214,6 +1300,63 @@ namespace SLSKDONET.ViewModels
             catch (Exception ex)
             {
                 _logger.LogWarning("Failed to parse structural data JSON: {Msg}", ex.Message);
+            }
+        }
+
+        private void ParseMentorReasoning(string text)
+        {
+            if (string.IsNullOrWhiteSpace(text)) return;
+
+            var lines = text.Split(new[] { "\r\n", "\r", "\n" }, StringSplitOptions.RemoveEmptyEntries);
+            bool inVerdict = false;
+
+            foreach (var line in lines)
+            {
+                var trimmedLine = line.Trim();
+                if (string.IsNullOrEmpty(trimmedLine)) continue;
+
+                if (trimmedLine.StartsWith("▓"))
+                {
+                    var title = trimmedLine.TrimStart('▓', ' ').Trim();
+                    if (title.Contains("VERDICT")) inVerdict = true;
+                    ForensicVerdicts.Add(Models.ForensicVerdictEntry.Section(title));
+                }
+                else if (trimmedLine.StartsWith("•"))
+                {
+                    ForensicVerdicts.Add(Models.ForensicVerdictEntry.Bullet(trimmedLine.TrimStart('•', ' ').Trim()));
+                }
+                else if (trimmedLine.StartsWith("⚠"))
+                {
+                    ForensicVerdicts.Add(Models.ForensicVerdictEntry.Warning(trimmedLine.TrimStart('⚠', ' ').Trim()));
+                }
+                else if (trimmedLine.StartsWith("✓"))
+                {
+                    ForensicVerdicts.Add(Models.ForensicVerdictEntry.Success(trimmedLine.TrimStart('✓', ' ').Trim()));
+                }
+                else if (trimmedLine.StartsWith("→"))
+                {
+                    ForensicVerdicts.Add(Models.ForensicVerdictEntry.Detail(trimmedLine.TrimStart('→', ' ').Trim()));
+                }
+                else if (trimmedLine.StartsWith("🎯"))
+                {
+                    ForensicVerdicts.Add(Models.ForensicVerdictEntry.Success(trimmedLine.TrimStart('🎯', ' ').Trim()));
+                }
+                else if (trimmedLine.StartsWith("═"))
+                {
+                    // Visual separator, skip or handle
+                }
+                else
+                {
+                    // Default to bullet or check if we are in verdict section
+                    if (inVerdict)
+                    {
+                        ForensicVerdicts.Add(Models.ForensicVerdictEntry.Verdict(trimmedLine));
+                    }
+                    else
+                    {
+                        ForensicVerdicts.Add(Models.ForensicVerdictEntry.Bullet(trimmedLine));
+                    }
+                }
             }
         }
 
