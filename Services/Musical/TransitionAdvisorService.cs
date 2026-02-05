@@ -14,6 +14,7 @@ namespace SLSKDONET.Services.Musical
     public interface ITransitionAdvisorService
     {
         double CalculateFlowContinuity(SetListEntity setList, FlowWeightSettings? settings = null);
+        double CalculateFlowContinuity(IEnumerable<(LibraryEntryEntity Feature, SetTrackEntity Config)> trackSequence, FlowWeightSettings? settings = null);
         TransitionSuggestion AdviseTransition(LibraryEntryEntity trackA, LibraryEntryEntity trackB, FlowWeightSettings? settings = null);
         VocalOverlapReport CheckVocalConflict(LibraryEntryEntity trackA, LibraryEntryEntity trackB, double transitionOffset);
     }
@@ -23,36 +24,95 @@ namespace SLSKDONET.Services.Musical
         private readonly ILogger<TransitionAdvisorService> _logger;
         private readonly HarmonicMatchService _harmonicService;
         private readonly VocalIntelligenceService _vocalService;
+        private readonly IPhraseAlignmentService _phraseAlignmentService;
 
         public TransitionAdvisorService(
             ILogger<TransitionAdvisorService> logger, 
             HarmonicMatchService harmonicService,
-            VocalIntelligenceService vocalService)
+            VocalIntelligenceService vocalService,
+            IPhraseAlignmentService phraseAlignmentService)
         {
             _logger = logger;
             _harmonicService = harmonicService;
             _vocalService = vocalService;
+            _phraseAlignmentService = phraseAlignmentService;
         }
 
         public double CalculateFlowContinuity(SetListEntity setList, FlowWeightSettings? settings = null)
         {
+            // Fallback for when we don't have enriched data
+            // In a real scenario, this should likely throw or fetch data, but for now we return a neutral score
+            // to avoid breaking existing callers that haven't been updated.
+            return 0.85;
+        }
+
+        public double CalculateFlowContinuity(IEnumerable<(LibraryEntryEntity Feature, SetTrackEntity Config)> trackSequence, FlowWeightSettings? settings = null)
+        {
             settings ??= new FlowWeightSettings();
-            if (setList.Tracks == null || setList.Tracks.Count < 2) return 1.0;
+            var tracks = trackSequence.ToList();
+            if (tracks.Count < 2) return 1.0;
 
             double totalScore = 0;
             int pairsCalculated = 0;
-            var tracks = setList.Tracks.OrderBy(t => t.Position).ToList();
 
             for (int i = 0; i < tracks.Count - 1; i++)
             {
-                // In a production app, the entities should be pre-loaded with features.
-                // We'll perform the logic on the data we have.
-                // Placeholder scoring if features are missing
-                totalScore += 0.85; 
+                var current = tracks[i];
+                var next = tracks[i + 1];
+
+                totalScore += CalculateTransitionScore(current, next, settings);
                 pairsCalculated++;
             }
 
             return pairsCalculated > 0 ? totalScore / pairsCalculated : 1.0;
+        }
+
+        private double CalculateTransitionScore((LibraryEntryEntity Feature, SetTrackEntity Config) current, (LibraryEntryEntity Feature, SetTrackEntity Config) next, FlowWeightSettings settings)
+        {
+            double score = 1.0;
+
+            // 1. Harmonic Compatibility
+            double keyScore = CalculateKeyScore(current.Feature, next.Feature);
+            score -= (1.0 - keyScore) * settings.HarmonicWeight;
+
+            // 2. BPM Compatibility
+            if (current.Feature.BPM.HasValue && next.Feature.BPM.HasValue && current.Feature.BPM > 0)
+            {
+                double drift = Math.Abs(current.Feature.BPM.Value - next.Feature.BPM.Value);
+                double driftPercent = drift / current.Feature.BPM.Value;
+                
+                // Penalty kicks in significantly after 3% drift
+                if (driftPercent > 0.03)
+                {
+                    double penalty = Math.Min(1.0, (driftPercent - 0.03) * 5); // Rapid falloff
+                    score -= penalty * settings.BpmWeight;
+                }
+            }
+
+            // 3. Vocal Intelligence
+            double vocalPenalty = 0.0;
+            
+            // A. Type-Based Rules (Heuristic)
+            if (current.Feature.VocalType == VocalType.FullLyrics && next.Feature.VocalType == VocalType.FullLyrics)
+            {
+                vocalPenalty += 0.3; // High risk of lyrical clash
+            }
+            else if (current.Feature.VocalType >= VocalType.HookOnly && next.Feature.VocalType >= VocalType.HookOnly)
+            {
+                vocalPenalty += 0.15; // Moderate risk
+            }
+
+            // B. Overlap-Based Rules (Data Driven)
+            // Use the transition offset from the 'next' track configuration
+            var vocalReport = CheckVocalConflict(current.Feature, next.Feature, next.Config.ManualOffset);
+            if (vocalReport.HasConflict)
+            {
+                vocalPenalty += (vocalReport.ConflictIntensity * 0.5); // Add intensity-based penalty
+            }
+
+            score -= Math.Min(1.0, vocalPenalty * settings.VocalOverlapPenalty);
+
+            return Math.Clamp(score, 0.0, 1.0);
         }
 
         public TransitionSuggestion AdviseTransition(LibraryEntryEntity trackA, LibraryEntryEntity trackB, FlowWeightSettings? settings = null)
@@ -60,36 +120,99 @@ namespace SLSKDONET.Services.Musical
             settings ??= new FlowWeightSettings();
             var suggestion = new TransitionSuggestion
             {
+                Archetype = TransitionArchetype.QuickCut, // Default to avoid false positive on DropSwap (0)
                 BpmDrift = Math.Abs((trackA.Bpm ?? 0) - (trackB.Bpm ?? 0)),
                 HarmonicCompatibility = CalculateKeyScore(trackA, trackB)
             };
 
             // Heuristics for Archetype & Reasoning
-            if (trackB.VocalType == VocalType.Instrumental && trackA.VocalType != VocalType.Instrumental)
+            
+            // 1. Drop-Swap Detection (High Energy Transfer)
+            // Logic: Track A is high energy, Track B has a defined Drop, and we are transitioning near a phrase boundary.
+            bool trackAHighEnergy = (trackA.Energy ?? trackA.AudioFeatures?.Energy ?? 0) > 0.7;
+            bool trackBHasDrop = (trackB.AudioFeatures?.DropTimeSeconds > 0) || ((trackB.Energy ?? trackB.AudioFeatures?.Energy ?? 0) > 0.7);
+            
+            // Check if user has aligned significantly (transition offset is handled in UI/SetTrack, 
+            // but here we advise based on potential).
+            // Simplification: If both are high energy and vocally active, suggest Drop-Swap to minimize clash.
+            
+            if (trackAHighEnergy && trackBHasDrop)
             {
-                suggestion.Archetype = TransitionArchetype.VocalToInstrumental;
-                suggestion.Reasoning = $"Track A is '{trackA.VocalType}' ending at {FormatTime(trackA.VocalEndSeconds)}. Track B is '{trackB.VocalType}' — safe to blend without overlap hazard.";
+                 // Vocal clash check for Drop-Swap necessity
+                 if (trackA.VocalType >= VocalType.HookOnly && trackB.VocalType >= VocalType.HookOnly)
+                 {
+                     suggestion.Archetype = TransitionArchetype.DropSwap;
+                 }
+                 // If not clashing but high energy, still a good candidate
+                 else if (trackA.VocalType == VocalType.Instrumental && trackB.VocalType >= VocalType.HookOnly) 
+                 {
+                     suggestion.Archetype = TransitionArchetype.DropSwap;
+                 }
+                 else if (suggestion.Archetype == TransitionArchetype.QuickCut && suggestion.HarmonicCompatibility < 0.7)
+                 {
+                      suggestion.Archetype = TransitionArchetype.DropSwap; // Upgrade QuickCut to DropSwap for high energy
+                 }
             }
-            else if (suggestion.HarmonicCompatibility >= 0.9 && suggestion.BpmDrift < (trackA.Bpm * 0.03))
+
+            // 2. Build-to-Drop Detection
+            // Logic: Track A has a 'Build' or 'Rise' segment, Track B has a Drop.
+            if (suggestion.Archetype != TransitionArchetype.DropSwap)
             {
-                suggestion.Archetype = TransitionArchetype.LongBlend;
-                suggestion.Reasoning = $"Strong harmonic match ({trackA.MusicalKey} → {trackB.MusicalKey}) and tight BPM alignment supports a surgical 32-bar blend.";
+                bool trackAHasBuild = false;
+                if (!string.IsNullOrEmpty(trackA.AudioFeatures?.PhraseSegmentsJson) && trackA.AudioFeatures.PhraseSegmentsJson != "[]")
+                {
+                    try
+                    {
+                        var segments = JsonSerializer.Deserialize<List<PhraseSegment>>(trackA.AudioFeatures.PhraseSegmentsJson);
+                        // Check if we have a Build segment
+                        trackAHasBuild = segments?.Any(s => s.Label.Contains("Build", StringComparison.OrdinalIgnoreCase) 
+                                                         || s.Label.Contains("Rise", StringComparison.OrdinalIgnoreCase)
+                                                         || s.Label.Contains("Uplift", StringComparison.OrdinalIgnoreCase)) ?? false;
+                    }
+                    catch { /* Ignore parsing errors */ }
+                }
+
+                if (trackAHasBuild && trackBHasDrop)
+                {
+                    suggestion.Archetype = TransitionArchetype.BuildToDrop;
+                }
             }
-            else if (trackA.Energy > 0.8 && trackB.Energy < 0.4)
+
+            if (suggestion.Archetype != TransitionArchetype.DropSwap && suggestion.Archetype != TransitionArchetype.BuildToDrop)
             {
-                suggestion.Archetype = TransitionArchetype.EnergyReset;
-                suggestion.Reasoning = "High-to-Low energy transition detected. Recommend a structural reset or atmospheric break to settle the floor.";
+                if (trackB.VocalType == VocalType.Instrumental && trackA.VocalType != VocalType.Instrumental)
+                {
+                    suggestion.Archetype = TransitionArchetype.VocalToInstrumental;
+                }
+                else if (suggestion.HarmonicCompatibility >= 0.9 && suggestion.BpmDrift < (trackA.Bpm * 0.03))
+                {
+                    suggestion.Archetype = TransitionArchetype.LongBlend;
+                }
+                else if (trackA.Energy > 0.8 && trackB.Energy < 0.4)
+                {
+                    suggestion.Archetype = TransitionArchetype.EnergyReset;
+                }
+                else if (trackA.VocalType >= VocalType.HookOnly && trackB.VocalType >= VocalType.HookOnly)
+                {
+                    suggestion.Archetype = TransitionArchetype.QuickCut;
+                }
+                else
+                {
+                    suggestion.Archetype = TransitionArchetype.QuickCut;
+                }
             }
-            else if (trackA.VocalType >= VocalType.HookOnly && trackB.VocalType >= VocalType.HookOnly)
-            {
-                suggestion.Archetype = TransitionArchetype.QuickCut;
-                suggestion.Reasoning = $"CAUTION: Both tracks have significant vocal presence ({trackA.VocalType} / {trackB.VocalType}). Use a hard 'Drop-Swap' at the phrase change.";
-            }
-            else
-            {
-                suggestion.Archetype = TransitionArchetype.QuickCut;
-                suggestion.Reasoning = "Standard transition. Focus on rhythmic alignment at the percussion-only sections.";
-            }
+
+            // Generate full forensic reasoning
+            // Calculate vocal conflict once here to pass to builder
+            var vocalReport = CheckVocalConflict(trackA, trackB, 0); 
+            var simpleVocalCheck = CheckVocalConflict(trackA, trackB, 0); 
+            
+            // Calculate optimal transition time using Phrase Alignment Service
+            var optimization = _phraseAlignmentService.DetermineOptimalTransitionTime(trackA, trackB, suggestion.Archetype);
+            suggestion.OptimalTransitionTime = optimization?.Time;
+            suggestion.OptimalTransitionReason = optimization?.Reason;
+
+            suggestion.Reasoning = TransitionReasoningBuilder.BuildReasoning(trackA, trackB, suggestion, simpleVocalCheck);
 
             return suggestion;
         }
@@ -98,7 +221,10 @@ namespace SLSKDONET.Services.Musical
         {
             if (string.IsNullOrEmpty(trackA.MusicalKey) || string.IsNullOrEmpty(trackB.MusicalKey)) return 0.5;
             if (trackA.MusicalKey == trackB.MusicalKey) return 1.0;
-            // Simplified Camelot proximity check
+            // Simplified Camelot proximity check: +/- 1 is OK
+            // In full implementation, delegate to HarmonicMatchService.GetKeyRelationship
+            // For now, assume simple string matching or close enough
+            // TODO: Use HarmonicMatchService logic here
             return 0.7; 
         }
 
@@ -142,20 +268,6 @@ namespace SLSKDONET.Services.Musical
         }
     }
 
-    public class TransitionSuggestion
-    {
-        public TransitionArchetype Archetype { get; set; }
-        public string Reasoning { get; set; } = string.Empty;
-        public double BpmDrift { get; set; }
-        public double HarmonicCompatibility { get; set; }
-    }
 
-    public class VocalOverlapReport
-    {
-        public bool HasConflict { get; set; }
-        public double ConflictIntensity { get; set; }
-        public double VocalSafetyScore { get; set; }
-        public string? WarningMessage { get; set; }
-        public List<double> ConflictPoints { get; set; } = new();
-    }
+
 }

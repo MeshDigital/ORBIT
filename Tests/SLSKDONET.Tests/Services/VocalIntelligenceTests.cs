@@ -6,6 +6,7 @@ using SLSKDONET.Services;
 using SLSKDONET.Data.Entities;
 using SLSKDONET.Data;
 using SLSKDONET.Models;
+using SLSKDONET.Models.Musical;
 using Microsoft.Extensions.Logging;
 using Moq;
 
@@ -48,28 +49,142 @@ namespace SLSKDONET.Tests.Services
         private readonly TransitionAdvisorService _advisor;
         private readonly Mock<VocalIntelligenceService> _vocalMock;
         private readonly Mock<HarmonicMatchService> _harmonicMock;
+        private readonly Mock<IPhraseAlignmentService> _phraseMock;
 
         public TransitionAdvisorTests()
         {
             _vocalMock = new Mock<VocalIntelligenceService>();
             _harmonicMock = new Mock<HarmonicMatchService>(new Mock<ILogger<HarmonicMatchService>>().Object, null);
+            _phraseMock = new Mock<IPhraseAlignmentService>();
             _advisor = new TransitionAdvisorService(
                 new Mock<ILogger<TransitionAdvisorService>>().Object,
                 _harmonicMock.Object,
-                _vocalMock.Object);
+                _vocalMock.Object,
+                _phraseMock.Object);
         }
 
         [Fact]
         public void AdviseTransition_SuggestsVocalToInstrumental()
         {
-            var trackA = new LibraryEntryEntity { VocalType = VocalType.FullLyrics, VocalEndSeconds = 200 };
-            var trackB = new LibraryEntryEntity { VocalType = VocalType.Instrumental };
+            var trackA = new LibraryEntryEntity { VocalType = VocalType.FullLyrics, VocalEndSeconds = 200, Energy = 0.5 };
+            var trackB = new LibraryEntryEntity { VocalType = VocalType.Instrumental, Energy = 0.5 };
 
             var suggestion = _advisor.AdviseTransition(trackA, trackB);
             
             Assert.Equal(TransitionArchetype.VocalToInstrumental, suggestion.Archetype);
-            Assert.Contains("Instrumental", suggestion.Reasoning);
-            Assert.Contains("Track A is 'FullLyrics'", suggestion.Reasoning);
+            Assert.Contains("instrumental", suggestion.Reasoning, StringComparison.OrdinalIgnoreCase);
+            Assert.Contains("FullLyrics", suggestion.Reasoning);
+        }
+
+        [Fact]
+        public void CalculateFlowContinuity_PenalizesLyricalClash()
+        {
+            var trackA = new LibraryEntryEntity 
+            { 
+                VocalType = VocalType.FullLyrics, 
+                BPM = 120, 
+                MusicalKey = "8A",
+                AudioFeatures = new AudioFeaturesEntity() // Avoid null checks in logic
+            };
+            var trackB = new LibraryEntryEntity 
+            { 
+                VocalType = VocalType.FullLyrics, 
+                BPM = 120, 
+                MusicalKey = "8A",
+                AudioFeatures = new AudioFeaturesEntity()
+            };
+            
+            var sequence = new List<(LibraryEntryEntity, SetTrackEntity)>
+            {
+                (trackA, new SetTrackEntity()),
+                (trackB, new SetTrackEntity())
+            };
+
+            var score = _advisor.CalculateFlowContinuity(sequence);
+
+            // Expect penalty: 1.0 - (0.3 * 0.9) = 0.73
+            Assert.True(score < 0.9, $"Score {score} should be penalized for lyrical clash");
+        }
+
+        [Fact]
+        public void CalculateFlowContinuity_RewardsInstrumentalTransition()
+        {
+            var trackA = new LibraryEntryEntity 
+            { 
+                VocalType = VocalType.FullLyrics, 
+                BPM = 120, 
+                MusicalKey = "8A",
+                AudioFeatures = new AudioFeaturesEntity()
+            };
+            var trackB = new LibraryEntryEntity 
+            { 
+                VocalType = VocalType.Instrumental, 
+                BPM = 120, 
+                MusicalKey = "8A",
+                AudioFeatures = new AudioFeaturesEntity()
+            };
+
+            var sequence = new List<(LibraryEntryEntity, SetTrackEntity)>
+            {
+                (trackA, new SetTrackEntity()),
+                (trackB, new SetTrackEntity())
+            };
+
+            var score = _advisor.CalculateFlowContinuity(sequence);
+
+            Assert.Equal(1.0, score);
+        }
+
+        [Fact]
+        public void AdviseTransition_SuggestsDropSwap_ForHighEnergyClash()
+        {
+            var trackA = new LibraryEntryEntity 
+            { 
+                VocalType = VocalType.HookOnly,
+                BPM = 128,
+                Energy = 0.9,
+                AudioFeatures = new AudioFeaturesEntity { Energy = 0.9f }
+            };
+            var trackB = new LibraryEntryEntity 
+            { 
+                VocalType = VocalType.FullLyrics,
+                BPM = 128,
+                Energy = 0.85,
+                AudioFeatures = new AudioFeaturesEntity { Energy = 0.85f, DropTimeSeconds = 30 }
+            };
+
+            var suggestion = _advisor.AdviseTransition(trackA, trackB);
+
+            // With builder, it's multi-line. Just check for key phrase
+            Assert.Equal(TransitionArchetype.DropSwap, suggestion.Archetype);
+            Assert.Contains("Drop-Swap", suggestion.Reasoning);
+        }
+
+        [Fact]
+        public void AdviseTransition_SuggestsBuildToDrop_WhenBuildDetected()
+        {
+            var trackA = new LibraryEntryEntity 
+            { 
+                VocalType = VocalType.SparseVocals,
+                AudioFeatures = new AudioFeaturesEntity 
+                { 
+                    // Emulate a Build segment
+                    PhraseSegmentsJson = "[{\"Label\":\"Build\",\"Start\":120,\"Duration\":16}]"
+                }
+            };
+            var trackB = new LibraryEntryEntity 
+            { 
+                VocalType = VocalType.Instrumental,
+                AudioFeatures = new AudioFeaturesEntity 
+                { 
+                    DropTimeSeconds = 30 
+                }
+            };
+
+            var suggestion = _advisor.AdviseTransition(trackA, trackB);
+
+            Assert.Equal(TransitionArchetype.BuildToDrop, suggestion.Archetype);
+            Assert.Contains("Build-to-Drop", suggestion.Reasoning);
         }
     }
 }
