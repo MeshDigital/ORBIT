@@ -47,6 +47,10 @@ Thumbs.db
 *.dll
 *.exe
 *.so
+bin/
+obj/
+**/bin/
+**/obj/
 
 # Log files (all patterns)
 *.log
