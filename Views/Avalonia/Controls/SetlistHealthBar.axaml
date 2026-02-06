@@ -4,8 +4,8 @@
              Background="Transparent"
              Height="50"
              Padding="0">
-    
-    <Grid RowDefinitions="Auto,*" Spacing="6">
+
+    <Grid RowDefinitions="Auto,*">
         <!-- Header with Status Message -->
         <StackPanel Grid.Row="0" Orientation="Horizontal" Spacing="8" Margin="12,0,12,4">
             <TextBlock Text="Setlist Health:" FontSize="12" FontWeight="Bold" Foreground="#aaaaaa"/>
@@ -27,21 +27,21 @@
                 BorderThickness="1"
                 CornerRadius="3"
                 Padding="2">
-            
+
             <ScrollViewer HorizontalScrollBarVisibility="Auto"
                           VerticalScrollBarVisibility="Disabled">
-                
+
                 <ItemsControl ItemsSource="{Binding TransitionSegments}">
                     <ItemsControl.ItemsPanel>
                         <ItemsPanelTemplate>
                             <StackPanel Orientation="Horizontal" Spacing="0"/>
                         </ItemsPanelTemplate>
                     </ItemsControl.ItemsPanel>
-                    
+
                     <ItemsControl.ItemTemplate>
                         <DataTemplate>
                             <!-- Individual Segment Rectangle -->
-                            <Rectangle Width="{Binding SegmentWidth, StringFormat='{0:P}'}"
+                            <Rectangle Width="{Binding SegmentWidth}"
                                        Height="40"
                                        Fill="{Binding BackgroundColorBrush}"
                                        Stroke="#222222"
@@ -50,11 +50,11 @@
                                        ToolTip.Tip="{Binding ToolTipText}"
                                        ToolTip.ShowDelay="200"
                                        ToolTip.Placement="Top">
-                                
+
                                 <!-- Click handler wired in code-behind -->
                                 <Rectangle.ContextMenu>
                                     <ContextMenu>
-                                        <MenuItem Header="View Detail" 
+                                        <MenuItem Header="View Detail"
                                                   Command="{Binding $parent[SetlistHealthBar].DataContext.SelectSegmentCommand}"
                                                   CommandParameter="{Binding Index}"/>
                                         <MenuItem Header="Apply Rescue Track..."
@@ -65,26 +65,26 @@
                         </DataTemplate>
                     </ItemsControl.ItemTemplate>
                 </ItemsControl>
-                
+
             </ScrollViewer>
         </Border>
 
         <!-- Legend -->
-        <StackPanel Grid.Row="2" 
-                    Orientation="Horizontal" 
-                    Spacing="16" 
+        <StackPanel Grid.Row="2"
+                    Orientation="Horizontal"
+                    Spacing="16"
                     Margin="12,4,12,0"
                     IsVisible="False">
             <StackPanel Orientation="Horizontal" Spacing="4">
-                <Rectangle Width="12" Height="12" Fill="#22dd22" CornerRadius="2"/>
+                <Rectangle Width="12" Height="12" Fill="#22dd22" RadiusX="2" RadiusY="2"/>
                 <TextBlock Text="Healthy" FontSize="10" Foreground="#aaaaaa"/>
             </StackPanel>
             <StackPanel Orientation="Horizontal" Spacing="4">
-                <Rectangle Width="12" Height="12" Fill="#ffcc00" CornerRadius="2"/>
+                <Rectangle Width="12" Height="12" Fill="#ffcc00" RadiusX="2" RadiusY="2"/>
                 <TextBlock Text="Warning" FontSize="10" Foreground="#aaaaaa"/>
             </StackPanel>
             <StackPanel Orientation="Horizontal" Spacing="4">
-                <Rectangle Width="12" Height="12" Fill="#ff3333" CornerRadius="2"/>
+                <Rectangle Width="12" Height="12" Fill="#ff3333" RadiusX="2" RadiusY="2"/>
                 <TextBlock Text="Critical" FontSize="10" Foreground="#aaaaaa"/>
             </StackPanel>
         </StackPanel>

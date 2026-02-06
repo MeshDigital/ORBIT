@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using Microsoft.EntityFrameworkCore;
 using SLSKDONET.Data;
 using SLSKDONET.Data.Entities;
 using SLSKDONET.Models;
@@ -15,7 +16,7 @@ namespace SLSKDONET.Services.Analysis
     /// Phase 5.4: Setlist Stress-Test Service
     /// Deep-scans entire DJ setlist to identify dead-ends, energy plateaus, and vocal conflicts.
     /// Provides weighted severity scoring, rescue suggestions, and mentor-style narration.
-    /// 
+    ///
     /// CRITICAL ALGORITHMS:
     /// 1. Energy Plateau Detection: Gradient-based with vocal-type awareness
     /// 2. Rescue Track Selection: Weighted scoring (Energy 30%, Tempo 30%, Harmonic 40%)
@@ -68,8 +69,8 @@ namespace SLSKDONET.Services.Analysis
             };
 
             var tracks = setlist.Tracks.OrderBy(t => t.Position).ToList();
-            var libraryTracks = await _libraryService.GetAllTracksAsync();
-            var trackMap = libraryTracks.ToDictionary(t => t.TrackUniqueHash);
+            var libraryTracks = await _dbContext.LibraryEntries.AsNoTracking().ToListAsync();
+            var trackMap = libraryTracks.ToDictionary(t => t.UniqueHash);
 
             // Scan all transitions
             for (int i = 0; i < tracks.Count - 1; i++)
@@ -168,7 +169,7 @@ namespace SLSKDONET.Services.Analysis
             List<SetTrackEntity> fullSetlist,
             int currentIndex)
         {
-            double energyDelta = Math.Abs(trackB.Energy - trackA.Energy);
+            double energyDelta = Math.Abs((trackB.Energy ?? 0) - (trackA.Energy ?? 0));
 
             // Check if we're in an energy plateau (gradient < 3% over 4 tracks)
             bool isEnergyPlateau = false;
@@ -180,7 +181,7 @@ namespace SLSKDONET.Services.Analysis
             // Determine tolerance based on vocal type
             // Vocal plateaus are acceptable; instrumental plateaus signal boring flow
             double tolerance = ENERGY_COMFORT_RANGE;
-            if (trackA.VocalType != VocalType.Instrumental && 
+            if (trackA.VocalType != VocalType.Instrumental &&
                 trackB.VocalType != VocalType.Instrumental)
             {
                 // Both vocal: higher tolerance (soulful sections are intentional)
@@ -246,11 +247,11 @@ namespace SLSKDONET.Services.Analysis
             // Placeholder: In production, call _harmonicService to compute Camelot compatibility
             // For now, return a simple key-distance score
 
-            if (trackA?.CamelotKey == null || trackB?.CamelotKey == null)
+            if (trackA?.MusicalKey == null || trackB?.MusicalKey == null)
                 return 30; // Unknown keys = moderate risk
 
-            var keyA = trackA.CamelotKey;
-            var keyB = trackB.CamelotKey;
+            var keyA = trackA.MusicalKey;
+            var keyB = trackB.MusicalKey;
 
             // Perfect match
             if (keyA == keyB)
@@ -276,21 +277,21 @@ namespace SLSKDONET.Services.Analysis
         private int AnalyzeVocalCompatibility(LibraryEntryEntity trackA, LibraryEntryEntity trackB)
         {
             // Vocal → Vocal overlap = high risk
-            if (trackA.VocalType == VocalType.FullLyrics && 
+            if (trackA.VocalType == VocalType.FullLyrics &&
                 trackB.VocalType == VocalType.FullLyrics)
             {
                 return 75; // Requires careful mixing or quick cut
             }
 
             // Instrumental → Instrumental = safe
-            if (trackA.VocalType == VocalType.Instrumental && 
+            if (trackA.VocalType == VocalType.Instrumental &&
                 trackB.VocalType == VocalType.Instrumental)
             {
                 return 0;
             }
 
             // Vocal → Instrumental = excellent
-            if (trackA.VocalType != VocalType.Instrumental && 
+            if (trackA.VocalType != VocalType.Instrumental &&
                 trackB.VocalType == VocalType.Instrumental)
             {
                 return 5; // Vocals clear smoothly
@@ -354,20 +355,20 @@ namespace SLSKDONET.Services.Analysis
             var rescues = new List<RescueSuggestion>();
 
             // Calculate ideal midpoint
-            double idealEnergy = (trackA.Energy + trackB.Energy) / 2.0;
+            double idealEnergy = ((trackA.Energy ?? 0) + (trackB.Energy ?? 0)) / 2.0;
             double idealBpm = ((trackA.Bpm ?? 120) + (trackB.Bpm ?? 120)) / 2.0;
 
             // Score all library tracks
             var candidates = libraryTracks
-                .Where(t => t.TrackUniqueHash != trackA.TrackUniqueHash &&
-                           t.TrackUniqueHash != trackB.TrackUniqueHash)
+                .Where(t => t.UniqueHash != trackA.UniqueHash &&
+                           t.UniqueHash != trackB.UniqueHash)
                 .Select(t => new
                 {
                     Track = t,
-                    EnergyScore = 1.0 - Math.Abs(t.Energy - idealEnergy),
+                    EnergyScore = 1.0 - Math.Abs((t.Energy ?? 0) - idealEnergy),
                     TempoScore = 1.0 - (Math.Abs((t.Bpm ?? 120) - idealBpm) / idealBpm),
                     HarmonicScore = ComputeHarmonicBridgeScore(trackA, t, trackB),
-                    ProximityBonus = (t.VocalType == trackA.VocalType || 
+                    ProximityBonus = (t.VocalType == trackA.VocalType ||
                                      t.VocalType == trackB.VocalType) ? 0.05 : 0.0
                 })
                 .Select(x => new
@@ -410,8 +411,8 @@ namespace SLSKDONET.Services.Analysis
             LibraryEntryEntity trackB)
         {
             // Ideal: A → C → B forms a harmonic progression
-            int distanceAtoC = ComputeKeyDistance(trackA.CamelotKey, trackC.CamelotKey);
-            int distanceCtoB = ComputeKeyDistance(trackC.CamelotKey, trackB.CamelotKey);
+            int distanceAtoC = ComputeKeyDistance(trackA.MusicalKey ?? string.Empty, trackC.MusicalKey ?? string.Empty);
+            int distanceCtoB = ComputeKeyDistance(trackC.MusicalKey ?? string.Empty, trackB.MusicalKey ?? string.Empty);
 
             // Prefer balanced progressions
             int totalDistance = distanceAtoC + distanceCtoB;
@@ -479,12 +480,12 @@ namespace SLSKDONET.Services.Analysis
 
             // Energy narrative
             sb.AppendLine($"  Energy Bridge: {trackA.Energy:F2} → {trackC.Energy:F2} → {trackB.Energy:F2}");
-            sb.AppendLine($"    Lifts from {(trackA.Energy < trackB.Energy ? "low" : "high" )} to {(trackC.Energy > trackA.Energy ? "rising" : "stable")}");
+            sb.AppendLine($"    Lifts from {(trackA.Energy < trackB.Energy ? "low" : "high")} to {(trackC.Energy > trackA.Energy ? "rising" : "stable")}");
             sb.AppendLine();
 
             // Harmonic narrative
-            int dist = ComputeKeyDistance(trackA.CamelotKey, trackC.CamelotKey);
-            sb.AppendLine($"  Harmonic Path: {trackA.CamelotKey} → {trackC.CamelotKey} → {trackB.CamelotKey}");
+            int dist = ComputeKeyDistance(trackA.MusicalKey ?? string.Empty, trackC.MusicalKey ?? string.Empty);
+            sb.AppendLine($"  Harmonic Path: {trackA.MusicalKey} → {trackC.MusicalKey} → {trackB.MusicalKey}");
             sb.AppendLine($"    {(dist <= 1 ? "Compatible" : "Safe transition")} key cluster");
             sb.AppendLine();
 
@@ -525,7 +526,7 @@ namespace SLSKDONET.Services.Analysis
             builder.AddSection("Transition Analysis");
             builder.AddBullet($"{trackA.Artist} → {trackB.Artist}");
             builder.AddDetail($"Energy: {trackA.Energy:F2} → {trackB.Energy:F2}");
-            builder.AddDetail($"Key: {trackA.CamelotKey} → {trackB.CamelotKey}");
+            builder.AddDetail($"Key: {trackA.MusicalKey} → {trackB.MusicalKey}");
 
             if (vocalScore > 50)
             {
@@ -587,7 +588,7 @@ namespace SLSKDONET.Services.Analysis
                 (report.StressPoints.Average(s => s.SeverityScore) < 40 ? "Excellent" : "Requires attention"));
 
             builder.AddVerdict(
-                report.OverallHealthScore >= 80 
+                report.OverallHealthScore >= 80
                     ? "Setlist is ready for performance! Flows naturally."
                     : report.OverallHealthScore >= 50
                     ? "Setlist is usable with careful mixing at weak points."
@@ -620,7 +621,7 @@ namespace SLSKDONET.Services.Analysis
         /// Determines whether to:
         /// 1. REPLACE: Swap problematic track with rescue track
         /// 2. INSERT: Place rescue track as bridge between problematic transition
-        /// 
+        ///
         /// Then recalculates severity scores for affected transitions.
         /// </summary>
         public async Task<ApplyRescueResult> ApplyRescueTrackAsync(
@@ -665,18 +666,36 @@ namespace SLSKDONET.Services.Analysis
                     };
                 }
 
+                var rescueTarget = rescueSuggestion.TargetTrack as LibraryEntryEntity;
+                var fromEntry = await _dbContext.LibraryEntries
+                    .AsNoTracking()
+                    .FirstOrDefaultAsync(e => e.UniqueHash == fromTrack.TrackUniqueHash);
+                var toEntry = await _dbContext.LibraryEntries
+                    .AsNoTracking()
+                    .FirstOrDefaultAsync(e => e.UniqueHash == toTrack.TrackUniqueHash);
+
+                if (rescueTarget == null || fromEntry == null || toEntry == null)
+                {
+                    return new ApplyRescueResult
+                    {
+                        Success = false,
+                        Message = "Unable to resolve tracks for rescue application.",
+                        UpdatedSetlist = setlist
+                    };
+                }
+
                 // Decision: Replace vs Insert
                 // INSERT if: rescue track bridges the gap much better than replacement
                 // REPLACE if: rescue track is better standalone on one side
-                var qualityGainFromReplace = 
+                var qualityGainFromReplace =
                     Math.Max(
-                        CalculateTransitionQuality(fromTrack, rescueSuggestion.TargetTrack),
-                        CalculateTransitionQuality(rescueSuggestion.TargetTrack, toTrack)
+                        CalculateTransitionQuality(fromEntry, rescueTarget),
+                        CalculateTransitionQuality(rescueTarget, toEntry)
                     );
 
                 var qualityGainFromBridge =
-                    CalculateTransitionQuality(fromTrack, rescueSuggestion.TargetTrack) +
-                    CalculateTransitionQuality(rescueSuggestion.TargetTrack, toTrack);
+                    CalculateTransitionQuality(fromEntry, rescueTarget) +
+                    CalculateTransitionQuality(rescueTarget, toEntry);
 
                 bool shouldInsertBridge = qualityGainFromBridge > (qualityGainFromReplace * 1.3);
 
@@ -686,8 +705,10 @@ namespace SLSKDONET.Services.Analysis
                     int insertPosition = stressPoint.ToTrackIndex;
                     var newSetTrack = new SetTrackEntity
                     {
-                        SetId = setlist.SetId,
-                        Library = rescueSuggestion.TargetTrack,
+                        SetListId = setlist.Id,
+                        LibraryId = rescueTarget.Id,
+                        Library = rescueTarget,
+                        TrackUniqueHash = rescueTarget.UniqueHash,
                         Position = insertPosition,
                         IsRescueTrack = true, // Mark as applied rescue
                         RescueReason = $"Bridge: {stressPoint.PrimaryProblem}"
@@ -705,7 +726,7 @@ namespace SLSKDONET.Services.Analysis
                     return new ApplyRescueResult
                     {
                         Success = true,
-                        Message = $"✓ Rescue track '{rescueSuggestion.TargetTrack.Title}' inserted as bridge.",
+                        Message = $"✓ Rescue track '{rescueTarget.Title}' inserted as bridge.",
                         UpdatedSetlist = setlist,
                         Action = "INSERT",
                         AffectedTransitions = 2 // Bridge affects both new transitions
@@ -716,8 +737,8 @@ namespace SLSKDONET.Services.Analysis
                     // REPLACE the problematic track
                     // Prefer replacing fromTrack if it's lower quality
                     int replaceIndex = stressPoint.FromTrackIndex;
-                    if (CalculateTransitionQuality(rescueSuggestion.TargetTrack, toTrack) >
-                        CalculateTransitionQuality(fromTrack, rescueSuggestion.TargetTrack))
+                    if (CalculateTransitionQuality(rescueTarget, toEntry) >
+                        CalculateTransitionQuality(fromEntry, rescueTarget))
                     {
                         replaceIndex = stressPoint.ToTrackIndex;
                     }
@@ -725,8 +746,10 @@ namespace SLSKDONET.Services.Analysis
                     var oldTrack = setTracks[replaceIndex];
                     var newSetTrack = new SetTrackEntity
                     {
-                        SetId = setlist.SetId,
-                        Library = rescueSuggestion.TargetTrack,
+                        SetListId = setlist.Id,
+                        LibraryId = rescueTarget.Id,
+                        Library = rescueTarget,
+                        TrackUniqueHash = rescueTarget.UniqueHash,
                         Position = replaceIndex,
                         IsRescueTrack = true,
                         RescueReason = $"Replaced: {oldTrack.Library?.Title ?? "Unknown"} due to {stressPoint.PrimaryProblem}"
@@ -738,7 +761,7 @@ namespace SLSKDONET.Services.Analysis
                     return new ApplyRescueResult
                     {
                         Success = true,
-                        Message = $"✓ Track replaced with '{rescueSuggestion.TargetTrack.Title}'.",
+                        Message = $"✓ Track replaced with '{rescueTarget.Title}'.",
                         UpdatedSetlist = setlist,
                         Action = "REPLACE",
                         AffectedTransitions = 2 // Affects transitions before and after
@@ -769,8 +792,14 @@ namespace SLSKDONET.Services.Analysis
             var vocalScore = 100 - AnalyzeVocalCompatibility(trackA, trackB);
             var tempoScore = 100 - AnalyzeTempoCompatibility(trackA, trackB);
 
-            return (int)((energyScore * 0.25) + (harmonicScore * 0.35) + 
+            return (int)((energyScore * 0.25) + (harmonicScore * 0.35) +
                          (vocalScore * 0.30) + (tempoScore * 0.10));
+        }
+
+        private int AnalyzeEnergyFlow(LibraryEntryEntity trackA, LibraryEntryEntity trackB)
+        {
+            // Reuse compatibility analysis without full setlist context
+            return AnalyzeEnergyCompatibility(trackA, trackB, new List<SetTrackEntity>(), 0);
         }
     }
 }

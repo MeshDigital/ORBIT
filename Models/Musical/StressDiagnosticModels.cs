@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using SLSKDONET.Data.Entities;
 
 namespace SLSKDONET.Models.Musical
 {
@@ -36,7 +37,7 @@ namespace SLSKDONET.Models.Musical
         /// <summary>
         /// The bridging track from library that solves the transition gap.
         /// </summary>
-        public object TargetTrack { get; set; } // Dynamic reference - actual type injected by service
+        public object TargetTrack { get; set; } = null!; // Dynamic reference - actual type injected by service
 
         /// <summary>
         /// Numerical score (0-100) indicating quality of bridge.
@@ -89,7 +90,7 @@ namespace SLSKDONET.Models.Musical
 
         /// <summary>
         /// Composite failure severity (0-100).
-        /// Weighted: EnergyPlateau (25%) + HarmonicIncompatibility (35%) 
+        /// Weighted: EnergyPlateau (25%) + HarmonicIncompatibility (35%)
         ///           + VocalClash (30%) + TempoJitter (10%)
         /// </summary>
         public int SeverityScore { get; set; }
@@ -226,7 +227,7 @@ namespace SLSKDONET.Models.Musical
         /// <summary>
         /// Updated setlist with rescue track applied.
         /// </summary>
-        public SetListEntity UpdatedSetlist { get; set; }
+        public SetListEntity UpdatedSetlist { get; set; } = null!;
 
         /// <summary>
         /// Number of transitions affected by the change.
@@ -238,6 +239,6 @@ namespace SLSKDONET.Models.Musical
         /// Updated stress report after rescue was applied.
         /// (Will be calculated if needed for immediate feedback)
         /// </summary>
-        public StressDiagnosticReport UpdatedReport { get; set; }
+        public StressDiagnosticReport UpdatedReport { get; set; } = null!;
     }
 }

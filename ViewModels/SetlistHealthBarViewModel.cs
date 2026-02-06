@@ -1,6 +1,7 @@
 using System;
 using System.Collections.ObjectModel;
 using System.Reactive;
+using System.Reactive.Linq;
 using System.Threading.Tasks;
 using ReactiveUI;
 using SLSKDONET.Models.Musical;
@@ -14,7 +15,7 @@ namespace SLSKDONET.ViewModels
     /// </summary>
     public class SetlistHealthBarViewModel : ReactiveObject
     {
-        private StressDiagnosticReport _report;
+        private StressDiagnosticReport? _report;
         private int _selectedSegmentIndex = -1;
         private bool _isLoading;
         private string _statusMessage = "Load a setlist to analyze...";
@@ -22,7 +23,7 @@ namespace SLSKDONET.ViewModels
         /// <summary>
         /// Immutable snapshot of the latest stress-test report.
         /// </summary>
-        public StressDiagnosticReport Report
+        public StressDiagnosticReport? Report
         {
             get => _report;
             set => this.RaiseAndSetIfChanged(ref _report, value);
@@ -72,7 +73,7 @@ namespace SLSKDONET.ViewModels
         /// Command triggered when user clicks a segment on the HealthBar.
         /// Publishes the selected stress point for detail display in Forensic Inspector.
         /// </summary>
-        public ReactiveCommand<int, TransitionStressPoint> SelectSegmentCommand { get; }
+        public ReactiveCommand<int, TransitionStressPoint?> SelectSegmentCommand { get; }
 
         /// <summary>
         /// Event fired when user selects a segment (for external subscribers like Forensic Inspector).
@@ -89,11 +90,11 @@ namespace SLSKDONET.ViewModels
                     StatusMessage = "Analyzing setlist...";
                     await Task.Delay(100); // Placeholder
                     IsLoading = false;
-                    return Report;
+                    return Report ?? new StressDiagnosticReport();
                 });
 
             // SelectSegmentCommand
-            SelectSegmentCommand = ReactiveCommand.Create<int, TransitionStressPoint>(idx =>
+            SelectSegmentCommand = ReactiveCommand.Create<int, TransitionStressPoint?>(idx =>
             {
                 SelectedSegmentIndex = idx;
                 if (Report?.StressPoints != null && idx >= 0 && idx < Report.StressPoints.Count)
@@ -104,7 +105,7 @@ namespace SLSKDONET.ViewModels
             });
 
             // SegmentSelected observable
-            SegmentSelected = SelectSegmentCommand.Where(sp => sp != null);
+            SegmentSelected = SelectSegmentCommand.Where(sp => sp != null).Select(sp => sp!);
         }
 
         /// <summary>
@@ -157,10 +158,10 @@ namespace SLSKDONET.ViewModels
             if (affectedSegmentIndex >= 0 && affectedSegmentIndex < TransitionSegments.Count)
             {
                 var segment = TransitionSegments[affectedSegmentIndex];
-                
+
                 // Visual feedback: Flash the segment briefly
                 var originalBrush = segment.BackgroundColorBrush;
-                
+
                 // Quick flash sequence (200ms total)
                 segment.SeverityScore = Math.Max(0, segment.SeverityScore - 20); // Lighter immediately
                 await Task.Delay(100);

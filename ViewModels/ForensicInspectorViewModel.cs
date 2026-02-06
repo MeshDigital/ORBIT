@@ -18,12 +18,12 @@ namespace SLSKDONET.ViewModels
     /// - What problems were detected
     /// - 1-3 rescue track suggestions with reasoning
     /// - Actionable mentor-style advice
-    /// 
+    ///
     /// Phase 6: Added ApplyRescueTrackCommand for one-click rescue application.
     /// </summary>
     public class ForensicInspectorViewModel : ReactiveObject
     {
-        private TransitionStressPoint _selectedStressPoint;
+        private TransitionStressPoint? _selectedStressPoint;
         private string _displayReasoning = string.Empty;
         private bool _hasRescueSuggestions;
         private int _selectedRescueIndex = -1;
@@ -32,7 +32,7 @@ namespace SLSKDONET.ViewModels
         /// <summary>
         /// Currently displayed stress point (from HealthBar selection).
         /// </summary>
-        public TransitionStressPoint SelectedStressPoint
+        public TransitionStressPoint? SelectedStressPoint
         {
             get => _selectedStressPoint;
             set => this.RaiseAndSetIfChanged(ref _selectedStressPoint, value);
@@ -90,7 +90,7 @@ namespace SLSKDONET.ViewModels
         /// <summary>
         /// The currently displayed rescue track (if selected).
         /// </summary>
-        public RescueSuggestion SelectedRescue
+        public RescueSuggestion? SelectedRescue
         {
             get
             {
@@ -123,7 +123,7 @@ namespace SLSKDONET.ViewModels
         /// <summary>
         /// Handler to notify parent ViewModel when rescue is applied.
         /// </summary>
-        public Func<int, RescueSuggestion, Task<ApplyRescueResult>> OnApplyRescueTrack { get; set; }
+        public Func<int, RescueSuggestion, Task<ApplyRescueResult>>? OnApplyRescueTrack { get; set; }
 
         public ForensicInspectorViewModel()
         {

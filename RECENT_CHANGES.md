@@ -1,5 +1,20 @@
 # Recent Changes
 
+## [0.1.0-alpha.9.5] - Build + Runtime Stabilization (Feb 06, 2026)
+
+### Fixes
+* **Runtime Startup**: Fixed EF Core model validation error for `SetTrackEntity.Library` by mapping `LibraryId` to `LibraryEntryEntity.Id` using an alternate key.
+* **Setlist Stress-Test**: Hardened energy/key calculations against null values and aligned rescue track linkage with `TrackUniqueHash`.
+* **ViewModels**: Resolved nullable flow in DJ companion, forensic inspector, setlist health bar, and stem workspace selection handling.
+
+### UI/XAML
+* **Avalonia Compatibility**: Removed unsupported properties/events and adjusted layout markup for the current Avalonia version.
+* **Bouncer Converter**: Fixed enum converter binding in Search page.
+
+### Follow-Ups
+* Address remaining build warnings (nullable annotations, unused fields, obsolete URI escaping).
+* Run targeted tests for setlist stress-test and DJ companion workflows.
+
 ## [0.1.0-alpha.9.4] - DJ Companion Unified Workspace (Feb 06, 2026 - Current)
 
 ### New Features
@@ -162,7 +177,7 @@
 - **Hero Section**: Large album art, clear metadata, and live status badges.
 - **Metrics Grid**: "Pro Stats" layout for tech data (Bitrate, Sample Rate, Integrity).
 - **Forensic Logs**: Collapsible timeline of exactly what happened during analysis.
-- **Interactive**: 
+- **Interactive**:
     - `Force Re-analyze`: Wipes cache and re-runs pipeline.
     - `Export Logs`: Saves analysis details to text file.
 - **Fixes**: Resolved runtime crash caused by invalid CSS gradient syntax.

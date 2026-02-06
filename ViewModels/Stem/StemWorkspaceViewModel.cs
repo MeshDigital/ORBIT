@@ -12,13 +12,13 @@ public class StemWorkspaceViewModel : ReactiveObject
 {
     private readonly StemSeparationService _separationService;
     private readonly RealTimeStemEngine _audioEngine;
-    private readonly ILibraryService _libraryService; 
+    private readonly ILibraryService _libraryService;
     private readonly WaveformAnalysisService _waveformAnalysisService;
     private readonly StemProjectService _projectService;
     private readonly IDialogService _dialogService;
 
     public StemMixerViewModel Mixer { get; }
-    
+
     private bool _isVisible;
     public bool IsVisible
     {
@@ -50,7 +50,8 @@ public class StemWorkspaceViewModel : ReactiveObject
         get => _selectedHistoryItem;
         set
         {
-            if (this.RaiseAndSetIfChanged(ref _selectedHistoryItem, value) && value != null)
+            this.RaiseAndSetIfChanged(ref _selectedHistoryItem, value);
+            if (value != null)
             {
                 // Reload the selected historical track
                 _ = LoadTrackAsync(value.TrackGlobalId);
@@ -81,22 +82,22 @@ public class StemWorkspaceViewModel : ReactiveObject
         _projectService = projectService;
         _dialogService = dialogService;
         _audioEngine = audioEngine;
-        
+
         Mixer = new StemMixerViewModel(_audioEngine);
-        
+
         CloseCommand = ReactiveCommand.Create(() => IsVisible = false);
         SaveProjectCommand = ReactiveCommand.CreateFromTask(SaveProjectAsync);
         LoadProjectCommand = ReactiveCommand.CreateFromTask<Models.Stem.StemEditProject>(LoadProjectAsync);
         TogglePlayCommand = ReactiveCommand.Create(TogglePlay);
     }
-    
+
     /// <summary>
     /// Loads a track for stem separation.
     /// </summary>
     public async Task LoadTrackAsync(string trackGlobalId)
     {
         _currentTrackId = trackGlobalId;
-        
+
         try
         {
             // 1. Resolve track info from library
@@ -119,23 +120,23 @@ public class StemWorkspaceViewModel : ReactiveObject
 
             // 2. Trigger Separation
             var dict = await _separationService.SeparateTrackAsync(filePath, trackGlobalId);
-            
+
             // 3. Load into audio engine
             _audioEngine.LoadStems(dict);
-            
+
             // 4. Populate mixer channels
             Mixer.Channels.Clear();
             foreach (var stem in dict)
             {
-                var settings = new Models.Stem.StemSettings { Volume = 0.8f }; 
+                var settings = new Models.Stem.StemSettings { Volume = 0.8f };
                 var channel = new StemChannelViewModel(stem.Key, settings, _audioEngine);
-                
+
                 // Generate waveform asynchronously (fire and forget)
                 _ = GenerateWaveformAsync(channel, stem.Value);
-                
+
                 Mixer.Channels.Add(channel);
             }
-            
+
             // 5. Add to history
             var historyItem = new SeparationHistoryItem
             {
@@ -144,9 +145,16 @@ public class StemWorkspaceViewModel : ReactiveObject
                 Artist = entry.Artist,
                 SeparatedDate = DateTime.UtcNow
             };
-            
-            // Remove if already exists, then add to top
-            SeparationHistory.RemoveAll(h => h.TrackGlobalId == trackGlobalId);
+
+            // Remove existing entry for this track before inserting at top
+            for (int i = SeparationHistory.Count - 1; i >= 0; i--)
+            {
+                if (SeparationHistory[i].TrackGlobalId == trackGlobalId)
+                {
+                    SeparationHistory.RemoveAt(i);
+                }
+            }
+
             SeparationHistory.Insert(0, historyItem);
 
             // 6. Load saved projects for this track
@@ -228,7 +236,7 @@ public class StemWorkspaceViewModel : ReactiveObject
         }
         this.RaisePropertyChanged(nameof(PlayButtonLabel));
     }
-    
+
     private async Task SaveProjectAsync()
     {
         if (string.IsNullOrEmpty(_currentTrackId))
@@ -239,7 +247,7 @@ public class StemWorkspaceViewModel : ReactiveObject
 
         var defaultName = $"Mix {DateTime.Now:yyyy-MM-dd HHmm}";
         var name = await _dialogService.ShowPromptAsync("Save Mix", "Enter a name for this mix:", defaultName);
-        
+
         if (string.IsNullOrWhiteSpace(name)) return;
 
         try
@@ -251,7 +259,7 @@ public class StemWorkspaceViewModel : ReactiveObject
                 Created = DateTime.UtcNow,
                 Modified = DateTime.UtcNow
             };
-            
+
             // Capture mixer state
             foreach (var channel in Mixer.Channels)
             {
@@ -264,12 +272,12 @@ public class StemWorkspaceViewModel : ReactiveObject
                 };
                 project.CurrentSettings[channel.Type] = settings;
             }
-            
+
             await _projectService.SaveProjectAsync(project);
-            
+
             // Refresh project list
             await LoadProjectsForTrackAsync(_currentTrackId);
-            
+
             await _dialogService.ShowAlertAsync("Success", $"Mix '{project.Name}' saved successfully.");
         }
         catch (Exception ex)

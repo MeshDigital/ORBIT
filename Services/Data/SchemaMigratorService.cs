@@ -26,7 +26,7 @@ public class SchemaMigratorService
             var appData = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
             var dbPath = System.IO.Path.Combine(appData, "ORBIT", "library.db");
             var backupDir = System.IO.Path.Combine(appData, "ORBIT", "Backups");
-            
+
             if (!System.IO.File.Exists(dbPath))
             {
                 // Auto-Restore Logic
@@ -45,7 +45,7 @@ public class SchemaMigratorService
                         return; // Done, we restored. No need to backup the thing we just restored immediately.
                     }
                 }
-                
+
                 _logger.LogInformation("No existing database and no backups found. Starting fresh.");
                 return;
             }
@@ -55,10 +55,10 @@ public class SchemaMigratorService
             // Create new backup
             var timestamp = DateTime.Now.ToString("yyyy-MM-dd_HH-mm-ss");
             var backupPath = System.IO.Path.Combine(backupDir, $"library.backup.{timestamp}.db");
-            
-            // Use Copy to allow decent backup even if file checks fail later, 
+
+            // Use Copy to allow decent backup even if file checks fail later,
             // but wrap in Task.Run to not block startup significantly if large
-            await Task.Run(() => 
+            await Task.Run(() =>
             {
                 System.IO.File.Copy(dbPath, backupPath, overwrite: true);
                 _logger.LogInformation("Database backed up to: {Path}", backupPath);
@@ -95,7 +95,7 @@ public class SchemaMigratorService
 
     private async Task CheckForForceResetAsync()
     {
-        try 
+        try
         {
             var appData = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
             var markerPath = System.IO.Path.Combine(appData, "ORBIT", ".force_schema_reset");
@@ -104,14 +104,14 @@ public class SchemaMigratorService
             if (System.IO.File.Exists(markerPath))
             {
                 _logger.LogWarning("⚠️ FORCE RESET MARKER FOUND! Deleting database to force schema rebuild...");
-                
+
                 // Try to delete the database
                 if (System.IO.File.Exists(dbPath))
                 {
                     // Basic retry loop in case of lingering locks
                     for (int i = 0; i < 3; i++)
                     {
-                        try 
+                        try
                         {
                             System.IO.File.Delete(dbPath);
                             _logger.LogInformation("✅ Database deleted via force reset.");
@@ -124,9 +124,9 @@ public class SchemaMigratorService
                         }
                     }
                 }
-                
+
                 // Clean up marker
-                try { System.IO.File.Delete(markerPath); } catch {}
+                try { System.IO.File.Delete(markerPath); } catch { }
             }
         }
         catch (Exception ex)
@@ -143,14 +143,14 @@ public class SchemaMigratorService
         // Phase 24: Automatic Database Backup & Recovery
         await CheckForForceResetAsync().ConfigureAwait(false); // Step 1: Check if user requested reset
         await PerformBackupAsync().ConfigureAwait(false);      // Step 2: Backup existing or Restore if missing
-        
+
         using var context = new AppDbContext();
         var db = context.Database;
 
         // Phase 12: Transition to EF Core Migrations
         // Detect legacy database (created by EnsureCreated) and bootstrap history if needed
         bool legacyDbExists = false;
-        try 
+        try
         {
             var conn = db.GetDbConnection();
             await conn.OpenAsync();
@@ -159,12 +159,13 @@ public class SchemaMigratorService
             var result = await cmd.ExecuteScalarAsync();
             legacyDbExists = (long)(result ?? 0) > 0;
             await conn.CloseAsync();
-        } catch {}
+        }
+        catch { }
 
         if (legacyDbExists)
         {
             bool historyExists = false;
-            try 
+            try
             {
                 var conn = db.GetDbConnection();
                 await conn.OpenAsync();
@@ -173,12 +174,13 @@ public class SchemaMigratorService
                 var result = await cmd.ExecuteScalarAsync();
                 historyExists = (long)(result ?? 0) > 0;
                 await conn.CloseAsync();
-            } catch {}
+            }
+            catch { }
 
             if (!historyExists)
             {
                 _logger.LogWarning("Legacy manually-patched database detected. Bootstrapping EF migrations history.");
-                
+
                 await db.ExecuteSqlRawAsync(@"
                     CREATE TABLE IF NOT EXISTS ""LibraryFolders"" (
                         ""Id"" TEXT NOT NULL PRIMARY KEY,
@@ -220,7 +222,7 @@ public class SchemaMigratorService
             var auditReport = await AuditDatabaseIndexesAsync();
             if (auditReport.MissingIndexes.Any())
             {
-                _logger.LogWarning("⚠️ Found {Count} missing indexes. Auto-applying...", 
+                _logger.LogWarning("⚠️ Found {Count} missing indexes. Auto-applying...",
                     auditReport.MissingIndexes.Count);
                 await ApplyIndexRecommendationsAsync(auditReport);
             }
@@ -255,8 +257,8 @@ public class SchemaMigratorService
             using (var cmd = connection.CreateCommand())
             {
                 cmd.CommandText = @"
-                    SELECT name, tbl_name, sql 
-                    FROM sqlite_master 
+                    SELECT name, tbl_name, sql
+                    FROM sqlite_master
                     WHERE type='index' AND sql IS NOT NULL
                     ORDER BY tbl_name, name;";
 
@@ -274,8 +276,8 @@ public class SchemaMigratorService
             foreach (var rec in recommendations)
             {
                 var indexKey = $"{rec.TableName}.{string.Join("_", rec.ColumnNames)}";
-                var exists = report.ExistingIndexes.Any(idx => 
-                    idx.Contains(rec.TableName, StringComparison.OrdinalIgnoreCase) && 
+                var exists = report.ExistingIndexes.Any(idx =>
+                    idx.Contains(rec.TableName, StringComparison.OrdinalIgnoreCase) &&
                     rec.ColumnNames.All(col => idx.Contains(col, StringComparison.OrdinalIgnoreCase)));
 
                 if (!exists)
@@ -417,7 +419,8 @@ public class SchemaMigratorService
                     CREATE TABLE ""audio_features"" (
                         ""Id"" TEXT NOT NULL CONSTRAINT ""PK_audio_features"" PRIMARY KEY,
                         ""TrackUniqueHash"" TEXT NOT NULL UNIQUE,
-                        
+                        ""TrackDuration"" REAL NOT NULL DEFAULT 0,
+
                         -- Core Musical Features
                         ""Bpm"" REAL NOT NULL DEFAULT 0,
                         ""BpmConfidence"" REAL NOT NULL DEFAULT 0,
@@ -425,7 +428,7 @@ public class SchemaMigratorService
                         ""Scale"" TEXT NOT NULL DEFAULT '',
                         ""KeyConfidence"" REAL NOT NULL DEFAULT 0,
                         ""CamelotKey"" TEXT NOT NULL DEFAULT '',
-                        
+
                         -- Sonic Characteristics
                         ""Energy"" REAL NOT NULL DEFAULT 0,
                         ""Danceability"" REAL NOT NULL DEFAULT 0,
@@ -435,7 +438,7 @@ public class SchemaMigratorService
                         ""OnsetRate"" REAL NOT NULL DEFAULT 0,
                         ""DynamicComplexity"" REAL NOT NULL DEFAULT 0,
                         ""LoudnessLUFS"" REAL NOT NULL DEFAULT 0,
-                        
+
                         -- Drop Detection & DJ Cues
                         ""DropTimeSeconds"" REAL NULL,
                         ""DropConfidence"" REAL NOT NULL DEFAULT 0,
@@ -443,17 +446,17 @@ public class SchemaMigratorService
                         ""CueBuild"" REAL NULL,
                         ""CueDrop"" REAL NULL,
                         ""CuePhraseStart"" REAL NULL,
-                        
+
                         -- Forensic Librarian
                         ""BpmStability"" REAL NOT NULL DEFAULT 1.0,
                         ""IsDynamicCompressed"" INTEGER NOT NULL DEFAULT 0,
-                        
+
                         -- AI Layer (Vibe & Vocals)
                         ""InstrumentalProbability"" REAL NOT NULL DEFAULT 0,
                         ""MoodTag"" TEXT NOT NULL DEFAULT '',
                         ""MoodConfidence"" REAL NOT NULL DEFAULT 0,
                         ""MusicBrainzId"" TEXT NOT NULL DEFAULT '',
-                        
+
                         -- EDM Specialist Models
                         ""Arousal"" REAL NOT NULL DEFAULT 5,
                         ""Valence"" REAL NOT NULL DEFAULT 5,
@@ -463,26 +466,26 @@ public class SchemaMigratorService
                         ""ElectronicSubgenreConfidence"" REAL NOT NULL DEFAULT 0,
                         ""IsDjTool"" INTEGER NOT NULL DEFAULT 0,
                         ""TonalProbability"" REAL NOT NULL DEFAULT 0.5,
-                        
+
                         -- Advanced Harmonic Mixing
                         ""ChordProgression"" TEXT NOT NULL DEFAULT '',
-                        
+
                         -- Identity & Metadata
                         ""Fingerprint"" TEXT NOT NULL DEFAULT '',
                         ""AnalysisVersion"" TEXT NOT NULL DEFAULT '',
                         ""AnalyzedAt"" TEXT NOT NULL,
-                        
+
                         -- Sonic Taxonomy (Style Lab)
                         ""DetectedSubGenre"" TEXT NOT NULL DEFAULT '',
                         ""SubGenreConfidence"" REAL NOT NULL DEFAULT 0,
                         ""GenreDistributionJson"" TEXT NOT NULL DEFAULT '{}',
-                        
+
                         -- ML.NET Brain
                         ""AiEmbeddingJson"" TEXT NOT NULL DEFAULT '',
                         ""PredictedVibe"" TEXT NOT NULL DEFAULT '',
                         ""PredictionConfidence"" REAL NOT NULL DEFAULT 0,
                         ""EmbeddingMagnitude"" REAL NOT NULL DEFAULT 0,
-                        
+
                         -- Provenance & Reliability
                         ""CurationConfidence"" INTEGER NOT NULL DEFAULT 0,
                         ""Source"" INTEGER NOT NULL DEFAULT 0,
@@ -515,7 +518,7 @@ public class SchemaMigratorService
             }
             catch (Microsoft.Data.Sqlite.SqliteException ex) when (ex.Message.Contains("no such table"))
             {
-                 _logger.LogWarning("audio_analysis table missing! It should have been created by EF Core migrations.");
+                _logger.LogWarning("audio_analysis table missing! It should have been created by EF Core migrations.");
             }
             catch (Exception ex)
             {
@@ -565,6 +568,13 @@ public class SchemaMigratorService
                 await command.ExecuteNonQueryAsync();
             }
 
+            if (!ColumnExists("audio_features", "TrackDuration"))
+            {
+                _logger.LogInformation("Patching Schema: Adding TrackDuration to audio_features...");
+                command.CommandText = @"ALTER TABLE ""audio_features"" ADD COLUMN ""TrackDuration"" REAL NOT NULL DEFAULT 0;";
+                await command.ExecuteNonQueryAsync();
+            }
+
             if (!ColumnExists("audio_features", "StructuralVersion"))
             {
                 _logger.LogInformation("Patching Schema: Adding StructuralVersion to audio_features...");
@@ -597,33 +607,33 @@ public class SchemaMigratorService
                         ""TrackUniqueHash"" TEXT NOT NULL,
                         ""TrackTitle"" TEXT NOT NULL DEFAULT '',
                         ""FilePath"" TEXT NOT NULL DEFAULT '',
-                        
+
                         -- Run Metadata
                         ""StartedAt"" TEXT NOT NULL,
                         ""CompletedAt"" TEXT NULL,
                         ""DurationMs"" INTEGER NOT NULL DEFAULT 0,
-                        
+
                         -- Status Tracking
                         ""Status"" INTEGER NOT NULL DEFAULT 0,
                         ""RetryAttempt"" INTEGER NOT NULL DEFAULT 0,
                         ""WorkerThreadId"" INTEGER NOT NULL DEFAULT 0,
-                        
+
                         -- Error Handling
                         ""ErrorMessage"" TEXT NULL,
                         ""ErrorStackTrace"" TEXT NULL,
                         ""FailedStage"" TEXT NULL,
-                        
+
                         -- Partial Success Tracking
                         ""WaveformGenerated"" INTEGER NOT NULL DEFAULT 0,
                         ""FfmpegAnalysisCompleted"" INTEGER NOT NULL DEFAULT 0,
                         ""EssentiaAnalysisCompleted"" INTEGER NOT NULL DEFAULT 0,
                         ""DatabaseSaved"" INTEGER NOT NULL DEFAULT 0,
-                        
+
                         -- Performance Metrics
                         ""FfmpegDurationMs"" INTEGER NOT NULL DEFAULT 0,
                         ""EssentiaDurationMs"" INTEGER NOT NULL DEFAULT 0,
                         ""DatabaseSaveDurationMs"" INTEGER NOT NULL DEFAULT 0,
-                        
+
                         -- Provenance
                         ""AnalysisVersion"" TEXT NOT NULL DEFAULT '',
                         ""TriggerSource"" TEXT NOT NULL DEFAULT '',
@@ -735,6 +745,30 @@ public class SchemaMigratorService
             {
                 _logger.LogInformation("Patching Schema: Adding PrimaryGenre to PlaylistTracks...");
                 command.CommandText = @"ALTER TABLE ""PlaylistTracks"" ADD COLUMN ""PrimaryGenre"" TEXT NULL;";
+                await command.ExecuteNonQueryAsync();
+            }
+            if (!ColumnExists("PlaylistTracks", "VocalType"))
+            {
+                _logger.LogInformation("Patching Schema: Adding VocalType to PlaylistTracks...");
+                command.CommandText = @"ALTER TABLE ""PlaylistTracks"" ADD COLUMN ""VocalType"" INTEGER NOT NULL DEFAULT 0;";
+                await command.ExecuteNonQueryAsync();
+            }
+            if (!ColumnExists("PlaylistTracks", "VocalIntensity"))
+            {
+                _logger.LogInformation("Patching Schema: Adding VocalIntensity to PlaylistTracks...");
+                command.CommandText = @"ALTER TABLE ""PlaylistTracks"" ADD COLUMN ""VocalIntensity"" REAL NULL;";
+                await command.ExecuteNonQueryAsync();
+            }
+            if (!ColumnExists("PlaylistTracks", "VocalStartSeconds"))
+            {
+                _logger.LogInformation("Patching Schema: Adding VocalStartSeconds to PlaylistTracks...");
+                command.CommandText = @"ALTER TABLE ""PlaylistTracks"" ADD COLUMN ""VocalStartSeconds"" REAL NULL;";
+                await command.ExecuteNonQueryAsync();
+            }
+            if (!ColumnExists("PlaylistTracks", "VocalEndSeconds"))
+            {
+                _logger.LogInformation("Patching Schema: Adding VocalEndSeconds to PlaylistTracks...");
+                command.CommandText = @"ALTER TABLE ""PlaylistTracks"" ADD COLUMN ""VocalEndSeconds"" REAL NULL;";
                 await command.ExecuteNonQueryAsync();
             }
             if (!ColumnExists("PlaylistTracks", "Label"))
@@ -901,7 +935,7 @@ public class SchemaMigratorService
                 command.CommandText = @"ALTER TABLE ""LibraryEntries"" ADD COLUMN ""LastPlayedAt"" TEXT NULL;";
                 await command.ExecuteNonQueryAsync();
             }
-            
+
             // 4. TechnicalDetails Table Columns (for existing tables)
             if (TableExists("TechnicalDetails"))
             {
@@ -936,7 +970,7 @@ public class SchemaMigratorService
                     await command.ExecuteNonQueryAsync();
                 }
             }
-            
+
             // 5. AudioFeatures Table Columns - Force attempt (table may not exist yet during cold start)
             try
             {
@@ -957,7 +991,7 @@ public class SchemaMigratorService
             // 6. Phase 17: EDM Specialist Columns for AudioFeatures
             // Using force-add pattern - try to add and catch duplicate errors
             _logger.LogInformation("Phase 17: Checking EDM specialist columns for AudioFeatures...");
-            
+
             var edmColumns = new[]
             {
                 ("Arousal", "REAL NOT NULL DEFAULT 5"),
@@ -1130,9 +1164,10 @@ public class SchemaMigratorService
                         command.CommandText = @"ALTER TABLE ""audio_features"" ADD COLUMN ""InstrumentalProbability"" REAL NULL;";
                         await command.ExecuteNonQueryAsync();
                     }
-                } catch (Exception ex) { _logger.LogWarning(ex, "Failed to patch InstrumentalProbability"); }
+                }
+                catch (Exception ex) { _logger.LogWarning(ex, "Failed to patch InstrumentalProbability"); }
 
-                try 
+                try
                 {
                     if (!ColumnExists("audio_features", "Arousal"))
                     {
@@ -1140,7 +1175,8 @@ public class SchemaMigratorService
                         command.CommandText = @"ALTER TABLE ""audio_features"" ADD COLUMN ""Arousal"" REAL NULL;";
                         await command.ExecuteNonQueryAsync();
                     }
-                } catch (Exception ex) { _logger.LogWarning(ex, "Failed to patch Arousal"); }
+                }
+                catch (Exception ex) { _logger.LogWarning(ex, "Failed to patch Arousal"); }
 
                 try
                 {
@@ -1150,8 +1186,9 @@ public class SchemaMigratorService
                         command.CommandText = @"ALTER TABLE ""audio_features"" ADD COLUMN ""Sadness"" REAL NULL;";
                         await command.ExecuteNonQueryAsync();
                     }
-                } catch (Exception ex) { _logger.LogWarning(ex, "Failed to patch Sadness"); }
-                
+                }
+                catch (Exception ex) { _logger.LogWarning(ex, "Failed to patch Sadness"); }
+
                 try
                 {
                     if (!ColumnExists("audio_features", "CamelotKey"))
@@ -1160,7 +1197,8 @@ public class SchemaMigratorService
                         command.CommandText = @"ALTER TABLE ""audio_features"" ADD COLUMN ""CamelotKey"" TEXT NOT NULL DEFAULT '';";
                         await command.ExecuteNonQueryAsync();
                     }
-                } catch (Exception ex) { _logger.LogWarning(ex, "Failed to patch CamelotKey"); }
+                }
+                catch (Exception ex) { _logger.LogWarning(ex, "Failed to patch CamelotKey"); }
             }
 
             // 11. Phase 21: Smart Enrichment Retry System
@@ -1284,7 +1322,7 @@ public class SchemaMigratorService
             }
 
             // 13. Phase 0: FTS5 Virtual Table for Instant Search
-            // Fix: Reliance on rowid is fragile (e.g. after VACUUM). 
+            // Fix: Reliance on rowid is fragile (e.g. after VACUUM).
             // We now store the GlobalId as an unindexed column for stable linking.
             bool isIncorrectlyConfigured = false;
             if (TableExists("TracksFts"))
@@ -1292,7 +1330,7 @@ public class SchemaMigratorService
                 using var checkCmd = connection.CreateCommand();
                 checkCmd.CommandText = "SELECT sql FROM sqlite_master WHERE name='TracksFts'";
                 var sql = (await checkCmd.ExecuteScalarAsync())?.ToString();
-                
+
                 // Drop if it's missing the GlobalId column or the new Key column
                 if (sql != null && (!sql.Contains("GlobalId") || !sql.Contains(", Key")))
                 {
@@ -1315,8 +1353,8 @@ public class SchemaMigratorService
                 DROP TRIGGER IF EXISTS tbl_tracks_ai;
                 CREATE TRIGGER tbl_tracks_ai AFTER INSERT ON Tracks BEGIN
                     INSERT INTO TracksFts(Artist, Title, Key, GlobalId) VALUES (
-                        new.Artist, 
-                        new.Title, 
+                        new.Artist,
+                        new.Title,
                         COALESCE(new.MusicalKey, '') || ' ' || (CASE new.MusicalKey
                             WHEN 'Abm' THEN '1A' WHEN 'G#m' THEN '1A' WHEN 'B' THEN '1B' WHEN 'Cb' THEN '1B'
                             WHEN 'Ebm' THEN '2A' WHEN 'D#m' THEN '2A' WHEN 'F#' THEN '2B' WHEN 'Gb' THEN '2B'
@@ -1345,8 +1383,8 @@ public class SchemaMigratorService
                 CREATE TRIGGER tbl_tracks_au AFTER UPDATE ON Tracks BEGIN
                     DELETE FROM TracksFts WHERE GlobalId = old.GlobalId;
                     INSERT INTO TracksFts(Artist, Title, Key, GlobalId) VALUES (
-                        new.Artist, 
-                        new.Title, 
+                        new.Artist,
+                        new.Title,
                         COALESCE(new.MusicalKey, '') || ' ' || (CASE new.MusicalKey
                             WHEN 'Abm' THEN '1A' WHEN 'G#m' THEN '1A' WHEN 'B' THEN '1B' WHEN 'Cb' THEN '1B'
                             WHEN 'Ebm' THEN '2A' WHEN 'D#m' THEN '2A' WHEN 'F#' THEN '2B' WHEN 'Gb' THEN '2B'
@@ -1375,8 +1413,8 @@ public class SchemaMigratorService
             {
                 _logger.LogInformation("Seeding FTS5 index from existing tracks...");
                 command.CommandText = @"
-                    INSERT INTO TracksFts(Artist, Title, Key, GlobalId) 
-                    SELECT Artist, Title, 
+                    INSERT INTO TracksFts(Artist, Title, Key, GlobalId)
+                    SELECT Artist, Title,
                            COALESCE(MusicalKey, '') || ' ' || (CASE MusicalKey
                             WHEN 'Abm' THEN '1A' WHEN 'G#m' THEN '1A' WHEN 'B' THEN '1B' WHEN 'Cb' THEN '1B'
                             WHEN 'Ebm' THEN '2A' WHEN 'D#m' THEN '2A' WHEN 'F#' THEN '2B' WHEN 'Gb' THEN '2B'
@@ -1391,7 +1429,7 @@ public class SchemaMigratorService
                             WHEN 'F#m' THEN '11A' WHEN 'Gbm' THEN '11A' WHEN 'A' THEN '11B'
                             WHEN 'Dbm' THEN '12A' WHEN 'C#m' THEN '12A' WHEN 'E' THEN '12B'
                             ELSE ''
-                        END), 
+                        END),
                         GlobalId FROM Tracks;";
                 await command.ExecuteNonQueryAsync();
                 _logger.LogInformation("✅ FTS5 search index seeded successfully.");
@@ -1404,7 +1442,7 @@ public class SchemaMigratorService
                 using var checkCmd = connection.CreateCommand();
                 checkCmd.CommandText = "SELECT sql FROM sqlite_master WHERE name='LibraryEntriesFts'";
                 var sql = (await checkCmd.ExecuteScalarAsync())?.ToString();
-                
+
                 // Drop if it's missing the UniqueHash column or the new Key column or has legacy content mapping
                 if (sql != null && (!sql.Contains("UniqueHash") || !sql.Contains(", Key") || sql.Contains("content=")))
                 {
@@ -1420,8 +1458,8 @@ public class SchemaMigratorService
                 _logger.LogInformation("Patching Schema: Creating robust FTS5 Virtual Table (LibraryEntriesFts)...");
                 command.CommandText = @"
                     CREATE VIRTUAL TABLE IF NOT EXISTS LibraryEntriesFts USING fts5(
-                        Artist, 
-                        Title, 
+                        Artist,
+                        Title,
                         Album,
                         Key,
                         UniqueHash UNINDEXED
@@ -1434,9 +1472,9 @@ public class SchemaMigratorService
                 DROP TRIGGER IF EXISTS tbl_lib_ai;
                 CREATE TRIGGER tbl_lib_ai AFTER INSERT ON LibraryEntries BEGIN
                     INSERT INTO LibraryEntriesFts(Artist, Title, Album, Key, UniqueHash) VALUES (
-                        new.Artist, 
-                        new.Title, 
-                        new.Album, 
+                        new.Artist,
+                        new.Title,
+                        new.Album,
                         COALESCE(new.MusicalKey, '') || ' ' || (CASE new.MusicalKey
                             WHEN 'Abm' THEN '1A' WHEN 'G#m' THEN '1A' WHEN 'B' THEN '1B' WHEN 'Cb' THEN '1B'
                             WHEN 'Ebm' THEN '2A' WHEN 'D#m' THEN '2A' WHEN 'F#' THEN '2B' WHEN 'Gb' THEN '2B'
@@ -1465,9 +1503,9 @@ public class SchemaMigratorService
                 CREATE TRIGGER tbl_lib_au AFTER UPDATE ON LibraryEntries BEGIN
                     DELETE FROM LibraryEntriesFts WHERE UniqueHash = old.UniqueHash;
                     INSERT INTO LibraryEntriesFts(Artist, Title, Album, Key, UniqueHash) VALUES (
-                        new.Artist, 
-                        new.Title, 
-                        new.Album, 
+                        new.Artist,
+                        new.Title,
+                        new.Album,
                         COALESCE(new.MusicalKey, '') || ' ' || (CASE new.MusicalKey
                             WHEN 'Abm' THEN '1A' WHEN 'G#m' THEN '1A' WHEN 'B' THEN '1B' WHEN 'Cb' THEN '1B'
                             WHEN 'Ebm' THEN '2A' WHEN 'D#m' THEN '2A' WHEN 'F#' THEN '2B' WHEN 'Gb' THEN '2B'
@@ -1488,7 +1526,7 @@ public class SchemaMigratorService
                 END;
             ";
             await command.ExecuteNonQueryAsync();
-            
+
             // Seed initial data
             command.CommandText = "SELECT COUNT(*) FROM LibraryEntriesFts";
             var libFtsCount = Convert.ToInt64(await command.ExecuteScalarAsync());
@@ -1496,8 +1534,8 @@ public class SchemaMigratorService
             {
                 _logger.LogInformation("Seeding FTS5 library index...");
                 command.CommandText = @"
-                    INSERT INTO LibraryEntriesFts(Artist, Title, Album, Key, UniqueHash) 
-                    SELECT Artist, Title, Album, 
+                    INSERT INTO LibraryEntriesFts(Artist, Title, Album, Key, UniqueHash)
+                    SELECT Artist, Title, Album,
                            COALESCE(MusicalKey, '') || ' ' || (CASE MusicalKey
                             WHEN 'Abm' THEN '1A' WHEN 'G#m' THEN '1A' WHEN 'B' THEN '1B' WHEN 'Cb' THEN '1B'
                             WHEN 'Ebm' THEN '2A' WHEN 'D#m' THEN '2A' WHEN 'F#' THEN '2B' WHEN 'Gb' THEN '2B'
