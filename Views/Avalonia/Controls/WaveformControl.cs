@@ -105,6 +105,15 @@ namespace SLSKDONET.Views.Avalonia.Controls
             set => SetValue(VocalDensityCurveProperty, value);
         }
 
+        public static readonly StyledProperty<System.Collections.Generic.IEnumerable<int>?> SegmentedEnergyProperty =
+            AvaloniaProperty.Register<WaveformControl, System.Collections.Generic.IEnumerable<int>?>(nameof(SegmentedEnergy));
+
+        public System.Collections.Generic.IEnumerable<int>? SegmentedEnergy
+        {
+            get => GetValue(SegmentedEnergyProperty);
+            set => SetValue(SegmentedEnergyProperty, value);
+        }
+
         public static readonly StyledProperty<bool> IsEditingProperty =
             AvaloniaProperty.Register<WaveformControl, bool>(nameof(IsEditing), false);
 
@@ -154,8 +163,9 @@ namespace SLSKDONET.Views.Avalonia.Controls
                 PhraseSegmentsProperty,
                 EnergyCurveProperty,
                 VocalDensityCurveProperty,
-                ForegroundProperty, 
-                BackgroundProperty, 
+                SegmentedEnergyProperty,
+                ForegroundProperty,
+                BackgroundProperty,
                 PlayheadBrushProperty);
         }
 
@@ -459,7 +469,7 @@ namespace SLSKDONET.Views.Avalonia.Controls
             if (hasRgb)
             {
                 // Draw FULL waveform in either base or active colors
-                RenderTrueRgb(context, data, width, mid, samples, step, lowData!, midData!, highData!, false, 0, isActive);
+                RenderTrueRgb(context, data, width, height, mid, samples, step, lowData!, midData!, highData!, false, 0, isActive);
             }
             else
             {
@@ -499,11 +509,16 @@ namespace SLSKDONET.Views.Avalonia.Controls
 
 
         // Optimzied TrueRGB: Renders FULL waveform with specific opacity/brightness
-        private void RenderTrueRgb(DrawingContext context, WaveformAnalysisData data, double width, double mid, int samples, double step, byte[] low, byte[] midB, byte[] high, bool isRolling, double currentXOffset = 0, bool isActive = true)
+        private void RenderTrueRgb(DrawingContext context, WaveformAnalysisData data, double width, double height, double mid, int samples, double step, byte[] low, byte[] midB, byte[] high, bool isRolling, double currentXOffset = 0, bool isActive = true)
         {
             var playedLimit = (int)(Progress * samples);
             var peak = data.PeakData!;
             
+            // Segmented Energy Tinting (Phase 25)
+            var energyList = SegmentedEnergy?.ToList();
+            var cuesList = Cues?.OrderBy(c => c.Timestamp).ToList();
+            double duration = data.DurationSeconds > 0 ? data.DurationSeconds : samples / 100.0;
+
             // Professional Neon Palette
             var lowColor = Color.FromRgb(255, 40, 100);    // Hot Pink / Red
             var midColor = Color.FromRgb(0, 255, 120);    // Neon Green
@@ -519,27 +534,52 @@ namespace SLSKDONET.Views.Avalonia.Controls
                 double x = (i * step) + currentXOffset;
                 if (x < -step || x > width + step) continue;
 
-                // Intensity-based blending
-                double l = low[i] / 255.0;
-                double m = midB[i] / 255.0;
-                double hf = high[i] / 255.0;
-                double total = l + m + hf;
+                    // Resolve Energy Tint
+                    float energyTint = 0.5f; // Neutral 5
+                    if (energyList != null && cuesList != null)
+                    {
+                        double sec = (i / (double)samples) * duration;
+                        int segmentIdx = 0;
+                        for (int j = 0; j < cuesList.Count; j++)
+                        {
+                            if (sec >= cuesList[j].Timestamp) segmentIdx = j;
+                            else break;
+                        }
+                        if (segmentIdx < energyList.Count) energyTint = energyList[segmentIdx] / 10.0f;
+                    }
 
-                if (total > 0)
-                {
-                    byte r = (byte)Math.Clamp((l * lowColor.R + m * midColor.R + hf * highColor.R) / total, 0, 255);
-                    byte g = (byte)Math.Clamp((l * lowColor.G + m * midColor.G + hf * highColor.G) / total, 0, 255);
-                    byte b = (byte)Math.Clamp((l * lowColor.B + m * midColor.B + hf * highColor.B) / total, 0, 255);
-                    
-                    bool isPlayed = isRolling ? (i <= playedLimit) : isActive;
-                    float opacity = isPlayed ? 1.0f : 0.35f;
+                    // Intensity-based blending
+                    double l = low[i] / 255.0;
+                    double m = midB[i] / 255.0;
+                    double hf = high[i] / 255.0;
+                    double total = l + m + hf;
+
+                    if (total > 0)
+                    {
+                        byte r = (byte)Math.Clamp((l * lowColor.R + m * midColor.R + hf * highColor.R) / total, 0, 255);
+                        byte g = (byte)Math.Clamp((l * lowColor.G + m * midColor.G + hf * highColor.G) / total, 0, 255);
+                        byte b = (byte)Math.Clamp((l * lowColor.B + m * midColor.B + hf * highColor.B) / total, 0, 255);
+                        
+                        // Apply Energy Temperature (MIK Parity: Blue -> Green -> Yellow -> Red)
+                        // This uses a spectral shift based on energyTint (0.0 - 1.0)
+                        float t = energyTint;
+                        byte targetR = (byte)(t < 0.5f ? 0 : Math.Clamp((t - 0.5f) * 2 * 255, 0, 255));
+                        byte targetG = (byte)Math.Clamp((1.0f - Math.Abs(t - 0.5f) * 2) * 255, 0, 255);
+                        byte targetB = (byte)(t > 0.5f ? 0 : Math.Clamp((0.5f - t) * 2 * 255, 0, 255));
+
+                        // Blend the spectral tint into the frequency-based color
+                        r = (byte)Math.Clamp((r * 0.7f) + (targetR * 0.3f), 0, 255);
+                        g = (byte)Math.Clamp((g * 0.7f) + (targetG * 0.3f), 0, 255);
+                        b = (byte)Math.Clamp((b * 0.7f) + (targetB * 0.3f), 0, 255);
+
+                        bool isPlayed = isRolling ? (i <= playedLimit) : isActive;
+                        float opacity = isPlayed ? 1.0f : 0.35f;
                     
                     var col = Color.FromArgb((byte)(opacity * 255), r, g, b);
                     context.DrawLine(new Pen(new SolidColorBrush(col), 1), new Point(x, mid - h), new Point(x, mid + h));
                 }
             }
         }
-
         private void DrawBandBatch(DrawingContext context, byte[] data, int samples, double step, double mid, int playedLimit, Pen basePen, Pen playedPen)
         {
             var baseGeom = new StreamGeometry();
@@ -594,7 +634,7 @@ namespace SLSKDONET.Views.Avalonia.Controls
                 // samplesPerSec = total_samples / duration
                 // step = pixelsPerSec / samplesPerSec
                 double step = pixelsPerSec / samplesPerSec;
-                RenderTrueRgb(context, data, width, mid, data.PeakData.Length, step, lowData!, midData!, highData!, true, (width / 2) - (currentSec * pixelsPerSec), true);
+                RenderTrueRgb(context, data, width, height, mid, data.PeakData.Length, step, lowData!, midData!, highData!, true, (width / 2) - (currentSec * pixelsPerSec), true);
             }
             else
             {

@@ -784,6 +784,10 @@ public class AnalysisWorker : BackgroundService
                     
                     if (resultContext.MusicalResult != null)
                     {
+                        // Phase: Mixed In Key Parity - 1-10 Energy Score
+                        var energyScore = (int)Math.Clamp(Math.Round(resultContext.MusicalResult.Energy * 10), 1, 10);
+                        resultContext.MusicalResult.EnergyScore = energyScore;
+
                         currentBpmConfidence = resultContext.MusicalResult.BpmConfidence;
                         currentKeyConfidence = 0.8f; // Placeholder as Essentia gives key but confidence varies
                         run.BpmConfidence = currentBpmConfidence;

@@ -8,47 +8,79 @@ using SLSKDONET.Models.Stem;
 
 namespace SLSKDONET.Services.Audio;
 
+public enum Deck { A, B }
+
 /// <summary>
-/// A specialized audio engine that loads, processes, and mixes multiple audio stems simultaneously.
-/// Uses NAudio for playback and mixing.
+/// A specialized audio engine that loads, processes, and mixes multiple audio stems for two decks.
+/// Supports crossfading and real-time synthesis for key verification.
 /// </summary>
 public class RealTimeStemEngine : IDisposable
 {
-    private readonly Dictionary<StemType, StemProcessingChain> _processors = new();
+    private readonly Dictionary<Deck, Dictionary<StemType, StemProcessingChain>> _decks = new();
     private IWavePlayer? _outputDevice;
     private MixingSampleProvider? _mixer;
+    private SignalGenerator? _pianoSynth;
     
-    // Global lock for thread safety
+    // Legacy support for single-deck callers
+    public TimeSpan CurrentTime => GetDeckTime(Deck.A);
+    public TimeSpan TotalTime => GetDeckTotalTime(Deck.A);
+
+    private float _crossfaderValue = 0.5f; // 0.0 = Deck A, 1.0 = Deck B
+    public float CrossfaderValue
+    {
+        get => _crossfaderValue;
+        set
+        {
+            _crossfaderValue = Math.Clamp(value, 0f, 1f);
+            UpdateEffectiveVolumes();
+        }
+    }
+
     private readonly object _lock = new();
 
     public RealTimeStemEngine()
     {
-        // _processors are initialized lazily or on LoadStems to ensure fresh state
+        _decks[Deck.A] = new();
+        _decks[Deck.B] = new();
+        
+        // Initialize Output Device early
+        _mixer = new MixingSampleProvider(WaveFormat.CreateIeeeFloatWaveFormat(44100, 2));
+        _mixer.ReadFully = true;
+        
+        _pianoSynth = new SignalGenerator(44100, 2)
+        {
+            Type = SignalGeneratorType.Sin,
+            Gain = 0.0 // Silent by default
+        };
+        _mixer.AddMixerInput(_pianoSynth);
+
+        _outputDevice = new WaveOutEvent();
+        _outputDevice.Init(_mixer);
     }
 
-    public void LoadStems(Dictionary<StemType, string> stemFilePaths)
+    public void LoadDeckStems(Deck deck, Dictionary<StemType, string> stemFilePaths)
     {
         lock (_lock)
         {
-            StopAndDispose();
-
             try 
             {
-                _processors.Clear();
-                var sources = new List<ISampleProvider>();
+                // Clear existing stems for this deck
+                if (_decks.TryGetValue(deck, out var processors))
+                {
+                    foreach (var chain in processors.Values)
+                    {
+                        if (chain.FinalProvider != null) _mixer?.RemoveMixerInput(chain.FinalProvider);
+                        chain.Reader?.Dispose();
+                    }
+                    processors.Clear();
+                }
 
-                // 1. Create sources for each file
                 foreach (var input in stemFilePaths)
                 {
-                    // Robust checking if file exists
                     if (!System.IO.File.Exists(input.Value)) continue;
 
                     var reader = new AudioFileReader(input.Value);
-                    
-                    // Create Chain: Source -> Volume -> Pan
                     var volumeProvider = new VolumeSampleProvider(reader) { Volume = 1.0f };
-                    // Note: NAudio's PanningSampleProvider is mono-to-stereo or stereo-balance. 
-                    // AudioFileReader is usually stereo. Use PanningSampleProvider for stereo balance.
                     var panProvider = new PanningSampleProvider(volumeProvider) { Pan = 0.0f };
 
                     var chain = new StemProcessingChain(input.Key)
@@ -59,70 +91,44 @@ public class RealTimeStemEngine : IDisposable
                         FinalProvider = panProvider
                     };
                     
-                    _processors[input.Key] = chain;
-                    sources.Add(panProvider);
+                    _decks[deck][input.Key] = chain;
+                    _mixer?.AddMixerInput(panProvider);
                 }
 
-                if (sources.Count == 0) return;
-
-                // 2. Mix them
-                // We assume all stems have same format (usually 44.1kHz stereo). 
-                // Ideally we'd check/convert, but typically separated stems match.
-                _mixer = new MixingSampleProvider(sources);
-
-                // 3. Initialize Output
-                _outputDevice = new WaveOutEvent(); // or WasapiOut
-                _outputDevice.Init(_mixer);
-                
-                Console.WriteLine($"[RealTimeStemEngine] Loaded {sources.Count} stems.");
+                UpdateEffectiveVolumes();
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"[RealTimeStemEngine] Error loading stems: {ex.Message}");
-                StopAndDispose();
+                Console.WriteLine($"[RealTimeStemEngine] Error loading stems for {deck}: {ex.Message}");
             }
         }
     }
 
     public void Play()
     {
-        lock (_lock)
-        {
-            if (_outputDevice != null && _outputDevice.PlaybackState != PlaybackState.Playing)
-            {
-                _outputDevice.Play();
-            }
-        }
+        if (_outputDevice?.PlaybackState != PlaybackState.Playing)
+            _outputDevice?.Play();
     }
 
     public void Pause()
     {
-        lock (_lock)
-        {
-            if (_outputDevice != null && _outputDevice.PlaybackState == PlaybackState.Playing)
-            {
-                _outputDevice.Pause();
-            }
-        }
+        if (_outputDevice?.PlaybackState == PlaybackState.Playing)
+            _outputDevice?.Pause();
     }
 
-    public void SetVolume(StemType type, float volume)
+    // Legacy support - default to Deck A
+    public void LoadStems(Dictionary<StemType, string> stemFilePaths) => LoadDeckStems(Deck.A, stemFilePaths);
+    public void SetVolume(StemType type, float volume) => SetVolume(Deck.A, type, volume);
+    public void SetMute(StemType type, bool isMuted) => SetMute(Deck.A, type, isMuted);
+    public void SetSolo(StemType type, bool isSolo) => SetSolo(Deck.A, type, isSolo);
+    public void Seek(double seconds) => Seek(Deck.A, seconds);
+    public void PlayTone(double frequency) => PlayRootTone(frequency);
+
+    public void SetMute(Deck deck, StemType type, bool isMuted)
     {
         lock (_lock)
         {
-            if (_processors.TryGetValue(type, out var chain))
-            {
-                chain.UserVolume = volume;
-                UpdateEffectiveVolume(chain);
-            }
-        }
-    }
-
-    public void SetMute(StemType type, bool isMuted)
-    {
-        lock (_lock)
-        {
-            if (_processors.TryGetValue(type, out var chain))
+            if (_decks[deck].TryGetValue(type, out var chain))
             {
                 chain.IsMuted = isMuted;
                 UpdateEffectiveVolumes();
@@ -130,144 +136,135 @@ public class RealTimeStemEngine : IDisposable
         }
     }
 
-    public void SetSolo(StemType type, bool isSolo)
+    public void SetSolo(Deck deck, StemType type, bool isSolo)
     {
         lock (_lock)
         {
-            if (_processors.TryGetValue(type, out var chain))
+            if (_decks[deck].TryGetValue(type, out var chain))
             {
                 chain.IsSolo = isSolo;
                 UpdateEffectiveVolumes();
             }
         }
     }
-    
-    public void SetPan(StemType type, float pan)
+
+    public TimeSpan GetDeckTime(Deck deck)
     {
         lock (_lock)
         {
-             if (_processors.TryGetValue(type, out var chain))
-             {
-                 if (chain.PanProvider != null) chain.PanProvider.Pan = Math.Clamp(pan, -1.0f, 1.0f);
-             }
+            var first = _decks[deck].Values.FirstOrDefault(c => c.Reader != null);
+            return first?.Reader?.CurrentTime ?? TimeSpan.Zero;
         }
     }
-    
-    public TimeSpan CurrentTime
+
+    public TimeSpan GetDeckTotalTime(Deck deck)
     {
-        get
+        lock (_lock)
         {
-            lock (_lock)
+            var first = _decks[deck].Values.FirstOrDefault(c => c.Reader != null);
+            return first?.Reader?.TotalTime ?? TimeSpan.Zero;
+        }
+    }
+
+    public void SetVolume(Deck deck, StemType type, float volume)
+    {
+        lock (_lock)
+        {
+            if (_decks[deck].TryGetValue(type, out var chain))
             {
-                // Return position of the first active reader
-                foreach (var chain in _processors.Values)
-                {
-                    if (chain.Reader != null) return chain.Reader.CurrentTime;
-                }
-                return TimeSpan.Zero;
+                chain.UserVolume = volume;
+                UpdateEffectiveVolumes();
             }
         }
     }
 
-    public TimeSpan TotalTime
+    public void PlayRootTone(double frequency)
     {
-        get
-        {
-            lock (_lock)
-            {
-                foreach (var chain in _processors.Values)
-                {
-                    if (chain.Reader != null) return chain.Reader.TotalTime;
-                }
-                return TimeSpan.Zero;
-            }
-        }
+        if (_pianoSynth == null) return;
+        _pianoSynth.Frequency = frequency;
+        _pianoSynth.Gain = 0.2;
+        Task.Delay(500).ContinueWith(_ => _pianoSynth.Gain = 0.0);
     }
 
-    public void Seek(double seconds)
+    public void Seek(Deck deck, double seconds)
     {
-         lock (_lock)
-         {
-             var time = TimeSpan.FromSeconds(seconds);
-             foreach(var chain in _processors.Values)
-             {
-                 if (chain.Reader != null)
-                 {
-                     // Clamp to total time to prevent exceptions
-                     if (time > chain.Reader.TotalTime) time = chain.Reader.TotalTime;
-                     if (time < TimeSpan.Zero) time = TimeSpan.Zero;
-                     
-                     chain.Reader.CurrentTime = time;
-                 }
-             }
-         }
+        lock (_lock)
+        {
+            var time = TimeSpan.FromSeconds(seconds);
+            foreach (var chain in _decks[deck].Values)
+            {
+                if (chain.Reader != null)
+                {
+                    if (time > chain.Reader.TotalTime) time = chain.Reader.TotalTime;
+                    if (time < TimeSpan.Zero) time = TimeSpan.Zero;
+                    chain.Reader.CurrentTime = time;
+                }
+            }
+        }
     }
 
     private void UpdateEffectiveVolumes()
     {
-        bool anySolo = _processors.Values.Any(p => p.IsSolo);
+        lock (_lock)
+        {
+            // Deck A: Constant Power Curve (starts at 1.0, ends at 0.0)
+            // Cos(0) = 1, Cos(PI/2) = 0
+            float deckAVol = (float)Math.Cos(_crossfaderValue * Math.PI / 2);
+            
+            // Deck B: Constant Power Curve (starts at 0.0, ends at 1.0)
+            // Sin(0) = 0, Sin(PI/2) = 1
+            float deckBVol = (float)Math.Sin(_crossfaderValue * Math.PI / 2);
 
-        foreach (var chain in _processors.Values)
+            ApplyDeckVolume(Deck.A, deckAVol);
+            ApplyDeckVolume(Deck.B, deckBVol);
+        }
+    }
+
+    private void ApplyDeckVolume(Deck deck, float masterVol)
+    {
+        var processors = _decks[deck];
+        bool anySolo = processors.Values.Any(p => p.IsSolo);
+
+        foreach (var chain in processors.Values)
         {
             if (chain.VolumeProvider == null) continue;
 
-            float targetVol = chain.UserVolume;
+            float targetVol = chain.UserVolume * masterVol;
 
-            if (chain.IsMuted)
-            {
-                targetVol = 0.0f;
-            }
-            else if (anySolo && !chain.IsSolo)
-            {
-                targetVol = 0.0f; // Muted by other Solos
-            }
+            if (chain.IsMuted) targetVol = 0.0f;
+            else if (anySolo && !chain.IsSolo) targetVol = 0.0f;
 
             chain.VolumeProvider.Volume = targetVol;
         }
     }
-    
-    private void UpdateEffectiveVolume(StemProcessingChain chain)
-    {
-         // Optimized single update if Solos didn't change (simplification)
-         // But for correctness with Solo, we should check global state.
-         UpdateEffectiveVolumes();
-    }
-
-    private void StopAndDispose()
-    {
-        _outputDevice?.Stop();
-        _outputDevice?.Dispose();
-        _outputDevice = null;
-        
-        foreach(var chain in _processors.Values)
-        {
-            chain.Reader?.Dispose();
-        }
-        _processors.Clear();
-        _mixer = null;
-    }
 
     public void Dispose()
     {
-        StopAndDispose();
+        _outputDevice?.Stop();
+        _outputDevice?.Dispose();
+        foreach (var deck in _decks.Values)
+        {
+            foreach (var chain in deck.Values)
+                chain.Reader?.Dispose();
+        }
     }
 }
 
+/// <summary>
+/// Helper for RealTimeStemEngine to track the NAudio processing graph for a single stem.
+/// </summary>
 public class StemProcessingChain
 {
     public StemType Type { get; }
-    
-    // NAudio components
     public AudioFileReader? Reader { get; set; }
     public VolumeSampleProvider? VolumeProvider { get; set; }
     public PanningSampleProvider? PanProvider { get; set; }
     public ISampleProvider? FinalProvider { get; set; }
 
-    // State
     public float UserVolume { get; set; } = 1.0f;
     public bool IsMuted { get; set; }
     public bool IsSolo { get; set; }
-    
+
     public StemProcessingChain(StemType type)
     {
         Type = type;

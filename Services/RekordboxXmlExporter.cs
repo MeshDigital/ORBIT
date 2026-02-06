@@ -4,7 +4,9 @@ using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using System.Xml.Linq;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using SLSKDONET.Data;
 using SLSKDONET.Models;
 using SLSKDONET.Utils;
 
@@ -19,11 +21,16 @@ public class RekordboxXmlExporter
 {
     private readonly ILogger<RekordboxXmlExporter> _logger;
     private readonly ILibraryService _libraryService;
+    private readonly Musical.CueGenerationEngine _cueEngine;
 
-    public RekordboxXmlExporter(ILogger<RekordboxXmlExporter> logger, ILibraryService libraryService)
+    public RekordboxXmlExporter(
+        ILogger<RekordboxXmlExporter> logger, 
+        ILibraryService libraryService,
+        Musical.CueGenerationEngine cueEngine)
     {
         _logger = logger;
         _libraryService = libraryService;
+        _cueEngine = cueEngine;
     }
 
     /// <summary>
@@ -63,6 +70,8 @@ public class RekordboxXmlExporter
 
             var trackIdCounter = 1;
 
+            using var db = new Data.AppDbContext();
+
             // Add each PlaylistTrack to the collection
             foreach (var track in playlistTracks)
             {
@@ -89,6 +98,47 @@ public class RekordboxXmlExporter
                 // Add optional metadata if available
                 if (track.TrackNumber > 0)
                     trackEntry.Add(new XAttribute("TrackNumber", track.TrackNumber));
+                
+                // [NEW] Phase 17/25: AI Metadata Injection
+                var features = await db.AudioFeatures.FirstOrDefaultAsync(f => f.TrackUniqueHash == track.TrackUniqueHash);
+                if (features != null)
+                {
+                    trackEntry.Add(new XAttribute("InitialKey", features.CamelotKey ?? ""));
+                    trackEntry.Add(new XAttribute("AverageBpm", features.Bpm));
+                    
+                    int energy = features.EnergyScore > 0 
+                        ? features.EnergyScore 
+                        : (int)Math.Clamp(Math.Round(features.Energy * 10), 1, 10);
+                    
+                    trackEntry.Add(new XAttribute("Comments", $"[ORBIT] Energy {energy} | {track.Comments}"));
+
+                    // Inject Structural Cues
+                    var cues = await _cueEngine.GenerateMikStandardCues(track.TrackUniqueHash);
+                    int cueIdx = 0;
+                    foreach (var cue in cues)
+                    {
+                        var mark = new XElement("POSITION_MARK",
+                            new XAttribute("Name", cue.Name ?? ""),
+                            new XAttribute("Type", "0"),
+                            new XAttribute("Start", cue.Timestamp.ToString("F3").Replace(",", ".")),
+                            new XAttribute("Num", cueIdx)); // Map to Hot Cue index (0-7)
+
+                        // Convert Hex to RGB for Rekordbox
+                        if (!string.IsNullOrEmpty(cue.Color))
+                        {
+                            try {
+                                var col = Avalonia.Media.Color.Parse(cue.Color);
+                                mark.Add(new XAttribute("Red", col.R));
+                                mark.Add(new XAttribute("Green", col.G));
+                                mark.Add(new XAttribute("Blue", col.B));
+                            } catch { }
+                        }
+                        trackEntry.Add(mark);
+                        cueIdx++;
+                        if (cueIdx >= 8) break; // Rekordbox generally supports 8 hot cues
+                    }
+                }
+
                 trackEntry.Add(new XAttribute("Status", track.Status.ToString()));
 
                 collection.Add(trackEntry);

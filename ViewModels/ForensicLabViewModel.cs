@@ -91,9 +91,23 @@ public class ForensicLabViewModel : INotifyPropertyChanged, IDisposable
         set => SetProperty(ref _highData, value);
     }
 
+    private IEnumerable<OrbitCue>? _cues;
+    public IEnumerable<OrbitCue>? Cues
+    {
+        get => _cues;
+        set => SetProperty(ref _cues, value);
+    }
+
     // ============================================
     // Left Sector: Rhythmic & Tonal
     // ============================================
+
+    private IEnumerable<int>? _segmentedEnergy;
+    public IEnumerable<int>? SegmentedEnergy
+    {
+        get => _segmentedEnergy;
+        set => SetProperty(ref _segmentedEnergy, value);
+    }
 
     private float[] _bpmHistogram = Array.Empty<float>();
     public float[] BpmHistogram
@@ -370,6 +384,7 @@ public class ForensicLabViewModel : INotifyPropertyChanged, IDisposable
 
         IsLoading = true;
         TrackUniqueHash = trackHash;
+        Cues = null;
 
         try
         {
@@ -457,6 +472,13 @@ public class ForensicLabViewModel : INotifyPropertyChanged, IDisposable
                 IsDynamicCompressed = audioFeatures.IsDynamicCompressed;
                 LoudnessLUFS = audioFeatures.LoudnessLUFS;
                 DynamicRange = audioFeatures.DynamicComplexity;
+
+                if (!string.IsNullOrEmpty(audioFeatures.SegmentedEnergyJson))
+                {
+                    try {
+                        SegmentedEnergy = System.Text.Json.JsonSerializer.Deserialize<int[]>(audioFeatures.SegmentedEnergyJson);
+                    } catch { }
+                }
 
                 // Store raw JSON output (if available)
                 EssentiaJsonOutput = $"// ✅ Analysis data loaded from DB\n" +
