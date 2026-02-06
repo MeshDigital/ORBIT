@@ -24,6 +24,7 @@ namespace SLSKDONET.ViewModels
         public int? Length => _result.Length;
         public string User => _result.Username;
         public int UploadSpeed => _result.UploadSpeed;
+        public string UploadSpeedDisplay => UploadSpeed > 0 ? $"{(double)UploadSpeed / 1024.0:F1}MB/s" : "Slow";
         public int QueueLength => _result.QueueLength;
         public bool SlotFree => _result.SlotFree;
         

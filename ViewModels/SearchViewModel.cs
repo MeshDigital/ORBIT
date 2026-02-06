@@ -112,7 +112,9 @@ public partial class SearchViewModel : ReactiveObject, IDisposable
     // Reactive State
     private readonly SourceList<AnalyzedSearchResultViewModel> _searchResults = new();
     private readonly ReadOnlyObservableCollection<AnalyzedSearchResultViewModel> _publicSearchResults;
+    private readonly ObservableCollection<AnalyzedSearchResultViewModel> _searchResultsView = new();
     public ReadOnlyObservableCollection<AnalyzedSearchResultViewModel> SearchResults => _publicSearchResults;
+    public ObservableCollection<AnalyzedSearchResultViewModel> SearchResultsView => _searchResultsView;
     
     // Phase 19: Search 2.0 Dense Grid Source
     public FlatTreeDataGridSource<AnalyzedSearchResultViewModel> SearchSource { get; }
@@ -264,12 +266,13 @@ public partial class SearchViewModel : ReactiveObject, IDisposable
             .Subscribe(_ => 
             {
                 HiddenResultsCount = _searchResults.Count - _publicSearchResults.Count;
+                SyncSearchResultsView();
                 this.RaisePropertyChanged(nameof(SearchResults)); 
             })
             .DisposeWith(_disposables);
 
         // Phase 19: Search 2.0 Dense Grid Source Initialization
-        SearchSource = new FlatTreeDataGridSource<AnalyzedSearchResultViewModel>(_publicSearchResults);
+        SearchSource = new FlatTreeDataGridSource<AnalyzedSearchResultViewModel>(_searchResultsView);
         InitializeSearchColumns();
 
 
@@ -367,8 +370,11 @@ public partial class SearchViewModel : ReactiveObject, IDisposable
 
         IsSearching = true;
         StatusText = "Searching...";
-        _searchResults.Clear(); 
-        AlbumResults.Clear();
+        await RunOnUiThreadAsync(() =>
+        {
+            _searchResults.Clear();
+            AlbumResults.Clear();
+        });
         HiddenResultsCount = 0; 
 
         try
@@ -419,8 +425,9 @@ public partial class SearchViewModel : ReactiveObject, IDisposable
 
                     if ((DateTime.UtcNow - lastUpdate).TotalMilliseconds > 250 || buffer.Count >= 50)
                     {
-                        _searchResults.AddRange(buffer);
+                        var toAdd = buffer.ToList();
                         buffer.Clear();
+                        await RunOnUiThreadAsync(() => _searchResults.AddRange(toAdd));
                         lastUpdate = DateTime.UtcNow;
                         StatusText = $"Found {totalFound} tracks...";
                     }
@@ -428,7 +435,9 @@ public partial class SearchViewModel : ReactiveObject, IDisposable
 
                 if (buffer.Any())
                 {
-                    _searchResults.AddRange(buffer);
+                    var toAdd = buffer.ToList();
+                    buffer.Clear();
+                    await RunOnUiThreadAsync(() => _searchResults.AddRange(toAdd));
                 }
             }
             catch (OperationCanceledException)
@@ -602,6 +611,26 @@ public partial class SearchViewModel : ReactiveObject, IDisposable
                 IsMp3Enabled = false;
                 break;
         }
+    }
+
+    private void SyncSearchResultsView()
+    {
+        _searchResultsView.Clear();
+        foreach (var result in _publicSearchResults)
+        {
+            _searchResultsView.Add(result);
+        }
+    }
+
+    private static async Task RunOnUiThreadAsync(Action action)
+    {
+        if (Dispatcher.UIThread.CheckAccess())
+        {
+            action();
+            return;
+        }
+
+        await Dispatcher.UIThread.InvokeAsync(action);
     }
 
     private void OnTrackStateChanged(TrackStateChangedEvent evt)
@@ -849,7 +878,7 @@ public partial class SearchViewModel : ReactiveObject, IDisposable
 
         SearchSource.Columns.Add(new TextColumn<AnalyzedSearchResultViewModel, string>(
             "Speed", 
-            x => x.UploadSpeed > 0 ? $"{(double)x.UploadSpeed / 1024.0:F1}MB/s" : "Slow",
+            x => x.UploadSpeedDisplay,
             width: new GridLength(80)));
     }
 

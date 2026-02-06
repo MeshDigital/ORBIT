@@ -1,5 +1,17 @@
 # Recent Changes
 
+## [0.1.0-alpha.9.6] - Search Grid + Schema Hardening (Feb 06, 2026)
+
+### Fixes
+* **Search Results Grid**: Routed search result updates through the UI thread and synced a writable view collection for TreeDataGrid rendering.
+* **TreeDataGrid Column Safety**: Avoided expression-based column getters by binding to simple properties (e.g., upload speed display).
+* **Library Grid Stability**: Updated the Added column to use a typed `DateTime` getter with a `StringFormat` to prevent expression parsing failures.
+* **Schema Patching**: Ensured vocal intelligence and quality fields exist for `audio_features` and `LibraryEntries` (DetectedVocalType, VocalIntensity, VocalStartSeconds/EndSeconds, QualityDetails, SpectralHash, VocalType).
+
+### Notes
+* **Search Pipeline**: Results flow `SourceList -> Filter/Sort -> ReadOnlyObservableCollection -> SearchResultsView -> TreeDataGrid` for stable UI updates.
+* **No Migration Required**: Schema patching runs on startup and backfills missing columns without manual migration steps.
+
 ## [0.1.0-alpha.9.5] - Build + Runtime Stabilization (Feb 06, 2026)
 
 ### Fixes

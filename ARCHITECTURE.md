@@ -72,6 +72,30 @@ Total Score = (BitrateScore * Weight)
 
 ---
 
+## 🔍 Search Results UI Pipeline
+
+The Search page uses a reactive pipeline to keep the TreeDataGrid synchronized without cross-thread updates.
+
+```
+SearchOrchestrationService
+    │
+    ▼
+SourceList<AnalyzedSearchResultViewModel>
+    │  Filter + Sort (SearchFilterViewModel)
+    ▼
+ReadOnlyObservableCollection (public results)
+    │  Sync to writable view collection
+    ▼
+SearchResultsView (ObservableCollection)
+    │
+    ▼
+TreeDataGrid (FlatTreeDataGridSource)
+```
+
+### Key Constraints
+- **UI Thread Safety**: Result batches are marshaled to the UI thread before mutating the underlying SourceList.
+- **TreeDataGrid Binding**: Column getters use simple member accessors (no method calls or inline formatting) to avoid expression parsing failures.
+
 ## 🧠 The Cortex: ML.NET Engine (Phase 15.5)
 
 Phase 15.5 introduced a local machine learning layer that runs parallel to the rule-based ranking system.

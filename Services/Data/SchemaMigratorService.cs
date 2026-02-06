@@ -495,7 +495,13 @@ public class SchemaMigratorService
                         ""PhraseSegmentsJson"" TEXT NOT NULL DEFAULT '[]',
                         ""EnergyCurveJson"" TEXT NOT NULL DEFAULT '[]',
                         ""VocalDensityCurveJson"" TEXT NOT NULL DEFAULT '[]',
-                        ""AnalysisReasoningJson"" TEXT NOT NULL DEFAULT '{}'
+                        ""AnalysisReasoningJson"" TEXT NOT NULL DEFAULT '{}',
+
+                        -- Phase 3.5: Vocal Intelligence
+                        ""DetectedVocalType"" INTEGER NOT NULL DEFAULT 0,
+                        ""VocalIntensity"" REAL NOT NULL DEFAULT 0,
+                        ""VocalStartSeconds"" REAL NULL,
+                        ""VocalEndSeconds"" REAL NULL
                     );
                     CREATE UNIQUE INDEX ""IX_audio_features_TrackUniqueHash"" ON ""audio_features"" (""TrackUniqueHash"");
                 ";
@@ -594,6 +600,24 @@ public class SchemaMigratorService
             {
                 _logger.LogInformation("Patching Schema: Adding DetectedVocalType to audio_features...");
                 command.CommandText = @"ALTER TABLE ""audio_features"" ADD COLUMN ""DetectedVocalType"" INTEGER NOT NULL DEFAULT 0;";
+                await command.ExecuteNonQueryAsync();
+            }
+            if (!ColumnExists("audio_features", "VocalIntensity"))
+            {
+                _logger.LogInformation("Patching Schema: Adding VocalIntensity to audio_features...");
+                command.CommandText = @"ALTER TABLE ""audio_features"" ADD COLUMN ""VocalIntensity"" REAL NOT NULL DEFAULT 0;";
+                await command.ExecuteNonQueryAsync();
+            }
+            if (!ColumnExists("audio_features", "VocalStartSeconds"))
+            {
+                _logger.LogInformation("Patching Schema: Adding VocalStartSeconds to audio_features...");
+                command.CommandText = @"ALTER TABLE ""audio_features"" ADD COLUMN ""VocalStartSeconds"" REAL NULL;";
+                await command.ExecuteNonQueryAsync();
+            }
+            if (!ColumnExists("audio_features", "VocalEndSeconds"))
+            {
+                _logger.LogInformation("Patching Schema: Adding VocalEndSeconds to audio_features...");
+                command.CommandText = @"ALTER TABLE ""audio_features"" ADD COLUMN ""VocalEndSeconds"" REAL NULL;";
                 await command.ExecuteNonQueryAsync();
             }
 
@@ -837,6 +861,42 @@ public class SchemaMigratorService
             {
                 _logger.LogInformation("Patching Schema: Adding Comments to LibraryEntries...");
                 command.CommandText = @"ALTER TABLE ""LibraryEntries"" ADD COLUMN ""Comments"" TEXT NULL;";
+                await command.ExecuteNonQueryAsync();
+            }
+            if (!ColumnExists("LibraryEntries", "QualityDetails"))
+            {
+                _logger.LogInformation("Patching Schema: Adding QualityDetails to LibraryEntries...");
+                command.CommandText = @"ALTER TABLE ""LibraryEntries"" ADD COLUMN ""QualityDetails"" TEXT NULL;";
+                await command.ExecuteNonQueryAsync();
+            }
+            if (!ColumnExists("LibraryEntries", "SpectralHash"))
+            {
+                _logger.LogInformation("Patching Schema: Adding SpectralHash to LibraryEntries...");
+                command.CommandText = @"ALTER TABLE ""LibraryEntries"" ADD COLUMN ""SpectralHash"" TEXT NULL;";
+                await command.ExecuteNonQueryAsync();
+            }
+            if (!ColumnExists("LibraryEntries", "VocalType"))
+            {
+                _logger.LogInformation("Patching Schema: Adding VocalType to LibraryEntries...");
+                command.CommandText = @"ALTER TABLE ""LibraryEntries"" ADD COLUMN ""VocalType"" INTEGER NOT NULL DEFAULT 0;";
+                await command.ExecuteNonQueryAsync();
+            }
+            if (!ColumnExists("LibraryEntries", "VocalIntensity"))
+            {
+                _logger.LogInformation("Patching Schema: Adding VocalIntensity to LibraryEntries...");
+                command.CommandText = @"ALTER TABLE ""LibraryEntries"" ADD COLUMN ""VocalIntensity"" REAL NULL;";
+                await command.ExecuteNonQueryAsync();
+            }
+            if (!ColumnExists("LibraryEntries", "VocalStartSeconds"))
+            {
+                _logger.LogInformation("Patching Schema: Adding VocalStartSeconds to LibraryEntries...");
+                command.CommandText = @"ALTER TABLE ""LibraryEntries"" ADD COLUMN ""VocalStartSeconds"" REAL NULL;";
+                await command.ExecuteNonQueryAsync();
+            }
+            if (!ColumnExists("LibraryEntries", "VocalEndSeconds"))
+            {
+                _logger.LogInformation("Patching Schema: Adding VocalEndSeconds to LibraryEntries...");
+                command.CommandText = @"ALTER TABLE ""LibraryEntries"" ADD COLUMN ""VocalEndSeconds"" REAL NULL;";
                 await command.ExecuteNonQueryAsync();
             }
             if (!ColumnExists("LibraryEntries", "WaveformData"))
