@@ -13,6 +13,7 @@ using SLSKDONET.Services.Audio;
 using SLSKDONET.Services.Musical;
 using SLSKDONET.Services.AI;
 using SLSKDONET.ViewModels.Stem;
+using Microsoft.Extensions.Logging;
 
 namespace SLSKDONET.ViewModels;
 
@@ -44,6 +45,9 @@ public class ForensicUnifiedViewModel : ReactiveObject
     public System.Windows.Input.ICommand ToggleMentorCommand { get; }
     public System.Windows.Input.ICommand FindBridgeCommand { get; }
     public System.Windows.Input.ICommand NavigateToTrackCommand { get; }
+    public System.Windows.Input.ICommand UpdateCueCommand { get; }
+    public System.Windows.Input.ICommand UpdateSegmentCommand { get; }
+    public System.Windows.Input.ICommand ToggleInstOnlyCommand { get; }
 
     public ObservableCollection<SonicMatch> AiMatches { get; } = new();
 
@@ -59,6 +63,13 @@ public class ForensicUnifiedViewModel : ReactiveObject
     {
         get => _energyScore;
         set => this.RaiseAndSetIfChanged(ref _energyScore, value);
+    }
+
+    private bool _analyzeHarmonicsInstOnly;
+    public bool AnalyzeHarmonicsInstOnly
+    {
+        get => _analyzeHarmonicsInstOnly;
+        set => this.RaiseAndSetIfChanged(ref _analyzeHarmonicsInstOnly, value);
     }
 
     private double _crossfaderPosition = 0.5;
@@ -120,7 +131,8 @@ public class ForensicUnifiedViewModel : ReactiveObject
         RealTimeStemEngine audioEngine,
         MultiTrackEngine multiTrackEngine,
         PlayerViewModel playerViewModel,
-        Services.Analysis.SetlistStressTestService stressTestService)
+        Services.Analysis.SetlistStressTestService stressTestService,
+        ILoggerFactory loggerFactory)
     {
         _eventBus = eventBus;
         _forensicLab = forensicLab;
@@ -135,12 +147,25 @@ public class ForensicUnifiedViewModel : ReactiveObject
         
         // Initialize Deck B
         DeckB = new ForensicLabViewModel(_eventBus, _libraryService); 
-        _cueEngine = new CueGenerationEngine(null!, null!);
+        _cueEngine = new CueGenerationEngine(loggerFactory.CreateLogger<CueGenerationEngine>(), null);
 
         GenerateMikCuesCommand = ReactiveCommand.CreateFromTask(() => LoadTrackAsync(CurrentTrack?.UniqueHash ?? ""));
         PlayToneCommand = ReactiveCommand.Create<string>(note => _audioEngine.PlayTone(double.Parse(note)));
         LoadToDeckBCommand = ReactiveCommand.CreateFromTask<SonicMatch>(match => LoadDeckBAsync(match?.TrackUniqueHash ?? ""));
         ToggleMentorCommand = ReactiveCommand.Create(ToggleMentor);
+        ToggleInstOnlyCommand = ReactiveCommand.Create(() => AnalyzeHarmonicsInstOnly = !AnalyzeHarmonicsInstOnly);
+        
+        UpdateCueCommand = ReactiveCommand.CreateFromTask<OrbitCue>(async cue => 
+        {
+            if (CurrentTrack == null) return;
+            // Persistence logic (Phase 2)
+            await SaveCuesToDbAsync(CurrentTrack.UniqueHash, _forensicLab.Cues?.ToList() ?? new());
+        });
+
+        UpdateSegmentCommand = ReactiveCommand.CreateFromTask<PhraseSegment>(async seg => 
+        {
+            // Placeholder for structural segment updates
+        });
         
         FindBridgeCommand = ReactiveCommand.CreateFromTask<LibraryEntryEntity>(async (track, ct) => 
         {
@@ -206,6 +231,18 @@ public class ForensicUnifiedViewModel : ReactiveObject
             if (match == null) return;
             await LoadDeckBAsync(match.TrackUniqueHash);
         });
+    }
+
+    private async Task SaveCuesToDbAsync(string hash, List<OrbitCue> cues)
+    {
+         using var db = new AppDbContext();
+         var entry = await db.LibraryEntries.FirstOrDefaultAsync(e => e.UniqueHash == hash);
+         if (entry != null)
+         {
+             entry.CuePointsJson = System.Text.Json.JsonSerializer.Serialize(cues);
+             await db.SaveChangesAsync();
+             _eventBus.Publish(new TrackMetadataUpdatedEvent(hash));
+         }
     }
 
     private void SyncFlowSetlist()

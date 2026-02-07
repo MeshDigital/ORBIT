@@ -209,8 +209,14 @@ public class ForensicLabViewModel : INotifyPropertyChanged, IDisposable
     public float Energy
     {
         get => _energy;
-        set => SetProperty(ref _energy, value);
+        set 
+        {
+            if (SetProperty(ref _energy, value))
+                OnPropertyChanged(nameof(EnergyScore));
+        }
     }
+
+    public int EnergyScore => (int)Math.Clamp(Math.Round(Energy * 10), 1, 10);
 
     private float _intensity;
     public float Intensity

@@ -1,23 +1,23 @@
 {
   "format": 1,
   "restore": {
-    "C:\\Users\\quint\\OneDrive\\Documenten\\GitHub\\QMUSICSLSK\\Tests\\SLSKDONET.Tests\\SLSKDONET.Tests.csproj": {}
+    "c:\\Users\\quint\\OneDrive\\Documenten\\GitHub\\QMUSICSLSK\\Tests\\SLSKDONET.Tests\\SLSKDONET.Tests.csproj": {}
   },
   "projects": {
-    "C:\\Users\\quint\\OneDrive\\Documenten\\GitHub\\QMUSICSLSK\\External\\TreeDataGrid\\src\\Avalonia.Controls.TreeDataGrid\\Avalonia.Controls.TreeDataGrid.csproj": {
+    "c:\\Users\\quint\\OneDrive\\Documenten\\GitHub\\QMUSICSLSK\\External\\TreeDataGrid\\src\\Avalonia.Controls.TreeDataGrid\\Avalonia.Controls.TreeDataGrid.csproj": {
       "version": "11.0.10",
       "restore": {
-        "projectUniqueName": "C:\\Users\\quint\\OneDrive\\Documenten\\GitHub\\QMUSICSLSK\\External\\TreeDataGrid\\src\\Avalonia.Controls.TreeDataGrid\\Avalonia.Controls.TreeDataGrid.csproj",
+        "projectUniqueName": "c:\\Users\\quint\\OneDrive\\Documenten\\GitHub\\QMUSICSLSK\\External\\TreeDataGrid\\src\\Avalonia.Controls.TreeDataGrid\\Avalonia.Controls.TreeDataGrid.csproj",
         "projectName": "Avalonia.Controls.TreeDataGrid",
-        "projectPath": "C:\\Users\\quint\\OneDrive\\Documenten\\GitHub\\QMUSICSLSK\\External\\TreeDataGrid\\src\\Avalonia.Controls.TreeDataGrid\\Avalonia.Controls.TreeDataGrid.csproj",
+        "projectPath": "c:\\Users\\quint\\OneDrive\\Documenten\\GitHub\\QMUSICSLSK\\External\\TreeDataGrid\\src\\Avalonia.Controls.TreeDataGrid\\Avalonia.Controls.TreeDataGrid.csproj",
         "packagesPath": "C:\\Users\\quint\\.nuget\\packages\\",
-        "outputPath": "C:\\Users\\quint\\OneDrive\\Documenten\\GitHub\\QMUSICSLSK\\External\\TreeDataGrid\\src\\Avalonia.Controls.TreeDataGrid\\obj\\",
+        "outputPath": "c:\\Users\\quint\\OneDrive\\Documenten\\GitHub\\QMUSICSLSK\\External\\TreeDataGrid\\src\\Avalonia.Controls.TreeDataGrid\\obj\\",
         "projectStyle": "PackageReference",
         "fallbackFolders": [
           "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages"
         ],
         "configFilePaths": [
-          "C:\\Users\\quint\\OneDrive\\Documenten\\GitHub\\QMUSICSLSK\\External\\TreeDataGrid\\NuGet.Config",
+          "c:\\Users\\quint\\OneDrive\\Documenten\\GitHub\\QMUSICSLSK\\External\\TreeDataGrid\\NuGet.Config",
           "C:\\Users\\quint\\AppData\\Roaming\\NuGet\\NuGet.Config",
           "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.FallbackLocation.config",
           "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.Offline.config"
@@ -83,15 +83,15 @@
           "downloadDependencies": [
             {
               "name": "Microsoft.AspNetCore.App.Ref",
-              "version": "[9.0.11, 9.0.11]"
+              "version": "[9.0.12, 9.0.12]"
             },
             {
               "name": "Microsoft.NETCore.App.Ref",
-              "version": "[9.0.11, 9.0.11]"
+              "version": "[9.0.12, 9.0.12]"
             },
             {
               "name": "Microsoft.WindowsDesktop.App.Ref",
-              "version": "[9.0.11, 9.0.11]"
+              "version": "[9.0.12, 9.0.12]"
             }
           ],
           "frameworkReferences": {
@@ -99,18 +99,18 @@
               "privateAssets": "all"
             }
           },
-          "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\10.0.101/PortableRuntimeIdentifierGraph.json"
+          "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\10.0.102/PortableRuntimeIdentifierGraph.json"
         }
       }
     },
-    "C:\\Users\\quint\\OneDrive\\Documenten\\GitHub\\QMUSICSLSK\\SLSKDONET.csproj": {
+    "c:\\Users\\quint\\OneDrive\\Documenten\\GitHub\\QMUSICSLSK\\SLSKDONET.csproj": {
       "version": "0.1.0-alpha",
       "restore": {
-        "projectUniqueName": "C:\\Users\\quint\\OneDrive\\Documenten\\GitHub\\QMUSICSLSK\\SLSKDONET.csproj",
+        "projectUniqueName": "c:\\Users\\quint\\OneDrive\\Documenten\\GitHub\\QMUSICSLSK\\SLSKDONET.csproj",
         "projectName": "ORBIT",
-        "projectPath": "C:\\Users\\quint\\OneDrive\\Documenten\\GitHub\\QMUSICSLSK\\SLSKDONET.csproj",
+        "projectPath": "c:\\Users\\quint\\OneDrive\\Documenten\\GitHub\\QMUSICSLSK\\SLSKDONET.csproj",
         "packagesPath": "C:\\Users\\quint\\.nuget\\packages\\",
-        "outputPath": "C:\\Users\\quint\\OneDrive\\Documenten\\GitHub\\QMUSICSLSK\\obj\\",
+        "outputPath": "c:\\Users\\quint\\OneDrive\\Documenten\\GitHub\\QMUSICSLSK\\obj\\",
         "projectStyle": "PackageReference",
         "fallbackFolders": [
           "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages"
@@ -132,8 +132,8 @@
           "net9.0": {
             "targetAlias": "net9.0",
             "projectReferences": {
-              "C:\\Users\\quint\\OneDrive\\Documenten\\GitHub\\QMUSICSLSK\\External\\TreeDataGrid\\src\\Avalonia.Controls.TreeDataGrid\\Avalonia.Controls.TreeDataGrid.csproj": {
-                "projectPath": "C:\\Users\\quint\\OneDrive\\Documenten\\GitHub\\QMUSICSLSK\\External\\TreeDataGrid\\src\\Avalonia.Controls.TreeDataGrid\\Avalonia.Controls.TreeDataGrid.csproj"
+              "c:\\Users\\quint\\OneDrive\\Documenten\\GitHub\\QMUSICSLSK\\External\\TreeDataGrid\\src\\Avalonia.Controls.TreeDataGrid\\Avalonia.Controls.TreeDataGrid.csproj": {
+                "projectPath": "c:\\Users\\quint\\OneDrive\\Documenten\\GitHub\\QMUSICSLSK\\External\\TreeDataGrid\\src\\Avalonia.Controls.TreeDataGrid\\Avalonia.Controls.TreeDataGrid.csproj"
               }
             }
           }
@@ -268,6 +268,10 @@
               "target": "Package",
               "version": "[0.9.6, )"
             },
+            "QuestPDF": {
+              "target": "Package",
+              "version": "[2024.12.3, )"
+            },
             "SciSharp.TensorFlow.Redist": {
               "target": "Package",
               "version": "[2.16.0, )"
@@ -359,19 +363,19 @@
           "downloadDependencies": [
             {
               "name": "Microsoft.AspNetCore.App.Ref",
-              "version": "[9.0.11, 9.0.11]"
+              "version": "[9.0.12, 9.0.12]"
             },
             {
               "name": "Microsoft.NETCore.App.Host.win-x64",
-              "version": "[9.0.11, 9.0.11]"
+              "version": "[9.0.12, 9.0.12]"
             },
             {
               "name": "Microsoft.NETCore.App.Ref",
-              "version": "[9.0.11, 9.0.11]"
+              "version": "[9.0.12, 9.0.12]"
             },
             {
               "name": "Microsoft.WindowsDesktop.App.Ref",
-              "version": "[9.0.11, 9.0.11]"
+              "version": "[9.0.12, 9.0.12]"
             }
           ],
           "frameworkReferences": {
@@ -379,18 +383,18 @@
               "privateAssets": "all"
             }
           },
-          "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\10.0.101/PortableRuntimeIdentifierGraph.json"
+          "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\10.0.102/PortableRuntimeIdentifierGraph.json"
         }
       }
     },
-    "C:\\Users\\quint\\OneDrive\\Documenten\\GitHub\\QMUSICSLSK\\Tests\\SLSKDONET.Tests\\SLSKDONET.Tests.csproj": {
+    "c:\\Users\\quint\\OneDrive\\Documenten\\GitHub\\QMUSICSLSK\\Tests\\SLSKDONET.Tests\\SLSKDONET.Tests.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "C:\\Users\\quint\\OneDrive\\Documenten\\GitHub\\QMUSICSLSK\\Tests\\SLSKDONET.Tests\\SLSKDONET.Tests.csproj",
+        "projectUniqueName": "c:\\Users\\quint\\OneDrive\\Documenten\\GitHub\\QMUSICSLSK\\Tests\\SLSKDONET.Tests\\SLSKDONET.Tests.csproj",
         "projectName": "SLSKDONET.Tests",
-        "projectPath": "C:\\Users\\quint\\OneDrive\\Documenten\\GitHub\\QMUSICSLSK\\Tests\\SLSKDONET.Tests\\SLSKDONET.Tests.csproj",
+        "projectPath": "c:\\Users\\quint\\OneDrive\\Documenten\\GitHub\\QMUSICSLSK\\Tests\\SLSKDONET.Tests\\SLSKDONET.Tests.csproj",
         "packagesPath": "C:\\Users\\quint\\.nuget\\packages\\",
-        "outputPath": "C:\\Users\\quint\\OneDrive\\Documenten\\GitHub\\QMUSICSLSK\\Tests\\SLSKDONET.Tests\\obj\\",
+        "outputPath": "c:\\Users\\quint\\OneDrive\\Documenten\\GitHub\\QMUSICSLSK\\Tests\\SLSKDONET.Tests\\obj\\",
         "projectStyle": "PackageReference",
         "fallbackFolders": [
           "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages"
@@ -412,8 +416,8 @@
           "net9.0": {
             "targetAlias": "net9.0",
             "projectReferences": {
-              "C:\\Users\\quint\\OneDrive\\Documenten\\GitHub\\QMUSICSLSK\\SLSKDONET.csproj": {
-                "projectPath": "C:\\Users\\quint\\OneDrive\\Documenten\\GitHub\\QMUSICSLSK\\SLSKDONET.csproj"
+              "c:\\Users\\quint\\OneDrive\\Documenten\\GitHub\\QMUSICSLSK\\SLSKDONET.csproj": {
+                "projectPath": "c:\\Users\\quint\\OneDrive\\Documenten\\GitHub\\QMUSICSLSK\\SLSKDONET.csproj"
               }
             }
           }
@@ -481,15 +485,15 @@
           "downloadDependencies": [
             {
               "name": "Microsoft.AspNetCore.App.Ref",
-              "version": "[9.0.11, 9.0.11]"
+              "version": "[9.0.12, 9.0.12]"
             },
             {
               "name": "Microsoft.NETCore.App.Ref",
-              "version": "[9.0.11, 9.0.11]"
+              "version": "[9.0.12, 9.0.12]"
             },
             {
               "name": "Microsoft.WindowsDesktop.App.Ref",
-              "version": "[9.0.11, 9.0.11]"
+              "version": "[9.0.12, 9.0.12]"
             }
           ],
           "frameworkReferences": {
@@ -497,7 +501,7 @@
               "privateAssets": "all"
             }
           },
-          "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\10.0.101/PortableRuntimeIdentifierGraph.json"
+          "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\10.0.102/PortableRuntimeIdentifierGraph.json"
         }
       }
     }

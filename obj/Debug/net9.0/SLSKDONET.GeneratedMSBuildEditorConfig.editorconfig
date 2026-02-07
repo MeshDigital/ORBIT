@@ -37,6 +37,9 @@ build_metadata.AdditionalFiles.SourceItemGroup = AvaloniaXaml
 [C:/Users/quint/OneDrive/Documenten/GitHub/QMUSICSLSK/Themes/AvaloniaTheme.axaml]
 build_metadata.AdditionalFiles.SourceItemGroup = AvaloniaXaml
 
+[C:/Users/quint/OneDrive/Documenten/GitHub/QMUSICSLSK/Themes/GlassConsoleStyles.axaml]
+build_metadata.AdditionalFiles.SourceItemGroup = AvaloniaXaml
+
 [C:/Users/quint/OneDrive/Documenten/GitHub/QMUSICSLSK/Views/Avalonia/AnalysisQueuePage.axaml]
 build_metadata.AdditionalFiles.SourceItemGroup = AvaloniaXaml
 
@@ -106,6 +109,9 @@ build_metadata.AdditionalFiles.SourceItemGroup = AvaloniaXaml
 [C:/Users/quint/OneDrive/Documenten/GitHub/QMUSICSLSK/Views/Avalonia/Controls/TrackCard.axaml]
 build_metadata.AdditionalFiles.SourceItemGroup = AvaloniaXaml
 
+[C:/Users/quint/OneDrive/Documenten/GitHub/QMUSICSLSK/Views/Avalonia/DiagnosticsPanel.axaml]
+build_metadata.AdditionalFiles.SourceItemGroup = AvaloniaXaml
+
 [C:/Users/quint/OneDrive/Documenten/GitHub/QMUSICSLSK/Views/Avalonia/Dialogs/CreateSmartPlaylistDialog.axaml]
 build_metadata.AdditionalFiles.SourceItemGroup = AvaloniaXaml
 
@@ -122,6 +128,9 @@ build_metadata.AdditionalFiles.SourceItemGroup = AvaloniaXaml
 build_metadata.AdditionalFiles.SourceItemGroup = AvaloniaXaml
 
 [C:/Users/quint/OneDrive/Documenten/GitHub/QMUSICSLSK/Views/Avalonia/FlowBuilderView.axaml]
+build_metadata.AdditionalFiles.SourceItemGroup = AvaloniaXaml
+
+[C:/Users/quint/OneDrive/Documenten/GitHub/QMUSICSLSK/Views/Avalonia/ForensicUnifiedView.axaml]
 build_metadata.AdditionalFiles.SourceItemGroup = AvaloniaXaml
 
 [C:/Users/quint/OneDrive/Documenten/GitHub/QMUSICSLSK/Views/Avalonia/HomePage.axaml]
