@@ -14,6 +14,10 @@ using SLSKDONET.Services.Musical;
 using SLSKDONET.Services.AI;
 using SLSKDONET.ViewModels.Stem;
 using Microsoft.Extensions.Logging;
+using SLSKDONET.Services.Export;
+using SLSKDONET.Services.IO;
+using SLSKDONET.Views;
+using SLSKDONET.Data.Essentia;
 
 namespace SLSKDONET.ViewModels;
 
@@ -33,6 +37,10 @@ public class ForensicUnifiedViewModel : ReactiveObject
     private readonly MultiTrackEngine _multiTrackEngine;
     private readonly PlayerViewModel _playerViewModel;
     private readonly Services.Analysis.SetlistStressTestService _stressTestService;
+    private readonly ITaggerService _taggerService;
+    private readonly IRekordboxExportService _exportService;
+    private readonly IAudioIntelligenceService _intelligenceService;
+    private readonly INotificationService _notificationService;
 
     public ForensicLabViewModel DeckA => _forensicLab;
     public ForensicLabViewModel DeckB { get; }
@@ -48,6 +56,7 @@ public class ForensicUnifiedViewModel : ReactiveObject
     public System.Windows.Input.ICommand UpdateCueCommand { get; }
     public System.Windows.Input.ICommand UpdateSegmentCommand { get; }
     public System.Windows.Input.ICommand ToggleInstOnlyCommand { get; }
+    public System.Windows.Input.ICommand CommitMetadataCommand { get; }
 
     public ObservableCollection<SonicMatch> AiMatches { get; } = new();
 
@@ -69,7 +78,32 @@ public class ForensicUnifiedViewModel : ReactiveObject
     public bool AnalyzeHarmonicsInstOnly
     {
         get => _analyzeHarmonicsInstOnly;
-        set => this.RaiseAndSetIfChanged(ref _analyzeHarmonicsInstOnly, value);
+        set 
+        {
+            if (this.RaiseAndSetIfChanged(ref _analyzeHarmonicsInstOnly, value))
+                _ = RunInstrumentalAnalysisAsync();
+        }
+    }
+
+    private string? _eclipseKey;
+    public string? EclipseKey
+    {
+        get => _eclipseKey;
+        set => this.RaiseAndSetIfChanged(ref _eclipseKey, value);
+    }
+
+    private float _eclipseConfidence;
+    public float EclipseConfidence
+    {
+        get => _eclipseConfidence;
+        set => this.RaiseAndSetIfChanged(ref _eclipseConfidence, value);
+    }
+
+    private bool _showEclipseBadge;
+    public bool ShowEclipseBadge
+    {
+        get => _showEclipseBadge;
+        set => this.RaiseAndSetIfChanged(ref _showEclipseBadge, value);
     }
 
     private double _crossfaderPosition = 0.5;
@@ -132,6 +166,10 @@ public class ForensicUnifiedViewModel : ReactiveObject
         MultiTrackEngine multiTrackEngine,
         PlayerViewModel playerViewModel,
         Services.Analysis.SetlistStressTestService stressTestService,
+        ITaggerService taggerService,
+        IRekordboxExportService exportService,
+        IAudioIntelligenceService intelligenceService,
+        INotificationService notificationService,
         ILoggerFactory loggerFactory)
     {
         _eventBus = eventBus;
@@ -144,6 +182,10 @@ public class ForensicUnifiedViewModel : ReactiveObject
         _multiTrackEngine = multiTrackEngine;
         _playerViewModel = playerViewModel;
         _stressTestService = stressTestService;
+        _taggerService = taggerService;
+        _exportService = exportService;
+        _intelligenceService = intelligenceService;
+        _notificationService = notificationService;
         
         // Initialize Deck B
         DeckB = new ForensicLabViewModel(_eventBus, _libraryService); 
@@ -166,6 +208,8 @@ public class ForensicUnifiedViewModel : ReactiveObject
         {
             // Placeholder for structural segment updates
         });
+
+        CommitMetadataCommand = ReactiveCommand.CreateFromTask(CommitMetadataAsync);
         
         FindBridgeCommand = ReactiveCommand.CreateFromTask<LibraryEntryEntity>(async (track, ct) => 
         {
@@ -332,6 +376,86 @@ public class ForensicUnifiedViewModel : ReactiveObject
         catch (Exception ex)
         {
             System.Diagnostics.Debug.WriteLine($"Failed to load Deck B: {ex.Message}");
+        }
+    }
+
+    private async Task RunInstrumentalAnalysisAsync()
+    {
+        if (CurrentTrack == null || !AnalyzeHarmonicsInstOnly)
+        {
+            ShowEclipseBadge = false;
+            return;
+        }
+
+        IsBusy = true;
+        try
+        {
+            // Find instrumental stem
+            var stems = _separationService.GetStemPaths(CurrentTrack.UniqueHash);
+            var instPath = stems.TryGetValue(StemType.Other, out var path) ? path : null; 
+
+            if (instPath == null || !File.Exists(instPath))
+            {
+                _notificationService.Show("Instrumental stem missing. Run separation first.", "Eclipse Mode", NotificationType.Warning);
+                return;
+            }
+
+            var features = await _intelligenceService.AnalyzeTrackAsync(instPath, CurrentTrack.UniqueHash + "_INST", tier: AnalysisTier.Tier1);
+            if (features != null)
+            {
+                EclipseKey = features.CamelotKey;
+                EclipseConfidence = features.KeyConfidence;
+                ShowEclipseBadge = EclipseKey != DeckA.CamelotKey;
+            }
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"Instrumental analysis failed: {ex.Message}");
+        }
+        finally
+        {
+            IsBusy = false;
+        }
+    }
+
+    private async Task CommitMetadataAsync()
+    {
+        if (CurrentTrack == null) return;
+
+        IsBusy = true;
+        try
+        {
+            // 1. Tag ID3 using TaggerService
+            // Note: We need to map LibraryEntryEntity back to a model the tagger understands
+            var trackModel = new Track 
+            {
+                Title = CurrentTrack.Title,
+                Artist = CurrentTrack.Artist,
+                Metadata = new System.Collections.Generic.Dictionary<string, object>
+                {
+                    ["MusicalKey"] = DeckA.CamelotKey,
+                    ["Comment"] = $"[Energy {DeckA.EnergyScore}] {(ShowEclipseBadge ? "[Eclipse Match]" : "")}"
+                }
+            };
+            
+            bool tagged = await _taggerService.TagFileAsync(trackModel, CurrentTrack.FilePath!);
+            
+            // 2. Update Rekordbox XML
+            bool xmlUpdated = await _exportService.UpdateTrackInXmlAsync(CurrentTrack.UniqueHash); 
+
+            if (tagged && xmlUpdated)
+            {
+                _notificationService.Show("Metadata committed to tags & Rekordbox", "Commit Success", NotificationType.Success);
+                _eventBus.Publish(new TrackMetadataUpdatedEvent(CurrentTrack.UniqueHash));
+            }
+        }
+        catch (Exception ex)
+        {
+             _notificationService.Show($"Commit failed: {ex.Message}", "Error", NotificationType.Error);
+        }
+        finally
+        {
+            IsBusy = false;
         }
     }
 

@@ -103,11 +103,35 @@
                                                          Value="{Binding Lab.KeyConfidence}" 
                                                          Label="HARMONICS" 
                                                          Color="#1E88E5"/>
+                                
+                                <!-- ECLIPSE SYNC BADGE (Phase 3) -->
+                                <Border Height="36" Padding="10,0" Background="#1A1E88E5" CornerRadius="18" BorderBrush="#331E88E5" BorderThickness="1" VerticalAlignment="Center" IsVisible="{Binding ShowEclipseBadge}">
+                                     <StackPanel Orientation="Horizontal" Spacing="8">
+                                          <PathIcon Data="{StaticResource sparkles_regular}" Width="14" Height="14" Foreground="#1E88E5"/>
+                                          <StackPanel VerticalAlignment="Center">
+                                               <TextBlock Text="{Binding EclipseKey}" FontSize="12" FontWeight="Black" Foreground="White" HorizontalAlignment="Center"/>
+                                               <TextBlock Text="ECLIPSE MATCH" FontSize="7" Foreground="#888" FontWeight="Black"/>
+                                          </StackPanel>
+                                     </StackPanel>
+                                </Border>
                             </StackPanel>
 
                             <!-- Window Controls & View Toggle -->
-                            <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="12" VerticalAlignment="Center" Margin="24,0">
+                            <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="24" VerticalAlignment="Center" Margin="24,0">
                                 
+                                <!-- COMMIT ACTION (Phase 4) -->
+                                <Border CornerRadius="8" BoxShadow="0 4 15 0 #20000000">
+                                    <Button Command="{Binding CommitMetadataCommand}" Classes="glass" Height="48" Padding="16,0" BorderBrush="#444EC9B0">
+                                         <StackPanel Orientation="Horizontal" Spacing="10">
+                                              <PathIcon Data="{StaticResource save_regular}" Width="18" Height="18" Foreground="#4EC9B0"/>
+                                              <StackPanel VerticalAlignment="Center">
+                                                   <TextBlock Text="COMMIT" FontSize="13" FontWeight="Black" Foreground="White" LetterSpacing="1"/>
+                                                   <TextBlock Text="SYNC FORENSIC DATA" FontSize="8" Foreground="#666" FontWeight="Bold"/>
+                                              </StackPanel>
+                                         </StackPanel>
+                                    </Button>
+                                </Border>
+
                                 <Border Background="#10FFFFFF" BorderBrush="#20FFFFFF" BorderThickness="1" CornerRadius="8" Padding="4">
                                     <StackPanel Orientation="Horizontal" Spacing="4">
                                         <Button Classes="toggle"

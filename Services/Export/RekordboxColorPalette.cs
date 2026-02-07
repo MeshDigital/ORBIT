@@ -98,10 +98,8 @@ namespace SLSKDONET.Services.Export
         {
             return energyScore switch
             {
-                >= 9 => SLSKDONET.Models.CueColor.Red,
-                >= 7 => SLSKDONET.Models.CueColor.Orange,
-                >= 5 => SLSKDONET.Models.CueColor.Yellow,
-                >= 3 => SLSKDONET.Models.CueColor.Green,
+                >= 8 => SLSKDONET.Models.CueColor.Red,
+                >= 4 => SLSKDONET.Models.CueColor.Green,
                 _ => SLSKDONET.Models.CueColor.Blue
             };
         }

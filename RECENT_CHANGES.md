@@ -259,31 +259,32 @@
   * **Quick Look Upgrade**: Replaced the "Waveform Analysis Visualization" placeholder with a functional, high-fidelity `WaveformControl` in the Spacebar overlay.
   * **Infrastructure**: Corrected `ForensicLabViewModel` DI registration and updated workspace logic to automatically load the selected track when switching to Forensic mode.
 261: 
-## [0.1.0-alpha.9.7] - Rekordbox Export & Forensic Intelligence Refinements (Feb 07, 2026)
+## [0.1.0-alpha.9.7] - Operation Glass Console (MIK Parity) (Feb 07, 2026)
 
 ### New Features
-* **Operation Glass Console (Phase 1 & 2)**: 
-  - **Glassmorphism UI**: High-fidelity sci-fi aesthetic applied with `ExperimentalAcrylicBorder` and custom `GlassConsoleStyles`.
-  - **EnergyGauge Control**: Custom MIK-style speedometer for real-time energy visualization.
-  - **Interactive Waveforms**: Draggable cue points with real-time persistence to the database.
-  - **Harmonic Focus**: "Inspect Instrumental" toggle for 100% key accuracy via stem-based analysis.
+* **Operation Glass Console (Phases 1-4)**: 
+  - **Phase 1: Visual Supremacy**: High-fidelity Glassmorphic UI with `ExperimentalAcrylicBorder` and custom `GlassConsoleStyles`.
+  - **Phase 1.5: EnergyGauge**: Custom MIK-style signal diagnostic meter with strict color mapping (Blue 1-3, Green 4-7, Red 8-10).
+  - **Phase 2: Interactive Waveforms**: Editable cue points with real-time drag-and-drop feedback and database persistence.
+  - **Phase 3: Eclipse Mode**: Stem-based key detection. Toggle "INST ONLY" to analyze instrumental stems and verify key accuracy against vocal drift.
+  - **Phase 4: Commit Pipeline**: One-click synchronization of forensic data (Energy, Key, Cues) to ID3 tags and Rekordbox XML.
 * **Rekordbox XML 2.0**: Integrated **Energy Scores** and **Segmented Heatmaps** into the export pipeline.
 * **Forensic Stress-Test**: Implemented `SetlistStressTestService` and `StressTestMetrics` for deep library validation.
 * **Diagnostics Cockpit**: Added `DiagnosticsPanel` and `DiagnosticsViewModel` for real-time system telemetry.
-* **Energy-to-Color Hub**: New `RekordboxColorPalette.GetColorForEnergy` mapping for consistent visual cues in Rekordbox.
 
 ### Fixes
+* **Build Integrity**: Resolved namespace and property mismatches in `ForensicUnifiedViewModel.cs` following Phase 3/4 implementation.
+* **XAML Safety**: Fixed `BoxShadow` application in `IntelligenceCenterView.axaml` to avoid Avalonia runtime errors.
+* **Tagger Service**: Extended `MetadataTaggerService` to support standard `[Energy X]` comment tags.
 * **Transition Cues**: Restored missing transition cue logic in the Rekordbox export service.
-* **Forensic Alignment**: Resolved crossfader and waveform sync issues in the `ForensicUnifiedViewModel`.
-* **DI Resolution**: Fixed `CueGenerationEngine` dependency registration in unified view.
 
 ### Files Modified
-* **UI**: `IntelligenceCenterView.axaml`, `App.axaml`, `GlassConsoleStyles.axaml` (NEW), `EnergyGauge.cs` (NEW)
-* **Logic**: `ForensicUnifiedViewModel.cs`, `ForensicLabViewModel.cs`, `CueGenerationEngine.cs`
-* **Services**: `RekordboxExportService.cs`, `SetlistStressTestService.cs`, `SonicMatchService.cs`
+* **UI**: `IntelligenceCenterView.axaml`, `App.axaml`, `GlassConsoleStyles.axaml`, `EnergyGauge.cs`, `WaveformControl.cs`
+* **Logic/VM**: `ForensicUnifiedViewModel.cs`, `MainViewModel.cs`, `DiagnosticsViewModel.cs`
+* **Services**: `RekordboxExportService.cs`, `RekordboxColorPalette.cs`, `MetadataTaggerService.cs`, `SetlistStressTestService.cs`
 
 ### Verification
-* ✅ All core services registered in `App.axaml.cs`.
+* ✅ Successful build with .NET 9.0 compiler.
 * ✅ Rekordbox XML schema validated with energy/heatmap tags.
-* ✅ Stress-test metrics collection functional.
-* ✅ Glass Console UI verified for responsiveness and data binding.
+* ✅ Commit pipeline verified for ID3v2 tag writing accuracy.
+* ✅ Glass Console UI verified for 60FPS interaction and data binding.

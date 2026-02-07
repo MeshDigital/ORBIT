@@ -271,6 +271,22 @@ namespace SLSKDONET.Views.Avalonia.Controls
         {
             var point = e.GetPosition(this);
             var data = WaveformData;
+            var cues = Cues;
+
+            bool hoverCue = false;
+            if (cues != null && data != null && data.DurationSeconds > 0)
+            {
+                foreach (var cue in cues)
+                {
+                    double cx = GetCueX(cue, data);
+                    if (Math.Abs(point.X - cx) <= CueHitThreshold)
+                    {
+                        hoverCue = true;
+                        break;
+                    }
+                }
+            }
+            Cursor = hoverCue || _isDraggingCue ? new global::Avalonia.Input.Cursor(global::Avalonia.Input.StandardCursorType.SizeWestEast) : null;
 
             if (_isDraggingCue && _draggedCue != null && data != null && data.DurationSeconds > 0)
             {

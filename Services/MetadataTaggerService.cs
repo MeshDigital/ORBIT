@@ -159,6 +159,12 @@ public class MetadataTaggerService : ITaggerService
                                     file.Tag.InitialKey = keyStr;
                                 }
 
+                                // 1b. Comment (COMM)
+                                if (track.Metadata.TryGetValue("Comment", out var commentObj) && commentObj is string commentStr)
+                                {
+                                    file.Tag.Comment = commentStr;
+                                }
+
                                 // 2. BPM (TBPM)
                                 if (track.Metadata.TryGetValue("BPM", out var bpmObj))
                                 {

@@ -44,6 +44,11 @@ namespace SLSKDONET.Services.Export
             CancellationToken ct = default);
 
         /// <summary>
+        /// Updates a single track's metadata and cue points in the target Rekordbox XML.
+        /// </summary>
+        Task<bool> UpdateTrackInXmlAsync(string trackHash, string? targetXmlPath = null);
+
+        /// <summary>
         /// Generates Rekordbox XML from export models without writing to disk.
         /// </summary>
         string GenerateXml(IEnumerable<SLSKDONET.Models.ExportTrack> tracks, IEnumerable<SLSKDONET.Models.ExportPlaylist> playlists);
