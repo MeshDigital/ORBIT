@@ -187,6 +187,15 @@
                         <!-- DISCOVERY HUB -->
                         <TextBlock Text="DISCOVERY" FontSize="11" FontWeight="Bold" Foreground="#666" Margin="16,8,0,4" LetterSpacing="1"/>
                         <Button Classes="nav" 
+                                Command="{Binding NavigateDiscoveryHubCommand}"
+                                Classes.selected="{Binding CurrentPageType, Converter={StaticResource EqualityConverter}, ConverterParameter={x:Static models:PageType.DiscoveryHub}}">
+                            <StackPanel Orientation="Horizontal" Spacing="12" Margin="16,0">
+                                <TextBlock Text="🛸" FontSize="16"/>
+                                <TextBlock Text="Discovery Hub" FontSize="14"/>
+                            </StackPanel>
+                        </Button>
+
+                        <Button Classes="nav" 
                                 Command="{Binding NavigateHomeCommand}"
                                 Classes.selected="{Binding CurrentPageType, Converter={StaticResource EqualityConverter}, ConverterParameter={x:Static models:PageType.Home}}">
                             <StackPanel Orientation="Horizontal" Spacing="12" Margin="16,0">

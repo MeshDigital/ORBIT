@@ -12,6 +12,7 @@ using Avalonia.Threading;
 using System.Collections.Generic; // Added this using directive
 using SLSKDONET.Models;
 using SpotifyAPI.Web; // For SimplePlaylist
+using SLSKDONET.ViewModels.Discovery;
 using SLSKDONET.Services.ImportProviders; // Added for SpotifyLikedSongsImportProvider
 using System.Reactive.Disposables;
 using System.Reactive.Linq;
@@ -48,6 +49,7 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
     public PlayerViewModel PlayerViewModel { get; }
     public LibraryViewModel LibraryViewModel { get; }
     public SearchViewModel SearchViewModel { get; }
+    public DiscoveryHubViewModel DiscoveryHubViewModel { get; }
     public ConnectionViewModel ConnectionViewModel { get; }
     public SettingsViewModel SettingsViewModel { get; }
     public HomeViewModel HomeViewModel { get; }
@@ -116,7 +118,8 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
         TheaterModeViewModel theaterModeViewModel,
         ViewModels.Timeline.SetDesignerViewModel setDesignerViewModel,
         FlowBuilderViewModel flowBuilderViewModel,
-        ExportManagerViewModel exportManagerViewModel)
+        ExportManagerViewModel exportManagerViewModel,
+        DiscoveryHubViewModel discoveryHubViewModel)
 
     {
         _logger = logger;
@@ -153,6 +156,7 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
         SetDesignerViewModel = setDesignerViewModel;
         FlowBuilderViewModel = flowBuilderViewModel;
         ExportManagerViewModel = exportManagerViewModel;
+        DiscoveryHubViewModel = discoveryHubViewModel;
 
 
         // Initialize commands
@@ -170,6 +174,7 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
         NavigateDJCompanionCommand = new RelayCommand(NavigateToDJCompanion);
         NavigateFlowBuilderCommand = new RelayCommand(NavigateToFlowBuilder);
         NavigateExportCommand = new RelayCommand(NavigateToExport);
+        NavigateDiscoveryHubCommand = new RelayCommand(NavigateToDiscoveryHub);
         ToggleNavigationCommand = new RelayCommand(() => IsNavigationCollapsed = !IsNavigationCollapsed);
         TogglePlayerCommand = new RelayCommand(() => IsPlayerSidebarVisible = !IsPlayerSidebarVisible);
         TogglePlayerLocationCommand = new RelayCommand(() => IsPlayerAtBottom = !IsPlayerAtBottom);
@@ -315,6 +320,7 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
         _navigationService.RegisterPage("Theater", typeof(Avalonia.TheaterModePage));
         _navigationService.RegisterPage("FlowBuilder", typeof(Avalonia.FlowBuilderView));
         _navigationService.RegisterPage("Export", typeof(Avalonia.ExportManagerView));
+        _navigationService.RegisterPage("DiscoveryHub", typeof(Avalonia.DiscoveryHubView));
         
         // Subscribe to navigation events
         _navigationService.Navigated += OnNavigated;
@@ -629,6 +635,7 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
     public ICommand NavigateDJCompanionCommand { get; }
     public ICommand NavigateFlowBuilderCommand { get; }
     public ICommand NavigateExportCommand { get; }
+    public ICommand NavigateDiscoveryHubCommand { get; }
     public ICommand NavigateImportCommand { get; } // Phase 6D
     public ICommand ToggleNavigationCommand { get; }
     public ICommand TogglePlayerCommand { get; }
@@ -781,6 +788,16 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
         {
             page.DataContext = ExportManagerViewModel;
             _ = ExportManagerViewModel.LoadSetsCommand.ExecuteAsync(null);
+        }
+    }
+
+    private void NavigateToDiscoveryHub()
+    {
+        _navigationService.NavigateTo("DiscoveryHub");
+        
+        if (CurrentPage is Avalonia.DiscoveryHubView page)
+        {
+            page.DataContext = DiscoveryHubViewModel;
         }
     }
 

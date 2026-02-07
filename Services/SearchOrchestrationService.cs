@@ -69,39 +69,79 @@ public class SearchOrchestrationService
         string preferredFormats,
         int minBitrate,
         int maxBitrate,
-        bool isAlbumSearch, // Kept for API compatibility, but grouping is now consumer responsibility
+        bool isAlbumSearch, 
         [EnumeratorCancellation] CancellationToken cancellationToken)
     {
-        // Throttling Check
+        var variations = _searchNormalization.GenerateSearchVariations(query);
+        var seenHashes = new HashSet<string>();
+        int totalFound = 0;
+
+        // Throttling Check (Acquire once for the entire cascade)
         bool acquired = false;
         try 
         {
-            // Try to acquire slot immediately or wait briefly
-            // This prevents queueing 500 searches that will execute 10 minutes later
             await _searchSemaphore.WaitAsync(cancellationToken);
             acquired = true;
-
             Interlocked.Increment(ref _activeSearchCount);
 
-            _logger.LogInformation("Streaming search started for: {Query} (Slots free: {Count})", 
-                query, _searchSemaphore.CurrentCount);
-        
-        // Phase 4.6 HOTFIX: Use new SearchNormalizationService instead of aggressive parenthesis stripping
-        // OLD (BROKEN): Removes ALL parentheses including (VIP), (feat. X), (Remix)
-        // NEW: Preserves musical identity, only removes junk
-        var (normalizedArtist, normalizedTitle) = _searchNormalization.NormalizeForSoulseek("", query);
-        var normalizedQuery = normalizedTitle;
-        
-        // Legacy normalization (feat removal) - now redundant but kept for safety
-        // SearchNormalizationService already handles this better
-        // normalizedQuery = _searchQueryNormalizer.RemoveFeatArtists(normalizedQuery);
-        // normalizedQuery = _searchQueryNormalizer.RemoveYoutubeMarkers(normalizedQuery); // REMOVED: This was the bug!
-        
+            foreach (var variation in variations)
+            {
+                _logger.LogInformation("Cascade Search: Attempting variation '{Variation}' (Attempting {Idx} of {Count})", 
+                    variation, variations.IndexOf(variation) + 1, variations.Count);
+
+                bool foundInThisVariation = false;
+                
+                await foreach (var track in StreamAndRankResultsAsync(
+                    variation, 
+                    preferredFormats, 
+                    minBitrate, 
+                    maxBitrate, 
+                    cancellationToken))
+                {
+                    if (seenHashes.Add(track.UniqueHash))
+                    {
+                        yield return track;
+                        totalFound++;
+                        foundInThisVariation = true;
+                    }
+                }
+
+                // Smart Stop: If we found hits with a better strategy, don't fallback to noisier ones
+                // Unless it's an album search where we want as much coverage as possible.
+                if (foundInThisVariation && !isAlbumSearch && totalFound >= 5)
+                {
+                    _logger.LogInformation("Cascade Search: Found {Count} results for '{Variation}'. Stopping cascade.", totalFound, variation);
+                    break;
+                }
+
+                if (!foundInThisVariation && variations.IndexOf(variation) < variations.Count - 1)
+                {
+                    _logger.LogInformation("Cascade Search: No new results for '{Variation}'. Trying next variation...", variation);
+                    await Task.Delay(500, cancellationToken); // Stagger
+                }
+            }
+        }
+        finally
+        {
+            if (acquired)
+            {
+                Interlocked.Decrement(ref _activeSearchCount);
+                _searchSemaphore.Release();
+            }
+        }
+    }
+
+    private async IAsyncEnumerable<Track> StreamAndRankResultsAsync(
+        string normalizedQuery,
+        string preferredFormats,
+        int minBitrate,
+        int maxBitrate,
+        [EnumeratorCancellation] CancellationToken cancellationToken)
+    {
         var formatFilter = preferredFormats.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
-        
-        // Prepare ranking context once
         var searchTrack = new Track { Title = normalizedQuery };
         var evaluator = new FileConditionEvaluator();
+        
         if (formatFilter.Length > 0)
         {
             evaluator.AddRequired(new FormatCondition { AllowedFormats = formatFilter.ToList() });
@@ -115,7 +155,6 @@ public class SearchOrchestrationService
             });
         }
 
-        // Stream results from adapter
         await foreach (var track in _soulseek.StreamResultsAsync(
             normalizedQuery,
             formatFilter,
@@ -123,27 +162,9 @@ public class SearchOrchestrationService
             DownloadMode.Normal,
             cancellationToken))
         {
-            // GATEKEEPER CHECK (Phase 14A: The Bouncer)
-            // Evaluates safety and sets IsFlagged property, but does NOT filter out results.
-            // UI will handle "Ghosting" of flagged tracks.
             _safetyFilter.EvaluateSafety(track, normalizedQuery);
-
-            /* OLD: Filtering
-            if (!_safetyFilter.IsSafe(track, normalizedQuery)) { continue; }
-            */
-
-            // Rank on-the-fly
             ResultSorter.CalculateRank(track, searchTrack, evaluator);
             yield return track;
-        }
-        }
-        finally
-        {
-            if (acquired)
-            {
-                Interlocked.Decrement(ref _activeSearchCount);
-                _searchSemaphore.Release();
-            }
         }
     }
     

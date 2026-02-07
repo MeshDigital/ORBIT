@@ -1,0 +1,145 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:vm="clr-namespace:SLSKDONET.ViewModels.Discovery"
+             xmlns:spotify="clr-namespace:SpotifyAPI.Web;assembly=SpotifyAPI.Web"
+             mc:Ignorable="d" d:DesignWidth="1200" d:DesignHeight="800"
+             x:Class="SLSKDONET.Views.Avalonia.DiscoveryHubView"
+             x:DataType="vm:DiscoveryHubViewModel">
+
+    <Design.PreviewWith>
+        <Border Padding="20">
+            <!-- Preview here if needed -->
+        </Border>
+    </Design.PreviewWith>
+
+    <Grid ColumnDefinitions="300,*">
+        <!-- Sidebar: My Spotify -->
+        <Border Grid.Column="0" Background="#121212" BorderBrush="#282828" BorderThickness="0,0,1,0" Padding="16">
+            <DockPanel>
+                <StackPanel DockPanel.Dock="Top" Spacing="16" Margin="0,0,0,24">
+                    <TextBlock Text="Discovery Hub" FontSize="20" FontWeight="ExtraBold" Foreground="#1DB954"/>
+                    <Button Command="{Binding RefreshSpotifyCommand}" HorizontalAlignment="Stretch" Classes="spotify-action">
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                            <TextBlock Text="🔄"/>
+                            <TextBlock Text="Sync Spotify Library"/>
+                        </StackPanel>
+                    </Button>
+                </StackPanel>
+
+                <ScrollViewer>
+                    <StackPanel Spacing="24">
+                        <!-- Playlists -->
+                        <StackPanel Spacing="12">
+                            <TextBlock Text="Your Playlists" FontSize="12" FontWeight="Bold" Foreground="#888"/>
+                            <ItemsControl ItemsSource="{Binding UserPlaylists}">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <Button Classes="playlist-link" Command="{Binding $parent[UserControl].((vm:DiscoveryHubViewModel)DataContext).LoadPlaylistTracksCommand}" CommandParameter="{Binding Id}">
+                                            <Grid ColumnDefinitions="Auto,*">
+                                                <Border Width="32" Height="32" CornerRadius="4" ClipToBounds="True" Background="#1A1A1A">
+                                                    <!-- Image placeholder or AsyncImage if available -->
+                                                    <TextBlock Text="💿" VerticalAlignment="Center" HorizontalAlignment="Center" FontSize="14"/>
+                                                </Border>
+                                                <TextBlock Grid.Column="1" Text="{Binding Name}" VerticalAlignment="Center" Margin="12,0" TextTrimming="CharacterEllipsis" FontSize="13"/>
+                                            </Grid>
+                                        </Button>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </StackPanel>
+
+                        <!-- Saved Tracks -->
+                        <StackPanel Spacing="12">
+                            <TextBlock Text="Last Liked" FontSize="12" FontWeight="Bold" Foreground="#888"/>
+                            <ItemsControl ItemsSource="{Binding SavedTracks}">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <Grid ColumnDefinitions="Auto,*" Margin="0,4" ToolTip.Tip="{Binding Track.Name}">
+                                            <TextBlock Text="🎵" Foreground="#1DB954" Opacity="0.7"/>
+                                            <StackPanel Grid.Column="1" Margin="8,0">
+                                                <TextBlock Text="{Binding Track.Name}" FontSize="12" FontWeight="SemiBold" TextTrimming="CharacterEllipsis"/>
+                                                <!-- Artist info would go here if available on Track -->
+                                            </StackPanel>
+                                        </Grid>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </StackPanel>
+                    </StackPanel>
+                </ScrollViewer>
+            </DockPanel>
+        </Border>
+
+        <!-- Main Area: Command Center -->
+        <Grid Grid.Column="1" RowDefinitions="Auto,*,Auto">
+            
+            <!-- Glass Header Search Area -->
+            <Border Grid.Row="0" Background="#1A1A1A" BorderBrush="#282828" BorderThickness="0,0,0,1" Padding="32,24">
+                <StackPanel Spacing="20">
+                    <Grid ColumnDefinitions="*,Auto">
+                        <Border Background="#121212" CornerRadius="12" BorderBrush="#333" BorderThickness="1" Height="50" HorizontalAlignment="Stretch">
+                            <Grid ColumnDefinitions="Auto,*,Auto">
+                                <TextBlock Text="🔍" VerticalAlignment="Center" Margin="16,0" Opacity="0.5"/>
+                                <TextBox Grid.Column="1" Text="{Binding SearchQuery}" Watermark="Deep Dive Artist, Track or ISRC..." 
+                                         Background="Transparent" BorderThickness="0" VerticalContentAlignment="Center" FontSize="16"/>
+                                <Button Grid.Column="2" Command="{Binding SearchCommand}" Classes="accent" Content="CASCADE SEARCH" 
+                                        CornerRadius="0,11,11,0" Padding="24,0" Height="50" FontWeight="Bold"/>
+                            </Grid>
+                        </Border>
+                    </Grid>
+                </StackPanel>
+            </Border>
+
+            <!-- Results Grid (Placeholder for advanced AnalyzedSearchResultViewModels) -->
+            <Grid Grid.Row="1">
+                <ScrollViewer>
+                    <StackPanel Spacing="2" Margin="16">
+                         <!-- ItemsControl for Results with Heatmap logic -->
+                         <TextBlock Text="Extraction Grid" Foreground="#333" FontSize="40" FontWeight="Black" Opacity="0.1" HorizontalAlignment="Center" Margin="0,100"/>
+                    </StackPanel>
+                </ScrollViewer>
+                
+                <ProgressBar IsIndeterminate="True" VerticalAlignment="Top" IsVisible="{Binding IsSearching}" Foreground="#1DB954" Background="Transparent" Height="2"/>
+            </Grid>
+            
+            <!-- Bottom Status Glass -->
+            <Border Grid.Row="2" Background="#121212" BorderBrush="#282828" BorderThickness="0,1,0,0" Padding="16,8">
+                <StackPanel Orientation="Horizontal" Spacing="24">
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                        <TextBlock Text="Bouncer Status:" Foreground="#888" FontSize="11" VerticalAlignment="Center"/>
+                        <TextBlock Text="STRICT" Foreground="#1DB954" FontWeight="Bold" FontSize="11" VerticalAlignment="Center"/>
+                    </StackPanel>
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                        <TextBlock Text="Active Extraction:" Foreground="#888" FontSize="11" VerticalAlignment="Center"/>
+                        <TextBlock Text="{Binding SearchResults.Count, StringFormat='{}{0} results'}" Foreground="White" FontSize="11" VerticalAlignment="Center"/>
+                    </StackPanel>
+                </StackPanel>
+            </Border>
+        </Grid>
+    </Grid>
+
+    <UserControl.Styles>
+        <Style Selector="Button.spotify-action">
+            <Setter Property="Background" Value="#222"/>
+            <Setter Property="BorderBrush" Value="#333"/>
+            <Setter Property="Padding" Value="12,8"/>
+            <Setter Property="CornerRadius" Value="8"/>
+        </Style>
+        <Style Selector="Button.spotify-action:pointerover /template/ ContentPresenter">
+            <Setter Property="Background" Value="#1DB954"/>
+            <Setter Property="Foreground" Value="Black"/>
+        </Style>
+        
+        <Style Selector="Button.playlist-link">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="HorizontalAlignment" Value="Stretch"/>
+            <Setter Property="Padding" Value="8"/>
+            <Setter Property="CornerRadius" Value="6"/>
+        </Style>
+        <Style Selector="Button.playlist-link:pointerover /template/ ContentPresenter">
+            <Setter Property="Background" Value="#282828"/>
+        </Style>
+    </UserControl.Styles>
+</UserControl>

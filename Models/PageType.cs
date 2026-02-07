@@ -17,5 +17,6 @@ public enum PageType
     DJCompanion,
     DawTimeline,
     FlowBuilder,
-    Export
+    Export,
+    DiscoveryHub
 }

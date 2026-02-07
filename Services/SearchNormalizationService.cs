@@ -180,4 +180,70 @@ public class SearchNormalizationService
         
         return withoutExt.Trim();
     }
+
+    /// <summary>
+    /// Generates a prioritized list of search queries to maximize P2P hits.
+    /// Solves the "Artist - Title" (hyphen) issue and handles common "garbage" terms.
+    /// </summary>
+    public System.Collections.Generic.List<string> GenerateSearchVariations(string rawInput)
+    {
+        var variations = new System.Collections.Generic.List<string>();
+        if (string.IsNullOrWhiteSpace(rawInput)) return variations;
+
+        // 1. Exact Input (Cleaned)
+        var clean = rawInput.Trim();
+        variations.Add(clean);
+
+        // 2. Hyphen Handling (The "Basstripper" Fix)
+        if (clean.Contains("-"))
+        {
+            // Replace hyphen with space
+            var noHyphen = clean.Replace("-", " ");
+            variations.Add(Regex.Replace(noHyphen, @"\s+", " ").Trim());
+
+            // Split and Swap (Artist - Title -> Title Artist)
+            var parts = clean.Split('-', StringSplitOptions.RemoveEmptyEntries).Select(p => p.Trim()).ToList();
+            if (parts.Count == 2)
+            {
+                variations.Add($"{parts[0]} {parts[1]}"); // Artist Title
+                variations.Add($"{parts[1]} {parts[0]}"); // Title Artist
+            }
+        }
+
+        // 3. Remove "Noise" Terms (Mix names, feats, etc.)
+        var noisePatterns = new[] 
+        { 
+            @"\boriginal mix\b", 
+            @"\bextended mix\b", 
+            @"\bfeat\.?\b", 
+            @"\bft\.?\b", 
+            @"\bofficial video\b", 
+            @"\blyrics\b",
+            @"\bremix\b",
+            @"\(\)" // Empty brackets
+        };
+
+        var stripped = clean;
+        foreach (var pattern in noisePatterns)
+        {
+            stripped = Regex.Replace(stripped, pattern, "", RegexOptions.IgnoreCase);
+        }
+        
+        // Clean up double spaces
+        stripped = Regex.Replace(stripped, @"\s+", " ").Trim();
+
+        if (!string.Equals(stripped, clean, StringComparison.OrdinalIgnoreCase) && stripped.Length > 3)
+        {
+            variations.Add(stripped);
+        }
+
+        // 4. Alpha-Numeric Only (Nuclear Option)
+        var alphaNumeric = Regex.Replace(clean, @"[^a-zA-Z0-9\s]", "");
+        if (alphaNumeric.Length > 0 && !variations.Contains(alphaNumeric))
+        {
+            variations.Add(alphaNumeric);
+        }
+
+        return variations.Distinct().ToList();
+    }
 }

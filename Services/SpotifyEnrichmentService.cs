@@ -383,6 +383,50 @@ public class SpotifyEnrichmentService
         
         return result;
     }
+
+    /// <summary>
+    /// Fetches the current user's personal playlists.
+    /// </summary>
+    public async Task<System.Collections.Generic.IEnumerable<object>> GetCurrentUserPlaylistsAsync()
+    {
+        try
+        {
+            var client = await _authService.GetAuthenticatedClientAsync();
+            if (client == null) return new System.Collections.Generic.List<object>();
+
+            var request = new PlaylistCurrentUsersRequest { Limit = 50 };
+            var firstPage = await client.Playlists.CurrentUsers(request);
+            
+            return (System.Collections.Generic.IEnumerable<object>)firstPage.Items;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to fetch user playlists");
+            return new System.Collections.Generic.List<object>();
+        }
+    }
+
+    /// <summary>
+    /// Fetches the current user's saved (liked) tracks.
+    /// </summary>
+    public async Task<System.Collections.Generic.List<SavedTrack>> GetCurrentUserSavedTracksAsync(int limit = 50)
+    {
+        try
+        {
+            var client = await _authService.GetAuthenticatedClientAsync();
+            if (client == null) return new System.Collections.Generic.List<SavedTrack>();
+
+            var request = new LibraryTracksRequest { Limit = limit };
+            var response = await client.Library.GetTracks(request);
+            
+            return response.Items?.ToList() ?? new System.Collections.Generic.List<SavedTrack>();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to fetch saved tracks");
+            return new System.Collections.Generic.List<SavedTrack>();
+        }
+    }
 }
 
 public class SpotifyTrackViewModel
