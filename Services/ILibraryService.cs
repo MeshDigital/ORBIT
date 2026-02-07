@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Threading.Tasks;
 using SLSKDONET.Data.Entities;
+using SLSKDONET.Data;
 using SLSKDONET.Models;
 
 namespace SLSKDONET.Services;
@@ -27,6 +28,7 @@ public interface ILibraryService
     /// Retrieves a library entry by its UniqueHash (asynchronous).
     /// </summary>
     Task<LibraryEntry?> FindLibraryEntryAsync(string uniqueHash);
+    Task<LibraryEntryEntity?> GetTrackEntityByHashAsync(string uniqueHash);
 
     /// <summary>
     /// Loads all library entries (main global index).

@@ -629,6 +629,7 @@ public partial class App : Application
         
         // Phase 3: Audio Analysis Services
         services.AddSingleton<WaveformAnalysisService>();
+        services.AddSingleton<Services.Analysis.SetlistStressTestService>();
         
         services.AddSingleton<DownloadManager>();
         services.AddSingleton<DownloadHealthMonitor>(); // Phase 3B: Active Health Monitor
@@ -792,6 +793,7 @@ public partial class App : Application
         
         services.AddSingleton<ViewModels.TrackInspectorViewModel>();
         services.AddSingleton<ViewModels.ForensicLabViewModel>();
+        services.AddSingleton<ViewModels.ForensicUnifiedViewModel>();
         services.AddSingleton<ViewModels.IntelligenceCenterViewModel>();
         services.AddSingleton<ViewModels.FlowBuilderViewModel>();
 
@@ -805,6 +807,12 @@ public partial class App : Application
         services.AddSingleton<ITransitionAdvisorService, TransitionAdvisorService>();
         services.AddSingleton<SetListService>();
         services.AddSingleton<ITransitionPreviewPlayer, TransitionPreviewPlayer>();
+        
+        // Stress Test Service (Performance Validation)
+        services.AddSingleton<Services.Testing.CockpitStressTestService>();
+        services.AddSingleton<Services.Testing.SessionAutopsyService>();
+        services.AddSingleton<Services.Testing.GenreBridgeTestService>();
+        services.AddSingleton<DiagnosticsViewModel>();
     }
 
     /// <summary>

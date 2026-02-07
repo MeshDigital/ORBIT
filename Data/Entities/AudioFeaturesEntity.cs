@@ -232,7 +232,7 @@ public class AudioFeaturesEntity
     /// <summary>
     /// JSON array of detected anomalies or unusual characteristics in the audio.
     /// </summary>
-    public string? AnomaliesJson { get; set; }
+    public string AnomaliesJson { get; set; } = "[]";
     
     // Raw byte storage for EF Core
     [Column("VectorEmbedding")]

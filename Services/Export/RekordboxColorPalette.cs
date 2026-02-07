@@ -90,5 +90,20 @@ namespace SLSKDONET.Services.Export
                 _ => SLSKDONET.Models.CueColor.White
             };
         }
+
+        /// <summary>
+        /// Maps an ORBIT energy score (1-10) to a Rekordbox cue color.
+        /// </summary>
+        public static SLSKDONET.Models.CueColor GetColorForEnergy(int energyScore)
+        {
+            return energyScore switch
+            {
+                >= 9 => SLSKDONET.Models.CueColor.Red,
+                >= 7 => SLSKDONET.Models.CueColor.Orange,
+                >= 5 => SLSKDONET.Models.CueColor.Yellow,
+                >= 3 => SLSKDONET.Models.CueColor.Green,
+                _ => SLSKDONET.Models.CueColor.Blue
+            };
+        }
     }
 }

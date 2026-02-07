@@ -370,12 +370,13 @@ public class EssentiaAnalyzerService : IAudioIntelligenceService, IDisposable
                     KeyConfidence = data.Tonal?.KeyEdma?.Strength ?? 0,
                     CamelotKey = string.Empty, // Will be calculated by KeyConverter in Phase 4.3
                     
-                    // Sonic Characteristics
-                    // Phase 13A: Improved Energy mapping
-                    // Refined for DnB: Mean * 5 (down from 10) and shifted loudness thresholds
-                    Energy = Math.Clamp(
-                        data.LowLevel?.Rms?.Mean * 5 ?? (data.LowLevel?.AverageLoudness > -7 ? 0.85f : (data.LowLevel?.AverageLoudness > -11 ? 0.7f : 0.5f)),
-                        0f, 1f),
+                // Phase 13A: Improved Energy mapping
+                // Refined for DnB: Mean * 5 (down from 10) and shifted loudness thresholds
+                Energy = Math.Clamp(
+                    data.LowLevel?.Rms?.Mean * 5 ?? (data.LowLevel?.AverageLoudness > -7 ? 0.85f : (data.LowLevel?.AverageLoudness > -11 ? 0.7f : 0.5f)),
+                    0f, 1f),
+
+                // Note: EnergyScore will be set later during arousal extraction
                     Danceability = Math.Clamp(danceProb > 0 ? danceProb : (data.Rhythm?.Danceability ?? 0), 0f, 1f),
                     // NEW: Intensity metric (composite of onset rate + spectral complexity)
                     Intensity = Math.Clamp(
@@ -471,7 +472,10 @@ public class EssentiaAnalyzerService : IAudioIntelligenceService, IDisposable
                             var (arousal, valence) = ExtractArousalValence(kvp.Value);
                             entity.Arousal = arousal;
                             entity.Valence = valence;
-                            
+
+                            // Pillar A: Map arousal to 1-10 Energy Score
+                            entity.EnergyScore = (int)Math.Clamp(Math.Round(arousal * 9 + 1), 1, 10);
+
                             // Derive MoodTag from arousal_valence quadrant
                             entity.MoodTag = MapArousalValenceToMood(arousal, valence);
                             entity.MoodConfidence = 0.8f; // Fixed confidence for continuous model

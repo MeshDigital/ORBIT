@@ -621,6 +621,48 @@ public class SchemaMigratorService
                 await command.ExecuteNonQueryAsync();
             }
 
+            // Phase 6: EnergyScore for DJ-style 1-10 energy rating
+            if (!ColumnExists("audio_features", "EnergyScore"))
+            {
+                _logger.LogInformation("Patching Schema: Adding EnergyScore to audio_features...");
+                command.CommandText = @"ALTER TABLE ""audio_features"" ADD COLUMN ""EnergyScore"" INTEGER NOT NULL DEFAULT 0;";
+                await command.ExecuteNonQueryAsync();
+            }
+
+            // Phase 6B: SegmentedEnergyJson for 8-point energy curve
+            if (!ColumnExists("audio_features", "SegmentedEnergyJson"))
+            {
+                _logger.LogInformation("Patching Schema: Adding SegmentedEnergyJson to audio_features...");
+                command.CommandText = @"ALTER TABLE ""audio_features"" ADD COLUMN ""SegmentedEnergyJson"" TEXT NOT NULL DEFAULT '[]';";
+                await command.ExecuteNonQueryAsync();
+            }
+
+            // Tier 3: Specialized Analysis columns
+            if (!ColumnExists("audio_features", "AvgPitch"))
+            {
+                _logger.LogInformation("Patching Schema: Adding AvgPitch to audio_features...");
+                command.CommandText = @"ALTER TABLE ""audio_features"" ADD COLUMN ""AvgPitch"" REAL NULL;";
+                await command.ExecuteNonQueryAsync();
+            }
+            if (!ColumnExists("audio_features", "PitchConfidence"))
+            {
+                _logger.LogInformation("Patching Schema: Adding PitchConfidence to audio_features...");
+                command.CommandText = @"ALTER TABLE ""audio_features"" ADD COLUMN ""PitchConfidence"" REAL NULL;";
+                await command.ExecuteNonQueryAsync();
+            }
+            if (!ColumnExists("audio_features", "VggishEmbeddingJson"))
+            {
+                _logger.LogInformation("Patching Schema: Adding VggishEmbeddingJson to audio_features...");
+                command.CommandText = @"ALTER TABLE ""audio_features"" ADD COLUMN ""VggishEmbeddingJson"" TEXT NOT NULL DEFAULT '';";
+                await command.ExecuteNonQueryAsync();
+            }
+            if (!ColumnExists("audio_features", "VisualizationVectorJson"))
+            {
+                _logger.LogInformation("Patching Schema: Adding VisualizationVectorJson to audio_features...");
+                command.CommandText = @"ALTER TABLE ""audio_features"" ADD COLUMN ""VisualizationVectorJson"" TEXT NOT NULL DEFAULT '';";
+                await command.ExecuteNonQueryAsync();
+            }
+
             // 1C. AnalysisRuns Table (Phase 21: Analysis Run Tracking)
             if (!TableExists("analysis_runs"))
             {

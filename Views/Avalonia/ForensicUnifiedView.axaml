@@ -2,199 +2,267 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
-             xmlns:vm="clr-namespace:SLSKDONET.ViewModels"
-             xmlns:controls="clr-namespace:SLSKDONET.Views.Avalonia.Controls"
-             mc:Ignorable="d" d:DesignWidth="1400" d:DesignHeight="900"
+             xmlns:vm="using:SLSKDONET.ViewModels"
+             xmlns:controls="using:SLSKDONET.Views.Avalonia.Controls"
+             xmlns:conv="using:SLSKDONET.Converters"
+             mc:Ignorable="d" d:DesignWidth="1280" d:DesignHeight="800"
              x:Class="SLSKDONET.Views.Avalonia.ForensicUnifiedView"
-             Background="#0A0A0A">
+             x:DataType="vm:ForensicUnifiedViewModel">
 
-    <Grid RowDefinitions="Auto, *, 350">
-        <!-- 1. Header: Dual Deck Identity -->
-        <Border Grid.Row="0" Background="#111" Padding="15">
-            <Grid ColumnDefinitions="*, 60, *">
-            <!-- Deck A Metadata -->
-            <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="15">
-                <Border Background="#FF4081" CornerRadius="4" Padding="10,4" VerticalAlignment="Center">
-                    <TextBlock Text="{Binding DeckA.CamelotKey}" FontSize="20" FontWeight="Bold" Foreground="White"/>
-                </Border>
-                <StackPanel VerticalAlignment="Center">
-                    <TextBlock Text="{Binding DeckA.DisplayName}" FontSize="20" Foreground="White" FontWeight="SemiBold"/>
-                    <StackPanel Orientation="Horizontal" Spacing="10">
-                        <TextBlock Text="{Binding DeckA.BpmValue, StringFormat='{}{0:F1} BPM'}" FontSize="12" Foreground="#4EC9B0"/>
-                        <TextBlock Text="DECK A" FontSize="10" Foreground="#666" FontWeight="Bold" VerticalAlignment="Center"/>
-                    </StackPanel>
-                </StackPanel>
-            </StackPanel>
+    <Design.PreviewWith>
+        <Border Padding="20">
+            <!-- Preview logic here if needed -->
+        </Border>
+    </Design.PreviewWith>
 
-            <StackPanel Grid.Column="1" VerticalAlignment="Center" HorizontalAlignment="Center">
-                <TextBlock Text="ORBIT" FontSize="12" FontWeight="Black" Foreground="#333" HorizontalAlignment="Center"/>
-                <Separator Width="1" Background="#222" Height="20"/>
-            </StackPanel>
-
-            <!-- Deck B Metadata -->
-            <StackPanel Grid.Column="2" HorizontalAlignment="Right" Orientation="Horizontal" Spacing="15">
-                <StackPanel VerticalAlignment="Center" HorizontalAlignment="Right">
-                    <TextBlock Text="{Binding DeckB.DisplayName}" FontSize="20" Foreground="White" FontWeight="SemiBold" HorizontalAlignment="Right"/>
-                    <StackPanel Orientation="Horizontal" Spacing="10">
-                        <TextBlock Text="DECK B" FontSize="10" Foreground="#666" FontWeight="Bold" VerticalAlignment="Center"/>
-                        <TextBlock Text="{Binding DeckB.BpmValue, StringFormat='{}{0:F1} BPM'}" FontSize="12" Foreground="#4EC9B0" HorizontalAlignment="Right"/>
-                    </StackPanel>
-                </StackPanel>
-                <Border Background="#FF4081" CornerRadius="4" Padding="10,4" VerticalAlignment="Center">
-                    <TextBlock Text="{Binding DeckB.CamelotKey}" FontSize="20" FontWeight="Bold" Foreground="White"/>
-                </Border>
-            </StackPanel>
-        </Grid>
-    </Border>
-
-        <!-- 2. Cockpit: Side-by-Side Decks -->
-        <Grid Grid.Row="1" ColumnDefinitions="*, 200, *" Margin="15">
-            
-            <!-- DECK A -->
-            <Grid Grid.Column="0" RowDefinitions="Auto, *, Auto">
-                <UniformGrid Grid.Row="0" Columns="8" Margin="0,0,0,10">
-                    <Button Content="I" Background="#2E7D32" CommandParameter="1" Margin="1" HorizontalAlignment="Stretch" ToolTip.Tip="Intro"/>
-                    <Button Content="K" Background="#1565C0" CommandParameter="2" Margin="1" HorizontalAlignment="Stretch" ToolTip.Tip="Kick-In"/>
-                    <Button Content="B" Background="#FBC02D" CommandParameter="3" Margin="1" HorizontalAlignment="Stretch" ToolTip.Tip="Build"/>
-                    <Button Content="D" Background="#C62828" CommandParameter="4" Margin="1" HorizontalAlignment="Stretch" ToolTip.Tip="Drop"/>
-                    <Button Content="B2" Background="#6A1B9A" CommandParameter="5" Margin="1" HorizontalAlignment="Stretch" ToolTip.Tip="Breakdown 2"/>
-                    <Button Content="C" Background="#AD1457" CommandParameter="6" Margin="1" HorizontalAlignment="Stretch" ToolTip.Tip="Climax"/>
-                    <Button Content="Br" Background="#00838F" CommandParameter="7" Margin="1" HorizontalAlignment="Stretch" ToolTip.Tip="Bridge"/>
-                    <Button Content="O" Background="#455A64" CommandParameter="8" Margin="1" HorizontalAlignment="Stretch" ToolTip.Tip="Outro"/>
-                </UniformGrid>
-
-                <Border Grid.Row="1" Background="#050505" CornerRadius="8" BorderBrush="#222" BorderThickness="1" ClipToBounds="True">
-                    <controls:WaveformControl WaveformData="{Binding DeckA.WaveformData}"
-                                              LowBand="{Binding DeckA.LowData}"
-                                              MidBand="{Binding DeckA.MidData}"
-                                              HighBand="{Binding DeckA.HighData}"
-                                              Cues="{Binding DeckA.Cues}"
-                                              SegmentedEnergy="{Binding DeckA.SegmentedEnergy}"
-                                              Progress="{Binding DeckA.Progress}"/>
-                </Border>
-
-                <StackPanel Grid.Row="2" Orientation="Horizontal" Spacing="10" Margin="0,15,0,0">
-                    <Button Content="PLAY A" Foreground="#4EC9B0" Padding="15,8"/>
-                    <Button Content="CUE" Foreground="White" Padding="15,8"/>
-                    <Slider Width="200" Minimum="0" Maximum="1" Value="{Binding DeckA.Progress}" VerticalAlignment="Center"/>
-                </StackPanel>
-            </Grid>
-
-            <!-- CENTER CONSOLE -->
-            <StackPanel Grid.Column="1" Spacing="20" Margin="15,0">
-                <Border Background="#1A1A1A" Padding="12" CornerRadius="8" BorderBrush="#333" BorderThickness="1">
-                    <StackPanel Spacing="8">
-                        <TextBlock Text="MASHUP ENGINE" FontSize="10" Foreground="#888" HorizontalAlignment="Center" FontWeight="Bold"/>
-                        <TextBlock Text="Inverse Energy" FontSize="12" Foreground="#FFEB3B" HorizontalAlignment="Center"/>
-                        <Button Content="AUTO-SYNC" Background="#333" HorizontalAlignment="Stretch" FontSize="10"/>
-                    </StackPanel>
-                </Border>
-
-                <!-- Piano Root Verifier -->
-                <Border Background="#111" Padding="8" CornerRadius="6" BorderBrush="#222" BorderThickness="1">
-                    <StackPanel Spacing="5">
-                        <TextBlock Text="ROOT VERIFIER" FontSize="9" Foreground="#555" HorizontalAlignment="Center" FontWeight="Bold"/>
-                        <UniformGrid Columns="7" Height="45">
-                            <Button Content="C" FontSize="9" Command="{Binding PlayToneCommand}" CommandParameter="261.63" Padding="0"/>
-                            <Button Content="D" FontSize="9" Command="{Binding PlayToneCommand}" CommandParameter="293.66" Padding="0"/>
-                            <Button Content="E" FontSize="9" Command="{Binding PlayToneCommand}" CommandParameter="329.63" Padding="0"/>
-                            <Button Content="F" FontSize="9" Command="{Binding PlayToneCommand}" CommandParameter="349.23" Padding="0"/>
-                            <Button Content="G" FontSize="9" Command="{Binding PlayToneCommand}" CommandParameter="392.00" Padding="0"/>
-                            <Button Content="A" FontSize="9" Command="{Binding PlayToneCommand}" CommandParameter="440.00" Padding="0"/>
-                            <Button Content="B" FontSize="9" Command="{Binding PlayToneCommand}" CommandParameter="493.88" Padding="0"/>
-                        </UniformGrid>
-                    </StackPanel>
-                </Border>
-
-                <!-- Mixer Crossfader -->
-                <StackPanel VerticalAlignment="Bottom" Margin="0,20,0,0">
-                    <TextBlock Text="CROSSFADER" FontSize="10" Foreground="#666" HorizontalAlignment="Center" Margin="0,0,0,8" FontWeight="Bold"/>
-                    <Slider Minimum="0" Maximum="1" Value="{Binding CrossfaderPosition}" Height="40" Padding="0"/>
-                    <Grid ColumnDefinitions="*, *" Margin="5,0">
-                        <TextBlock Grid.Column="0" Text="DECK A" FontSize="9" Foreground="#FF4081" FontWeight="Black"/>
-                        <TextBlock Grid.Column="1" Text="DECK B" FontSize="9" Foreground="#4EC9B0" FontWeight="Black" HorizontalAlignment="Right"/>
-                    </Grid>
-                </StackPanel>
-            </StackPanel>
-
-            <!-- DECK B -->
-            <Grid Grid.Column="2" RowDefinitions="Auto, *, Auto">
-                <UniformGrid Grid.Row="0" Columns="8" Margin="0,0,0,10">
-                    <Button Content="I" Background="#2E7D32" Margin="1" HorizontalAlignment="Stretch"/>
-                    <Button Content="K" Background="#1565C0" Margin="1" HorizontalAlignment="Stretch"/>
-                    <Button Content="B" Background="#FBC02D" Margin="1" HorizontalAlignment="Stretch"/>
-                    <Button Content="D" Background="#C62828" Margin="1" HorizontalAlignment="Stretch"/>
-                    <Button Content="B2" Background="#6A1B9A" Margin="1" HorizontalAlignment="Stretch"/>
-                    <Button Content="C" Background="#AD1457" Margin="1" HorizontalAlignment="Stretch"/>
-                    <Button Content="Br" Background="#00838F" Margin="1" HorizontalAlignment="Stretch"/>
-                    <Button Content="O" Background="#455A64" Margin="1" HorizontalAlignment="Stretch"/>
-                </UniformGrid>
-
-                <Border Grid.Row="1" Background="#050505" CornerRadius="8" BorderBrush="#222" BorderThickness="1" ClipToBounds="True">
-                    <controls:WaveformControl WaveformData="{Binding DeckB.WaveformData}"
-                                              LowBand="{Binding DeckB.LowData}"
-                                              MidBand="{Binding DeckB.MidData}"
-                                              HighBand="{Binding DeckB.HighData}"
-                                              Cues="{Binding DeckB.Cues}"
-                                              SegmentedEnergy="{Binding DeckB.SegmentedEnergy}"
-                                              Progress="{Binding DeckB.Progress}"/>
-                </Border>
-
-                 <StackPanel Grid.Row="2" Orientation="Horizontal" Spacing="10" Margin="0,15,0,0" HorizontalAlignment="Right">
-                    <Slider Width="200" Minimum="0" Maximum="1" Value="{Binding DeckB.Progress}" VerticalAlignment="Center"/>
-                    <Button Content="PLAY B" Foreground="#4EC9B0" Padding="15,8"/>
-                    <Button Content="CUE" Foreground="White" Padding="15,8"/>
-                </StackPanel>
-            </Grid>
-        </Grid>
-
-        <!-- 3. Bottom: Full Library Grid (In-Cockpit Navigation) -->
-        <Border Grid.Row="2" Background="#0D0D0D" BorderBrush="#333" BorderThickness="0,1,0,0" Padding="15">
-            <Grid RowDefinitions="Auto, *">
-                <StackPanel Orientation="Horizontal" Spacing="25" Margin="0,0,0,15">
-                    <TextBlock Text="MASHUP RECOMMENDATIONS" FontSize="11" FontWeight="Black" Foreground="#555" LetterSpacing="1.5" VerticalAlignment="Center"/>
-                    <Border Background="#151515" CornerRadius="4" Padding="8,2" BorderBrush="#333" BorderThickness="1">
-                        <StackPanel Orientation="Horizontal" Spacing="8">
-                            <TextBlock Text="Filter:" FontSize="10" Foreground="#666" VerticalAlignment="Center"/>
-                            <TextBlock Text="±1 Harmonic Step" FontSize="10" Foreground="#4EC9B0" VerticalAlignment="Center"/>
-                        </StackPanel>
-                    </Border>
+    <Grid RowDefinitions="120, *, Auto" Background="{DynamicResource MainBackgroundBrush}">
+        
+        <!-- ZONE 1: FLOW STRIP (TOP) -->
+        <Border Grid.Row="0" Background="{DynamicResource CardBackgroundBrush}" 
+                BorderBrush="{DynamicResource BorderBrush}" BorderThickness="0,0,0,1">
+            <Grid ColumnDefinitions="Auto, *">
+                <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="15,0">
+                    <Path x:Name="FlowIcon" Data="{StaticResource timeline_regular}" Fill="{DynamicResource SecondaryTextBrush}" Width="24" Height="24" Stretch="Uniform"/>
+                    <TextBlock Text="FLOW STRIP" VerticalAlignment="Center" Margin="10,0" FontWeight="Bold" Opacity="0.5"/>
                 </StackPanel>
                 
-                <!-- AI RECOMMENDATIONS (Horizontal List) -->
-                <ScrollViewer Grid.Row="1" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled">
-                    <ItemsControl ItemsSource="{Binding AiMatches}">
+                <ScrollViewer Grid.Column="1" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled">
+                    <ItemsControl ItemsSource="{Binding FlowSetlist}" Margin="10,10">
                         <ItemsControl.ItemsPanel>
                             <ItemsPanelTemplate>
-                                <StackPanel Orientation="Horizontal" Spacing="15"/>
+                                <StackPanel Orientation="Horizontal" Spacing="5"/>
                             </ItemsPanelTemplate>
                         </ItemsControl.ItemsPanel>
                         <ItemsControl.ItemTemplate>
                             <DataTemplate>
-                                <Border Background="#1A1A1A" CornerRadius="10" Width="280" Padding="15" BorderBrush="#333" BorderThickness="1">
-                                    <Grid RowDefinitions="Auto, Auto, *" Margin="5">
-                                        <TextBlock Text="{Binding Track.Artist}" FontSize="10" Foreground="#888" TextTrimming="CharacterEllipsis" FontWeight="Bold"/>
-                                        <TextBlock Grid.Row="1" Text="{Binding Track.Title}" FontSize="14" Foreground="White" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" Margin="0,2,0,10"/>
-                                        
-                                        <Grid Grid.Row="2" ColumnDefinitions="Auto, Auto, *, Auto">
-                                            <Border Grid.Column="0" Background="#FF4081" CornerRadius="3" Padding="6,2" Margin="0,0,8,0">
-                                                <TextBlock Text="{Binding Track.MusicalKey}" FontSize="11" Foreground="White" FontWeight="Black"/>
-                                            </Border>
-                                            <TextBlock Grid.Column="1" Text="{Binding Track.BPM, StringFormat='{}{0:F0}'}" FontSize="11" Foreground="#4EC9B0" VerticalAlignment="Center" FontWeight="Bold"/>
-                                            
-                                            <StackPanel Grid.Column="3" Orientation="Horizontal" Spacing="8">
-                                                <TextBlock Text="{Binding Score, StringFormat='{}{0:F0}%'}" FontSize="18" FontWeight="Black" Foreground="#FFD700" VerticalAlignment="Center"/>
-                                                <Button Content="LOAD B" FontSize="10" Background="#C62828" Foreground="White" FontWeight="Bold" Padding="12,5"
-                                                        Command="{Binding $parent[UserControl].DataContext.LoadToDeckBCommand}" CommandParameter="{Binding}"/>
-                                            </StackPanel>
-                                        </Grid>
-                                    </Grid>
-                                </Border>
+                                <StackPanel Orientation="Horizontal" Spacing="5">
+                                    <!-- Track Icon placeholder -->
+                                    <Button Width="80" Height="80" 
+                                            Background="{DynamicResource DeepBackgroundBrush}" 
+                                            CornerRadius="4" Padding="0"
+                                            Command="{Binding $parent[UserControl].((vm:ForensicUnifiedViewModel)DataContext).NavigateToTrackCommand}"
+                                            CommandParameter="{Binding}">
+                                      <ToolTip.Tip>
+                                        <TextBlock Text="{Binding Title}"/>
+                                      </ToolTip.Tip>
+                                      <Grid>
+                                        <TextBlock Text="{Binding Artist}" FontSize="10" VerticalAlignment="Bottom" HorizontalAlignment="Center" Margin="0,5" Opacity="0.6"/>
+                                      </Grid>
+                                    </Button>
+                                    
+                                    <!-- AMBER PULSING BRIDGE BUTTON [+] -->
+                                    <Button Classes="BridgeButton" Width="30" Height="30" VerticalAlignment="Center"
+                                            Command="{Binding $parent[UserControl].((vm:ForensicUnifiedViewModel)DataContext).FindBridgeCommand}"
+                                            CommandParameter="{Binding}">
+                                        <Path Data="{StaticResource add_regular}" Fill="#FFCC00" Width="12" Height="12" Stretch="Uniform"/>
+                                    </Button>
+                                </StackPanel>
                             </DataTemplate>
                         </ItemsControl.ItemTemplate>
                     </ItemsControl>
                 </ScrollViewer>
             </Grid>
         </Border>
+
+        <!-- MAIN COCKPIT AREA (ZONES 2 & 3 & 4) -->
+        <Grid Grid.Row="1" ColumnDefinitions="*, Auto">
+            
+            <!-- DUAL DECKS & MIXER -->
+            <Grid Grid.Column="0" ColumnDefinitions="*, 350, *">
+                
+                <!-- ZONE 2: DECK A (LEFT) -->
+                <Grid Grid.Column="0" RowDefinitions="Auto, *, Auto" Margin="10">
+                    <StackPanel Grid.Row="0" Spacing="5" Margin="0,0,0,10">
+                        <TextBlock Text="{Binding DeckA.Title}" FontSize="18" FontWeight="Bold" TextTrimming="CharacterEllipsis"/>
+                        <TextBlock Text="{Binding DeckA.Artist}" FontSize="14" Opacity="0.7"/>
+                    </StackPanel>
+
+                    <Border Grid.Row="1" Background="{DynamicResource DeepBackgroundBrush}" CornerRadius="8" ClipToBounds="True" BorderThickness="1" BorderBrush="{DynamicResource BorderBrush}">
+                        <Grid RowDefinitions="*, Auto">
+                            <!-- WAVEFORM -->
+                            <controls:WaveformControl Grid.Row="0" 
+                                                      WaveformData="{Binding DeckA.WaveformData}"
+                                                      SegmentedEnergy="{Binding CurrentTrack.AudioFeatures.SegmentedEnergy}"
+                                                      Progress="{Binding DeckA.PlaybackProgress}"
+                                                      Cues="{Binding DeckA.Cues}" />
+                            
+                            <!-- VOCAL HEATMAP -->
+                            <Border Grid.Row="1" Height="20" Background="#20000000">
+                                <TextBlock Text="VOCAL HEATMAP" FontSize="9" HorizontalAlignment="Center" VerticalAlignment="Center" Opacity="0.3"/>
+                            </Border>
+                        </Grid>
+                    </Border>
+                    
+                    <StackPanel Grid.Row="2" Orientation="Horizontal" Spacing="10" HorizontalAlignment="Center" Margin="0,15,0,0">
+                         <Button Width="40" Height="40" CornerRadius="20" Background="#444444">
+                            <Path Data="{StaticResource play_regular}" Fill="White" Width="16" Height="16" Stretch="Uniform"/>
+                         </Button>
+                         <TextBlock Text="{Binding DeckA.MusicalKey}" VerticalAlignment="Center" FontSize="16" FontWeight="Bold" Foreground="{DynamicResource AccentBrush}"/>
+                    </StackPanel>
+                </Grid>
+
+                <!-- ZONE 3: CENTER COMMAND STRIP (MIXER) -->
+                <Border Grid.Column="1" Background="{DynamicResource SidebarBackgroundBrush}" 
+                        BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1,0,1,0" Padding="15">
+                    <Grid RowDefinitions="*, Auto">
+                        <!-- STEM FADERS -->
+                        <Grid Grid.Row="0" ColumnDefinitions="*, *">
+                            <!-- DECK A STEMS -->
+                            <StackPanel Grid.Column="0" Spacing="10" HorizontalAlignment="Center">
+                                <TextBlock Text="DECK A" FontSize="10" FontWeight="Bold" HorizontalAlignment="Center" Opacity="0.5"/>
+                                <Slider Orientation="Vertical" Height="150" Value="100" Minimum="0" Maximum="100"/>
+                                <Slider Orientation="Vertical" Height="150" Value="100" Minimum="0" Maximum="100"/>
+                                <Slider Orientation="Vertical" Height="150" Value="100" Minimum="0" Maximum="100"/>
+                                <Slider Orientation="Vertical" Height="150" Value="100" Minimum="0" Maximum="100"/>
+                            </StackPanel>
+
+                            <!-- DECK B STEMS -->
+                            <StackPanel Grid.Column="1" Spacing="10" HorizontalAlignment="Center">
+                                <TextBlock Text="DECK B" FontSize="10" FontWeight="Bold" HorizontalAlignment="Center" Opacity="0.5"/>
+                                <Slider Orientation="Vertical" Height="150" Value="100" Minimum="0" Maximum="100"/>
+                                <Slider Orientation="Vertical" Height="150" Value="100" Minimum="0" Maximum="100"/>
+                                <Slider Orientation="Vertical" Height="150" Value="100" Minimum="0" Maximum="100"/>
+                                <Slider Orientation="Vertical" Height="150" Value="100" Minimum="0" Maximum="100"/>
+                            </StackPanel>
+                        </Grid>
+
+                        <!-- CROSSFADER -->
+                        <StackPanel Grid.Row="1" Spacing="5" Margin="0,20,0,0">
+                             <Grid ColumnDefinitions="Auto, *, Auto">
+                                <TextBlock Grid.Column="0" Text="A" FontWeight="Bold" Opacity="0.5"/>
+                                <Slider Grid.Column="1" Value="{Binding CrossfaderPosition}" Minimum="0" Maximum="1" Margin="10,0"/>
+                                <TextBlock Grid.Column="2" Text="B" FontWeight="Bold" Opacity="0.5"/>
+                             </Grid>
+                             <TextBlock Text="CROSSFADER" HorizontalAlignment="Center" FontSize="10" Opacity="0.5"/>
+                        </StackPanel>
+                    </Grid>
+                </Border>
+
+                <!-- ZONE 2: DECK B (RIGHT) -->
+                <Grid Grid.Column="2" RowDefinitions="Auto, *, Auto" Margin="10">
+                    <StackPanel Grid.Row="0" Spacing="5" Margin="0,0,0,10" HorizontalAlignment="Right">
+                        <TextBlock Text="{Binding DeckB.Title}" FontSize="18" FontWeight="Bold" TextAlignment="Right"/>
+                        <TextBlock Text="{Binding DeckB.Artist}" FontSize="14" Opacity="0.7" TextAlignment="Right"/>
+                    </StackPanel>
+
+                    <Border Grid.Row="1" Background="{DynamicResource DeepBackgroundBrush}" CornerRadius="8" ClipToBounds="True" BorderThickness="1" BorderBrush="{DynamicResource BorderBrush}">
+                         <Grid RowDefinitions="*, Auto">
+                            <controls:WaveformControl Grid.Row="0" 
+                                                      WaveformData="{Binding DeckB.WaveformData}"
+                                                      Progress="{Binding DeckB.PlaybackProgress}"
+                                                      Cues="{Binding DeckB.Cues}"/>
+                            <Border Grid.Row="1" Height="20" Background="#20000000">
+                                <TextBlock Text="VOCAL HEATMAP" FontSize="9" HorizontalAlignment="Center" VerticalAlignment="Center" Opacity="0.3"/>
+                            </Border>
+                        </Grid>
+                    </Border>
+
+                    <StackPanel Grid.Row="2" Orientation="Horizontal" Spacing="10" HorizontalAlignment="Center" Margin="0,15,0,0">
+                         <TextBlock Text="{Binding DeckB.MusicalKey}" VerticalAlignment="Center" FontSize="16" FontWeight="Bold" Foreground="{DynamicResource AccentBrush}"/>
+                         <Button Width="40" Height="40" CornerRadius="20" Background="#444444">
+                            <Path Data="{StaticResource play_regular}" Fill="White" Width="16" Height="16" Stretch="Uniform"/>
+                         </Button>
+                    </StackPanel>
+                </Grid>
+            </Grid>
+
+            <!-- ZONE 4: THE MENTOR SIDEBAR (RIGHT) -->
+            <Border Grid.Column="1" Width="300" Background="{DynamicResource CardBackgroundBrush}" 
+                    IsVisible="{Binding IsMentorOpen}"
+                    BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1,0,0,0">
+                <Grid RowDefinitions="Auto, *">
+                    <Border Grid.Row="0" Padding="15">
+                        <Grid ColumnDefinitions="*, Auto">
+                            <TextBlock Text="THE MENTOR" FontWeight="ExtraBold" FontSize="16" VerticalAlignment="Center"/>
+                            <Button Grid.Column="1" Command="{Binding ToggleMentorCommand}" Background="Transparent">
+                                <Path Data="{StaticResource dismiss_regular}" Fill="{DynamicResource SecondaryTextBrush}" Width="16" Height="16" Stretch="Uniform"/>
+                            </Button>
+                        </Grid>
+                    </Border>
+                    
+                    <ScrollViewer Grid.Row="1" Padding="15">
+                        <StackPanel Spacing="20">
+                            <!-- VERDICT BOX -->
+                            <Border Background="#20FFCC00" BorderBrush="#FFCC00" BorderThickness="1" CornerRadius="4" Padding="15">
+                                <StackPanel Spacing="10">
+                                    <TextBlock Text="FINAL VERDICT" FontWeight="Bold" FontSize="12" Foreground="#FFCC00"/>
+                                    <TextBlock Text="{Binding MentorVerdict}" 
+                                               TextWrapping="Wrap" FontSize="13" LineHeight="18" FontWeight="ExtraBold"/>
+                                </StackPanel>
+                            </Border>
+
+                            <TextBlock Text="FORENSIC LOG" FontSize="12" FontWeight="Bold" Opacity="0.5"/>
+                            <ItemsControl ItemsSource="{Binding VerdictEntries}">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,0,0,8">
+                                            <TextBlock Text="{Binding Type, Converter={StaticResource ForensicConverter}, ConverterParameter=Prefix}" 
+                                                       Foreground="{Binding Type, Converter={StaticResource ForensicConverter}, ConverterParameter=Color}"
+                                                       VerticalAlignment="Top" FontSize="14" FontWeight="Bold"/>
+                                            
+                                            <TextBlock Text="{Binding Content}" 
+                                                       FontSize="{Binding Type, Converter={StaticResource ForensicConverter}, ConverterParameter=FontSize}"
+                                                       FontWeight="{Binding Type, Converter={StaticResource ForensicConverter}, ConverterParameter=FontWeight}"
+                                                       Foreground="{Binding Type, Converter={StaticResource ForensicConverter}, ConverterParameter=Color}"
+                                                       TextWrapping="Wrap" Opacity="0.9"/>
+                                        </StackPanel>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+
+                            <Border Height="1" Background="{DynamicResource BorderBrush}" Margin="0,10"/>
+                            
+                            <TextBlock Text="AI MATCHES" FontSize="12" FontWeight="Bold" Opacity="0.5" Margin="0,10,0,0"/>
+                            <ItemsControl ItemsSource="{Binding AiMatches}">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <Border Background="{DynamicResource DeepBackgroundBrush}" CornerRadius="4" Padding="10" Margin="0,0,0,8">
+                                            <Grid ColumnDefinitions="*, Auto">
+                                                <StackPanel Grid.Column="0" Spacing="2">
+                                                    <TextBlock Text="{Binding Title}" FontWeight="Bold" TextTrimming="CharacterEllipsis"/>
+                                                    <TextBlock Text="{Binding Artist}" FontSize="11" Opacity="0.7"/>
+                                                    <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,4,0,0">
+                                                        <Border Background="{Binding BadgeColor}" CornerRadius="2" Padding="4,1">
+                                                            <TextBlock Text="{Binding ConfidenceLabel}" FontSize="9" FontWeight="Bold" Foreground="Black"/>
+                                                        </Border>
+                                                        <TextBlock Text="{Binding SimilarityPercent, StringFormat='{}{0:F0}%'}" FontSize="10" Opacity="0.6" VerticalAlignment="Center"/>
+                                                    </StackPanel>
+                                                </StackPanel>
+                                                
+                                                <Button Grid.Column="1" Width="30" Height="30" Background="Transparent" VerticalAlignment="Center"
+                                                        Command="{Binding $parent[UserControl].((vm:ForensicUnifiedViewModel)DataContext).LoadToDeckBCommand}"
+                                                        CommandParameter="{Binding}">
+                                                    <Path Data="{StaticResource arrow_right_regular}" Fill="{DynamicResource SecondaryTextBrush}" Width="12" Height="12" Stretch="Uniform"/>
+                                                </Button>
+                                            </Grid>
+                                        </Border>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </StackPanel>
+                    </ScrollViewer>
+                </Grid>
+            </Border>
+        </Grid>
+        
+        <!-- FOOTER / STATUS -->
+        <Border Grid.Row="2" Height="30" Background="{DynamicResource DeepBackgroundBrush}" Padding="15,0">
+            <StackPanel Orientation="Horizontal" Spacing="20">
+                <TextBlock Text="READY" Foreground="#00FF88" FontSize="10" VerticalAlignment="Center" FontWeight="Bold"/>
+                <ProgressBar Value="0" IsIndeterminate="{Binding IsBusy}" Width="100" Height="4" VerticalAlignment="Center"/>
+            </StackPanel>
+        </Border>
+
     </Grid>
+
+    <UserControl.Styles>
+        <Style Selector="Button.BridgeButton">
+            <Setter Property="Background" Value="#20FFCC00"/>
+            <Setter Property="Padding" Value="0"/>
+            <Style Selector="^:hover">
+                <Setter Property="Background" Value="#40FFCC00"/>
+            </Style>
+            <!-- Animation for pulsing amber effect could be added here in XAML styles -->
+        </Style>
+    </UserControl.Styles>
 </UserControl>

@@ -258,3 +258,29 @@
   * **Forensic Lab Master**: Fixed the `ForensicLabDashboard` data binding and added a direct "Open in Forensic Lab" context menu option.
   * **Quick Look Upgrade**: Replaced the "Waveform Analysis Visualization" placeholder with a functional, high-fidelity `WaveformControl` in the Spacebar overlay.
   * **Infrastructure**: Corrected `ForensicLabViewModel` DI registration and updated workspace logic to automatically load the selected track when switching to Forensic mode.
+261: 
+262: ## [0.1.0-alpha.9.7] - Rekordbox Export & Forensic Intelligence Refinements (Feb 07, 2026)
+263: 
+264: ### New Features
+265: * **Rekordbox XML 2.0**: Integrated **Energy Scores** and **Segmented Heatmaps** into the export pipeline.
+266: * **Forensic Stress-Test**: Implemented `SetlistStressTestService` and `StressTestMetrics` for deep library validation.
+267: * **Diagnostics Cockpit**: Added `DiagnosticsPanel` and `DiagnosticsViewModel` for real-time system telemetry.
+268: * **Energy-to-Color Hub**: New `RekordboxColorPalette.GetColorForEnergy` mapping for consistent visual cues in Rekordbox.
+269: 
+270: ### UI/UX Strategy (Planned)
+271: * **Operation Glass Console**: Approved plan to restore the MIK GUI (Operation Glass Console) as a top-level overlay.
+272: * **Sidebar Reorganization**: Strategy to group tools into **Core Workflows** (Search, Library, Downloads, Import) and **Expert Tools** (Processor, Style Lab, Stems).
+273: 
+274: ### Fixes
+275: * **Transition Cues**: Restored missing transition cue logic in the Rekordbox export service.
+276: * **Forensic Alignment**: Resolved crossfader and waveform sync issues in the `ForensicUnifiedViewModel`.
+277: 
+278: ### Files Modified
+279: * **ViewModels**: `MainViewModel.cs`, `ForensicUnifiedViewModel.cs`, `DiagnosticsViewModel.cs`
+280: * **Services**: `RekordboxExportService.cs`, `SetlistStressTestService.cs`, `SonicMatchService.cs`
+281: * **Views**: `MainWindow.axaml`, `ForensicUnifiedView.axaml`, `DiagnosticsPanel.axaml`
+282: 
+283: ### Verification
+284: * ✅ All core services registered in `App.axaml.cs`.
+285: * ✅ Rekordbox XML schema validated with energy/heatmap tags.
+286: * ✅ Stress-test metrics collection functional.

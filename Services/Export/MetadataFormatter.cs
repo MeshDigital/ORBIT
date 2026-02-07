@@ -16,14 +16,22 @@ namespace SLSKDONET.Services.Export
             double? energyLevel = null,
             double? vocalDensity = null,
             string? forensicNotes = null,
-            string? structuralHash = null)
+            string? structuralHash = null,
+            int? energyScore = null)
         {
             var sb = new StringBuilder();
             sb.AppendLine("[ORBIT]");
 
+            // Energy Level 0.0-1.0 (Essentia)
             if (energyLevel.HasValue)
             {
                 sb.AppendLine(string.Format(CultureInfo.InvariantCulture, "Energy={0:F2}", energyLevel.Value));
+            }
+
+            // Energy Score 1-10 (MIK Parity)
+            if (energyScore.HasValue && energyScore.Value > 0)
+            {
+                sb.AppendLine($"EnergyScore={energyScore.Value}/10");
             }
 
             if (vocalDensity.HasValue)

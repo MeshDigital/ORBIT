@@ -55,6 +55,12 @@ public class MultiTrackEngine : ISampleProvider, IDisposable
     public double ProjectBpm { get; set; } = 128.0;
 
     /// <summary>
+    /// Master Crossfader position (0.0 = Left/DeckA, 1.0 = Right/DeckB).
+    /// Default is 0.5 (Center).
+    /// </summary>
+    public float CrossfaderPosition { get; set; } = 0.5f;
+
+    /// <summary>
     /// Adds a track lane to the engine.
     /// </summary>
     public void AddLane(TrackLaneSampler lane)
@@ -155,6 +161,10 @@ public class MultiTrackEngine : ISampleProvider, IDisposable
         // 2. Temporary buffer for each lane
         float[] tempBuffer = new float[count];
         
+        // Cache crossfader gains to avoid recalculating per sample/lane if position is stable
+        float gainA = (float)Math.Cos(CrossfaderPosition * Math.PI * 0.5);
+        float gainB = (float)Math.Sin(CrossfaderPosition * Math.PI * 0.5);
+
         lock (_lock)
         {
             // 3. Sum all active lanes into the buffer
@@ -163,10 +173,17 @@ public class MultiTrackEngine : ISampleProvider, IDisposable
                 Array.Clear(tempBuffer, 0, count);
                 int samplesRead = lane.Read(tempBuffer, 0, count, _totalSamplesProcessed);
                 
+                // Determine crossfader gain for this lane
+                float xfGain = 1.0f;
+                if (lane.Assignment == LaneAssignment.DeckA) xfGain = gainA;
+                else if (lane.Assignment == LaneAssignment.DeckB) xfGain = gainB;
+
+                float finalGain = lane.Volume * xfGain;
+
                 // Apply lane volume and sum
                 for (int i = 0; i < samplesRead; i++)
                 {
-                    buffer[offset + i] += tempBuffer[i] * lane.Volume;
+                    buffer[offset + i] += tempBuffer[i] * finalGain;
                 }
             }
             
@@ -262,6 +279,13 @@ public class MultiTrackEngine : ISampleProvider, IDisposable
     }
 }
 
+public enum LaneAssignment
+{
+    Unassigned,
+    DeckA,
+    DeckB
+}
+
 /// <summary>
 /// Represents a single track lane in the DAW timeline.
 /// Handles clip-aware sample reading with position offsets.
@@ -278,6 +302,11 @@ public class TrackLaneSampler : IDisposable
     public bool IsMuted { get; set; } = false;
     public bool IsSolo { get; set; } = false;
     public float Volume { get; set; } = 1.0f;
+    
+    /// <summary>
+    /// Which deck this lane is assigned to (DeckA, DeckB, or Unassigned).
+    /// </summary>
+    public LaneAssignment Assignment { get; set; } = LaneAssignment.Unassigned;
     
     /// <summary>
     /// Where this clip starts on the timeline (in samples).

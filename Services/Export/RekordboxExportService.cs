@@ -470,7 +470,8 @@ namespace SLSKDONET.Services.Export
                         source.Energy, 
                         source.InstrumentalProbability,
                         source.QualityDetails,
-                        source.SpectralHash)
+                        source.SpectralHash,
+                        source.AudioFeatures?.EnergyScore)
                     : null;
                 
                 exportTrack.Comments = MetadataFormatter.CombineMetadata(trackMeta!, transitionMeta!);
@@ -553,7 +554,43 @@ namespace SLSKDONET.Services.Export
                 }
             }
 
-            // 2c. Map Transition-Specific Cues from SetContext
+            // 2d. Map Segmented Energy Heatmap (E1-E8)
+            if (options.ExportStructuralCues && source.AudioFeatures != null && !string.IsNullOrEmpty(source.AudioFeatures.SegmentedEnergyJson))
+            {
+                try
+                {
+                    var energyPoints = JsonSerializer.Deserialize<List<int>>(source.AudioFeatures.SegmentedEnergyJson);
+                    if (energyPoints != null && energyPoints.Count > 0)
+                    {
+                        double duration = source.CanonicalDuration ?? (source.DurationSeconds ?? 0);
+                        if (duration > 0)
+                        {
+                            double interval = duration / energyPoints.Count;
+
+                            for (int i = 0; i < energyPoints.Count; i++)
+                            {
+                                int pointEnergy = energyPoints[i];
+                                // Avoid overlapping with structural cues at start
+                                double pos = i * interval;
+                                
+                                exportCues.Add(new ExportCue
+                                {
+                                    Type = CueType.MemoryCue,
+                                    Position = TimeSpan.FromSeconds(pos),
+                                    Name = $"E{i + 1}",
+                                    Color = RekordboxColorPalette.GetColorForEnergy(pointEnergy)
+                                });
+                            }
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex, "Failed to deserialize SegmentedEnergyJson for track {Hash}", source.UniqueHash);
+                }
+            }
+
+            // 2e. Map Transition-Specific Cues from SetContext
             if (options.ExportTransitionCues && setContext != null)
             {
                 // In a set, we mark the 'Mix In' or 'Transition Point' as a Hot Cue if possible

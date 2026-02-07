@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using SLSKDONET.Data.Entities;
+using SLSKDONET.Data;
 using SLSKDONET.Models;
 
 namespace SLSKDONET.Services.AI;
@@ -26,6 +27,12 @@ public interface ISonicMatchService
     /// <param name="b">Second track's audio features</param>
     /// <returns>Distance (0 = identical, higher = more different)</returns>
     double CalculateSonicDistance(AudioFeaturesEntity a, AudioFeaturesEntity b);
+
+    /// <summary>
+    /// Finds "Bridge" tracks that sit harmonically and sonically between two tracks.
+    /// Useful for rescuing a bad transition.
+    /// </summary>
+    Task<List<SonicMatch>> FindBridgeAsync(LibraryEntryEntity trackA, LibraryEntryEntity trackB, int limit = 5);
 }
 
 /// <summary>
@@ -52,6 +59,19 @@ public class SonicMatch
     /// Confidence in the match result (0.0 - 1.0)
     /// </summary>
     public double Confidence { get; set; }
+
+    /// <summary>
+    /// Human-readable confidence label for UI.
+    /// > 0.95 = Seamless Match
+    /// > 0.85 = Creative Risk
+    /// Default = Transition
+    /// </summary>
+    public string ConfidenceLabel => Confidence > 0.95 ? "Seamless Match" : (Confidence > 0.85 ? "Creative Risk" : "Transition");
+
+    /// <summary>
+    /// UI Badge Color based on confidence.
+    /// </summary>
+    public string BadgeColor => Confidence > 0.95 ? "#00FF99" : (Confidence > 0.85 ? "#FFAA00" : "#666666");
     
     /// <summary>
     /// Similarity as a percentage (100% = identical, 0% = completely different)

@@ -106,7 +106,16 @@ namespace SLSKDONET.Services.Analysis
         /// Analyzes a single transition (Track[i] → Track[i+1])
         /// Calculates severity score, identifies failure type, suggests rescues.
         /// </summary>
-        private async Task<TransitionStressPoint> AnalyzeTransitionAsync(
+        public Task<TransitionStressPoint> AnalyzeTransitionAsync(LibraryEntryEntity trackA, LibraryEntryEntity trackB)
+        {
+            return AnalyzeTransitionAsync(trackA, trackB, 0, 1, new List<SetTrackEntity>(), new List<LibraryEntryEntity>());
+        }
+
+        /// <summary>
+        /// Analyzes a single transition (Track[i] → Track[i+1])
+        /// Calculates severity score, identifies failure type, suggests rescues.
+        /// </summary>
+        public async Task<TransitionStressPoint> AnalyzeTransitionAsync(
             LibraryEntryEntity trackA,
             LibraryEntryEntity trackB,
             int idxA,
@@ -224,16 +233,26 @@ namespace SLSKDONET.Services.Analysis
 
             if (end - start < window - 1) return false;
 
-            // Calculate energy gradient
-            double maxEnergy = 0, minEnergy = 1.0;
+            double maxEnergy = -1.0, minEnergy = 2.0;
+            bool foundData = false;
+
             for (int i = start; i <= end; i++)
             {
-                // Fetch track energy (simplified - in prod would load full track data)
-                // For now, assume we have access via _libraryService
-                // This is a placeholder
+                var trackHash = fullSetlist[i].TrackUniqueHash;
+                // In a production environment, we'd pre-load this or use a cache
+                var entry = _dbContext.LibraryEntries.AsNoTracking().FirstOrDefault(e => e.UniqueHash == trackHash);
+                if (entry != null && entry.Energy.HasValue)
+                {
+                    double e = entry.Energy.Value;
+                    if (e > maxEnergy) maxEnergy = e;
+                    if (e < minEnergy) minEnergy = e;
+                    foundData = true;
+                }
             }
 
-            double gradient = Math.Abs(maxEnergy - minEnergy) / window;
+            if (!foundData) return false;
+
+            double gradient = (maxEnergy - minEnergy) / (end - start);
             return gradient < ENERGY_PLATEAU_THRESHOLD;
         }
 
@@ -244,9 +263,6 @@ namespace SLSKDONET.Services.Analysis
         /// </summary>
         private int AnalyzeHarmonicCompatibility(LibraryEntryEntity trackA, LibraryEntryEntity trackB)
         {
-            // Placeholder: In production, call _harmonicService to compute Camelot compatibility
-            // For now, return a simple key-distance score
-
             if (trackA?.MusicalKey == null || trackB?.MusicalKey == null)
                 return 30; // Unknown keys = moderate risk
 
@@ -257,16 +273,23 @@ namespace SLSKDONET.Services.Analysis
             if (keyA == keyB)
                 return 0;
 
-            // Adjacent (±1 semitone = ±1 on Camelot wheel)
-            if (Math.Abs(ExtractCamelotNumber(keyA) - ExtractCamelotNumber(keyB)) <= 1)
+            int dist = ComputeKeyDistance(keyA, keyB);
+
+            // Pillar A: Define Key Clash (threshold jump > 2 on Camelot wheel)
+            if (dist > 2)
+            {
+                return 85; // Key Clash
+            }
+
+            // Within relative or adjacent
+            if (dist <= 1)
                 return 15;
 
             // Within relative minor/major
             if (HarmonicallyRelated(keyA, keyB))
                 return 25;
 
-            // Clashing
-            return 85;
+            return 50;
         }
 
         /// <summary>

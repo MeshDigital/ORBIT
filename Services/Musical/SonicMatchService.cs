@@ -185,6 +185,172 @@ public class SonicMatchService
 
         return mashupResults.OrderByDescending(r => r.Score).Take(limit).ToList();
     }
+
+    /// <summary>
+    /// Pillar A: Discover a "Bridge" track that connects Track A to Track B.
+    /// Uses 128D vector cosine similarity between Source and Candidate.
+    /// Target Threshold: > 0.85
+    /// </summary>
+    public async Task<List<SonicMatchResult>> FindBridgeAsync(LibraryEntryEntity trackA, LibraryEntryEntity trackB, int limit = 5)
+    {
+        try
+        {
+            var featuresA = await _dbContext.AudioFeatures.FirstOrDefaultAsync(af => af.TrackUniqueHash == trackA.UniqueHash);
+            var featuresB = await _dbContext.AudioFeatures.FirstOrDefaultAsync(af => af.TrackUniqueHash == trackB.UniqueHash);
+
+            if (featuresA?.VectorEmbedding == null || featuresB?.VectorEmbedding == null)
+            {
+                _logger.LogWarning("Cannot find bridge: Missing vector embeddings for {A} or {B}", trackA.UniqueHash, trackB.UniqueHash);
+                return new();
+            }
+
+            // Ideal Bridge: A track that is "between" A and B in the vector space
+            // For now, we search for tracks that are highly similar to both or satisfy the 0.85 threshold
+            var results = new List<SonicMatchResult>();
+            var candidates = await _dbContext.LibraryEntries
+                .Include(le => le.AudioFeatures)
+                .Where(le => le.UniqueHash != trackA.UniqueHash && le.UniqueHash != trackB.UniqueHash)
+                .Where(le => le.AudioFeatures != null && le.AudioFeatures.VectorEmbeddingBytes != null)
+                .ToListAsync();
+
+            foreach (var cand in candidates)
+            {
+                var candFeatures = cand.AudioFeatures;
+                if (candFeatures?.VectorEmbedding == null) continue;
+
+                var simA = CalculateCosineSimilarity(featuresA.VectorEmbedding, candFeatures.VectorEmbedding);
+                var simB = CalculateCosineSimilarity(candFeatures.VectorEmbedding, featuresB.VectorEmbedding);
+
+                // Threshold Check (User requested > 0.85)
+                if (simA > 0.85f && simB > 0.85f)
+                {
+                    results.Add(new SonicMatchResult
+                    {
+                        Track = cand,
+                        Score = (simA + simB) / 2.0f * 100f,
+                        VibeMatch = true
+                    });
+                }
+            }
+
+            return results.OrderByDescending(r => r.Score).Take(limit).ToList();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "FindBridgeAsync failed");
+            return new();
+        }
+    }
+
+    /// <summary>
+    /// SIMD-Accelerated Cosine Similarity.
+    /// Uses System.Numerics.Vector for high-performance dot product.
+    /// </summary>
+    public static float CalculateCosineSimilarity(float[]? vecA, float[]? vecB)
+    {
+        if (vecA == null || vecB == null || vecA.Length != vecB.Length) return 0;
+
+        float dot = 0;
+        float magA = 0;
+        float magB = 0;
+
+        int n = vecA.Length;
+        int vectorSize = System.Numerics.Vector<float>.Count;
+        int i = 0;
+
+        // Use SIMD for dot product and magnitudes
+        var vDot = System.Numerics.Vector<float>.Zero;
+        var vMagA = System.Numerics.Vector<float>.Zero;
+        var vMagB = System.Numerics.Vector<float>.Zero;
+
+        for (; i <= n - vectorSize; i += vectorSize)
+        {
+            var va = new System.Numerics.Vector<float>(vecA, i);
+            var vb = new System.Numerics.Vector<float>(vecB, i);
+
+            vDot += va * vb;
+            vMagA += va * va;
+            vMagB += vb * vb;
+        }
+
+        // Horizontal sum of SIMD vectors
+        for (int j = 0; j < vectorSize; j++)
+        {
+            dot += vDot[j];
+            magA += vMagA[j];
+            magB += vMagB[j];
+        }
+
+        // Remainder
+        for (; i < n; i++)
+        {
+            dot += vecA[i] * vecB[i];
+            magA += vecA[i] * vecA[i];
+            magB += vecB[i] * vecB[i];
+        }
+
+        float denominator = (float)(Math.Sqrt(magA) * Math.Sqrt(magB));
+        return denominator > 0 ? dot / denominator : 0;
+    }
+
+    /// <summary>
+    /// Pillar A: Contextual Discovery.
+    /// Analyzes the momentum/trajectory of the last 3 tracks to suggest the next move.
+    /// </summary>
+    public async Task<List<SonicMatchResult>> GetContextualMatchesAsync(List<LibraryEntryEntity> history, int limit = 10)
+    {
+        if (history == null || history.Count == 0) return new();
+
+        var lastTrack = history.Last();
+        var baselineMatches = await GetMatchesAsync(lastTrack, limit * 2);
+
+        if (history.Count < 3) return baselineMatches.Take(limit).ToList();
+
+        // Analyze Trajectory (Momentum)
+        // Energy Trajectory
+        float energyA = (float)(history[^3].Energy ?? 0.5);
+        float energyB = (float)(history[^2].Energy ?? 0.5);
+        float energyC = (float)(history[^1].Energy ?? 0.5);
+        
+        float energyTrend = (energyC - energyB) + (energyB - energyA); // Positive = Rising, Negative = Falling
+
+        // BPM Trajectory
+        float bpmA = (float)(history[^3].Bpm ?? 128);
+        float bpmB = (float)(history[^2].Bpm ?? 128);
+        float bpmC = (float)(history[^1].Bpm ?? 128);
+        
+        float bpmTrend = (bpmC - bpmB) + (bpmB - bpmA);
+
+        var contextualResults = new List<SonicMatchResult>();
+
+        foreach (var match in baselineMatches)
+        {
+            float scoreBonus = 0;
+
+            // Maintain Momentum: If energy is rising, prefer tracks that continue to rise or hold.
+            float candEnergy = (float)(match.Track.Energy ?? 0.5);
+            float candBpm = (float)(match.Track.Bpm ?? 128);
+
+            if (energyTrend > 0.05f) // Rising Energy
+            {
+                if (candEnergy >= energyC) scoreBonus += 10;
+            }
+            else if (energyTrend < -0.05f) // Falling Energy
+            {
+                if (candEnergy <= energyC) scoreBonus += 10;
+            }
+
+            if (bpmTrend > 1) // Rising BPM
+            {
+                if (candBpm >= bpmC) scoreBonus += 5;
+            }
+
+            match.Score = Math.Clamp(match.Score + scoreBonus, 0, 100);
+            contextualResults.Add(match);
+        }
+
+        return contextualResults.OrderByDescending(r => r.Score).Take(limit).ToList();
+    }
 }
 
 public class SonicMatchResult

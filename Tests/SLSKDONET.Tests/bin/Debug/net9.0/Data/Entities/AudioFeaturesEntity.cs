@@ -68,6 +68,17 @@ public class AudioFeaturesEntity
     /// Energy level (0.0 - 1.0). Higher = more intense/aggressive.
     /// </summary>
     public float Energy { get; set; }
+
+    /// <summary>
+    /// Mixed In Key compatible energy score (1-10 scale).
+    /// </summary>
+    public int EnergyScore { get; set; }
+    
+    /// <summary>
+    /// Segmented energy levels (1-10) for each of the 8 structural points.
+    /// Stored as a JSON array of integers.
+    /// </summary>
+    public string SegmentedEnergyJson { get; set; } = "[]";
     
     /// <summary>
     /// Danceability score (0.0 - 1.0). Higher = more suitable for dancing.
@@ -221,7 +232,7 @@ public class AudioFeaturesEntity
     /// <summary>
     /// JSON array of detected anomalies or unusual characteristics in the audio.
     /// </summary>
-    public string? AnomaliesJson { get; set; }
+    public string AnomaliesJson { get; set; } = "[]";
     
     // Raw byte storage for EF Core
     [Column("VectorEmbedding")]

@@ -46,7 +46,7 @@ public class AppDbContext : DbContext
         var appData = System.Environment.GetFolderPath(System.Environment.SpecialFolder.ApplicationData);
         var dbPath = Path.Combine(appData, "ORBIT", "library.db");
         Directory.CreateDirectory(Path.GetDirectoryName(dbPath)!);
-        
+
         // Phase 1B/0: Enable WAL Mode and Busy Timeout for better concurrency
         var connectionString = new SqliteConnectionStringBuilder
         {
@@ -55,7 +55,7 @@ public class AppDbContext : DbContext
             Cache = SqliteCacheMode.Shared, // Enable shared cache for better concurrency
             DefaultTimeout = 2000 // 2 seconds busy timeout - prevents "Database is locked"
         }.ToString();
-        
+
         optionsBuilder.UseSqlite(connectionString, options =>
         {
             options.CommandTimeout(30); // 30 second timeout for long operations
@@ -80,34 +80,34 @@ public class AppDbContext : DbContext
             sqliteConnection.Open();
 
         using var command = connection.CreateCommand();
-        
+
         // Phase 1B: Enable Write-Ahead Logging
         command.CommandText = "PRAGMA journal_mode=WAL;";
         var result = command.ExecuteScalar()?.ToString();
         System.Console.WriteLine($"[Phase 1B] Journal mode set to: {result}");
-        
+
         // Set synchronous mode to NORMAL (safe with WAL, much faster than FULL)
         command.CommandText = "PRAGMA synchronous=NORMAL;";
         command.ExecuteNonQuery();
-        
+
         // Increase cache size to 10MB (default is ~2MB)
         command.CommandText = "PRAGMA cache_size=-10000;"; // Negative = KB
         command.ExecuteNonQuery();
-        
+
         // Auto-checkpoint at 1000 pages (~4MB)
         command.CommandText = "PRAGMA wal_autocheckpoint=1000;";
         command.ExecuteNonQuery();
-        
+
         System.Console.WriteLine("[Phase 1B] SQLite WAL mode enabled successfully");
     }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
-        
+
         // Phase 0B: Map PlaylistJobEntity to "Projects" table (terminology unification)
         modelBuilder.Entity<PlaylistJobEntity>().ToTable("Projects");
-        
+
         // Configure PlaylistJob -> PlaylistTrack relationship
         modelBuilder.Entity<PlaylistJobEntity>()
             .HasMany(j => j.Tracks)
@@ -181,7 +181,7 @@ public class AppDbContext : DbContext
             .HasDatabaseName("IX_Blacklist_Hash");
 
         // Phase 21: AI Brain Relationships
-        
+
         // 1. Valid Join Target: AudioFeatures must have Unique Hash
         modelBuilder.Entity<AudioFeaturesEntity>()
             .HasIndex(af => af.TrackUniqueHash)
@@ -198,6 +198,10 @@ public class AppDbContext : DbContext
             .HasPrincipalKey<LibraryEntryEntity>(le => le.UniqueHash)
             .OnDelete(DeleteBehavior.Cascade);
 
+        // 2b. LibraryEntry alternate key for Guid-based references
+        modelBuilder.Entity<LibraryEntryEntity>()
+            .HasAlternateKey(e => e.Id);
+
         // 3. PlaylistTrack -> AudioFeatures (Many:1 Lookup)
         modelBuilder.Entity<PlaylistTrackEntity>()
             .HasOne(pt => pt.AudioFeatures)
@@ -212,6 +216,14 @@ public class AppDbContext : DbContext
             .WithOne(t => t.SetList)
             .HasForeignKey(t => t.SetListId)
             .OnDelete(DeleteBehavior.Cascade);
+
+        // 4b. SetTrack -> LibraryEntry (optional, via LibraryId Guid)
+        modelBuilder.Entity<Entities.SetTrackEntity>()
+            .HasOne(t => t.Library)
+            .WithMany()
+            .HasForeignKey(t => t.LibraryId)
+            .HasPrincipalKey(e => e.Id)
+            .IsRequired(false);
 
         modelBuilder.Entity<Entities.SetTrackEntity>()
             .Property(e => e.TransitionType)

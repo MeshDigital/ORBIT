@@ -246,6 +246,86 @@ namespace SLSKDONET.Tests.Services
                     System.IO.Directory.Delete(tempDir, true);
             }
         }
+        [Fact]
+        public void MetadataFormatter_FormatTrackMetadata_ShouldIncludeEnergyScore()
+        {
+            // Arrange
+            int energyScore = 7;
+
+            // Act
+            string result = MetadataFormatter.FormatTrackMetadata(energyScore: energyScore);
+
+            // Assert
+            Assert.Contains("EnergyScore=7/10", result);
+        }
+
+        [Fact]
+        public async Task RekordboxExportService_Mapping_ShouldProcessSegmentedEnergyCorrectly()
+        {
+            // Arrange
+            var loggerMock = new Mock<ILogger<RekordboxExportService>>();
+            var validator = new ExportValidator();
+            var organizer = new ExportPackOrganizer();
+            var service = new RekordboxExportService(loggerMock.Object, validator, organizer);
+
+            string tempDir = System.IO.Path.Combine(System.IO.Path.GetTempPath(), "ORBIT_Test_Energy_" + Guid.NewGuid());
+            System.IO.Directory.CreateDirectory(tempDir);
+            string dummyFile = System.IO.Path.Combine(tempDir, "energy_test.mp3");
+            System.IO.File.WriteAllText(dummyFile, "dummy");
+
+            var track = new LibraryEntryEntity
+            {
+                UniqueHash = "hash_energy",
+                Title = "Energy Track",
+                Artist = "Producer",
+                FilePath = dummyFile,
+                CanonicalDuration = 100, // 100 seconds
+                BPM = 120,
+                AudioFeatures = new AudioFeaturesEntity 
+                { 
+                    TrackUniqueHash = "hash_energy",
+                    EnergyScore = 8,
+                    SegmentedEnergyJson = System.Text.Json.JsonSerializer.Serialize(new List<int> { 2, 5, 9 }) // 3 points
+                }
+            };
+
+            var options = new ExportOptions { IncludeForensicNotes = true, ExportStructuralCues = true, CueMode = CueExportMode.MemoryCues };
+
+            try
+            {
+                // Act
+                var result = await service.ExportTracksAsync(new[] { track }, tempDir, options);
+
+                // Assert
+                Assert.True(result.Success);
+                string xmlContent = System.IO.File.ReadAllText(result.XmlFilePath);
+                
+                // Check Metadata
+                Assert.Contains("EnergyScore=8/10", xmlContent);
+                
+                // Check E1-E3 Cues
+                Assert.Contains("Name=\"E1\"", xmlContent);
+                Assert.Contains("Name=\"E2\"", xmlContent);
+                Assert.Contains("Name=\"E3\"", xmlContent);
+                
+                // Check Position spacing (100 / 3 = ~33.33)
+                Assert.Contains("Start=\"0.000\"", xmlContent); // E1
+                Assert.Contains("Start=\"33.333\"", xmlContent); // E2
+                Assert.Contains("Start=\"66.667\"", xmlContent); // E3
+
+                // Check Colors (E3 = Energy 9 = Red)
+                // Red = 255, 0, 0
+                Assert.Contains("Name=\"E3\"", xmlContent);
+                Assert.Contains("Red=\"255\"", xmlContent);
+                Assert.Contains("Green=\"0\"", xmlContent);
+                Assert.Contains("Blue=\"0\"", xmlContent);
+            }
+            finally
+            {
+                if (System.IO.Directory.Exists(tempDir))
+                    System.IO.Directory.Delete(tempDir, true);
+            }
+        }
     }
 }
 

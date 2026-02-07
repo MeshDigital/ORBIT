@@ -382,4 +382,58 @@ public class SonicMatchService : ISonicMatchService
         for (int i = 0; i < 4; i++) sum += v.GetElement(i);
         return sum;
     }
+
+    public async Task<List<SonicMatch>> FindBridgeAsync(LibraryEntryEntity trackA, LibraryEntryEntity trackB, int limit = 5)
+    {
+        if (trackA == null || trackB == null) return new List<SonicMatch>();
+
+        // 1. Get features for both tracks
+        var featuresA = await _databaseService.GetAudioFeaturesByHashAsync(trackA.UniqueHash);
+        var featuresB = await _databaseService.GetAudioFeaturesByHashAsync(trackB.UniqueHash);
+
+        if (featuresA == null || featuresB == null) return new List<SonicMatch>();
+
+        // 2. Find candidates (similar to Track A to start with)
+        // We get top 50 matches for A, then re-rank by closeness to B
+        var candidates = await FindSonicMatchesAsync(trackA.UniqueHash, 50);
+
+        // 3. Score candidates based on being a "Bridge"
+        var bridgeCandidates = new List<SonicMatch>();
+
+        foreach (var candidate in candidates)
+        {
+            if (candidate.TrackUniqueHash == trackB.UniqueHash) continue; // Don't suggest B itself
+
+            // Calculate distance to B
+            var distToB = CalculateDistanceToFeatures(candidate, featuresB);
+            
+            // Bridge Score: Minimized path deviation
+            double distToA = candidate.Distance; // Already calculated
+            double totalPath = distToA + distToB;
+            double distAtoB = CalculateSonicDistance(featuresA, featuresB);
+            double deviation = totalPath - distAtoB; // 0 means perfect line
+
+            candidate.Distance = deviation; // Re-purpose Distance for sorting
+            candidate.MatchReason = "🌉 Bridge Track";
+            
+            bridgeCandidates.Add(candidate);
+        }
+
+        return bridgeCandidates
+            .OrderBy(c => c.Distance)
+            .Take(limit)
+            .ToList();
+    }
+
+    private double CalculateDistanceToFeatures(SonicMatch candidate, AudioFeaturesEntity target)
+    {
+         var aDance = candidate.Danceability * DanceabilityScale;
+         var bDance = target.Danceability * DanceabilityScale;
+         
+         var dArousal = ((candidate.Arousal) - (target.Arousal ?? 0f)) * WeightArousal;
+         var dValence = (candidate.Valence - target.Valence) * WeightValence;
+         var dDance = (aDance - bDance) * WeightDanceability;
+         
+         return Math.Sqrt(dArousal * dArousal + dValence * dValence + dDance * dDance);
+    }
 }
