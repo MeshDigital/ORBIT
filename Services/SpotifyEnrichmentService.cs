@@ -427,6 +427,31 @@ public class SpotifyEnrichmentService
             return new System.Collections.Generic.List<SavedTrack>();
         }
     }
+
+    /// <summary>
+    /// Fetches tracks from a specific playlist by ID.
+    /// Used by Discovery Hub Workbench to load playlist contents.
+    /// </summary>
+    public async Task<System.Collections.Generic.List<object>> GetPlaylistTracksAsync(string playlistId)
+    {
+        try
+        {
+            var client = await _authService.GetAuthenticatedClientAsync();
+            if (client == null) return new System.Collections.Generic.List<object>();
+
+            var request = new PlaylistGetItemsRequest { Limit = 100 };
+            var firstPage = await client.Playlists.GetItems(playlistId, request);
+            
+            // Paginate to get all tracks
+            var allItems = await client.PaginateAll(firstPage);
+            return allItems.Cast<object>().ToList();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to fetch playlist tracks for {PlaylistId}", playlistId);
+            return new System.Collections.Generic.List<object>();
+        }
+    }
 }
 
 public class SpotifyTrackViewModel

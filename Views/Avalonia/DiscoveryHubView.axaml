@@ -3,16 +3,11 @@
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              xmlns:vm="clr-namespace:SLSKDONET.ViewModels.Discovery"
-             xmlns:spotify="clr-namespace:SpotifyAPI.Web;assembly=SpotifyAPI.Web"
+             xmlns:dto="clr-namespace:SLSKDONET.Models.Discovery"
+             xmlns:vms="clr-namespace:SLSKDONET.ViewModels"
              mc:Ignorable="d" d:DesignWidth="1200" d:DesignHeight="800"
              x:Class="SLSKDONET.Views.Avalonia.DiscoveryHubView"
              x:DataType="vm:DiscoveryHubViewModel">
-
-    <Design.PreviewWith>
-        <Border Padding="20">
-            <!-- Preview here if needed -->
-        </Border>
-    </Design.PreviewWith>
 
     <Grid ColumnDefinitions="300,*">
         <!-- Sidebar: My Spotify -->
@@ -35,14 +30,14 @@
                             <TextBlock Text="Your Playlists" FontSize="12" FontWeight="Bold" Foreground="#888"/>
                             <ItemsControl ItemsSource="{Binding UserPlaylists}">
                                 <ItemsControl.ItemTemplate>
-                                    <DataTemplate>
+                                    <DataTemplate x:DataType="dto:SpotifyPlaylistDto">
                                         <Button Classes="playlist-link" Command="{Binding $parent[UserControl].((vm:DiscoveryHubViewModel)DataContext).LoadPlaylistTracksCommand}" CommandParameter="{Binding Id}">
-                                            <Grid ColumnDefinitions="Auto,*">
+                                            <Grid ColumnDefinitions="Auto,*,Auto">
                                                 <Border Width="32" Height="32" CornerRadius="4" ClipToBounds="True" Background="#1A1A1A">
-                                                    <!-- Image placeholder or AsyncImage if available -->
                                                     <TextBlock Text="💿" VerticalAlignment="Center" HorizontalAlignment="Center" FontSize="14"/>
                                                 </Border>
                                                 <TextBlock Grid.Column="1" Text="{Binding Name}" VerticalAlignment="Center" Margin="12,0" TextTrimming="CharacterEllipsis" FontSize="13"/>
+                                                <TextBlock Grid.Column="2" Text="{Binding TrackCount}" Foreground="#666" FontSize="11" VerticalAlignment="Center"/>
                                             </Grid>
                                         </Button>
                                     </DataTemplate>
@@ -55,12 +50,12 @@
                             <TextBlock Text="Last Liked" FontSize="12" FontWeight="Bold" Foreground="#888"/>
                             <ItemsControl ItemsSource="{Binding SavedTracks}">
                                 <ItemsControl.ItemTemplate>
-                                    <DataTemplate>
-                                        <Grid ColumnDefinitions="Auto,*" Margin="0,4" ToolTip.Tip="{Binding Track.Name}">
+                                    <DataTemplate x:DataType="dto:SpotifySavedTrackDto">
+                                        <Grid ColumnDefinitions="Auto,*" Margin="0,4">
                                             <TextBlock Text="🎵" Foreground="#1DB954" Opacity="0.7"/>
                                             <StackPanel Grid.Column="1" Margin="8,0">
-                                                <TextBlock Text="{Binding Track.Name}" FontSize="12" FontWeight="SemiBold" TextTrimming="CharacterEllipsis"/>
-                                                <!-- Artist info would go here if available on Track -->
+                                                <TextBlock Text="{Binding Name}" FontSize="12" FontWeight="SemiBold" TextTrimming="CharacterEllipsis"/>
+                                                <TextBlock Text="{Binding Artist}" FontSize="10" Foreground="#888" TextTrimming="CharacterEllipsis"/>
                                             </StackPanel>
                                         </Grid>
                                     </DataTemplate>
@@ -79,25 +74,100 @@
             <Border Grid.Row="0" Background="#1A1A1A" BorderBrush="#282828" BorderThickness="0,0,0,1" Padding="32,24">
                 <StackPanel Spacing="20">
                     <Grid ColumnDefinitions="*,Auto">
-                        <Border Background="#121212" CornerRadius="12" BorderBrush="#333" BorderThickness="1" Height="50" HorizontalAlignment="Stretch">
+                        <Border Background="#121212" CornerRadius="12" BorderBrush="#333" BorderThickness="1" MinHeight="50" HorizontalAlignment="Stretch">
                             <Grid ColumnDefinitions="Auto,*,Auto">
                                 <TextBlock Text="🔍" VerticalAlignment="Center" Margin="16,0" Opacity="0.5"/>
-                                <TextBox Grid.Column="1" Text="{Binding SearchQuery}" Watermark="Deep Dive Artist, Track or ISRC..." 
-                                         Background="Transparent" BorderThickness="0" VerticalContentAlignment="Center" FontSize="16"/>
+                                <TextBox Grid.Column="1" Text="{Binding SearchQuery}" 
+                                         Watermark="Paste YouTube tracklist or search Artist - Title..." 
+                                         Background="Transparent" BorderThickness="0" VerticalContentAlignment="Center" 
+                                         FontSize="14" AcceptsReturn="True" MinHeight="50" MaxHeight="120"
+                                         TextWrapping="Wrap"/>
                                 <Button Grid.Column="2" Command="{Binding SearchCommand}" Classes="accent" Content="CASCADE SEARCH" 
                                         CornerRadius="0,11,11,0" Padding="24,0" Height="50" FontWeight="Bold"/>
                             </Grid>
                         </Border>
                     </Grid>
+                    
+                    <!-- Mode Indicator -->
+                    <StackPanel Orientation="Horizontal" Spacing="12">
+                        <Border Background="#1DB954" CornerRadius="4" Padding="8,4" 
+                                IsVisible="{Binding CurrentViewMode, Converter={x:Static ObjectConverters.IsNotNull}}">
+                            <TextBlock Text="{Binding CurrentViewMode}" FontSize="10" FontWeight="Bold" Foreground="Black"/>
+                        </Border>
+                        <Button Command="{Binding ClearWorkbenchCommand}" Content="✕ Clear" 
+                                FontSize="11" Background="Transparent" Foreground="#888" Padding="8,4"
+                                IsVisible="{Binding WorkbenchTracks.Count}"/>
+                    </StackPanel>
                 </StackPanel>
             </Border>
 
-            <!-- Results Grid (Placeholder for advanced AnalyzedSearchResultViewModels) -->
+            <!-- Results Area (toggles between Workbench and Search Results) -->
             <Grid Grid.Row="1">
+                <!-- Workbench Mode: Batch Tracklist -->
+                <ScrollViewer IsVisible="{Binding CurrentViewMode, Converter={x:Static ObjectConverters.IsNotNull}}">
+                    <StackPanel Spacing="2" Margin="16">
+                        <Grid ColumnDefinitions="Auto,*,Auto,Auto" Margin="0,0,0,16">
+                            <TextBlock Text="🎯" FontSize="20" VerticalAlignment="Center"/>
+                            <TextBlock Grid.Column="1" Text="Workbench" FontSize="18" FontWeight="Bold" Margin="12,0"/>
+                            <TextBlock Grid.Column="2" Text="{Binding WorkbenchTracks.Count, StringFormat='{}{0} tracks'}" 
+                                       Foreground="#888" FontSize="12" VerticalAlignment="Center"/>
+                            <Button Grid.Column="3" Command="{Binding SearchAllWorkbenchCommand}" Content="🔍 Search All" 
+                                    Classes="accent" Margin="16,0,0,0" Padding="16,8"/>
+                        </Grid>
+                        
+                        <ItemsControl ItemsSource="{Binding WorkbenchTracks}">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate x:DataType="dto:BatchTrackItem">
+                                    <Border Background="#181818" CornerRadius="6" Padding="12" Margin="0,2">
+                                        <Grid ColumnDefinitions="Auto,*,Auto,Auto">
+                                            <Panel Width="20" VerticalAlignment="Center" Margin="0,0,12,0">
+                                                <TextBlock Text="⏳" FontSize="14" IsVisible="{Binding !IsSearched}" Opacity="0.5"/>
+                                                <TextBlock Text="✅" FontSize="14" IsVisible="{Binding IsSearched}"/>
+                                            </Panel>
+                                            <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                                <TextBlock Text="{Binding Artist}" FontSize="12" Foreground="#1DB954" FontWeight="SemiBold"/>
+                                                <TextBlock Text="{Binding Title}" FontSize="14" FontWeight="Bold"/>
+                                            </StackPanel>
+                                            <TextBlock Grid.Column="2" Text="{Binding ResultCount, StringFormat='{}{0} hits'}" 
+                                                       Foreground="#666" FontSize="11" VerticalAlignment="Center" Margin="12,0"/>
+                                            <Button Grid.Column="3" Command="{Binding $parent[UserControl].((vm:DiscoveryHubViewModel)DataContext).SearchWorkbenchItemCommand}" 
+                                                    CommandParameter="{Binding}" Content="🔍" Padding="8" Background="Transparent"/>
+                                        </Grid>
+                                    </Border>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </StackPanel>
+                </ScrollViewer>
+
+                <!-- Search Results Mode -->
                 <ScrollViewer>
                     <StackPanel Spacing="2" Margin="16">
-                         <!-- ItemsControl for Results with Heatmap logic -->
-                         <TextBlock Text="Extraction Grid" Foreground="#333" FontSize="40" FontWeight="Black" Opacity="0.1" HorizontalAlignment="Center" Margin="0,100"/>
+                        <ItemsControl ItemsSource="{Binding SearchResults}">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate x:DataType="dto:DiscoverySearchResultDto">
+                                    <Border Background="#181818" CornerRadius="6" Padding="12" Margin="0,2">
+                                        <Grid ColumnDefinitions="*,Auto,Auto">
+                                            <StackPanel VerticalAlignment="Center">
+                                                <TextBlock Text="{Binding DisplayTitle}" FontSize="13" FontWeight="SemiBold"/>
+                                                <TextBlock Text="{Binding DisplayArtist}" FontSize="11" Foreground="#888"/>
+                                            </StackPanel>
+                                            <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                                                <TextBlock Text="{Binding Bitrate, StringFormat='{}{0}kbps'}" Foreground="#4EC9B0" FontSize="11"/>
+                                                <TextBlock Text="{Binding Format}" Foreground="#666" FontSize="11"/>
+                                            </StackPanel>
+                                            <TextBlock Grid.Column="2" Text="{Binding FileSizeDisplay}" Foreground="#666" FontSize="11" 
+                                                       VerticalAlignment="Center" Margin="16,0,0,0"/>
+                                        </Grid>
+                                    </Border>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                        
+                        <!-- Empty State -->
+                        <TextBlock Text="Extraction Grid" Foreground="#333" FontSize="40" FontWeight="Black" Opacity="0.1" 
+                                   HorizontalAlignment="Center" Margin="0,100"
+                                   IsVisible="{Binding !SearchResults.Count}"/>
                     </StackPanel>
                 </ScrollViewer>
                 
@@ -108,12 +178,16 @@
             <Border Grid.Row="2" Background="#121212" BorderBrush="#282828" BorderThickness="0,1,0,0" Padding="16,8">
                 <StackPanel Orientation="Horizontal" Spacing="24">
                     <StackPanel Orientation="Horizontal" Spacing="8">
-                        <TextBlock Text="Bouncer Status:" Foreground="#888" FontSize="11" VerticalAlignment="Center"/>
-                        <TextBlock Text="STRICT" Foreground="#1DB954" FontWeight="Bold" FontSize="11" VerticalAlignment="Center"/>
+                        <TextBlock Text="Mode:" Foreground="#888" FontSize="11" VerticalAlignment="Center"/>
+                        <TextBlock Text="{Binding CurrentViewMode}" Foreground="#1DB954" FontWeight="Bold" FontSize="11" VerticalAlignment="Center"/>
                     </StackPanel>
                     <StackPanel Orientation="Horizontal" Spacing="8">
-                        <TextBlock Text="Active Extraction:" Foreground="#888" FontSize="11" VerticalAlignment="Center"/>
-                        <TextBlock Text="{Binding SearchResults.Count, StringFormat='{}{0} results'}" Foreground="White" FontSize="11" VerticalAlignment="Center"/>
+                        <TextBlock Text="Workbench:" Foreground="#888" FontSize="11" VerticalAlignment="Center"/>
+                        <TextBlock Text="{Binding WorkbenchTracks.Count, StringFormat='{}{0} tracks'}" Foreground="White" FontSize="11" VerticalAlignment="Center"/>
+                    </StackPanel>
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                        <TextBlock Text="Results:" Foreground="#888" FontSize="11" VerticalAlignment="Center"/>
+                        <TextBlock Text="{Binding SearchResults.Count, StringFormat='{}{0} hits'}" Foreground="White" FontSize="11" VerticalAlignment="Center"/>
                     </StackPanel>
                 </StackPanel>
             </Border>
@@ -140,6 +214,14 @@
         </Style>
         <Style Selector="Button.playlist-link:pointerover /template/ ContentPresenter">
             <Setter Property="Background" Value="#282828"/>
+        </Style>
+        
+        <Style Selector="Button.accent">
+            <Setter Property="Background" Value="#1DB954"/>
+            <Setter Property="Foreground" Value="Black"/>
+        </Style>
+        <Style Selector="Button.accent:pointerover /template/ ContentPresenter">
+            <Setter Property="Background" Value="#1ED760"/>
         </Style>
     </UserControl.Styles>
 </UserControl>
