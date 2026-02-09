@@ -12,15 +12,16 @@ namespace SLSKDONET.Services.Export;
 public class HardwareExportService : IHardwareExportService
 {
     private readonly ILogger<HardwareExportService> _logger;
-    private readonly RekordboxService _rekordboxService;
+    private readonly RekordboxXmlExporter _rekordboxExporter;
 
     public event EventHandler<ExportProgressEventArgs>? ProgressChanged;
 
-    public HardwareExportService(ILogger<HardwareExportService> logger, RekordboxService rekordboxService)
+    public HardwareExportService(ILogger<HardwareExportService> logger, RekordboxXmlExporter rekordboxExporter)
     {
         _logger = logger;
-        _rekordboxService = rekordboxService;
+        _rekordboxExporter = rekordboxExporter;
     }
+
 
     public IEnumerable<ExportDriveInfo> GetAvailableDrives()
     {
@@ -141,28 +142,26 @@ public class HardwareExportService : IHardwareExportService
             });
             
             // Generate Rekordbox XML on the drive root
-            // Note: We might need to adjust track paths in the XML to be relative to drive or point to 'Contents'
-            // Rekordbox usually expects absolute paths in XML but we can provide drive-relative ones if exported from the same drive.
-            // Let's use the RekordboxService to generate it.
             string xmlPath = Path.Combine(targetDrive.RootPath, "rekordbox_export.xml");
             
-            // We need to map tracks to the new paths on the USB
-            var exportTracks = tracks.Select(t => {
-                 // Clone or find new path
-                 string artist = SanitizeForFat32(t.Artist ?? "Unknown Artist");
-                 string album = SanitizeForFat32(t.Album ?? "Unknown Album");
-                 string fileName = SanitizeForFat32(Path.GetFileName(t.ResolvedFilePath));
-                 
-                 // We need to return the track with its new path for XML generation
-                 // For now, RekordboxService expects ResolvedFilePath to exist.
-                 // We temp-override it or better, pass the mapping.
-                 // TODO: Support path mapping in RekordboxService
-                 return t; 
-            }).ToList();
+            // Map original paths to final paths on the USB
+            await _rekordboxExporter.ExportAsync(project, xmlPath, originalPath => 
+            {
+                var track = tracks.FirstOrDefault(t => t.ResolvedFilePath == originalPath);
+                if (track == null) return originalPath;
 
-            // TODO: Update RekordboxService to support exporting with relative/virtual paths
+                string artist = SanitizeForFat32(track.Artist ?? "Unknown Artist");
+                string album = SanitizeForFat32(track.Album ?? "Unknown Album");
+                string fileName = SanitizeForFat32(Path.GetFileName(track.ResolvedFilePath));
+
+                // Path on the hardware: /Contents/Artist/Album/File.mp3
+                // We use '/' for Rekordbox cross-platform compatibility
+                return $"/Contents/{artist}/{album}/{fileName}";
+            });
+
             _logger.LogInformation("Rekordbox XML generated at {Path}", xmlPath);
         }
+
         else if (platform == HardwarePlatform.Denon)
         {
              _logger.LogInformation("Denon Engine database generation not yet implemented. Tracks copied to /Music/");

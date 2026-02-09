@@ -37,7 +37,7 @@ public class RekordboxXmlExporter
     /// Exports a PlaylistJob to Rekordbox XML format.
     /// Loads PlaylistTrack entries from persistent storage and uses their ResolvedFilePath.
     /// </summary>
-    public async Task ExportAsync(PlaylistJob job, string exportPath)
+    public async Task ExportAsync(PlaylistJob job, string exportPath, Func<string, string>? pathMapper = null)
     {
         try
         {
@@ -83,8 +83,12 @@ public class RekordboxXmlExporter
                     continue;
                 }
 
+                // [NEW] Phase 25: Support hardware path remapping
+                var finalPath = pathMapper?.Invoke(track.ResolvedFilePath) ?? track.ResolvedFilePath;
+
                 // Convert file path to Rekordbox URL format
-                var locationUrl = FileFormattingUtils.ToRekordboxUrl(track.ResolvedFilePath);
+                var locationUrl = FileFormattingUtils.ToRekordboxUrl(finalPath);
+
 
                 var trackEntry = new XElement("TRACK",
                     new XAttribute("TrackID", trackIdCounter++),
@@ -169,6 +173,7 @@ public class RekordboxXmlExporter
                         new XAttribute("Type", "playlist"),
                         playlistTracks
                             .Where(t => !string.IsNullOrEmpty(t.ResolvedFilePath))
+                            .OrderBy(t => t.SortOrder)
                             .Select((t, idx) => new XElement("TRACK", 
                                 new XAttribute("Key", idx + 1)))
                     )

@@ -32,9 +32,12 @@ namespace SLSKDONET.ViewModels
         private readonly IEventBus _eventBus;
         private readonly RekordboxXmlExporter _rekordboxExporter;
         private readonly IFileInteractionService _fileService;
+        private readonly Services.Export.IHardwareExportService _hardwareExportService;
+        private readonly ILogger<DJCompanionViewModel> _logger;
 
 
         // Observable Collections for UI Binding
+
         public ObservableCollection<HarmonicMatchDisplayItem> HarmonicMatches { get; } = new();
         public ObservableCollection<BpmMatchDisplayItem> BpmMatches { get; } = new();
         public ObservableCollection<EnergyMatchDisplayItem> EnergyMatches { get; } = new();
@@ -49,6 +52,31 @@ namespace SLSKDONET.ViewModels
         public ObservableCollection<KeyClashIssue> KeyClashes { get; } = new();
         public ObservableCollection<EnergyGapIssue> EnergyGaps { get; } = new();
         public ObservableCollection<VocalClashIssue> VocalClashes { get; } = new();
+
+        // NEW: Hardware Export (Sprint 6)
+        public ObservableCollection<Services.Export.ExportDriveInfo> AvailableExportDrives { get; } = new();
+
+        private Services.Export.ExportDriveInfo? _selectedExportDrive;
+        public Services.Export.ExportDriveInfo? SelectedExportDrive
+        {
+            get => _selectedExportDrive;
+            set => this.RaiseAndSetIfChanged(ref _selectedExportDrive, value);
+        }
+
+        private double _exportProgress;
+        public double ExportProgress
+        {
+            get => _exportProgress;
+            set => this.RaiseAndSetIfChanged(ref _exportProgress, value);
+        }
+
+        private string _exportStatus = string.Empty;
+        public string ExportStatus
+        {
+            get => _exportStatus;
+            set => this.RaiseAndSetIfChanged(ref _exportStatus, value);
+        }
+
 
 
         private UnifiedTrackViewModel? _currentTrack;
@@ -189,6 +217,9 @@ namespace SLSKDONET.ViewModels
         public ReactiveCommand<double, Unit> SeekCommand { get; private set; }
         public ReactiveCommand<OrbitCue, Unit> CueUpdatedCommand { get; private set; }
         public ReactiveCommand<Unit, Unit> ExportToRekordboxCommand { get; private set; }
+        public ReactiveCommand<Unit, Unit> ExportToUsbCommand { get; private set; }
+        public ReactiveCommand<Unit, Unit> RefreshDrivesCommand { get; private set; }
+
 
 
 
@@ -199,6 +230,8 @@ namespace SLSKDONET.ViewModels
             IEventBus eventBus,
             RekordboxXmlExporter rekordboxExporter,
             IFileInteractionService fileService,
+            Services.Export.IHardwareExportService hardwareExportService,
+            ILogger<DJCompanionViewModel> logger,
             SetlistStressTestService? stressTestService = null,
             AppDbContext? dbContext = null)
         {
@@ -208,6 +241,8 @@ namespace SLSKDONET.ViewModels
             _player = playerViewModel;
             _rekordboxExporter = rekordboxExporter;
             _fileService = fileService;
+            _hardwareExportService = hardwareExportService;
+            _logger = logger;
 
 
             TogglePlayCommand = ReactiveCommand.Create(TogglePlay);
@@ -248,8 +283,6 @@ namespace SLSKDONET.ViewModels
                 return Unit.Default;
             });
 
-
-
             SeekCommand = ReactiveCommand.CreateFromTask<double, Unit>(async position =>
             {
                 if (_player != null)
@@ -259,7 +292,6 @@ namespace SLSKDONET.ViewModels
                 return Unit.Default;
             });
 
-
             CueUpdatedCommand = ReactiveCommand.CreateFromTask<OrbitCue, Unit>(async cue =>
             {
                 if (cue == null || CurrentTrack?.Model == null) return Unit.Default;
@@ -268,17 +300,13 @@ namespace SLSKDONET.ViewModels
                 {
                     using var db = new AppDbContext();
                     var technical = await db.AudioFeatures.FirstOrDefaultAsync(f => f.TrackUniqueHash == CurrentTrack.GlobalId);
-
-
                     
                     if (technical != null)
                     {
-                        // Get current cues
                         var cues = string.IsNullOrEmpty(technical.CuePointsJson) 
                             ? new List<OrbitCue>() 
                             : System.Text.Json.JsonSerializer.Deserialize<List<OrbitCue>>(technical.CuePointsJson) ?? new List<OrbitCue>();
 
-                        // Find and update or add
                         var existing = cues.FirstOrDefault(c => c.Role == cue.Role);
                         if (existing != null)
                         {
@@ -291,32 +319,44 @@ namespace SLSKDONET.ViewModels
                         }
 
                         technical.CuePointsJson = System.Text.Json.JsonSerializer.Serialize(cues);
-
                         await db.SaveChangesAsync();
-                        System.Diagnostics.Debug.WriteLine($"Persisted cue {cue.Role} to DB.");
                     }
                 }
                 catch (Exception ex)
                 {
-                    System.Diagnostics.Debug.WriteLine($"Failed to persist cue: {ex.Message}");
+                    _logger?.LogError(ex, "Failed to persist cue update");
                 }
-                
                 return Unit.Default;
             });
 
             ExportToRekordboxCommand = ReactiveCommand.CreateFromTask(ExportToRekordboxAsync);
+            
+            // Sprint 6: Hardware Export Commands
+            RefreshDrivesCommand = ReactiveCommand.CreateFromTask(RefreshDrivesAsync);
+            ExportToUsbCommand = ReactiveCommand.CreateFromTask(ExportToUsbAsync, 
+                this.WhenAnyValue(x => x.SelectedExportDrive, x => x.CurrentSetlist, 
+                    (drive, setlist) => drive != null && setlist != null));
 
+            // Wire hardware progress events
+            _hardwareExportService.ProgressChanged += (s, e) =>
+            {
+                ExportProgress = e.Percentage;
+                ExportStatus = e.Status;
+            };
 
-
-
-            // Phase 6: Track selection subscription ready (deferred until needed)
+            // Initial refresh
+            _ = RefreshDrivesAsync();
         }
+
+
+
 
         private void OnTrackSelected()
         {
             // Phase 6: Placeholder for track selection integration
             // Will be wired via eventbus subscription when needed
         }
+
 
         /// <summary>
         /// Main entry point: Load a track and generate all recommendations.
@@ -948,15 +988,11 @@ namespace SLSKDONET.ViewModels
                 return;
             }
 
-            // In a real scenario, we'd need a PlaylistJob. 
-            // For now, let's assume we are exporting the current view context or a temporary job.
-            // Simplified: Use the first track's playlist if available, or create a mock.
             var firstTrack = CurrentSetlistTracks.FirstOrDefault()?.Track;
             if (firstTrack == null) return;
 
             var savePath = await _fileService.SaveFileDialogAsync("Export Rekordbox XML", "rekordbox.xml", "xml");
             if (string.IsNullOrEmpty(savePath)) return;
-
 
             HelpText = "Exporting to Rekordbox...";
             
@@ -969,10 +1005,71 @@ namespace SLSKDONET.ViewModels
             catch (Exception ex)
             {
                 HelpText = $"Export failed: {ex.Message}";
+                _logger?.LogError(ex, "Rekordbox XML export failed");
+            }
+        }
+
+        private async Task RefreshDrivesAsync()
+        {
+            try
+            {
+                var drives = _hardwareExportService.GetAvailableDrives();
+                AvailableExportDrives.Clear();
+                foreach (var d in drives)
+                    AvailableExportDrives.Add(d);
+
+                if (SelectedExportDrive == null && AvailableExportDrives.Count > 0)
+                    SelectedExportDrive = AvailableExportDrives[0];
+                
+                if (AvailableExportDrives.Count == 0)
+                    ExportStatus = "No USB drives found";
+                else
+                    ExportStatus = $"{AvailableExportDrives.Count} drives available";
+            }
+            catch (Exception ex)
+            {
+                _logger?.LogError(ex, "Failed to refresh drives");
+            }
+        }
+
+        private async Task ExportToUsbAsync()
+        {
+            if (SelectedExportDrive == null || CurrentSetlist == null) return;
+
+            ExportStatus = "Starting USB Sync...";
+            ExportProgress = 0;
+            IsLoading = true;
+
+            try
+            {
+                var job = new PlaylistJob 
+                { 
+                    Id = CurrentSetlist.Id, 
+                    SourceTitle = CurrentSetlist.Name ?? "Untitled Set" 
+                };
+
+                await _hardwareExportService.ExportProjectAsync(
+                    job, 
+                    SelectedExportDrive, 
+                    Services.Export.HardwarePlatform.Pioneer);
+
+                ExportStatus = "Sync Complete!";
+                HelpText = "USB Sync completed successfully.";
+            }
+            catch (Exception ex)
+            {
+                ExportStatus = "Sync Failed";
+                HelpText = $"USB Sync failed: {ex.Message}";
+                _logger?.LogError(ex, "USB Export failed");
+            }
+            finally
+            {
+                IsLoading = false;
             }
         }
     }
 }
+
 
 
 

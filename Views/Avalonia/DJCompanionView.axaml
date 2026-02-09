@@ -155,18 +155,61 @@
                             </StackPanel>
                         </StackPanel>
 
-                        <!-- Duration / Time -->
-                        <StackPanel Grid.Column="2" Spacing="8" VerticalAlignment="Center" HorizontalAlignment="Right">
+                        <!-- Duration / Time / Export -->
+                        <StackPanel Grid.Column="2" Spacing="4" VerticalAlignment="Center" HorizontalAlignment="Right">
                             <TextBlock Text="{Binding CurrentTimeDisplay}" FontSize="24" FontWeight="Bold" Foreground="#4EC9B0" HorizontalAlignment="Right"/>
-                            <TextBlock Text="{Binding TotalTimeDisplay}" FontSize="12" Foreground="#666" HorizontalAlignment="Right"/>
-                            <Button Command="{Binding ExportToRekordboxCommand}" 
-                                    Background="#3E3E42" Foreground="White" Padding="8,4" CornerRadius="4" Margin="0,8,0,0">
-                                <StackPanel Orientation="Horizontal" Spacing="6">
-                                    <TextBlock Text="🚀" VerticalAlignment="Center"/>
-                                    <TextBlock Text="Export to Rekordbox" VerticalAlignment="Center" FontSize="11" FontWeight="SemiBold"/>
-                                </StackPanel>
-                            </Button>
+                            <TextBlock Text="{Binding TotalTimeDisplay}" FontSize="12" Foreground="#666" HorizontalAlignment="Right" Margin="0,0,0,4"/>
+                            
+                            <StackPanel Orientation="Horizontal" Spacing="8">
+                                <!-- Rekordbox XML Option -->
+                                <Button Command="{Binding ExportToRekordboxCommand}" 
+                                        Background="#3E3E42" Foreground="White" Padding="8,4" CornerRadius="4"
+                                        ToolTip.Tip="Generate Rekordbox XML for manual import">
+                                    <StackPanel Orientation="Horizontal" Spacing="6">
+                                        <TextBlock Text="🚀" VerticalAlignment="Center" FontSize="12"/>
+                                        <TextBlock Text="XML" VerticalAlignment="Center" FontSize="11" FontWeight="SemiBold"/>
+                                    </StackPanel>
+                                </Button>
+
+                                <!-- USB Hardware Sync -->
+                                <Border Background="#2D2D30" CornerRadius="4" Padding="2">
+                                    <StackPanel Orientation="Horizontal" Spacing="4">
+                                        <ComboBox ItemsSource="{Binding AvailableExportDrives}" 
+                                                  SelectedItem="{Binding SelectedExportDrive}"
+                                                  Width="120" FontSize="11" BorderThickness="0" Background="Transparent"
+                                                  PlaceholderText="Select USB...">
+                                            <ComboBox.ItemTemplate>
+                                                <DataTemplate>
+                                                    <TextBlock Text="{Binding Name}"/>
+                                                </DataTemplate>
+                                            </ComboBox.ItemTemplate>
+                                        </ComboBox>
+                                        
+                                        <Button Command="{Binding RefreshDrivesCommand}" 
+                                                Padding="4" Background="Transparent" BorderThickness="0"
+                                                ToolTip.Tip="Refresh USB Drives">
+                                            <TextBlock Text="🔄" FontSize="10"/>
+                                        </Button>
+
+                                        <Button Command="{Binding ExportToUsbCommand}" 
+                                                Background="#FF4081" Foreground="White" Padding="8,4" CornerRadius="2">
+                                            <StackPanel Orientation="Horizontal" Spacing="4">
+                                                <TextBlock Text="🔌" VerticalAlignment="Center" FontSize="12"/>
+                                                <TextBlock Text="SYNC" VerticalAlignment="Center" FontSize="11" FontWeight="Heavy"/>
+                                            </StackPanel>
+                                        </Button>
+                                    </StackPanel>
+                                </Border>
+                            </StackPanel>
+
+                            <!-- Export Progress Overlay -->
+                            <StackPanel IsVisible="{Binding !!ExportStatus}" Margin="0,4,0,0" Spacing="2">
+                                <TextBlock Text="{Binding ExportStatus}" FontSize="10" Foreground="#AAA" HorizontalAlignment="Right"/>
+                                <ProgressBar Value="{Binding ExportProgress}" Maximum="100" Height="2" Width="200" 
+                                             Background="#1a1a1a" Foreground="#FF4081" IsIndeterminate="{Binding IsLoading}"/>
+                            </StackPanel>
                         </StackPanel>
+
 
                     </Grid>
                 </Border>
