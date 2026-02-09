@@ -14,6 +14,7 @@ using SLSKDONET.Services.Analysis;
 using SLSKDONET.Services.Audio;
 using SLSKDONET.Services.Musical;
 using SLSKDONET.ViewModels.Downloads;
+using SLSKDONET.Models;  // For OrbitCue
 
 namespace SLSKDONET.ViewModels
 {
@@ -35,6 +36,15 @@ namespace SLSKDONET.ViewModels
         public ObservableCollection<StyleMatchDisplayItem> StyleMatches { get; } = new();
         public ObservableCollection<MixingAdviceItem> MixingAdvice { get; } = new();
         public ObservableCollection<string> AvailableStems { get; } = new();
+
+        // NEW: Setlist Management (Left Panel)
+        public ObservableCollection<SetlistTrackItem> CurrentSetlistTracks { get; } = new();
+
+        // NEW: Set Intelligence (Right Panel)
+        public ObservableCollection<KeyClashIssue> KeyClashes { get; } = new();
+        public ObservableCollection<EnergyGapIssue> EnergyGaps { get; } = new();
+        public ObservableCollection<VocalClashIssue> VocalClashes { get; } = new();
+
 
         private UnifiedTrackViewModel? _currentTrack;
         public UnifiedTrackViewModel? CurrentTrack
@@ -107,8 +117,45 @@ namespace SLSKDONET.ViewModels
         }
 
         public string PlayButtonLabel => IsPlaying ? "⏸ Pause" : "▶ Play";
+        public string PlayButtonIcon => IsPlaying ? "⏸" : "▶";
 
-        // Phase 5.4: Setlist Stress-Test Integration
+        // NEW: Setlist & Track Selection
+        private SetlistTrackItem? _selectedSetlistTrack;
+        public SetlistTrackItem? SelectedSetlistTrack
+        {
+            get => _selectedSetlistTrack;
+            set
+            {
+                this.RaiseAndSetIfChanged(ref _selectedSetlistTrack, value);
+                if (value != null)
+                    OnSetlistTrackSelected(value);
+            }
+        }
+
+        public int SetlistTrackCount => CurrentSetlistTracks.Count;
+
+        // NEW: Set Intelligence Metrics
+        private int _setHealthScore = 100;
+        public int SetHealthScore
+        {
+            get => _setHealthScore;
+            set => this.RaiseAndSetIfChanged(ref _setHealthScore, value);
+        }
+
+        public bool HasIssues => KeyClashes.Count > 0 || EnergyGaps.Count > 0 || VocalClashes.Count > 0;
+        public bool HasBridgeSuggestions => ForensicInspectorViewModel?.RescueSuggestions?.Count > 0;
+
+        // NEW: Cue Editing State
+        private bool _isEditingCues;
+        public bool IsEditingCues
+        {
+            get => _isEditingCues;
+            set => this.RaiseAndSetIfChanged(ref _isEditingCues, value);
+        }
+
+        // NEW: Waveform normalized progress (0.0 - 1.0)
+        public float PlaybackProgressNormalized => (float)(PlaybackProgress / 100.0);
+
         private StressDiagnosticReport? _stressReport;
         public StressDiagnosticReport? StressReport
         {
@@ -131,6 +178,11 @@ namespace SLSKDONET.ViewModels
         public System.Windows.Input.ICommand LoadTrackCommand { get; }
         public ReactiveCommand<Unit, StressDiagnosticReport> RunSetlistStressTestCommand { get; private set; }
         public ReactiveCommand<(int, RescueSuggestion), ApplyRescueResult> ApplyRescueTrackCommand { get; private set; }
+        
+        // NEW: Cue and Seek Commands
+        public ReactiveCommand<OrbitCue, Unit> JumpToCueCommand { get; private set; }
+        public ReactiveCommand<double, Unit> SeekCommand { get; private set; }
+        public ReactiveCommand<OrbitCue, Unit> CueUpdatedCommand { get; private set; }
 
         public DJCompanionViewModel(
             HarmonicMatchService harmonicMatchService,
@@ -172,6 +224,37 @@ namespace SLSKDONET.ViewModels
                     ForensicInspectorViewModel.DisplayStressPointDetail(stressPoint);
             });
 
+            // NEW: Initialize Cue and Seek Commands
+            JumpToCueCommand = ReactiveCommand.CreateFromTask<OrbitCue, Unit>(async cue =>
+            {
+                if (cue != null && _player != null)
+                {
+                    // Seek to cue position - Timestamp is in seconds, cast to float
+                    await Task.Run(() => _player.Seek((float)cue.Timestamp));
+                }
+                return Unit.Default;
+            });
+
+
+
+            SeekCommand = ReactiveCommand.CreateFromTask<double, Unit>(async position =>
+            {
+                if (_player != null)
+                {
+                    await Task.Run(() => _player.Seek((float)position));
+                }
+                return Unit.Default;
+            });
+
+
+            CueUpdatedCommand = ReactiveCommand.CreateFromTask<OrbitCue, Unit>(async cue =>
+            {
+                // Handle cue update - save to database
+                System.Diagnostics.Debug.WriteLine($"Cue updated: {cue?.Role} at {cue?.Timestamp}s");
+                return Unit.Default;
+            });
+
+
             // Phase 6: Track selection subscription ready (deferred until needed)
         }
 
@@ -207,17 +290,16 @@ namespace SLSKDONET.ViewModels
                 // Populate available stems
                 PopulateAvailableStems();
 
-                // 1. Fetch Harmonic Matches (Key-based)
-                await FetchHarmonicMatchesAsync(track);
+                // Populate available stems
+                PopulateAvailableStems();
 
-                // 2. Fetch BPM Matches (Tempo-based)
-                await FetchBpmMatchesAsync(track);
-
-                // 3. Fetch Energy Matches
-                await FetchEnergyMatchesAsync(track);
-
-                // 4. Fetch Style Matches (ML-based)
-                await FetchStyleMatchesAsync(track);
+                // Session 2: Parallelize analysis tasks for sub-5s load times
+                await Task.WhenAll(
+                    FetchHarmonicMatchesAsync(track),
+                    FetchBpmMatchesAsync(track),
+                    FetchEnergyMatchesAsync(track),
+                    FetchStyleMatchesAsync(track)
+                );
 
                 // 5. Generate Mixing Advice
                 GenerateMixingAdvice(track);
@@ -632,5 +714,60 @@ namespace SLSKDONET.ViewModels
             public string Title { get; set; } = "";
             public string Description { get; set; } = "";
         }
+
+        // NEW: Setlist Track Item for Left Panel
+        public class SetlistTrackItem
+        {
+            public int Index { get; set; }
+            public string Title { get; set; } = "";
+            public string Artist { get; set; } = "";
+            public string KeyDisplay { get; set; } = "";
+            public string BpmDisplay { get; set; } = "";
+            public string EnergyLevel { get; set; } = "";
+            public bool IsSelected { get; set; }
+            public Guid TrackId { get; set; }
+            public PlaylistTrack? Track { get; set; }
+        }
+
+        // NEW: Issue Models for Set Intelligence
+        public class KeyClashIssue
+        {
+            public string TrackA { get; set; } = "";
+            public string TrackB { get; set; } = "";
+            public string Description { get; set; } = "";
+            public int TransitionIndex { get; set; }
+        }
+
+        public class EnergyGapIssue
+        {
+            public int TrackIndex { get; set; }
+            public string Description { get; set; } = "";
+            public double FromEnergy { get; set; }
+            public double ToEnergy { get; set; }
+        }
+
+        public class VocalClashIssue
+        {
+            public string TrackA { get; set; } = "";
+            public string TrackB { get; set; } = "";
+            public int TransitionIndex { get; set; }
+        }
+
+        // NEW: Handle setlist track selection
+        private void OnSetlistTrackSelected(SetlistTrackItem item)
+        {
+            if (item?.Track != null)
+            {
+                // For now, update the current track display directly
+                // A full implementation would create a UnifiedTrackViewModel via DI
+                HelpText = $"Selected: {item.Title} by {item.Artist}";
+                
+                // Update playback progress display
+                this.RaisePropertyChanged(nameof(SetlistTrackCount));
+            }
+        }
     }
 }
+
+
+
