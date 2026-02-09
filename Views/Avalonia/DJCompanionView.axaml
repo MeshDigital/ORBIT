@@ -176,11 +176,13 @@
                                                   Progress="{Binding PlaybackProgressNormalized}"
                                                   PlayheadBrush="#FF4081"
                                                   SeekCommand="{Binding SeekCommand}"
+                                                  CueClickedCommand="{Binding JumpToCueCommand}"
                                                   Foreground="#4EC9B0"
                                                   Background="#0a0a0a"
                                                   IsEditing="{Binding IsEditingCues}"
                                                   CueUpdatedCommand="{Binding CueUpdatedCommand}"
-                                                  ToolTip.Tip="Click to seek, Shift+Click to edit cues"/>
+                                                  ToolTip.Tip="Scroll to zoom, Click cue for instant audition"/>
+
 
                         <!-- Playback Progress Bar -->
                         <ProgressBar Grid.Row="1" Value="{Binding PlaybackProgress}" Maximum="100" 

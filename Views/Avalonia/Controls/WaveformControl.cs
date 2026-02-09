@@ -150,6 +150,44 @@ namespace SLSKDONET.Views.Avalonia.Controls
             set => SetValue(SegmentUpdatedCommandProperty, value);
         }
 
+        // Sprint 2: Zoom Properties
+        public static readonly StyledProperty<double> ZoomLevelProperty =
+            AvaloniaProperty.Register<WaveformControl, double>(nameof(ZoomLevel), 1.0);
+
+        /// <summary>
+        /// Zoom level (1.0 = full track, 4.0 = 4x zoom, etc.)
+        /// </summary>
+        public double ZoomLevel
+        {
+            get => GetValue(ZoomLevelProperty);
+            set => SetValue(ZoomLevelProperty, Math.Clamp(value, 1.0, 16.0));
+        }
+
+        public static readonly StyledProperty<double> ViewOffsetProperty =
+            AvaloniaProperty.Register<WaveformControl, double>(nameof(ViewOffset), 0.0);
+
+        /// <summary>
+        /// Horizontal offset as fraction of track (0.0 = start, 1.0 = end)
+        /// </summary>
+        public double ViewOffset
+        {
+            get => GetValue(ViewOffsetProperty);
+            set => SetValue(ViewOffsetProperty, Math.Clamp(value, 0.0, Math.Max(0, 1.0 - (1.0 / ZoomLevel))));
+        }
+
+        public static readonly StyledProperty<System.Windows.Input.ICommand?> CueClickedCommandProperty =
+            AvaloniaProperty.Register<WaveformControl, System.Windows.Input.ICommand?>(nameof(CueClickedCommand));
+
+        /// <summary>
+        /// Command triggered when a cue marker is clicked (for instant audition)
+        /// </summary>
+        public System.Windows.Input.ICommand? CueClickedCommand
+        {
+            get => GetValue(CueClickedCommandProperty);
+            set => SetValue(CueClickedCommandProperty, value);
+        }
+
+
         static WaveformControl()
         {
             AffectsRender<WaveformControl>(
@@ -166,8 +204,11 @@ namespace SLSKDONET.Views.Avalonia.Controls
                 SegmentedEnergyProperty,
                 ForegroundProperty,
                 BackgroundProperty,
-                PlayheadBrushProperty);
+                PlayheadBrushProperty,
+                ZoomLevelProperty,
+                ViewOffsetProperty);
         }
+
 
         public static readonly StyledProperty<System.Windows.Input.ICommand?> CueUpdatedCommandProperty =
             AvaloniaProperty.Register<WaveformControl, System.Windows.Input.ICommand?>(nameof(CueUpdatedCommand));
@@ -201,12 +242,47 @@ namespace SLSKDONET.Views.Avalonia.Controls
                 change.Property == BoundsProperty ||
                 change.Property == LowBandProperty ||
                 change.Property == MidBandProperty ||
-                change.Property == HighBandProperty)
+                change.Property == HighBandProperty ||
+                change.Property == ZoomLevelProperty ||
+                change.Property == ViewOffsetProperty)
             {
                 _isDirty = true;
                 InvalidateVisual();
             }
         }
+
+        // Sprint 2: Scroll-to-Zoom
+        protected override void OnPointerWheelChanged(global::Avalonia.Input.PointerWheelEventArgs e)
+        {
+            base.OnPointerWheelChanged(e);
+            
+            // Zoom centered on mouse position
+            var point = e.GetPosition(this);
+            double mouseRatio = point.X / Bounds.Width;
+            
+            // Calculate zoom delta (Ctrl+scroll for faster zoom)
+            double zoomDelta = e.Delta.Y > 0 ? 1.2 : 0.8;
+            double oldZoom = ZoomLevel;
+            double newZoom = Math.Clamp(oldZoom * zoomDelta, 1.0, 16.0);
+            
+            if (Math.Abs(newZoom - oldZoom) > 0.01)
+            {
+                // Adjust offset to keep mouse position anchored
+                double visibleFraction = 1.0 / oldZoom;
+                double mousePosition = ViewOffset + (mouseRatio * visibleFraction);
+                
+                double newVisibleFraction = 1.0 / newZoom;
+                double newOffset = mousePosition - (mouseRatio * newVisibleFraction);
+                
+                ZoomLevel = newZoom;
+                ViewOffset = Math.Clamp(newOffset, 0, Math.Max(0, 1.0 - newVisibleFraction));
+                
+                _isDirty = true;
+                InvalidateVisual();
+            }
+            e.Handled = true;
+        }
+
 
         protected override void OnPointerPressed(global::Avalonia.Input.PointerPressedEventArgs e)
         {
@@ -214,7 +290,7 @@ namespace SLSKDONET.Views.Avalonia.Controls
             var data = WaveformData;
             var cues = Cues;
 
-            // 1. Hit Test for Cues (Existing)
+            // 1. Hit Test for Cues - Click triggers instant audition
             if (cues != null && data != null && data.DurationSeconds > 0)
             {
                 foreach (var cue in cues)
@@ -222,6 +298,11 @@ namespace SLSKDONET.Views.Avalonia.Controls
                     double x = GetCueX(cue, data);
                     if (Math.Abs(point.X - x) <= CueHitThreshold)
                     {
+                        // Sprint 2: Instant Hot-Cue Audition on click
+                        if (CueClickedCommand != null && CueClickedCommand.CanExecute(cue))
+                        {
+                            CueClickedCommand.Execute(cue);
+                        }
                         _draggedCue = cue;
                         _isDraggingCue = true;
                         e.Pointer.Capture(this);
@@ -230,6 +311,7 @@ namespace SLSKDONET.Views.Avalonia.Controls
                     }
                 }
             }
+
 
             // 2. Hit Test for Phrase Boundaries (New: Phase 2)
             if (IsEditing && PhraseSegments != null && data != null && data.DurationSeconds > 0)
