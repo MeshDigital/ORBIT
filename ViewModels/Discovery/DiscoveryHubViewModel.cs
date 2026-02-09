@@ -9,6 +9,7 @@ using ReactiveUI;
 using SLSKDONET.Models;
 using SLSKDONET.Models.Discovery;
 using SLSKDONET.Services;
+using SLSKDONET.Services.ImportProviders;
 using SLSKDONET.Utils;
 using System.Reactive.Disposables;
 using System.Reactive.Linq;
@@ -26,8 +27,11 @@ public class DiscoveryHubViewModel : ReactiveObject, IDisposable
     private readonly ILogger<DiscoveryHubViewModel> _logger;
     private readonly SpotifyEnrichmentService _spotifyEnrichment;
     private readonly SearchOrchestrationService _searchOrchestration;
+    private readonly DownloadManager _downloadManager;
     private readonly IDialogService _dialogService;
     private readonly INavigationService _navigationService;
+    private readonly ImportOrchestrator _importOrchestrator;
+    private readonly SpotifyImportProvider _spotifyImportProvider;
     private readonly CompositeDisposable _disposables = new();
 
     private bool _isLoadingStore;
@@ -62,6 +66,13 @@ public class DiscoveryHubViewModel : ReactiveObject, IDisposable
         set => this.RaiseAndSetIfChanged(ref _currentViewMode, value);
     }
 
+    private DiscoverySearchResultDto? _selectedSearchResult;
+    public DiscoverySearchResultDto? SelectedSearchResult
+    {
+        get => _selectedSearchResult;
+        set => this.RaiseAndSetIfChanged(ref _selectedSearchResult, value);
+    }
+
     // Type-safe Spotify Library Collections
     public ObservableCollection<SpotifyPlaylistDto> UserPlaylists { get; } = new();
     public ObservableCollection<SpotifySavedTrackDto> SavedTracks { get; } = new();
@@ -79,19 +90,26 @@ public class DiscoveryHubViewModel : ReactiveObject, IDisposable
     public ICommand SearchWorkbenchItemCommand { get; }
     public ICommand SearchAllWorkbenchCommand { get; }
     public ICommand ClearWorkbenchCommand { get; }
+    public ICommand DownloadTrackCommand { get; }
 
     public DiscoveryHubViewModel(
         ILogger<DiscoveryHubViewModel> logger,
         SpotifyEnrichmentService spotifyEnrichment,
         SearchOrchestrationService searchOrchestration,
+        DownloadManager downloadManager,
         IDialogService dialogService,
-        INavigationService navigationService)
+        INavigationService navigationService,
+        ImportOrchestrator importOrchestrator,
+        SpotifyImportProvider spotifyImportProvider)
     {
         _logger = logger;
         _spotifyEnrichment = spotifyEnrichment;
         _searchOrchestration = searchOrchestration;
+        _downloadManager = downloadManager;
         _dialogService = dialogService;
         _navigationService = navigationService;
+        _importOrchestrator = importOrchestrator;
+        _spotifyImportProvider = spotifyImportProvider;
 
         RefreshSpotifyCommand = ReactiveCommand.CreateFromTask(RefreshSpotifyLibraryAsync);
         SearchCommand = ReactiveCommand.CreateFromTask(ExecuteSmartSearchAsync);
@@ -99,6 +117,7 @@ public class DiscoveryHubViewModel : ReactiveObject, IDisposable
         SearchWorkbenchItemCommand = ReactiveCommand.CreateFromTask<BatchTrackItem>(SearchSingleWorkbenchItemAsync);
         SearchAllWorkbenchCommand = ReactiveCommand.CreateFromTask(SearchAllWorkbenchItemsAsync);
         ClearWorkbenchCommand = ReactiveCommand.Create(ClearWorkbench);
+        DownloadTrackCommand = ReactiveCommand.CreateFromTask<DiscoverySearchResultDto>(DownloadTrackAsync);
 
         // Auto-refresh on load
         Task.Run(RefreshSpotifyLibraryAsync);
@@ -331,7 +350,10 @@ public class DiscoveryHubViewModel : ReactiveObject, IDisposable
 
         try
         {
-            foreach (var item in WorkbenchTracks.Where(t => !t.IsSearched))
+            // Create snapshot to avoid collection modification errors
+            var itemsToSearch = WorkbenchTracks.Where(t => !t.IsSearched).ToList();
+            
+            foreach (var item in itemsToSearch)
             {
                 await SearchSingleWorkbenchItemAsync(item);
                 await Task.Delay(500); // Stagger to avoid rate limiting
@@ -351,49 +373,31 @@ public class DiscoveryHubViewModel : ReactiveObject, IDisposable
         SearchQuery = string.Empty;
     }
 
+    /// <summary>
+    /// Load Spotify playlist using the unified import workflow.
+    /// This now follows the same path as CSV and other imports (Preview → Download Queue).
+    /// </summary>
     private async Task LoadSpotifyPlaylistAsync(string playlistId)
     {
         if (string.IsNullOrWhiteSpace(playlistId)) return;
 
-        _logger.LogInformation("Loading tracks from Spotify playlist: {Id}", playlistId);
-        IsLoadingStore = true;
+        _logger.LogInformation("Importing Spotify playlist via unified workflow: {Id}", playlistId);
 
         try
         {
-            // Get tracks from the playlist and add to Workbench
-            var playlistTracks = await _spotifyEnrichment.GetPlaylistTracksAsync(playlistId);
-            
-            WorkbenchTracks.Clear();
-            foreach (var track in playlistTracks)
-            {
-                try
-                {
-                    dynamic t = track;
-                    string artist = (t.Track?.Artists?.Count > 0) ? t.Track.Artists[0].Name : "Unknown";
-                    string title = t.Track?.Name ?? "Unknown";
-                    
-                    WorkbenchTracks.Add(new BatchTrackItem
-                    {
-                        Artist = artist,
-                        Title = title,
-                        OriginalLine = $"{artist} - {title}",
-                        IsSearched = false,
-                        ResultCount = 0
-                    });
-                }
-                catch { /* Skip malformed tracks */ }
-            }
+            // Construct Spotify playlist URL from ID
+            var playlistUrl = playlistId.Contains("spotify.com") 
+                ? playlistId 
+                : $"https://open.spotify.com/playlist/{playlistId}";
 
-            CurrentViewMode = DiscoveryViewMode.Workbench;
-            _logger.LogInformation("Loaded {Count} tracks from playlist into Workbench.", WorkbenchTracks.Count);
+            // Use the unified import orchestrator (same as CSV, etc.)
+            await _importOrchestrator.StartImportWithPreviewAsync(_spotifyImportProvider, playlistUrl);
+            
+            _logger.LogInformation("Spotify playlist import initiated via ImportOrchestrator");
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to load Spotify playlist: {Id}", playlistId);
-        }
-        finally
-        {
-            IsLoadingStore = false;
+            _logger.LogError(ex, "Failed to import Spotify playlist: {Id}", playlistId);
         }
     }
 
@@ -440,6 +444,42 @@ public class DiscoveryHubViewModel : ReactiveObject, IDisposable
         else score += 5;
         
         return Math.Min(100, score);
+    }
+
+    private async Task DownloadTrackAsync(DiscoverySearchResultDto? dto)
+    {
+        if (dto?.Track == null) return;
+
+        try
+        {
+            _logger.LogInformation("Queuing download for: {Artist} - {Title}", dto.DisplayArtist, dto.DisplayTitle);
+            
+            // Map Discovery Hub Track to DownloadManager queue
+            // We use Priority 0 (High) for manual user downloads from the Hub
+            var playlistTrack = new PlaylistTrack
+            {
+                Id = Guid.NewGuid(),
+                // For Discovery Hub downloads, we don't necessarily have a project ID context here
+                // unless we want to create a "Discovery" project. For now, use empty GUID.
+                PlaylistId = Guid.Empty, 
+                Artist = dto.Track.Artist ?? dto.DisplayArtist,
+                Title = dto.Track.Title ?? dto.DisplayTitle,
+                Album = dto.Track.Album ?? "Discovery Hub",
+                TrackUniqueHash = Guid.NewGuid().ToString(), // Generate a transient hash
+                Status = TrackStatus.Missing,
+                Priority = 0,
+                Bitrate = dto.Bitrate,
+                Format = dto.Format
+            };
+
+            _downloadManager.QueueTracks(new System.Collections.Generic.List<PlaylistTrack> { playlistTrack });
+            
+            _logger.LogInformation("Track '{Title}' successfully queued in DownloadManager.", dto.DisplayTitle);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to queue track for download in Discovery Hub");
+        }
     }
 
     public void Dispose()

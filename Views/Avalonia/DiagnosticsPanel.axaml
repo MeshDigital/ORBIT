@@ -140,6 +140,12 @@
                         Padding="15,10" CornerRadius="6"
                         ToolTip.Tip="Test Mentor AI with 100→128 BPM transition"/>
                         
+                <Button Content="🔥 10K MARATHON" Command="{Binding RunScalabilityTestCommand}"
+                        IsEnabled="{Binding !IsRunning}"
+                        Background="#FF0055" Foreground="White" FontWeight="Bold"
+                        Padding="20,10" CornerRadius="6"
+                        ToolTip.Tip="Burn-in test: 10,000 track injection + indexing + search + export"/>
+                        
                 <Button Content="🚀 START REDLINE TEST" Command="{Binding RunStressTestCommand}"
                         IsEnabled="{Binding !IsRunning}"
                         Background="#00D4FF" Foreground="#0D1B2A" FontWeight="Bold"

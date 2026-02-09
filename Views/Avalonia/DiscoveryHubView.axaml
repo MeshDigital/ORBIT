@@ -143,26 +143,40 @@
                 <!-- Search Results Mode -->
                 <ScrollViewer>
                     <StackPanel Spacing="2" Margin="16">
-                        <ItemsControl ItemsSource="{Binding SearchResults}">
-                            <ItemsControl.ItemTemplate>
+                        <ListBox ItemsSource="{Binding SearchResults}" 
+                                 SelectedItem="{Binding SelectedSearchResult}"
+                                 Background="Transparent" BorderThickness="0">
+                            <ListBox.ItemTemplate>
                                 <DataTemplate x:DataType="dto:DiscoverySearchResultDto">
                                     <Border Background="#181818" CornerRadius="6" Padding="12" Margin="0,2">
-                                        <Grid ColumnDefinitions="*,Auto,Auto">
+                                        <Grid ColumnDefinitions="*,Auto,Auto,Auto">
                                             <StackPanel VerticalAlignment="Center">
                                                 <TextBlock Text="{Binding DisplayTitle}" FontSize="13" FontWeight="SemiBold"/>
                                                 <TextBlock Text="{Binding DisplayArtist}" FontSize="11" Foreground="#888"/>
                                             </StackPanel>
-                                            <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                                            
+                                            <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center" Margin="16,0">
                                                 <TextBlock Text="{Binding Bitrate, StringFormat='{}{0}kbps'}" Foreground="#4EC9B0" FontSize="11"/>
                                                 <TextBlock Text="{Binding Format}" Foreground="#666" FontSize="11"/>
                                             </StackPanel>
+                                            
                                             <TextBlock Grid.Column="2" Text="{Binding FileSizeDisplay}" Foreground="#666" FontSize="11" 
-                                                       VerticalAlignment="Center" Margin="16,0,0,0"/>
+                                                       VerticalAlignment="Center" Margin="0,0,16,0"/>
+                                            
+                                            <Button Grid.Column="3" 
+                                                    Command="{Binding $parent[ListBox].((vm:DiscoveryHubViewModel)DataContext).DownloadTrackCommand}" 
+                                                    CommandParameter="{Binding}"
+                                                    Classes="accent" Padding="12,6" CornerRadius="4">
+                                                <StackPanel Orientation="Horizontal" Spacing="6">
+                                                    <TextBlock Text="📥" FontSize="12"/>
+                                                    <TextBlock Text="DOWNLOAD" FontSize="10" FontWeight="Bold"/>
+                                                </StackPanel>
+                                            </Button>
                                         </Grid>
                                     </Border>
                                 </DataTemplate>
-                            </ItemsControl.ItemTemplate>
-                        </ItemsControl>
+                            </ListBox.ItemTemplate>
+                        </ListBox>
                         
                         <!-- Empty State -->
                         <TextBlock Text="Extraction Grid" Foreground="#333" FontSize="40" FontWeight="Black" Opacity="0.1" 

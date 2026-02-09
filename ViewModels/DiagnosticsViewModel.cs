@@ -16,19 +16,32 @@ namespace SLSKDONET.ViewModels;
 public class DiagnosticsViewModel : ReactiveObject
 {
     private readonly CockpitStressTestService _stressTestService;
+    private readonly ScalabilityStressTestService _scalabilityService;
     private readonly GenreBridgeTestService _genreBridgeService;
     private CancellationTokenSource? _cts;
-
-    public DiagnosticsViewModel(CockpitStressTestService stressTestService, GenreBridgeTestService genreBridgeService)
+    public DiagnosticsViewModel(
+        CockpitStressTestService stressTestService, 
+        ScalabilityStressTestService scalabilityService,
+        GenreBridgeTestService genreBridgeService)
     {
         _stressTestService = stressTestService;
+        _scalabilityService = scalabilityService;
         _genreBridgeService = genreBridgeService;
 
         // Wire up events
-        _stressTestService.StatusUpdated += s => Status = s;
-        _stressTestService.PhaseChanged += p => CurrentPhase = p;
-        _stressTestService.FpsUpdated += fps => CurrentFps = fps;
+        _stressTestService.StatusUpdated += s => Avalonia.Threading.Dispatcher.UIThread.Post(() => Status = s);
+        _stressTestService.PhaseChanged += p => Avalonia.Threading.Dispatcher.UIThread.Post(() => CurrentPhase = p);
+        _stressTestService.FpsUpdated += fps => Avalonia.Threading.Dispatcher.UIThread.Post(() => CurrentFps = fps);
         _stressTestService.LogEntry += log => 
+        {
+            Avalonia.Threading.Dispatcher.UIThread.Post(() => LogEntries.Add(log));
+        };
+
+        // Wire up Scalability events
+        _scalabilityService.StatusUpdated += s => Avalonia.Threading.Dispatcher.UIThread.Post(() => Status = s);
+        _scalabilityService.PhaseChanged += p => Avalonia.Threading.Dispatcher.UIThread.Post(() => CurrentPhase = p);
+        _scalabilityService.FpsUpdated += fps => Avalonia.Threading.Dispatcher.UIThread.Post(() => CurrentFps = fps);
+        _scalabilityService.LogEntry += log =>
         {
             Avalonia.Threading.Dispatcher.UIThread.Post(() => LogEntries.Add(log));
         };
@@ -42,12 +55,14 @@ public class DiagnosticsViewModel : ReactiveObject
         // Commands
         RunStressTestCommand = ReactiveCommand.CreateFromTask(RunStressTestAsync);
         RunCreativeTestCommand = ReactiveCommand.CreateFromTask(RunCreativeStressTestAsync);
+        RunScalabilityTestCommand = ReactiveCommand.CreateFromTask(RunScalabilityTestAsync);
         CancelTestCommand = ReactiveCommand.Create(CancelTest);
     }
 
     // Commands
     public ReactiveCommand<Unit, Unit> RunStressTestCommand { get; }
     public ReactiveCommand<Unit, Unit> RunCreativeTestCommand { get; }
+    public ReactiveCommand<Unit, Unit> RunScalabilityTestCommand { get; }
     public ReactiveCommand<Unit, Unit> CancelTestCommand { get; }
 
     // State
@@ -148,6 +163,27 @@ public class DiagnosticsViewModel : ReactiveObject
             var result = await _genreBridgeService.RunSyntheticChallengeAsync(_cts.Token);
             Status = result.Success ? $"✅ {result.Verdict}" : $"❌ {result.ErrorMessage}";
             CurrentPhase = $"Confidence: {result.Confidence}%";
+        }
+        finally
+        {
+            IsRunning = false;
+            _cts?.Dispose();
+            _cts = null;
+        }
+    }
+
+    private async Task RunScalabilityTestAsync()
+    {
+        if (IsRunning) return;
+
+        IsRunning = true;
+        LogEntries.Clear();
+        TestResults = null;
+        _cts = new CancellationTokenSource();
+
+        try
+        {
+            TestResults = await _scalabilityService.RunAsync(10000, _cts.Token);
         }
         finally
         {
