@@ -727,7 +727,13 @@ namespace SLSKDONET.ViewModels
             public bool IsSelected { get; set; }
             public Guid TrackId { get; set; }
             public PlaylistTrack? Track { get; set; }
+            
+            // Sprint 3: Intelligence properties
+            public string Key { get; set; } = "";
+            public double Energy { get; set; }
+            public double VocalProbability { get; set; }
         }
+
 
         // NEW: Issue Models for Set Intelligence
         public class KeyClashIssue
@@ -765,6 +771,120 @@ namespace SLSKDONET.ViewModels
                 // Update playback progress display
                 this.RaisePropertyChanged(nameof(SetlistTrackCount));
             }
+        }
+
+        // Sprint 3: Setlist Analysis for Set Intelligence
+        /// <summary>
+        /// Analyzes the current setlist for key clashes, energy gaps, and vocal issues.
+        /// Populates the Set Intelligence panel collections.
+        /// </summary>
+        public void AnalyzeSetlist()
+        {
+            KeyClashes.Clear();
+            EnergyGaps.Clear();
+            VocalClashes.Clear();
+
+            var tracks = CurrentSetlistTracks.ToList();
+            if (tracks.Count < 2)
+            {
+                SetHealthScore = 100;
+                this.RaisePropertyChanged(nameof(HasIssues));
+                return;
+            }
+
+            int issueCount = 0;
+
+            // Camelot Wheel compatibility map
+            var camelotCompatible = new System.Collections.Generic.Dictionary<string, System.Collections.Generic.HashSet<string>>
+            {
+                ["1A"] = new() { "12A", "1A", "2A", "1B" },
+                ["2A"] = new() { "1A", "2A", "3A", "2B" },
+                ["3A"] = new() { "2A", "3A", "4A", "3B" },
+                ["4A"] = new() { "3A", "4A", "5A", "4B" },
+                ["5A"] = new() { "4A", "5A", "6A", "5B" },
+                ["6A"] = new() { "5A", "6A", "7A", "6B" },
+                ["7A"] = new() { "6A", "7A", "8A", "7B" },
+                ["8A"] = new() { "7A", "8A", "9A", "8B" },
+                ["9A"] = new() { "8A", "9A", "10A", "9B" },
+                ["10A"] = new() { "9A", "10A", "11A", "10B" },
+                ["11A"] = new() { "10A", "11A", "12A", "11B" },
+                ["12A"] = new() { "11A", "12A", "1A", "12B" },
+                ["1B"] = new() { "12B", "1B", "2B", "1A" },
+                ["2B"] = new() { "1B", "2B", "3B", "2A" },
+                ["3B"] = new() { "2B", "3B", "4B", "3A" },
+                ["4B"] = new() { "3B", "4B", "5B", "4A" },
+                ["5B"] = new() { "4B", "5B", "6B", "5A" },
+                ["6B"] = new() { "5B", "6B", "7B", "6A" },
+                ["7B"] = new() { "6B", "7B", "8B", "7A" },
+                ["8B"] = new() { "7B", "8B", "9B", "8A" },
+                ["9B"] = new() { "8B", "9B", "10B", "9A" },
+                ["10B"] = new() { "9B", "10B", "11B", "10A" },
+                ["11B"] = new() { "10B", "11B", "12B", "11A" },
+                ["12B"] = new() { "11B", "12B", "1B", "12A" }
+            };
+
+            for (int i = 0; i < tracks.Count - 1; i++)
+            {
+                var current = tracks[i];
+                var next = tracks[i + 1];
+
+                // 1. Key Clash Detection (Camelot Wheel)
+                var keyA = current.Key?.ToUpperInvariant()?.Trim() ?? "";
+                var keyB = next.Key?.ToUpperInvariant()?.Trim() ?? "";
+
+                if (!string.IsNullOrEmpty(keyA) && !string.IsNullOrEmpty(keyB))
+                {
+                    bool isCompatible = camelotCompatible.TryGetValue(keyA, out var compatible)
+                                        && compatible.Contains(keyB);
+
+                    if (!isCompatible && keyA != keyB)
+                    {
+                        KeyClashes.Add(new KeyClashIssue
+                        {
+                            TrackA = current.Title,
+                            TrackB = next.Title,
+                            Description = $"Key clash: {keyA} → {keyB}",
+                            TransitionIndex = i
+                        });
+                        issueCount++;
+                    }
+                }
+
+                // 2. Energy Gap Detection (>4 point drop/spike)
+                double energyA = current.Energy;
+                double energyB = next.Energy;
+                double gap = Math.Abs(energyA - energyB);
+
+                if (gap > 4)
+                {
+                    EnergyGaps.Add(new EnergyGapIssue
+                    {
+                        TrackIndex = i,
+                        FromEnergy = energyA,
+                        ToEnergy = energyB,
+                        Description = energyB > energyA
+                            ? $"Energy spike: {energyA:F0} → {energyB:F0}"
+                            : $"Energy drop: {energyA:F0} → {energyB:F0}"
+                    });
+                    issueCount++;
+                }
+
+                // 3. Vocal Clash Detection (both tracks have high vocal probability > 0.8)
+                if (current.VocalProbability > 0.8 && next.VocalProbability > 0.8)
+                {
+                    VocalClashes.Add(new VocalClashIssue
+                    {
+                        TrackA = current.Title,
+                        TrackB = next.Title,
+                        TransitionIndex = i
+                    });
+                    issueCount++;
+                }
+            }
+
+            // Calculate Set Health Score (100 - deductions per issue)
+            SetHealthScore = Math.Max(0, 100 - (issueCount * 8));
+            this.RaisePropertyChanged(nameof(HasIssues));
         }
     }
 }
