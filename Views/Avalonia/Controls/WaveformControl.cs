@@ -234,6 +234,14 @@ namespace SLSKDONET.Views.Avalonia.Controls
         private Size _lastRenderSize;
         private bool _isDirty = true;
 
+        // Sprint 4: Performance Optimizations
+        private double _lastZoomLevel = 1.0;
+        private double _lastViewOffset = 0.0;
+        private DateTime _lastRenderTime = DateTime.MinValue;
+        private const double FrameThrottleMs = 16.67; // ~60 FPS max
+        private const double SizeTolerance = 5.0; // Pixels tolerance for bitmap reuse
+
+
         protected override void OnPropertyChanged(AvaloniaPropertyChangedEventArgs change)
         {
             base.OnPropertyChanged(change);
@@ -242,14 +250,29 @@ namespace SLSKDONET.Views.Avalonia.Controls
                 change.Property == BoundsProperty ||
                 change.Property == LowBandProperty ||
                 change.Property == MidBandProperty ||
-                change.Property == HighBandProperty ||
-                change.Property == ZoomLevelProperty ||
-                change.Property == ViewOffsetProperty)
+                change.Property == HighBandProperty)
             {
                 _isDirty = true;
                 InvalidateVisual();
             }
+            // Sprint 4: Only invalidate on significant zoom changes (>5%)
+            else if (change.Property == ZoomLevelProperty)
+            {
+                double newZoom = (double)(change.NewValue ?? 1.0);
+                if (Math.Abs(newZoom - _lastZoomLevel) / _lastZoomLevel > 0.05)
+                {
+                    _isDirty = true;
+                    _lastZoomLevel = newZoom;
+                }
+                InvalidateVisual();
+            }
+            else if (change.Property == ViewOffsetProperty)
+            {
+                // Offset changes don't require bitmap rebuild, just redraw
+                InvalidateVisual();
+            }
         }
+
 
         // Sprint 2: Scroll-to-Zoom
         protected override void OnPointerWheelChanged(global::Avalonia.Input.PointerWheelEventArgs e)
@@ -476,13 +499,28 @@ namespace SLSKDONET.Views.Avalonia.Controls
                 return;
             }
 
-            // Rebuild cache if needed
-            if (_isDirty || _baseBitmap == null || _activeBitmap == null || _lastRenderSize != Bounds.Size)
+            // Sprint 4: Frame throttling (60 FPS max)
+            var now = DateTime.UtcNow;
+            var elapsed = (now - _lastRenderTime).TotalMilliseconds;
+            if (elapsed < FrameThrottleMs && !_isDirty)
+            {
+                // Skip frame but schedule next render
+                return;
+            }
+            _lastRenderTime = now;
+
+            // Sprint 4: Bitmap reuse with size tolerance
+            bool needsNewBitmap = _isDirty || _baseBitmap == null || _activeBitmap == null ||
+                                  Math.Abs(_lastRenderSize.Width - Bounds.Width) > SizeTolerance ||
+                                  Math.Abs(_lastRenderSize.Height - Bounds.Height) > SizeTolerance;
+
+            if (needsNewBitmap)
             {
                 UpdateBitmapCache(Bounds.Size);
                 _isDirty = false;
                 _lastRenderSize = Bounds.Size;
             }
+
 
             var width = Bounds.Width;
             var height = Bounds.Height;
