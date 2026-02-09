@@ -76,7 +76,38 @@ public class FileInteractionService : IFileInteractionService
 
         return null;
     }
+
+    public async Task<string?> SaveFileDialogAsync(string title, string defaultFileName, string? extension = null)
+    {
+        if (_desktop?.MainWindow is not { } window)
+        {
+            return null;
+        }
+
+        var options = new FilePickerSaveOptions
+        {
+            Title = title,
+            SuggestedFileName = defaultFileName
+        };
+
+        if (!string.IsNullOrEmpty(extension))
+        {
+            options.FileTypeChoices = new List<FilePickerFileType>
+            {
+                new FilePickerFileType(extension.ToUpper())
+                {
+                    Patterns = new List<string> { $"*.{extension.ToLower()}" }
+                }
+            };
+        }
+
+        var result = await window.StorageProvider.SaveFilePickerAsync(options);
+
+        return result?.Path.LocalPath;
+    }
+
     public void RevealFileInExplorer(string filePath)
+
     {
         if (string.IsNullOrEmpty(filePath) || !System.IO.File.Exists(filePath)) return;
 

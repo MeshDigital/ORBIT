@@ -112,15 +112,29 @@ public class RekordboxXmlExporter
                     
                     trackEntry.Add(new XAttribute("Comments", $"[ORBIT] Energy {energy} | {track.Comments}"));
 
-                    // Inject Structural Cues
-                    var cues = await _cueEngine.GenerateMikStandardCues(track.TrackUniqueHash);
+                    // Inject Structural Cues - Prioritize user edits in CuePointsJson
+                    List<OrbitCue> exportCues;
+                    if (!string.IsNullOrEmpty(features.CuePointsJson))
+                    {
+                        try {
+                            exportCues = System.Text.Json.JsonSerializer.Deserialize<List<OrbitCue>>(features.CuePointsJson) ?? new List<OrbitCue>();
+                        } catch {
+                            exportCues = await _cueEngine.GenerateMikStandardCues(track.TrackUniqueHash);
+                        }
+                    }
+                    else
+                    {
+                        exportCues = await _cueEngine.GenerateMikStandardCues(track.TrackUniqueHash);
+                    }
+
+
                     int cueIdx = 0;
-                    foreach (var cue in cues)
+                    foreach (var cue in exportCues)
                     {
                         var mark = new XElement("POSITION_MARK",
-                            new XAttribute("Name", cue.Name ?? ""),
+                            new XAttribute("Name", cue.Name ?? cue.Role.ToString()),
                             new XAttribute("Type", "0"),
-                            new XAttribute("Start", cue.Timestamp.ToString("F3").Replace(",", ".")),
+                            new XAttribute("Start", cue.Timestamp.ToString("F3", System.Globalization.CultureInfo.InvariantCulture)),
                             new XAttribute("Num", cueIdx)); // Map to Hot Cue index (0-7)
 
                         // Convert Hex to RGB for Rekordbox
@@ -137,6 +151,7 @@ public class RekordboxXmlExporter
                         cueIdx++;
                         if (cueIdx >= 8) break; // Rekordbox generally supports 8 hot cues
                     }
+
                 }
 
                 trackEntry.Add(new XAttribute("Status", track.Status.ToString()));

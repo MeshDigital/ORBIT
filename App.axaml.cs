@@ -762,6 +762,7 @@ public partial class App : Application
         services.AddSingleton<SpotifyImportViewModel>();
         services.AddSingleton<ViewModels.LibrarySourcesViewModel>();
         services.AddSingleton<TheaterModeViewModel>();
+        services.AddSingleton<ViewModels.Discovery.DiscoveryHubViewModel>(); // Discovery Hub
         services.AddSingleton<Services.Import.AutoCleanerService>();
 
         // Utilities
@@ -790,10 +791,13 @@ public partial class App : Application
         services.AddTransient<Views.Avalonia.TheaterModePage>();
         services.AddTransient<Views.Avalonia.Timeline.SetDesignerView>();
         services.AddTransient<Views.Avalonia.FlowBuilderView>();
+        services.AddTransient<Views.Avalonia.DiscoveryHubView>(); // [FIX] Added missing view registration
+        services.AddTransient<Views.Avalonia.DJCompanionView>(); // [FIX] Added missing view registration
         
         services.AddSingleton<ViewModels.TrackInspectorViewModel>();
         services.AddSingleton<ViewModels.ForensicLabViewModel>();
         services.AddSingleton<ViewModels.ForensicUnifiedViewModel>();
+        services.AddSingleton<ViewModels.DJCompanionViewModel>(); // [FIX] Added missing ViewModel registration
         services.AddSingleton<ViewModels.IntelligenceCenterViewModel>();
         services.AddSingleton<ViewModels.FlowBuilderViewModel>();
 
@@ -812,6 +816,8 @@ public partial class App : Application
         services.AddSingleton<Services.Testing.CockpitStressTestService>();
         services.AddSingleton<Services.Testing.SessionAutopsyService>();
         services.AddSingleton<Services.Testing.GenreBridgeTestService>();
+        services.AddSingleton<Services.Testing.MockLibraryGenerator>();
+        services.AddSingleton<Services.Testing.ScalabilityStressTestService>();
         services.AddSingleton<DiagnosticsViewModel>();
     }
 

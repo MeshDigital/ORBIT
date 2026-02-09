@@ -437,7 +437,13 @@ public class AudioFeaturesEntity
     /// Timestamp of the last significant vocal activity.
     /// </summary>
     public float? VocalEndSeconds { get; set; }
+
+    /// <summary>
+    /// Phase 17: Persisted DJ Cue Points (JSON blob).
+    /// </summary>
+    public string? CuePointsJson { get; set; }
 }
+
 
 public enum CurationConfidence
 {

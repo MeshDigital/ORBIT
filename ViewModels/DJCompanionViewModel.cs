@@ -8,6 +8,8 @@ using SLSKDONET.Data;
 using SLSKDONET.Data.Entities;
 using SLSKDONET.Models;
 using SLSKDONET.Models.Musical;
+using Microsoft.EntityFrameworkCore;
+
 using SLSKDONET.Services;
 using SLSKDONET.Services.AI;
 using SLSKDONET.Services.Analysis;
@@ -28,6 +30,9 @@ namespace SLSKDONET.ViewModels
         private readonly HarmonicMatchService _harmonicMatchService;
         private readonly LibraryService _libraryService;
         private readonly IEventBus _eventBus;
+        private readonly RekordboxXmlExporter _rekordboxExporter;
+        private readonly IFileInteractionService _fileService;
+
 
         // Observable Collections for UI Binding
         public ObservableCollection<HarmonicMatchDisplayItem> HarmonicMatches { get; } = new();
@@ -183,12 +188,17 @@ namespace SLSKDONET.ViewModels
         public ReactiveCommand<OrbitCue, Unit> JumpToCueCommand { get; private set; }
         public ReactiveCommand<double, Unit> SeekCommand { get; private set; }
         public ReactiveCommand<OrbitCue, Unit> CueUpdatedCommand { get; private set; }
+        public ReactiveCommand<Unit, Unit> ExportToRekordboxCommand { get; private set; }
+
+
 
         public DJCompanionViewModel(
             HarmonicMatchService harmonicMatchService,
             LibraryService libraryService,
             PlayerViewModel playerViewModel,
             IEventBus eventBus,
+            RekordboxXmlExporter rekordboxExporter,
+            IFileInteractionService fileService,
             SetlistStressTestService? stressTestService = null,
             AppDbContext? dbContext = null)
         {
@@ -196,6 +206,9 @@ namespace SLSKDONET.ViewModels
             _libraryService = libraryService;
             _eventBus = eventBus;
             _player = playerViewModel;
+            _rekordboxExporter = rekordboxExporter;
+            _fileService = fileService;
+
 
             TogglePlayCommand = ReactiveCommand.Create(TogglePlay);
             PreviewStemCommand = ReactiveCommand.CreateFromTask<string>(PreviewStemAsync);
@@ -249,10 +262,51 @@ namespace SLSKDONET.ViewModels
 
             CueUpdatedCommand = ReactiveCommand.CreateFromTask<OrbitCue, Unit>(async cue =>
             {
-                // Handle cue update - save to database
-                System.Diagnostics.Debug.WriteLine($"Cue updated: {cue?.Role} at {cue?.Timestamp}s");
+                if (cue == null || CurrentTrack?.Model == null) return Unit.Default;
+
+                try
+                {
+                    using var db = new AppDbContext();
+                    var technical = await db.AudioFeatures.FirstOrDefaultAsync(f => f.TrackUniqueHash == CurrentTrack.GlobalId);
+
+
+                    
+                    if (technical != null)
+                    {
+                        // Get current cues
+                        var cues = string.IsNullOrEmpty(technical.CuePointsJson) 
+                            ? new List<OrbitCue>() 
+                            : System.Text.Json.JsonSerializer.Deserialize<List<OrbitCue>>(technical.CuePointsJson) ?? new List<OrbitCue>();
+
+                        // Find and update or add
+                        var existing = cues.FirstOrDefault(c => c.Role == cue.Role);
+                        if (existing != null)
+                        {
+                            existing.Timestamp = cue.Timestamp;
+                            existing.Name = cue.Name;
+                        }
+                        else
+                        {
+                            cues.Add(cue);
+                        }
+
+                        technical.CuePointsJson = System.Text.Json.JsonSerializer.Serialize(cues);
+
+                        await db.SaveChangesAsync();
+                        System.Diagnostics.Debug.WriteLine($"Persisted cue {cue.Role} to DB.");
+                    }
+                }
+                catch (Exception ex)
+                {
+                    System.Diagnostics.Debug.WriteLine($"Failed to persist cue: {ex.Message}");
+                }
+                
                 return Unit.Default;
             });
+
+            ExportToRekordboxCommand = ReactiveCommand.CreateFromTask(ExportToRekordboxAsync);
+
+
 
 
             // Phase 6: Track selection subscription ready (deferred until needed)
@@ -886,8 +940,40 @@ namespace SLSKDONET.ViewModels
             SetHealthScore = Math.Max(0, 100 - (issueCount * 8));
             this.RaisePropertyChanged(nameof(HasIssues));
         }
+        private async Task ExportToRekordboxAsync()
+        {
+            if (CurrentSetlistTracks.Count == 0)
+            {
+                HelpText = "Setlist is empty. Add tracks before exporting.";
+                return;
+            }
+
+            // In a real scenario, we'd need a PlaylistJob. 
+            // For now, let's assume we are exporting the current view context or a temporary job.
+            // Simplified: Use the first track's playlist if available, or create a mock.
+            var firstTrack = CurrentSetlistTracks.FirstOrDefault()?.Track;
+            if (firstTrack == null) return;
+
+            var savePath = await _fileService.SaveFileDialogAsync("Export Rekordbox XML", "rekordbox.xml", "xml");
+            if (string.IsNullOrEmpty(savePath)) return;
+
+
+            HelpText = "Exporting to Rekordbox...";
+            
+            try
+            {
+                var job = new PlaylistJob { Id = firstTrack.PlaylistId, SourceTitle = "Set Curator Export" };
+                await _rekordboxExporter.ExportAsync(job, savePath);
+                HelpText = $"Successfully exported to {Path.GetFileName(savePath)}";
+            }
+            catch (Exception ex)
+            {
+                HelpText = $"Export failed: {ex.Message}";
+            }
+        }
     }
 }
+
 
 
 

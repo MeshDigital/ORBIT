@@ -156,10 +156,18 @@
                         </StackPanel>
 
                         <!-- Duration / Time -->
-                        <StackPanel Grid.Column="2" VerticalAlignment="Center" HorizontalAlignment="Right">
+                        <StackPanel Grid.Column="2" Spacing="8" VerticalAlignment="Center" HorizontalAlignment="Right">
                             <TextBlock Text="{Binding CurrentTimeDisplay}" FontSize="24" FontWeight="Bold" Foreground="#4EC9B0" HorizontalAlignment="Right"/>
                             <TextBlock Text="{Binding TotalTimeDisplay}" FontSize="12" Foreground="#666" HorizontalAlignment="Right"/>
+                            <Button Command="{Binding ExportToRekordboxCommand}" 
+                                    Background="#3E3E42" Foreground="White" Padding="8,4" CornerRadius="4" Margin="0,8,0,0">
+                                <StackPanel Orientation="Horizontal" Spacing="6">
+                                    <TextBlock Text="🚀" VerticalAlignment="Center"/>
+                                    <TextBlock Text="Export to Rekordbox" VerticalAlignment="Center" FontSize="11" FontWeight="SemiBold"/>
+                                </StackPanel>
+                            </Button>
                         </StackPanel>
+
                     </Grid>
                 </Border>
 
