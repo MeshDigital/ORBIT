@@ -20,8 +20,10 @@ public class LibraryCacheService
 
     private readonly ConcurrentDictionary<Guid, CachedItem<PlaylistJob>> _projectCache = new();
     private readonly ConcurrentDictionary<string, CachedItem<List<PlaylistTrack>>> _trackCache = new();
+    private readonly ConcurrentDictionary<string, CachedItem<List<LibraryEntry>>> _globalCache = new(); // Session 2: Global library cache
     private readonly TimeSpan _cacheLifetime = TimeSpan.FromMinutes(2);
     private const int MaxCacheSize = 50; // Prevent memory fatigue
+    private const string GlobalLibraryKey = "GLOBAL_INDEX";
     
     public PlaylistJob? GetProject(Guid projectId)
     {
@@ -40,6 +42,14 @@ public class LibraryCacheService
         if (_trackCache.Count > MaxCacheSize) EnforceLimits();
         return null;
     }
+
+    public List<LibraryEntry>? GetGlobalLibrary()
+    {
+        if (_globalCache.TryGetValue(GlobalLibraryKey, out var cached) && !IsItemStale(cached.Timestamp))
+            return cached.Item;
+            
+        return null;
+    }
     
     public void CacheProject(PlaylistJob project)
     {
@@ -52,17 +62,29 @@ public class LibraryCacheService
         if (_trackCache.Count > MaxCacheSize) EnforceLimits();
         _trackCache[projectId.ToString()] = new CachedItem<List<PlaylistTrack>> { Item = tracks };
     }
+
+    public void CacheGlobalLibrary(List<LibraryEntry> library)
+    {
+        _globalCache[GlobalLibraryKey] = new CachedItem<List<LibraryEntry>> { Item = library };
+    }
     
     public void InvalidateProject(Guid projectId)
     {
         _projectCache.TryRemove(projectId, out _);
         _trackCache.TryRemove(projectId.ToString(), out _);
+        InvalidateGlobalLibrary(); // Any change to a project might affect global library
+    }
+
+    public void InvalidateGlobalLibrary()
+    {
+        _globalCache.TryRemove(GlobalLibraryKey, out _);
     }
     
     public void ClearCache()
     {
         _projectCache.Clear();
         _trackCache.Clear();
+        _globalCache.Clear();
     }
     
     public Task ClearCacheAsync()
@@ -83,11 +105,12 @@ public class LibraryCacheService
         }
     }
     
-    public (int ProjectCount, int TrackCacheCount, TimeSpan Age) GetCacheStats()
+    public (int ProjectCount, int TrackCacheCount, int GlobalCount, TimeSpan Age) GetCacheStats()
     {
         return (
             _projectCache.Count,
             _trackCache.Count,
+            _globalCache.ContainsKey(GlobalLibraryKey) ? 1 : 0,
             TimeSpan.Zero // Item-level now, so global age is less meaningful
         );
     }

@@ -26,7 +26,15 @@ namespace SLSKDONET.ViewModels
         public StressDiagnosticReport? Report
         {
             get => _report;
-            set => this.RaiseAndSetIfChanged(ref _report, value);
+            set 
+            {
+                if (_report != value)
+                {
+                    _report = value;
+                    this.RaisePropertyChanged(nameof(Report));
+                    this.RaisePropertyChanged(nameof(OverallHealthPercent));
+                }
+            }
         }
 
         /// <summary>
@@ -197,10 +205,7 @@ namespace SLSKDONET.ViewModels
         /// <summary>
         /// Gets overall health percentage (inverse of average severity).
         /// </summary>
-        public int GetOverallHealthPercent()
-        {
-            return Report?.OverallHealthScore ?? 0;
-        }
+        public int OverallHealthPercent => Report?.OverallHealthScore ?? 0;
 
         /// <summary>
         /// Gets color for a severity level (for binding or direct access).

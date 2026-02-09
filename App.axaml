@@ -30,6 +30,7 @@
         <converters:BooleanToStatusColorConverter x:Key="BooleanToStatusColorConverter"/>
         <conv_root:BoolOpacityConverter x:Key="BoolToOpacityConverter"/>
         <converters:BoolToWidthConverter x:Key="BoolToWidthConverter"/>
+        <conv_root:BoolToStringConverter x:Key="BoolToStringConverter"/>
         
         <!-- Utility Converters -->
         <converters:RepeatModeIconConverter x:Key="RepeatModeIconConverter"/>

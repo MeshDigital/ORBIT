@@ -698,7 +698,6 @@ public class PlaylistTrackViewModel : INotifyPropertyChanged, Library.ILibraryNo
         }
     }
 
-    private bool _isLiked;
     public bool IsLiked
     {
         get => Model.IsLiked;

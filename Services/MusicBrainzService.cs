@@ -43,40 +43,59 @@ public class MusicBrainzService : IMusicBrainzService
     {
         if (string.IsNullOrEmpty(isrc)) return null;
 
-        try
+        int maxRetries = 3;
+        int retryDelayMs = 1000;
+
+        for (int attempt = 1; attempt <= maxRetries; attempt++)
         {
-            // MusicBrainz rate limit: 1 request per second
-            await Task.Delay(1000);
-
-            var url = $"{BaseUrl}isrc/{isrc}?fmt=json";
-            var response = await _httpClient.GetAsync(url);
-
-            if (response.StatusCode == System.Net.HttpStatusCode.NotFound)
+            try
             {
-                _logger.LogDebug("ISRC {Isrc} not found in MusicBrainz", isrc);
+                // MusicBrainz rate limit: 1 request per second
+                // Exponential backoff for retries
+                await Task.Delay(retryDelayMs * (attempt > 1 ? (int)Math.Pow(2, attempt - 2) : 1));
+
+                var url = $"{BaseUrl}isrc/{isrc}?fmt=json";
+                var response = await _httpClient.GetAsync(url);
+
+                if (response.StatusCode == System.Net.HttpStatusCode.NotFound)
+                {
+                    _logger.LogDebug("ISRC {Isrc} not found in MusicBrainz", isrc);
+                    return null;
+                }
+
+                if (response.StatusCode == System.Net.HttpStatusCode.TooManyRequests)
+                {
+                    _logger.LogWarning("MusicBrainz Rate Limit HIT (Attempt {Attempt}/{Max})", attempt, maxRetries);
+                    if (attempt < maxRetries) continue;
+                }
+
+                response.EnsureSuccessStatusCode();
+                var json = await response.Content.ReadAsStringAsync();
+                using var doc = JsonDocument.Parse(json);
+                
+                // Extract the first recording ID from the recordings array
+                if (doc.RootElement.TryGetProperty("recordings", out var recordings) && 
+                    recordings.GetArrayLength() > 0)
+                {
+                    var mbid = recordings[0].GetProperty("id").GetString();
+                    _logger.LogInformation("Resolved ISRC {Isrc} to MBID {Mbid}", isrc, mbid);
+                    return mbid;
+                }
+
                 return null;
             }
-
-            response.EnsureSuccessStatusCode();
-            var json = await response.Content.ReadAsStringAsync();
-            using var doc = JsonDocument.Parse(json);
-            
-            // Extract the first recording ID from the recordings array
-            if (doc.RootElement.TryGetProperty("recordings", out var recordings) && 
-                recordings.GetArrayLength() > 0)
+            catch (Exception ex)
             {
-                var mbid = recordings[0].GetProperty("id").GetString();
-                _logger.LogInformation("Resolved ISRC {Isrc} to MBID {Mbid}", isrc, mbid);
-                return mbid;
+                _logger.LogWarning(ex, "Attempt {Attempt}/{Max} failed for ISRC {Isrc}", attempt, maxRetries, isrc);
+                if (attempt == maxRetries)
+                {
+                    _logger.LogError(ex, "MusicBrainz failed after {Max} attempts for ISRC {Isrc}", maxRetries, isrc);
+                    return null;
+                }
             }
+        }
 
-            return null;
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Failed to resolve ISRC {Isrc} from MusicBrainz", isrc);
-            return null;
-        }
+        return null;
     }
 
     public async Task<MusicBrainzCredits?> GetCreditsAsync(string mbid)

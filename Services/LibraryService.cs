@@ -82,8 +82,20 @@ public class LibraryService : ILibraryService
 
     public async Task<List<LibraryEntry>> LoadAllLibraryEntriesAsync()
     {
+        // Session 2: Use global cache
+        var cached = _cache.GetGlobalLibrary();
+        if (cached != null)
+        {
+            _logger.LogDebug("Global Cache HIT (Library Index)");
+            return cached;
+        }
+
+        _logger.LogDebug("Global Cache MISS (Library Index), loading from DB");
         var entities = await _databaseService.GetAllLibraryEntriesAsync().ConfigureAwait(false);
-        return entities.Select(EntityToLibraryEntry).ToList();
+        var entries = entities.Select(EntityToLibraryEntry).ToList();
+        
+        _cache.CacheGlobalLibrary(entries);
+        return entries;
     }
 
     public async Task<List<LibraryEntry>> GetLibraryEntriesByHashesAsync(List<string> hashes)
@@ -139,12 +151,14 @@ public class LibraryService : ILibraryService
             }
             else
             {
-                // Create new
                 var entity = LibraryEntryToEntity(entry);
                 entity.LastUsedAt = DateTime.UtcNow;
                 await _databaseService.SaveLibraryEntryAsync(entity).ConfigureAwait(false);
                 _logger.LogDebug("Created library entry: {Hash}", entry.UniqueHash);
             }
+
+            // Session 2: Invalidate global cache on any change
+            _cache.InvalidateGlobalLibrary();
         }
         catch (Exception ex)
         {
@@ -269,6 +283,10 @@ public class LibraryService : ILibraryService
             };
 
             await SaveOrUpdateLibraryEntryAsync(entry);
+            
+            // Session 2: Invalidate global cache
+            _cache.InvalidateGlobalLibrary();
+
             _logger.LogInformation("Indexed track for All Tracks view: {Title}", track.Title);
         }
         catch (Exception ex)

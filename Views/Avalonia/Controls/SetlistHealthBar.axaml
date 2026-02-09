@@ -9,7 +9,7 @@
         <!-- Header with Status Message -->
         <StackPanel Grid.Row="0" Orientation="Horizontal" Spacing="8" Margin="12,0,12,4">
             <TextBlock Text="Setlist Health:" FontSize="12" FontWeight="Bold" Foreground="#aaaaaa"/>
-            <ProgressBar Value="{Binding GetOverallHealthPercent()}"
+            <ProgressBar Value="{Binding OverallHealthPercent}"
                          Width="120"
                          Height="14"
                          CornerRadius="2"/>

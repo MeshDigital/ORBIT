@@ -5,6 +5,7 @@ using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using SLSKDONET.Data;
+using SLSKDONET.Models;
 
 namespace SLSKDONET.Services;
 
@@ -19,6 +20,7 @@ namespace SLSKDONET.Services;
 public class HarmonicMatchService
 {
     private readonly ILogger<HarmonicMatchService> _logger;
+    private readonly ILibraryService _libraryService;
     private readonly DatabaseService _databaseService;
 
     // CAMELOT WHEEL MUSIC THEORY:
@@ -75,9 +77,10 @@ public class HarmonicMatchService
         { "4A", new HashSet<string> { "4A", "4B", "3A", "5A" } }, // Ab Minor
     };
 
-    public HarmonicMatchService(ILogger<HarmonicMatchService> logger, DatabaseService databaseService)
+    public HarmonicMatchService(ILogger<HarmonicMatchService> logger, ILibraryService libraryService, DatabaseService databaseService)
     {
         _logger = logger;
+        _libraryService = libraryService;
         _databaseService = databaseService;
     }
 
@@ -133,13 +136,13 @@ public class HarmonicMatchService
                 maxBpm = seedTrack.Bpm.Value * 1.06; // +6%
             }
 
-            // Query library for compatible tracks
-            var allTracks = await _databaseService.GetAllLibraryEntriesAsync();
+            // Query library for compatible tracks (Session 2: Uses ILibraryService for caching)
+            var allTracks = await _libraryService.LoadAllLibraryEntriesAsync();
             
             var candidates = allTracks
                 .Where(t => t.Id != seedTrackId) // Exclude seed track
-                .Where(t => !string.IsNullOrEmpty(t.Key))
-                .Where(t => compatibleKeys.Contains(t.Key!)) // Key compatibility
+                .Where(t => !string.IsNullOrEmpty(t.MusicalKey))
+                .Where(t => compatibleKeys.Contains(t.MusicalKey!)) // Key compatibility
                 .ToList();
 
             // Score and filter results
@@ -155,15 +158,31 @@ public class HarmonicMatchService
                     minBpm,
                     maxBpm);
 
-                if (score > 0 && !string.IsNullOrEmpty(candidate.Key))
+                if (score > 0 && !string.IsNullOrEmpty(candidate.MusicalKey))
                 {
+                    // Map back to a shell entity for compatibility with HarmonicMatchResult
+                    // Long term: Update HarmonicMatchResult to use LibraryEntry model
+                    var candidateEntity = new LibraryEntryEntity 
+                    { 
+                        Id = candidate.Id,
+                        UniqueHash = candidate.UniqueHash,
+                        Artist = candidate.Artist,
+                        Title = candidate.Title,
+                        Album = candidate.Album,
+                        FilePath = candidate.FilePath,
+                        MusicalKey = candidate.MusicalKey,
+                        BPM = candidate.BPM
+                    };
+
                     results.Add(new HarmonicMatchResult
                     {
-                        Track = candidate,
+                        Track = candidateEntity,
                         CompatibilityScore = score,
-                        KeyRelationship = GetKeyRelationship(seedTrack.Key!, candidate.Key),
-                        BpmDifference = CalculateBpmDifference(seedTrack.Bpm, candidate.Bpm),
-                        EnergyDifference = CalculateEnergyDifference(seedTrack, candidate)
+                        KeyRelationship = GetKeyRelationship(seedTrack.Key!, candidate.MusicalKey),
+                        BpmDifference = CalculateBpmDifference(
+                            seedTrack.Bpm.HasValue ? (double?)seedTrack.Bpm.Value : null, 
+                            candidate.BPM),
+                        EnergyDifference = CalculateEnergyDifference(seedTrack, candidateEntity)
                     });
                 }
             }
@@ -201,19 +220,20 @@ public class HarmonicMatchService
     /// </summary>
     private double CalculateCompatibilityScore(
         LibraryEntryEntity seed,
-        LibraryEntryEntity candidate,
+        LibraryEntry candidate,
         bool includeBpm,
         bool includeEnergy,
         double? minBpm,
         double? maxBpm)
     {
         double score = 0;
+        var candidateBpm = candidate.BPM;
 
         // KEY MATCH (0-50 points)
-        if (string.IsNullOrEmpty(seed.Key) || string.IsNullOrEmpty(candidate.Key))
+        if (string.IsNullOrEmpty(seed.Key) || string.IsNullOrEmpty(candidate.MusicalKey))
             return 0;
 
-        var relationship = GetKeyRelationship(seed.Key, candidate.Key);
+        var relationship = GetKeyRelationship(seed.Key, candidate.MusicalKey);
         score += relationship switch
         {
             KeyRelationship.Perfect => 50,      // Same key
@@ -223,14 +243,19 @@ public class HarmonicMatchService
         };
 
         // BPM COMPATIBILITY (0-30 points)
-        if (includeBpm && seed.Bpm.HasValue && candidate.Bpm.HasValue)
+        if (includeBpm && seed.Bpm.HasValue && candidateBpm.HasValue && candidateBpm.Value > 0)
         {
-            var bpmDiff = Math.Abs(seed.Bpm.Value - candidate.Bpm.Value);
+            var seedBpmDouble = (double)seed.Bpm.Value;
+            var candidateBpmDouble = candidateBpm.Value;
+            var bpmDiff = Math.Abs(seedBpmDouble - candidateBpmDouble);
             
-            if (candidate.Bpm >= minBpm && candidate.Bpm <= maxBpm)
+            var minBpmDouble = minBpm.HasValue ? (double)minBpm.Value : 0;
+            var maxBpmDouble = maxBpm.HasValue ? (double)maxBpm.Value : double.MaxValue;
+            
+            if (candidateBpmDouble >= minBpmDouble && candidateBpmDouble <= maxBpmDouble)
             {
                 // Within ±6% range
-                var variance = bpmDiff / seed.Bpm.Value;
+                var variance = bpmDiff / seedBpmDouble;
                 score += 30 * (1 - variance / 0.06); // Linear decay
             }
         }
@@ -238,8 +263,9 @@ public class HarmonicMatchService
         // ENERGY/MOOD MATCH (0-20 points)
         if (includeEnergy)
         {
-            var energyScore = CalculateEnergyScore(seed, candidate);
-            score += energyScore;
+            // Note: AudioFeatures not available on LibraryEntry
+            // Use fallback neutral score for now
+            score += 10; // Neutral baseline
         }
 
         return Math.Round(score, 2);
