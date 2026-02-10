@@ -72,9 +72,9 @@ public class SonicMatchService : ISonicMatchService
             }
 
             // Validate source has the required features
-            if (sourceFeatures.Arousal == 0 && sourceFeatures.Valence == 0 && sourceFeatures.Danceability == 0 && sourceFeatures.VectorEmbedding == null)
+            if (sourceFeatures.Arousal == 5.0f && sourceFeatures.Valence == 5.0f && sourceFeatures.Danceability == 0.5f && sourceFeatures.VectorEmbedding == null)
             {
-                _logger.LogWarning("Source track has no vibe data or embeddings: {Hash}", sourceTrackHash);
+                _logger.LogWarning("Source track has only default vibe data or no embeddings: {Hash}", sourceTrackHash);
                 return new List<SonicMatch>();
             }
 
@@ -110,7 +110,7 @@ public class SonicMatchService : ISonicMatchService
                         MatchReason = "🆔 Exact Match (ISRC)",
                         MatchSource = "ISRC",
                         Confidence = 1.0,
-                        Arousal = candidate.Arousal ?? 0f,
+                        Arousal = candidate.Arousal,
                         Valence = candidate.Valence,
                         Danceability = candidate.Danceability,
                         MoodTag = candidate.MoodTag,
@@ -138,7 +138,7 @@ public class SonicMatchService : ISonicMatchService
                         MatchReason = matchReason,
                         MatchSource = matchSource,
                         Confidence = confidence,
-                        Arousal = candidate.Arousal ?? 0f,
+                        Arousal = candidate.Arousal,
                         Valence = candidate.Valence,
                         Danceability = candidate.Danceability,
                         MoodTag = candidate.MoodTag,
@@ -201,15 +201,16 @@ public class SonicMatchService : ISonicMatchService
             var aDance = source.Danceability * DanceabilityScale;
             var bDance = target.Danceability * DanceabilityScale;
             
-            var dArousal = ((source.Arousal ?? 0f) - (target.Arousal ?? 0f)) * WeightArousal;
+            var dArousal = (source.Arousal - target.Arousal) * WeightArousal;
             var dValence = (source.Valence - target.Valence) * WeightValence;
             var dDance = (aDance - bDance) * WeightDanceability;
-            
+
             vibeDistance = Math.Sqrt(dArousal * dArousal + dValence * dValence + dDance * dDance);
-            confidence = Math.Max(0, 1.0 - (vibeDistance / 10.0));
+            // Re-calibrate confidence: Max distance is around 22.0.
+            confidence = Math.Max(0, 1.0 - (vibeDistance / 20.0));
             
             matchReason = DetermineMatchReason(
-                Math.Abs((source.Arousal ?? 0) - (target.Arousal ?? 0)),
+                Math.Abs(source.Arousal - target.Arousal),
                 Math.Abs(source.Valence - target.Valence),
                 Math.Abs(source.Danceability - target.Danceability),
                 vibeDistance
@@ -430,7 +431,7 @@ public class SonicMatchService : ISonicMatchService
          var aDance = candidate.Danceability * DanceabilityScale;
          var bDance = target.Danceability * DanceabilityScale;
          
-         var dArousal = ((candidate.Arousal) - (target.Arousal ?? 0f)) * WeightArousal;
+         var dArousal = (candidate.Arousal - target.Arousal) * WeightArousal;
          var dValence = (candidate.Valence - target.Valence) * WeightValence;
          var dDance = (aDance - bDance) * WeightDanceability;
          

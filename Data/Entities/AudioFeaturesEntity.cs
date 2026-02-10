@@ -22,6 +22,16 @@ public class AudioFeaturesEntity
     [Required]
     public string TrackUniqueHash { get; set; } = string.Empty;
 
+    public AudioFeaturesEntity()
+    {
+        // Sprint 5C Hardening: Set default neutral values for the 1-9 scale
+        Arousal = 5.0f;
+        Valence = 5.0f;
+        Energy = 0.5f;
+        Danceability = 0.5f;
+        InstrumentalProbability = 0.5f;
+    }
+
     public double TrackDuration { get; set; } // Duration in seconds from analysis
 
     // ============================================
@@ -67,7 +77,7 @@ public class AudioFeaturesEntity
     /// <summary>
     /// Energy level (0.0 - 1.0). Higher = more intense/aggressive.
     /// </summary>
-    public float Energy { get; set; }
+    public float Energy { get; set; } = 0.5f;
 
     /// <summary>
     /// Mixed In Key compatible energy score (1-10 scale).
@@ -83,7 +93,7 @@ public class AudioFeaturesEntity
     /// <summary>
     /// Danceability score (0.0 - 1.0). Higher = more suitable for dancing.
     /// </summary>
-    public float Danceability { get; set; }
+    public float Danceability { get; set; } = 0.5f;
     
     // Note: Valence moved to EDM Specialist Models section (arousal_valence model)
 
@@ -184,7 +194,7 @@ public class AudioFeaturesEntity
     /// Probability that the track is Instrumental (no vocals).
     /// From 'voice_instrumental-msd-musicnn-1.pb'.
     /// </summary>
-    public float? InstrumentalProbability { get; set; }
+    public float InstrumentalProbability { get; set; } = 0.5f;
 
     /// <summary>
     /// "Vibe" classification (Happy, Aggressive, Relaxed, etc.)
@@ -205,13 +215,13 @@ public class AudioFeaturesEntity
     /// Arousal (Energy/Intensity) from arousal_valence model.
     /// Range: 1-9 (1=calm, 9=energetic)
     /// </summary>
-    public float? Arousal { get; set; }
+    public float Arousal { get; set; } = 5.0f;
 
     /// <summary>
     /// Valence (Emotion) from arousal_valence model.
     /// Range: 1-9 (1=negative/dark, 9=positive/uplifting)
     /// </summary>
-    public float Valence { get; set; }
+    public float Valence { get; set; } = 5.0f;
     
     // Phase 21: AI Brain Upgrade
     public float? Sadness { get; set; }

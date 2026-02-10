@@ -76,6 +76,9 @@ build_metadata.AdditionalFiles.SourceItemGroup = AvaloniaXaml
 [C:/Users/quint/OneDrive/Documenten/GitHub/QMUSICSLSK/Views/Avalonia/Controls/ForensicLabDashboard.axaml]
 build_metadata.AdditionalFiles.SourceItemGroup = AvaloniaXaml
 
+[C:/Users/quint/OneDrive/Documenten/GitHub/QMUSICSLSK/Views/Avalonia/Controls/MixPreviewComponent.axaml]
+build_metadata.AdditionalFiles.SourceItemGroup = AvaloniaXaml
+
 [C:/Users/quint/OneDrive/Documenten/GitHub/QMUSICSLSK/Views/Avalonia/Controls/ProjectPickerDialog.axaml]
 build_metadata.AdditionalFiles.SourceItemGroup = AvaloniaXaml
 

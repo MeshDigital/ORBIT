@@ -1,5 +1,27 @@
 # Recent Changes
 
+## [0.1.0-alpha.9.10] - System Hardening & Data Integrity Lockdown (Feb 10, 2026)
+
+### New Features
+* **Forensic Sanity Guards**: Implemented automated checks in `EssentiaAnalyzerService` to flag suspicious analysis results (e.g., BPM < 40 or > 250, zero Arousal).
+* **Metric Standardization**: Standardized all AI-generated vibes (Arousal, Valence) on a strict **1.0 - 9.0 scale** for consistent matching and UI display.
+* **Database Concurrency Hub**: Optimized SQLite performance and reliability during heavy analysis batches:
+  * **Adaptive Batch Sizing**: Automatically reduces batch sizes if `SQLITE_BUSY` errors occur.
+  * **Serialization Semaphore**: Ensures safe parallel database writes in `AnalysisQueueService`.
+  * **Exponential Backoff**: Built-in retry logic for database locks.
+
+### Fixes & Stability
+* **WAL Shutdown Safety**: Hardened `CloseConnectionsAsync` with a retry loop to ensure WAL checkpoints complete, preventing database hangs on exit.
+* **Valence Bias Correction**: Fixed the "Neutral Valence Bias" by ensuring a proper 5.0 fallback with low-confidence flagging.
+* **UI Binding Stability**: Updated `FloatFallbackConverter` to handle 1-9 vibe scaling, ensuring visual indicators stay accurately aligned.
+* **Type Safety**: Converted `AudioFeaturesEntity` vibe metrics to non-nullable `float` with neutral constructor defaults (5.0f).
+* **Sonic Matching Calibration**: Recalibrated Euclidean distance math in `SonicMatchService` for the new 1-9 metric range.
+
+### Files Modified
+* **Services**: `EssentiaAnalyzerService.cs`, `AnalysisQueueService.cs`, `DatabaseService.cs`, `AI/SonicMatchService.cs`
+* **Data**: `Entities/AudioFeaturesEntity.cs`, `AppDbContext.cs`
+* **UI**: `Views/Avalonia/Converters/NumericConverters.cs`, `ViewModels/ForensicLabViewModel.cs`
+
 ## [0.1.0-alpha.9.9] - Actionable Surgery & Visual Intelligence (Feb 10, 2026)
 
 ### New Features

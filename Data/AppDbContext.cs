@@ -53,7 +53,7 @@ public class AppDbContext : DbContext
             DataSource = dbPath,
             Mode = SqliteOpenMode.ReadWriteCreate,
             Cache = SqliteCacheMode.Shared, // Enable shared cache for better concurrency
-            DefaultTimeout = 2000 // 2 seconds busy timeout - prevents "Database is locked"
+            DefaultTimeout = 5000 // 5 seconds busy timeout - prevents "Database is locked"
         }.ToString();
 
         optionsBuilder.UseSqlite(connectionString, options =>
@@ -88,6 +88,10 @@ public class AppDbContext : DbContext
 
         // Set synchronous mode to NORMAL (safe with WAL, much faster than FULL)
         command.CommandText = "PRAGMA synchronous=NORMAL;";
+        command.ExecuteNonQuery();
+
+        // Sprint 5C Hardening: Explicit busy timeout
+        command.CommandText = "PRAGMA busy_timeout = 5000;";
         command.ExecuteNonQuery();
 
         // Increase cache size to 10MB (default is ~2MB)

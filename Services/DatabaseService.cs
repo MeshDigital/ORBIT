@@ -1248,19 +1248,32 @@ public class DatabaseService
     /// </summary>
     public async Task CloseConnectionsAsync()
     {
-        try
+        _logger.LogInformation("Database service shutdown - Running WAL Checkpoint...");
+        
+        // Sprint 5C Hardening: Retry loop for WAL checkpoint
+        int attempts = 0;
+        const int maxAttempts = 3;
+        while (attempts < maxAttempts)
         {
-            _logger.LogInformation("Database service shutdown - Running WAL Checkpoint...");
-            
-            // Phase 5C Hardening: Checkpoint WAL on shutdown to merge -wal file
-            using var context = new AppDbContext();
-            await context.Database.ExecuteSqlRawAsync("PRAGMA wal_checkpoint(FULL);");
-            
-            _logger.LogInformation("WAL Checkpoint complete.");
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error during database service shutdown");
+            try
+            {
+                using var context = new AppDbContext();
+                // Phase 5C Hardening: Checkpoint WAL on shutdown to merge -wal file
+                await context.Database.ExecuteSqlRawAsync("PRAGMA wal_checkpoint(FULL);");
+                _logger.LogInformation("WAL Checkpoint complete.");
+                return;
+            }
+            catch (Exception ex)
+            {
+                attempts++;
+                _logger.LogWarning(ex, "WAL Checkpoint attempt {Attempt}/{Max} failed. Retrying in 1s...", attempts, maxAttempts);
+                if (attempts >= maxAttempts)
+                {
+                    _logger.LogError("WAL Checkpoint FAILED after {Max} attempts. Forcing closure.", maxAttempts);
+                    break;
+                }
+                await Task.Delay(1000);
+            }
         }
     }
     /// <summary>

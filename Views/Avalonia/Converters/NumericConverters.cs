@@ -65,9 +65,20 @@ public class FloatFallbackConverter : IValueConverter
 {
     public object? Convert(object? value, Type targetType, object? parameter, CultureInfo culture)
     {
-        if (value is float f) return f;
-        if (value is double d) return (float)d;
-        return 0f;
+        float floatVal = 0f;
+        if (value is float f) floatVal = f;
+        else if (value is double d) floatVal = (float)d;
+        else if (value != null && float.TryParse(value.ToString(), out float parsed)) floatVal = parsed;
+        else return 0f;
+
+        // Sprint 5C Hardening: Handle 1-9 Scaling for specific UI controls
+        if (parameter is string p && p == "ScaleVibe")
+        {
+            // Map 1-9 -> 0-1
+            return Math.Clamp((floatVal - 1.0f) / 8.0f, 0.0f, 1.0f);
+        }
+
+        return floatVal;
     }
 
     public object? ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture)

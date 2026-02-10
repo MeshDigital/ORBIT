@@ -462,14 +462,14 @@ public class ForensicLabViewModel : INotifyPropertyChanged, IDisposable
                 KeyConfidence = audioFeatures.KeyConfidence;
                 ChordProgression = audioFeatures.ChordProgression;
                 
-                InstrumentalProbability = audioFeatures.InstrumentalProbability ?? 0.0f;
+                InstrumentalProbability = audioFeatures.InstrumentalProbability;
                 MoodTag = audioFeatures.MoodTag;
                 MoodConfidence = audioFeatures.MoodConfidence;
                 Danceability = audioFeatures.Danceability;
                 Energy = audioFeatures.Energy;
                 Intensity = audioFeatures.Intensity;
                 
-                Arousal = audioFeatures.Arousal ?? 0.0f;
+                Arousal = audioFeatures.Arousal;
                 Valence = audioFeatures.Valence;
                 Sadness = audioFeatures.Sadness;
                 ElectronicSubgenre = audioFeatures.ElectronicSubgenre;
@@ -490,7 +490,7 @@ public class ForensicLabViewModel : INotifyPropertyChanged, IDisposable
                 EssentiaJsonOutput = $"// ✅ Analysis data loaded from DB\n" +
                                    $"// BPM: {BpmValue:F1}, Key: {CamelotKey}, Mood: {MoodTag}\n" +
                                    $"// Danceability: {Danceability:P0}, Energy: {Energy:P0}, Intensity: {Intensity:P0}\n" +
-                                   $"// Arousal: {Arousal:F1}, Valence: {Valence:F1}, Sadness: {Sadness:F4 ?? 0}\n" +
+                                   $"// Arousal: {Arousal:F1}, Valence: {Valence:F1}, Sadness: {Sadness ?? 0}\n" +
                                    $"// Style: {ElectronicSubgenre}, DJ Tool: {IsDjTool}";
             }
             else

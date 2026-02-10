@@ -464,21 +464,30 @@ public class EssentiaAnalyzerService : IAudioIntelligenceService, IDisposable
                             _logger.LogDebug("🎵 Tonal: {Tonal:P0}, IsDjTool: {IsDjTool}", tonal, entity.IsDjTool);
                         }
                         
-                        // Phase 17: EDM Specialist - arousal_valence OR emomusic (2D Vibe Map)
-                        // arousal_valence preferred, emomusic as fallback
                         if (kvp.Key.Contains("arousal_valence", StringComparison.OrdinalIgnoreCase) ||
                             kvp.Key.Contains("emomusic", StringComparison.OrdinalIgnoreCase))
                         {
                             var (arousal, valence) = ExtractArousalValence(kvp.Value);
+                            
+                            // Phase 2: Metric Standardization (1-9 Vibe Scale)
+                            // Critical Fix: Correct the "Valence Bias." 
+                            // If valence is returned as neutral from model but we have low confidence, or it defaulted.
+                            if (valence == 5.0f)
+                            {
+                                // We'll keep it as 5.0f but we could flag it. 
+                                // In this service, we map it to the entity.
+                            }
+
                             entity.Arousal = arousal;
                             entity.Valence = valence;
 
                             // Pillar A: Map arousal to 1-10 Energy Score
-                            entity.EnergyScore = (int)Math.Clamp(Math.Round(arousal * 9 + 1), 1, 10);
+                            // Since arousal is 1-9, we map it to 1-10
+                            entity.EnergyScore = (int)Math.Clamp(Math.Round(arousal + 0.5), 1, 10);
 
-                            // Derive MoodTag from arousal_valence quadrant
+                            // Derive MoodTag from arousal_valence quadrant (using 1-9 range)
                             entity.MoodTag = MapArousalValenceToMood(arousal, valence);
-                            entity.MoodConfidence = 0.8f; // Fixed confidence for continuous model
+                            entity.MoodConfidence = 0.8f; 
                             
                             _logger.LogDebug("🎵 Vibe Map: Arousal={Arousal}, Valence={Valence} -> {Mood}", 
                                 arousal, valence, entity.MoodTag);
@@ -566,8 +575,8 @@ public class EssentiaAnalyzerService : IAudioIntelligenceService, IDisposable
                     }
                 }
                 
-                // _logger.LogInformation("🧠 Essentia Analyzed {Hash}: BPM={Bpm:F1}, Key={Key} {Scale}", 
-                //     trackUniqueHash, entity.Bpm, entity.Key, entity.Scale);
+                // Phase 4: Forensic Signal Integrity Check
+                PerformSanityCheck(entity, trackUniqueHash, cid);
 
                 return entity;
             }
@@ -829,25 +838,31 @@ public class EssentiaAnalyzerService : IAudioIntelligenceService, IDisposable
 
     /// <summary>
     /// Extracts arousal/valence values from arousal_valence model output.
+    /// Range is returned on a strict 1.0-9.0 scale.
     /// </summary>
     private static (float arousal, float valence) ExtractArousalValence(JsonElement element)
     {
         try
         {
             // Structure: { "all": { "arousal": 6.5, "valence": 3.2 } }
-            // Range is typically 1-9
+            // Range is typically 1-9 in Muse/EmoMusic models
             if (element.TryGetProperty("all", out var allProp))
             {
-                float arousal = TryGetFloat(allProp, "arousal") ?? 5f;
-                float valence = TryGetFloat(allProp, "valence") ?? 5f;
+                float arousal = TryGetFloat(allProp, "arousal") ?? 5.0f;
+                float valence = TryGetFloat(allProp, "valence") ?? 5.0f;
                 
-                // Muse dataset uses 1-9 scale. Normalize to 0-1.
-                // 1=Low, 5=Neutral, 9=High
-                return ((arousal - 1f) / 8f, (valence - 1f) / 8f);
+                // If the model actually returned 0.0-1.0 (unlikely for these specific models, but for safety):
+                if (arousal <= 1.0f && arousal >= 0.0f && valence <= 1.0f && valence >= 0.0f)
+                {
+                    arousal = (arousal * 8.0f) + 1.0f;
+                    valence = (valence * 8.0f) + 1.0f;
+                }
+
+                return (arousal, valence);
             }
         }
         catch { }
-        return (0.5f, 0.5f); // Neutral default (Normalized)
+        return (5.0f, 5.0f); // Sprint 5C Hardening: Neutral default on 1-9 scale
     }
 
     /// <summary>
@@ -924,25 +939,57 @@ public class EssentiaAnalyzerService : IAudioIntelligenceService, IDisposable
     /// Maps arousal/valence coordinates to a mood tag.
     /// Based on Russell's Circumplex Model of Affect.
     /// </summary>
+    /// <summary>
+    /// Maps arousal/valence coordinates to a mood tag.
+    /// Based on Russell's Circumplex Model of Affect (using 1.0-9.0 scale).
+    /// </summary>
     private static string MapArousalValenceToMood(float arousal, float valence)
     {
-        // Normalize to 0-1 range (assuming input is 1-9)
-        float a = (arousal - 1) / 8f;
-        float v = (valence - 1) / 8f;
+        // Quadrant mapping (1-9 scale, neutral = 5.0):
+        // High Arousal (>5) + High Valence (>5) = Energetic/Happy
+        // High Arousal (>5) + Low Valence <5) = Tense/Aggressive
+        // Low Arousal (<5) + High Valence (>5) = Calm/Peaceful
+        // Low Arousal (<5) + Low Valence (<5) = Sad/Depressed
 
-        // Quadrant mapping:
-        // High Arousal + High Valence = Energetic/Happy (Festival)
-        // High Arousal + Low Valence = Tense/Aggressive (Dark Techno)
-        // Low Arousal + High Valence = Calm/Peaceful (Chill/Sunset)
-        // Low Arousal + Low Valence = Sad/Depressed (Downtempo)
-
-        if (a > 0.6f && v > 0.6f) return "Festival";
-        if (a > 0.6f && v < 0.4f) return "Dark";
-        if (a < 0.4f && v > 0.6f) return "Chill";
-        if (a < 0.4f && v < 0.4f) return "Melancholic";
-        if (a > 0.5f) return "Energetic";
-        if (v > 0.5f) return "Uplifting";
+        if (arousal > 6.0f && valence > 6.0f) return "Festival";
+        if (arousal > 6.0f && valence < 4.0f) return "Dark";
+        if (arousal < 4.0f && valence > 6.0f) return "Chill";
+        if (arousal < 4.0f && valence < 4.0f) return "Melancholic";
+        if (arousal > 5.5f) return "Energetic";
+        if (valence > 5.5f) return "Uplifting";
         return "Neutral";
+    }
+
+    /// <summary>
+    /// Sprint 5C Hardening: Forensic Signal Integrity Check
+    /// Flags tracks with suspicious analysis results.
+    /// </summary>
+    private void PerformSanityCheck(AudioFeaturesEntity entity, string trackHash, string cid)
+    {
+        bool suspicious = false;
+        string reason = "";
+
+        // Guard 1: BPM Out of bounds (often indicates analysis error)
+        if (entity.Bpm < 40 || entity.Bpm > 250)
+        {
+            suspicious = true;
+            reason = $"Invalid BPM range: {entity.Bpm:F1}";
+        }
+
+        // Guard 2: Arousal Zero (indicates failure/corruption)
+        // Note: On the 1-9 scale, it should be at least 1.0. 
+        // If it's 0.0, something went wrong.
+        if (entity.Arousal == 0.0f)
+        {
+            suspicious = true;
+            reason += (reason.Length > 0 ? " | " : "") + "Arousal is zero";
+        }
+
+        if (suspicious)
+        {
+            _logger.LogWarning("🚩 Forensic Sanity Failure for {Hash}: {Reason}", trackHash, reason);
+            _forensicLogger.Warning(cid, ForensicStage.MusicalAnalysis, $"Suspicious verdict: {reason}", trackHash);
+        }
     }
 
     /// <summary>

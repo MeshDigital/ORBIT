@@ -15,6 +15,7 @@ using SLSKDONET.Data; // For AppDbContext
 using SLSKDONET.Data.Entities;
 using SLSKDONET.Models; // For Events
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Data.Sqlite;
 using Avalonia.Threading; // For UI thread safety
 using SLSKDONET.Data.Essentia;
 
@@ -450,7 +451,8 @@ public class AnalysisWorker : BackgroundService
     private DateTime _lastProgressReport = DateTime.MinValue;
     private readonly List<AnalysisResultContext> _pendingResults = new();
     private DateTime _lastBatchSave = DateTime.UtcNow;
-    private const int BatchSize = 3; // Reduced from 10 to 3 for safer persistence
+    private static readonly SemaphoreSlim _dbWriteSemaphore = new SemaphoreSlim(1, 1);
+    private int _currentBatchSize = 3; // Reduced from 10 to 3 for safer persistence
     private readonly TimeSpan BatchTimeout = TimeSpan.FromSeconds(2); // Reduced from 5s to 2s
 
     public AnalysisWorker(
@@ -540,7 +542,7 @@ public class AnalysisWorker : BackgroundService
             await Task.Yield();
 
             // 1. Process Pending Batch if needed (Timeout or Size)
-            if (_pendingResults.Count > 0 && (_pendingResults.Count >= BatchSize || DateTime.UtcNow - _lastBatchSave > BatchTimeout))
+            if (_pendingResults.Count > 0 && (_pendingResults.Count >= _currentBatchSize || DateTime.UtcNow - _lastBatchSave > BatchTimeout))
             {
                 await FlushBatchAsync(stoppingToken);
             }
@@ -983,26 +985,33 @@ public class AnalysisWorker : BackgroundService
 
     private async Task FlushBatchAsync(CancellationToken token)
     {
-                List<AnalysisResultContext> batchToSave;
-                lock (_pendingResults)
-                {
-                    if (!_pendingResults.Any()) return;
-                    batchToSave = _pendingResults.ToList();
-                    _pendingResults.Clear();
-                }
+        List<AnalysisResultContext> batchToSave;
+        lock (_pendingResults)
+        {
+            if (!_pendingResults.Any()) return;
+            batchToSave = _pendingResults.ToList();
+            _pendingResults.Clear();
+        }
 
-                _logger.LogInformation("💾 Flushing batch of {Count} analysis results...", batchToSave.Count);
+        _logger.LogInformation("💾 Flushing batch of {Count} analysis results (Current Batch Size: {BatchSize})...", batchToSave.Count, _currentBatchSize);
 
-                int retryCount = 0;
-                const int maxRetries = 5;
-                
-                while (retryCount < maxRetries)
+        // Sprint 5C Hardening: Serialize ALL database writes for analysis
+        await _dbWriteSemaphore.WaitAsync(token);
+        try
+        {
+            int retryCount = 0;
+            const int maxRetries = 5;
+            
+            while (retryCount < maxRetries)
+            {
+                try
                 {
+                    using var dbContext = new AppDbContext();
+                    // Phase 5C Hardening: Explicit transaction for atomic batch updates
+                    using var transaction = await dbContext.Database.BeginTransactionAsync(token);
+                    
                     try
                     {
-                        using var dbContext = new AppDbContext();
-                        
-                        // Process all pending items in one transaction logic
                         foreach (var result in batchToSave)
                         {
                             var trackHash = result.TrackHash;
@@ -1012,10 +1021,7 @@ public class AnalysisWorker : BackgroundService
                                 var existingFeatures = await dbContext.AudioFeatures.FirstOrDefaultAsync(f => f.TrackUniqueHash == trackHash, token);
                                 if (existingFeatures != null) dbContext.AudioFeatures.Remove(existingFeatures);
                                 
-                                // Fix for SQLite Error 19: Arousal NOT NULL constraint
-                                if (result.MusicalResult.Arousal == null) result.MusicalResult.Arousal = 0.5f; 
-                                if (result.MusicalResult.Valence == 0f) result.MusicalResult.Valence = 0.5f;
-                                
+                                // Data Integrity: Defaults are set in constructor, but we ensure here too
                                 dbContext.AudioFeatures.Add(result.MusicalResult);
                             }
 
@@ -1034,7 +1040,7 @@ public class AnalysisWorker : BackgroundService
                             foreach (var track in playlistTracks)
                             {
                                 ApplyResultsToTrack(track, result);
-                                if (track.TechnicalDetails != null && dbContext.Entry(track.TechnicalDetails).State == Microsoft.EntityFrameworkCore.EntityState.Detached)
+                                if (track.TechnicalDetails != null && dbContext.Entry(track.TechnicalDetails).State == EntityState.Detached)
                                 {
                                     dbContext.TechnicalDetails.Add(track.TechnicalDetails);
                                 }
@@ -1048,12 +1054,15 @@ public class AnalysisWorker : BackgroundService
                         }
 
                         await dbContext.SaveChangesAsync(token);
+                        await transaction.CommitAsync(token);
                         
+                        // Success: Slowly restore batch size if it was reduced
+                        if (_currentBatchSize < 10 && retryCount == 0) _currentBatchSize++;
+
                         foreach (var result in batchToSave)
                         {
                             _eventBus.Publish(new TrackMetadataUpdatedEvent(result.TrackHash));
                             
-                            // Phase 1: Structural Intelligence - Run after DB commit
                             try
                             {
                                 await _phraseDetector.DetectPhrasesAsync(result.TrackHash);
@@ -1063,7 +1072,6 @@ public class AnalysisWorker : BackgroundService
                                  _logger.LogWarning("Phrase detection failed for {Hash}: {Msg}", result.TrackHash, ex.Message);
                             }
 
-                            // Race Condition Check: Publish Completion events HERE, after DB commit
                             _eventBus.Publish(new TrackAnalysisCompletedEvent(result.TrackHash, true) { DatabaseId = result.DatabaseId });
                             _eventBus.Publish(new AnalysisCompletedEvent(result.TrackHash, true));
                         }
@@ -1072,25 +1080,39 @@ public class AnalysisWorker : BackgroundService
                         _logger.LogInformation("✅ Batch save completed.");
                         return;
                     }
-                    catch (Microsoft.Data.Sqlite.SqliteException ex) when (ex.SqliteErrorCode == 5) // SQLITE_BUSY
+                    catch
                     {
-                        retryCount++;
-                        _logger.LogWarning("⚠️ Database locked during analysis batch save. Retry {Count}/{Max}...", retryCount, maxRetries);
-                        await Task.Delay(500 * retryCount, token); // Exponential backoff
-                    }
-                    catch (Exception ex)
-                    {
-                         _logger.LogError(ex, "❌ Failed to save analysis batch! Data may be lost for {Count} tracks.", batchToSave.Count);
-                         
-                         // Fix for Ghost Items: Notify failure so UI can clean up
-                         foreach (var result in batchToSave)
-                         {
-                             _eventBus.Publish(new TrackAnalysisFailedEvent(result.TrackHash, $"Batch Save Failed: {ex.Message}"));
-                         }
- 
-                         return;
+                        await transaction.RollbackAsync(token);
+                        throw;
                     }
                 }
+                catch (SqliteException ex) when (ex.SqliteErrorCode == 5) // SQLITE_BUSY
+                {
+                    retryCount++;
+                    _logger.LogWarning("⚠️ Database locked during analysis batch save. Attempt {Count}/{Max}. Adaptive Batching engaged.", retryCount, maxRetries);
+                    
+                    // Adaptive Batching: Reduce batch size on contention
+                    _currentBatchSize = Math.Max(1, _currentBatchSize / 2);
+                    
+                    // Exponential Backoff
+                    await Task.Delay(1000 * retryCount, token); 
+                }
+                catch (Exception ex)
+                {
+                     _logger.LogError(ex, "❌ Failed to save analysis batch! Data may be lost for {Count} tracks.", batchToSave.Count);
+                     
+                     foreach (var result in batchToSave)
+                     {
+                         _eventBus.Publish(new TrackAnalysisFailedEvent(result.TrackHash, $"Batch Save Failed: {ex.Message}"));
+                     }
+                     return;
+                }
+            }
+        }
+        finally
+        {
+            _dbWriteSemaphore.Release();
+        }
     }
 
     private void ApplyResultsToTrack(PlaylistTrackEntity track, AnalysisResultContext result)
