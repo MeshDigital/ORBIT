@@ -55,6 +55,10 @@
         <!-- Phase 18: Sonic Match Visual Converters -->
         <conv_root:EnergyToColorConverter x:Key="EnergyToColorConverter"/>
         <conv_root:OpacityMultiplierConverter x:Key="OpacityMultiplierConverter"/>
+        <converters:LedColorConverter x:Key="LedColorConverter"/>
+        
+        <!-- Alias EqualityConverter as StringEqualsConverter for semantic clarity in XAML -->
+        <converters:EqualityConverter x:Key="StringEqualsConverter"/>
 
 
         <!-- Icons -->

@@ -8,6 +8,7 @@ using ReactiveUI;
 using SLSKDONET.Models;
 using SLSKDONET.Services;
 using SLSKDONET.Events;
+using SLSKDONET.Views;
 
 namespace SLSKDONET.ViewModels.Downloads;
 
@@ -21,7 +22,11 @@ public class UnifiedTrackViewModel : ReactiveObject, IDisplayableTrack, IDisposa
     private readonly IEventBus _eventBus;
     private readonly ArtworkCacheService _artworkCache;
     private readonly ILibraryService _libraryService;
+    private readonly SonicIntegrityService _sonicService;
     private readonly CompositeDisposable _disposables = new();
+
+    private bool _hasPerformedHeadCheck5;
+    private bool _hasPerformedHeadCheck15;
 
     // Core Data
     public PlaylistTrack Model { get; }
@@ -45,13 +50,15 @@ public class UnifiedTrackViewModel : ReactiveObject, IDisplayableTrack, IDisposa
         DownloadManager downloadManager, 
         IEventBus eventBus,
         ArtworkCacheService artworkCache,
-        ILibraryService libraryService)
+        ILibraryService libraryService,
+        SonicIntegrityService sonicService)
     {
         Model = model ?? throw new ArgumentNullException(nameof(model));
         _downloadManager = downloadManager ?? throw new ArgumentNullException(nameof(downloadManager));
         _eventBus = eventBus ?? throw new ArgumentNullException(nameof(eventBus));
         _artworkCache = artworkCache ?? throw new ArgumentNullException(nameof(artworkCache));
         _libraryService = libraryService ?? throw new ArgumentNullException(nameof(libraryService));
+        _sonicService = sonicService;
 
         // Initialize State from Model
         _state = (PlaylistTrackState)model.Status; // Best effort mapping if simple cast works, otherwise logic needed
@@ -103,6 +110,12 @@ public class UnifiedTrackViewModel : ReactiveObject, IDisplayableTrack, IDisposa
         RetryCommand = ReactiveCommand.Create(() => 
             _downloadManager.HardRetryTrack(GlobalId),
             this.WhenAnyValue(x => x.IsFailed));
+            
+        SearchAgainCommand = ReactiveCommand.Create(() => 
+        {
+            _eventBus.Publish(new ManualSearchRequestEvent(Model));
+            _downloadManager.CancelTrack(GlobalId); // Cancel current if any and prepare for new search
+        }, this.WhenAnyValue(x => x.IsFailed));
             
         CleanCommand = ReactiveCommand.CreateFromTask(async () =>
         {
@@ -370,6 +383,25 @@ public class UnifiedTrackViewModel : ReactiveObject, IDisplayableTrack, IDisposa
     public string? DetectedSubGenre => Model.DetectedSubGenre;
     public float? SubGenreConfidence => Model.SubGenreConfidence;
 
+    // Phase 2: In-Flight Forensics
+    private string _forensicVerdict = "Awaiting Signal";
+    public string ForensicVerdict 
+    { 
+        get => _forensicVerdict; 
+        private set => this.RaiseAndSetIfChanged(ref _forensicVerdict, value); 
+    }
+
+    private string _bitrateLed = "○"; // LED States: ○ (off), ● (active), ⚠️ (warning), ✅ (good)
+    public string BitrateLed { get => _bitrateLed; private set => this.RaiseAndSetIfChanged(ref _bitrateLed, value); }
+    
+    private string _keyLed = "○";
+    public string KeyLed { get => _keyLed; private set => this.RaiseAndSetIfChanged(ref _keyLed, value); }
+    
+    private string _peakLed = "○";
+    public string PeakLed { get => _peakLed; private set => this.RaiseAndSetIfChanged(ref _peakLed, value); }
+
+    public string ForensicDetails => $"Verdict: {ForensicVerdict}\nBIT: {BitrateLed}\nKEY: {KeyLed}\nPEAK: {PeakLed}";
+
     // Phase 12.7: Vibe Color Mapping
     private static readonly System.Collections.Concurrent.ConcurrentDictionary<string, Avalonia.Media.IBrush> _vibeColorCache = new();
     public Avalonia.Media.IBrush VibeColor => GetVibeColor(DetectedSubGenre);
@@ -459,6 +491,7 @@ public class UnifiedTrackViewModel : ReactiveObject, IDisplayableTrack, IDisposa
     public ICommand ResumeCommand { get; }
     public ICommand CancelCommand { get; }
     public ICommand RetryCommand { get; }
+    public ICommand SearchAgainCommand { get; }
     public ICommand CleanCommand { get; }
     public ICommand FilterByVibeCommand { get; }
     public ICommand FindSimilarCommand { get; }
@@ -571,7 +604,58 @@ public class UnifiedTrackViewModel : ReactiveObject, IDisplayableTrack, IDisposa
          _bytesReceived = e.BytesReceived;
          _lastProgressTime = now;
          
+         // In-Flight Forensic Triggers
+         if (State == PlaylistTrackState.Downloading)
+         {
+             if (!_hasPerformedHeadCheck5 && Progress >= 5)
+             {
+                 _hasPerformedHeadCheck5 = true;
+                 _ = PerformInFlightForensicsAsync("Head-Check (5%)");
+             }
+             else if (!_hasPerformedHeadCheck15 && Progress >= 15)
+             {
+                 _hasPerformedHeadCheck15 = true;
+                 _ = PerformInFlightForensicsAsync("Forensic Probe (15%)");
+             }
+         }
+
          this.RaisePropertyChanged(nameof(StatusText));
+    }
+
+    private async Task PerformInFlightForensicsAsync(string stage)
+    {
+        if (string.IsNullOrEmpty(Model.ResolvedFilePath) || !System.IO.File.Exists(Model.ResolvedFilePath)) 
+            return;
+
+        try 
+        {
+            ForensicVerdict = stage;
+            BitrateLed = "●";
+
+            // Note: SonicIntegrityService is designed to handle partially readable files 
+            // but we must be careful with NAudio crashes on zero-byte files.
+            var result = await _sonicService.AnalyzeTrackAsync(Model.ResolvedFilePath, GlobalId);
+            
+            Dispatcher.UIThread.Post(() => {
+                BitrateLed = result.IsTrustworthy ? "✅" : "⚠️";
+                PeakLed = result.DynamicRange > 6 ? "✅" : "⚠️";
+                ForensicVerdict = result.IsTrustworthy ? "Signal Healthy" : "Suspicious Artifacts";
+                
+                if (!result.IsTrustworthy)
+                {
+                    _eventBus.Publish(new NotificationEvent("Forensic Warning", 
+                        $"Suspicious signal detected in '{TrackTitle}'. Spectral cutoff at {result.FrequencyCutoff}Hz.", 
+                        NotificationType.Warning));
+                }
+                
+                this.RaisePropertyChanged(nameof(ForensicDetails));
+            });
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"In-flight forensics failed: {ex.Message}");
+            ForensicVerdict = "Probe Inhibited";
+        }
     }
 
     private void OnMetadataUpdated(TrackMetadataUpdatedEvent e)

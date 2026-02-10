@@ -9,6 +9,7 @@
              xmlns:converters="clr-namespace:SLSKDONET.Views.Avalonia.Converters"
              xmlns:tree="clr-namespace:Avalonia.Controls;assembly=Avalonia.Controls.TreeDataGrid"
              xmlns:tp="clr-namespace:Avalonia.Controls.Primitives;assembly=Avalonia.Controls.TreeDataGrid"
+             xmlns:dg="clr-namespace:Avalonia.Controls;assembly=Avalonia.Controls.DataGrid"
              mc:Ignorable="d" d:DesignWidth="1200" d:DesignHeight="800"
              x:Class="SLSKDONET.Views.Avalonia.SearchPage"
              Background="#1E1E1E" Foreground="White">
@@ -134,7 +135,7 @@
         </Border>
 
         <!-- ZONE C: Gatekeeper & Results (Main Content) -->
-        <Grid RowDefinitions="Auto,*">
+        <Grid RowDefinitions="Auto,*,Auto">
 
             <!-- Filters & Toggles -->
             <Border Grid.Row="0" Background="#1E1E1E" Padding="16,12" BorderBrush="#333" BorderThickness="0,0,0,1">
@@ -162,16 +163,116 @@
                 </Grid>
             </Border>
 
-            <!-- Results TreeDataGrid -->
-            <tree:TreeDataGrid x:Name="ResultsGrid" Grid.Row="1" Source="{Binding SearchSource}"
-                               CanUserResizeColumns="True"
-                               Margin="16,0">
-                <tree:TreeDataGrid.ContextMenu>
+            <!-- Results DataGrid -->
+            <dg:DataGrid x:Name="ResultsGrid" Grid.Row="1" 
+                         ItemsSource="{Binding SearchResultsView}"
+                         SelectionMode="Extended"
+                         CanUserResizeColumns="True"
+                         CanUserSortColumns="True"
+                         IsReadOnly="True"
+                         Background="Transparent"
+                         BorderThickness="0"
+                         HeadersVisibility="Column"
+                         Margin="16,0">
+                <dg:DataGrid.ContextMenu>
                     <ContextMenu>
                         <MenuItem Header="Download Selected" Command="{Binding DownloadSelectedCommand}"/>
                     </ContextMenu>
-                </tree:TreeDataGrid.ContextMenu>
-            </tree:TreeDataGrid>
+                </dg:DataGrid.ContextMenu>
+                <dg:DataGrid.Columns>
+                    <!-- Tier Column -->
+                    <dg:DataGridTemplateColumn Header="Tier" Width="50">
+                        <dg:DataGridTemplateColumn.CellTemplate>
+                            <DataTemplate DataType="vm:AnalyzedSearchResultViewModel">
+                                <TextBlock Text="{Binding TierBadge}" 
+                                           ToolTip.Tip="{Binding TierDescription}"
+                                           VerticalAlignment="Center" 
+                                           HorizontalAlignment="Center" 
+                                           FontSize="18" />
+                            </DataTemplate>
+                        </dg:DataGridTemplateColumn.CellTemplate>
+                    </dg:DataGridTemplateColumn>
+
+                    <!-- Trust Column -->
+                    <dg:DataGridTextColumn Header="Trust" Binding="{Binding TrustScore}" Width="60"/>
+
+                    <!-- Match Column -->
+                    <dg:DataGridTemplateColumn Header="Match" Width="80">
+                        <dg:DataGridTemplateColumn.CellTemplate>
+                            <DataTemplate DataType="vm:AnalyzedSearchResultViewModel">
+                                <Border CornerRadius="4" Padding="6,4" 
+                                        Background="{Binding MatchConfidenceColor}"
+                                        VerticalAlignment="Center" HorizontalAlignment="Center">
+                                    <StackPanel Orientation="Horizontal" Spacing="4">
+                                        <TextBlock Text="🎯" FontSize="10"/>
+                                        <TextBlock Text="{Binding MatchConfidence, StringFormat='{}{0:0}%'}" 
+                                                   FontSize="10" FontWeight="Bold" Foreground="Black"/>
+                                    </StackPanel>
+                                </Border>
+                            </DataTemplate>
+                        </dg:DataGridTemplateColumn.CellTemplate>
+                    </dg:DataGridTemplateColumn>
+
+                    <!-- Track Details Column -->
+                    <dg:DataGridTemplateColumn Header="Track Details" Width="*">
+                        <dg:DataGridTemplateColumn.CellTemplate>
+                            <DataTemplate DataType="vm:AnalyzedSearchResultViewModel">
+                                <StackPanel Margin="8,4" Spacing="2" Opacity="{Binding Opacity}">
+                                    <TextBlock Text="{Binding Filename}" FontWeight="SemiBold" 
+                                               TextTrimming="CharacterEllipsis" Foreground="{Binding ForegroundColor}"/>
+                                    
+                                    <!-- Match Reason -->
+                                    <Border CornerRadius="4" Padding="6,1" HorizontalAlignment="Left" 
+                                            Margin="0,2" IsVisible="{Binding HasMatchReason}">
+                                        <Border.Background>
+                                            <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
+                                                <GradientStop Offset="0" Color="#512BD4"/>
+                                                <GradientStop Offset="1" Color="#C30052"/>
+                                            </LinearGradientBrush>
+                                        </Border.Background>
+                                        <StackPanel Orientation="Horizontal" Spacing="4">
+                                            <TextBlock Text="✨" FontSize="10" Foreground="White"/>
+                                            <TextBlock Text="{Binding MatchReason}" FontSize="10" 
+                                                       FontWeight="Bold" Foreground="White"/>
+                                        </StackPanel>
+                                    </Border>
+
+                                    <!-- High Risk Badge -->
+                                    <Border CornerRadius="4" Padding="6,1" HorizontalAlignment="Left" 
+                                            Margin="0,2" Background="#E91E63"
+                                            IsVisible="{Binding IsHighRisk}"
+                                            ToolTip.Tip="{Binding FlagReason}">
+                                        <StackPanel Orientation="Horizontal" Spacing="4">
+                                            <TextBlock Text="⚠️" FontSize="10" Foreground="White"/>
+                                            <TextBlock Text="HIGH RISK" FontSize="10" 
+                                                       FontWeight="Bold" Foreground="White"/>
+                                        </StackPanel>
+                                    </Border>
+
+                                    <!-- Sub-info -->
+                                    <StackPanel Orientation="Horizontal" Spacing="6">
+                                        <Border Background="#333" CornerRadius="3" Padding="3,0">
+                                            <TextBlock Text="{Binding RawResult.Extension}" Foreground="#CCC" FontSize="10"/>
+                                        </Border>
+                                        <TextBlock Text="{Binding DisplaySize}" Foreground="#888" FontSize="11"/>
+                                        <TextBlock Text="•" Foreground="#444"/>
+                                        <TextBlock Text="{Binding User}" Foreground="#007ACC" FontSize="11"/>
+                                    </StackPanel>
+                                </StackPanel>
+                            </DataTemplate>
+                        </dg:DataGridTemplateColumn.CellTemplate>
+                    </dg:DataGridTemplateColumn>
+
+                    <!-- Bitrate Column -->
+                    <dg:DataGridTextColumn Header="Bitrate" Binding="{Binding BitRate}" Width="80"/>
+
+                    <!-- Source Column -->
+                    <dg:DataGridTextColumn Header="Source" Binding="{Binding User}" Width="120"/>
+
+                    <!-- Speed Column -->
+                    <dg:DataGridTextColumn Header="Speed" Binding="{Binding UploadSpeedDisplay}" Width="80"/>
+                </dg:DataGrid.Columns>
+            </dg:DataGrid>
 
             <!-- Empty State (Premium) -->
             <StackPanel Grid.Row="1" VerticalAlignment="Center" HorizontalAlignment="Center"

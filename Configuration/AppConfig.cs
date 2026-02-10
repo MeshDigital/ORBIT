@@ -59,6 +59,7 @@ public class AppConfig
     public bool EnableRelaxationStrategy { get; set; } = true; // Progressive threshold widening
     public bool EnableVbrFraudDetection { get; set; } = true; // Upscale protection
     public int RelaxationTimeoutSeconds { get; set; } = 5; // Optimized: was 10s, reduced for faster fallback
+    public bool IsAutoEnrichEnabled { get; set; } = true; // Phase 8: Auto-Enrich on completion
     
     // Phase 10: Profile Persistence
     public string? RankingProfile { get; set; } = "Balanced"; // Persists "Quality First", "DJ Mode", etc.

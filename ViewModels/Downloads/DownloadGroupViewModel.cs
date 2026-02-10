@@ -65,6 +65,7 @@ public class DownloadGroupViewModel : ReactiveObject, IDisposable
     public IReactiveCommand PauseCommand { get; }
     public IReactiveCommand ResumeCommand { get; }
     public IReactiveCommand CancelCommand { get; }
+    public IReactiveCommand ToggleExpandedCommand { get; }
 
     public DownloadGroupViewModel(IGroup<UnifiedTrackViewModel, string, Guid> group)
     {
@@ -78,13 +79,15 @@ public class DownloadGroupViewModel : ReactiveObject, IDisposable
         Tracks = tracks;
 
         // Initialize Metadata from first track (assuming homogenous groups for now)
-        // In a real scenario, we might want a separate lookup, but this is efficient.
         var firstTrack = Tracks.FirstOrDefault()?.Model;
-        /* 
-           NOTE: If group key is null (Singles), we set a generic title.
-           Otherwise we try to use Album/Artist info.
-        */
-        if (GroupKey == null)
+        
+        if (!string.IsNullOrEmpty(firstTrack?.SourcePlaylistName))
+        {
+            Title = firstTrack.SourcePlaylistName;
+            Subtitle = string.IsNullOrEmpty(firstTrack.Artist) ? "Imported Playlist" : $"By {firstTrack.Artist}";
+            ArtworkUrl = firstTrack.AlbumArtUrl;
+        }
+        else if (GroupKey == null)
         {
             Title = "Singles & Ad-Hoc";
             Subtitle = "Individual Downloads";
@@ -124,6 +127,8 @@ public class DownloadGroupViewModel : ReactiveObject, IDisposable
         {
             foreach (var t in Tracks) t.CancelCommand.Execute(null);
         });
+
+        ToggleExpandedCommand = ReactiveCommand.Create(() => { IsExpanded = !IsExpanded; });
 
         _cleanUp = new System.Reactive.Disposables.CompositeDisposable(tracksLoader, aggregates, listChanges);
     }

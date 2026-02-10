@@ -234,37 +234,48 @@
                         </StackPanel>
                     </Border>
 
-                    <!-- New: Flat List Layout (Active) -->
+                    <!-- Grouped List Layout (Active) -->
                     <ScrollViewer Grid.Row="1" IsVisible="{Binding ActiveCount}" VerticalScrollBarVisibility="Auto">
-                        <StackPanel Spacing="24" Margin="0,0,0,24">
+                        <StackPanel Spacing="24" Margin="16,16,16,24">
                             
-                            <!-- Ongoing Section -->
-                            <StackPanel Spacing="8" IsVisible="{Binding OngoingDownloads.Count}">
-                                <Border Background="#2D2D2D" CornerRadius="4" Padding="12,6">
+                            <!-- Swimlane: EXPRESS (Priority 0) -->
+                            <StackPanel Spacing="8" IsVisible="{Binding ExpressItems.Count}">
+                                <Border Background="#FFD700" CornerRadius="4" Padding="12,4" HorizontalAlignment="Left">
                                     <StackPanel Orientation="Horizontal" Spacing="8">
-                                        <TextBlock Text="🔥 ACTIVE" FontSize="11" FontWeight="Bold" Foreground="#00BCD4"/>
-                                        <TextBlock Text="{Binding OngoingDownloads.Count}" FontSize="11" Foreground="#888"/>
+                                        <TextBlock Text="🚀 EXPRESS" FontSize="11" FontWeight="Bold" Foreground="Black"/>
+                                        <TextBlock Text="{Binding ExpressItems.Count}" FontSize="11" Foreground="#444" FontWeight="Bold"/>
                                     </StackPanel>
                                 </Border>
-                                <ItemsRepeater ItemsSource="{Binding OngoingDownloads}">
+                                <ItemsControl ItemsSource="{Binding ActiveGroups}">
+                                    <ItemsControl.ItemsPanel>
+                                        <ItemsPanelTemplate>
+                                            <StackPanel Spacing="12"/>
+                                        </ItemsPanelTemplate>
+                                    </ItemsControl.ItemsPanel>
+                                    <!-- Filter Logic: We need to filter groups that have at least one express item -->
+                                    <!-- For now, we'll just show all active groups in the main section if we don't have separate collections for group swimlanes -->
+                                </ItemsControl>
+                            </StackPanel>
+
+                            <!-- Main Ongoing Section (Using ActiveGroups) -->
+                            <StackPanel Spacing="16">
+                                <Border Background="#2D2D2D" CornerRadius="4" Padding="12,6">
+                                    <StackPanel Orientation="Horizontal" Spacing="8">
+                                        <TextBlock Text="🔥 ACTIVE GROUPS" FontSize="11" FontWeight="Bold" Foreground="#00BCD4"/>
+                                        <TextBlock Text="{Binding ActiveGroups.Count}" FontSize="11" Foreground="#888"/>
+                                    </StackPanel>
+                                </Border>
+                                
+                                <ItemsRepeater ItemsSource="{Binding ActiveGroups}">
                                     <ItemsRepeater.ItemTemplate>
                                         <DataTemplate>
-                                            <Border Background="Transparent">
-                                                <Border.ContextMenu>
-                                                    <ContextMenu>
-                                                        <MenuItem Header="Pause" Command="{Binding PauseCommand}" IsVisible="{Binding IsActive}"><MenuItem.Icon><PathIcon Data="{StaticResource pause_regular}" Width="16" Height="16"/></MenuItem.Icon></MenuItem>
-                                                        <MenuItem Header="Resume" Command="{Binding ResumeCommand}" IsVisible="{Binding IsPaused}"><MenuItem.Icon><PathIcon Data="{StaticResource play_regular}" Width="16" Height="16"/></MenuItem.Icon></MenuItem>
-                                                        <MenuItem Header="Cancel" Command="{Binding CancelCommand}"><MenuItem.Icon><PathIcon Data="{StaticResource dismiss_regular}" Width="16" Height="16"/></MenuItem.Icon></MenuItem>
-                                                    </ContextMenu>
-                                                </Border.ContextMenu>
-                                                <c:StandardTrackRow Classes="card"/>
-                                            </Border>
+                                            <c:DownloadGroupRow/>
                                         </DataTemplate>
                                     </ItemsRepeater.ItemTemplate>
                                 </ItemsRepeater>
                             </StackPanel>
 
-                            <!-- Queue Section -->
+                            <!-- Queue Section (Flat list for visibility of upcoming items) -->
                             <StackPanel Spacing="8" IsVisible="{Binding QueuedDownloads.Count}">
                                 <Border Background="#2D2D2D" CornerRadius="4" Padding="12,6">
                                     <StackPanel Orientation="Horizontal" Spacing="8">

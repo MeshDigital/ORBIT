@@ -12,8 +12,8 @@ namespace SLSKDONET.Views.Avalonia
         {
             InitializeComponent();
             
-            // Wire up TreeDataGrid interaction
-            var grid = this.FindControl<TreeDataGrid>("ResultsGrid");
+            // Wire up DataGrid interaction
+            var grid = this.FindControl<DataGrid>("ResultsGrid");
             if (grid != null)
             {
                 grid.DoubleTapped += (s, e) => {
@@ -29,41 +29,26 @@ namespace SLSKDONET.Views.Avalonia
                         vm.DownloadSelectedCommand.Execute(null);
                         e.Handled = true;
                     }
-                    else if (e.Key == Key.Down && e.KeyModifiers.HasFlag(KeyModifiers.Control) && DataContext is SearchViewModel vm2)
-                    {
-                        // Navigate to next Platinum track
-                        if (grid.Source is FlatTreeDataGridSource<AnalyzedSearchResultViewModel> source && source.RowSelection != null)
-                        {
-                            var currentIndex = source.RowSelection.SelectedIndex.FirstOrDefault();
-                            var items = vm2.SearchResults.ToList();
-                            for (int i = currentIndex + 1; i < items.Count; i++)
-                            {
-                                if (items[i].Tier == Models.SearchTier.Platinum)
-                                {
-                                    source.RowSelection.SelectedIndex = new global::Avalonia.Controls.IndexPath(i);
-                                    grid.RowsPresenter?.BringIntoView(i);
-                                    e.Handled = true;
-                                    break;
-                                }
-                            }
-                        }
-                    }
                 };
 
                 // Sync selection
-                if (grid.Source is FlatTreeDataGridSource<AnalyzedSearchResultViewModel> source && source.RowSelection != null)
-                {
-                    source.RowSelection.SelectionChanged += (s, e) => {
-                        if (DataContext is SearchViewModel vm)
+                grid.SelectionChanged += (s, e) => {
+                    if (DataContext is SearchViewModel vm)
+                    {
+                        // Remove items that were unselected
+                        foreach (var item in e.RemovedItems.OfType<AnalyzedSearchResultViewModel>())
                         {
-                            vm.SelectedResults.Clear();
-                            foreach (var item in source.RowSelection.SelectedItems.OfType<AnalyzedSearchResultViewModel>())
-                            {
-                                vm.SelectedResults.Add(item);
-                            }
+                            vm.SelectedResults.Remove(item);
                         }
-                    };
-                }
+
+                        // Add items that were selected
+                        foreach (var item in e.AddedItems.OfType<AnalyzedSearchResultViewModel>())
+                        {
+                            if (!vm.SelectedResults.Contains(item))
+                                vm.SelectedResults.Add(item);
+                        }
+                    }
+                };
             }
 
             // Enable Drag & Drop

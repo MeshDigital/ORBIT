@@ -12,6 +12,8 @@ using DynamicData.Binding;
 using ReactiveUI;
 using SLSKDONET.Models;
 using SLSKDONET.Services;
+using SLSKDONET.Configuration;
+using SLSKDONET.Data.Essentia;
 
 namespace SLSKDONET.ViewModels.Downloads;
 
@@ -23,6 +25,9 @@ public class DownloadCenterViewModel : ReactiveObject, IDisposable
 {
     private readonly DownloadManager _downloadManager;
     private readonly IEventBus _eventBus;
+    private readonly AppConfig _config;
+    private readonly AnalysisQueueService _analysisQueue;
+    private readonly SonicIntegrityService _sonicService;
     private readonly CompositeDisposable _subscriptions = new();
     
     // Collections (DynamicData Source)
@@ -98,6 +103,19 @@ public class DownloadCenterViewModel : ReactiveObject, IDisposable
     // Alias for HomeViewModel compatibility
     public string GlobalSpeedDisplay => GlobalSpeed;
 
+    private bool _isAutoEnrichEnabled;
+    public bool IsAutoEnrichEnabled
+    {
+        get => _isAutoEnrichEnabled;
+        set 
+        {
+            if (this.RaiseAndSetIfChanged(ref _isAutoEnrichEnabled, value))
+            {
+                _config.IsAutoEnrichEnabled = value;
+            }
+        }
+    }
+
     public int MaxConcurrentDownloads
     {
         get => _downloadManager.MaxActiveDownloads;
@@ -128,12 +146,19 @@ public class DownloadCenterViewModel : ReactiveObject, IDisposable
         DownloadManager downloadManager, 
         IEventBus eventBus, 
         ArtworkCacheService artworkCache,
-        ILibraryService libraryService)
+        ILibraryService libraryService,
+        AppConfig config,
+        AnalysisQueueService analysisQueue,
+        SonicIntegrityService sonicService)
     {
         _downloadManager = downloadManager;
         _eventBus = eventBus;
         _artworkCache = artworkCache;
         _libraryService = libraryService;
+        _config = config;
+        _analysisQueue = analysisQueue;
+        _sonicService = sonicService;
+        _isAutoEnrichEnabled = _config.IsAutoEnrichEnabled;
         
         // Initialize commands (ReactiveCommand)
         PauseAllCommand = ReactiveCommand.Create(PauseAll, 
@@ -207,14 +232,38 @@ public class DownloadCenterViewModel : ReactiveObject, IDisposable
             .DisposeWith(_subscriptions);
 
         // Phase 2: Grouping Pipeline (Active Only)
-        // Group by AlbumId (or null for Singles)
+        // Group by Source/Origin (e.g. Spotify Playlist ID or Search Session ID)
         sharedSource
             .Filter(x => x.IsActive || x.IsIndeterminate) // Only group active items
-            .Group(x => x.Model.PlaylistId)
+            .Group(x => x.Model.SourcePlaylistId ?? x.Model.PlaylistId)
             .Transform((IGroup<UnifiedTrackViewModel, string, Guid> group) => new DownloadGroupViewModel(group))
             .DisposeMany() // Dispose GroupVMs when removed
             .SortAndBind(out _activeGroups, SortExpressionComparer<DownloadGroupViewModel>.Descending(x => x.LastActivity))
             .Subscribe()
+            .DisposeWith(_subscriptions);
+
+        // Auto-Enrich Hand-off: Monitor completed downloads
+        sharedSource
+            .Filter(x => x.State == PlaylistTrackState.Completed)
+            .Subscribe(changes => {
+                if (!IsAutoEnrichEnabled) return;
+                
+                foreach (var change in changes)
+                {
+                    if (change.Reason == ChangeReason.Add || change.Reason == ChangeReason.Update)
+                    {
+                        var vm = change.Current;
+                        if (!string.IsNullOrEmpty(vm.Model.ResolvedFilePath))
+                        {
+                            _analysisQueue.QueueAnalysis(
+                                vm.Model.ResolvedFilePath, 
+                                vm.GlobalId, 
+                                AnalysisTier.Tier3, 
+                                dbId: vm.Model.Id);
+                        }
+                    }
+                }
+            })
             .DisposeWith(_subscriptions);
 
         // Completed Pipeline
@@ -299,7 +348,7 @@ public class DownloadCenterViewModel : ReactiveObject, IDisposable
             var track = e.TrackModel;
             
             // Phase 2.5: Create Smart View Model
-            var viewModel = new UnifiedTrackViewModel(track, _downloadManager, _eventBus, _artworkCache, _libraryService);
+            var viewModel = new UnifiedTrackViewModel(track, _downloadManager, _eventBus, _artworkCache, _libraryService, _sonicService);
             
             // Set initial state override if needed
             if (e.InitialState.HasValue)
@@ -322,20 +371,20 @@ public class DownloadCenterViewModel : ReactiveObject, IDisposable
     
     private void StartGlobalSpeedTimer()
     {
-        var timer = new System.Timers.Timer(500);
+        var timer = new System.Timers.Timer(1000);
         timer.Elapsed += (s, e) =>
         {
             try
             {
                 var totalSpeedBytes = ActiveDownloads
-                    .Where(d => d.State == Models.PlaylistTrackState.Downloading)
+                    .Where(d => d.State == PlaylistTrackState.Downloading)
                     .Sum(d => d.CurrentSpeedBytes);
-                    
-                // Fix: VM needs to expose raw bytes/sec for accurate aggregation
-                // Currently only exposes formatted string.
-                // We'll rely on the VM's internal calculation or just iterate roughly.
-                // Refactor: We can't access private _currentSpeed.
-                // Let's assume 0 for now until we add public Double CurrentSpeedBytes property.
+                
+                Dispatcher.UIThread.Post(() => {
+                    GlobalSpeed = totalSpeedBytes > 1024 * 1024 
+                        ? $"{totalSpeedBytes / 1024 / 1024:F1} MB/s" 
+                        : $"{totalSpeedBytes / 1024:F0} KB/s";
+                });
             }
             catch { }
         };

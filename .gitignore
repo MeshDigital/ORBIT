@@ -106,3 +106,18 @@ SLSKDONET_LEARNINGS.md
 SPOTIFY_PKCE_FLOW_ANALYSIS.md
 COPY_TO_FOLDER_METHOD.txt
 
+obj/
+bin/
+logs/
+*.txt
+*.json
+stderr.txt
+stdout.txt
+logs/
+obj/
+bin/
+stderr.txt
+stdout.txt
+logs/
+obj/
+bin/
