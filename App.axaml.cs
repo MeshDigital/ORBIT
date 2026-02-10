@@ -738,6 +738,11 @@ public partial class App : Application
         services.AddSingleton<Services.Audio.TransitionEngine>();
         services.AddSingleton<ViewModels.Timeline.SetDesignerViewModel>();
         
+        // Sprint 5: Transition Preview Engine
+        services.AddSingleton<Services.Audio.TransitionPreviewService>();
+        services.AddTransient<ViewModels.MixPreviewViewModel>();
+        services.AddSingleton<Func<ViewModels.MixPreviewViewModel>>(sp => () => sp.GetRequiredService<ViewModels.MixPreviewViewModel>());
+        
         // Phase 0: ViewModel Refactoring - Library child ViewModels
         services.AddTransient<ViewModels.Library.ProjectListViewModel>();
         services.AddTransient<ViewModels.Library.TrackListViewModel>(sp => 

@@ -5,6 +5,7 @@
              xmlns:vm="clr-namespace:SLSKDONET.ViewModels"
              xmlns:controls="clr-namespace:SLSKDONET.Views.Avalonia.Controls"
              xmlns:conv="clr-namespace:SLSKDONET.Views.Avalonia.Converters"
+             xmlns:avaloniaConv="clr-namespace:Avalonia.Data.Converters;assembly=Avalonia.Base"
              mc:Ignorable="d" d:DesignWidth="1600" d:DesignHeight="900"
              x:Class="SLSKDONET.Views.Avalonia.DJCompanionView"
              x:DataType="vm:DJCompanionViewModel"
@@ -559,6 +560,20 @@
                     </StackPanel>
                 </ScrollViewer>
             </Grid>
+        </Border>
+
+        <!-- MIX PREVIEW OVERLAY -->
+        <Border Grid.Row="0" Grid.RowSpan="3" Grid.Column="0" Grid.ColumnSpan="3"
+                Background="#cc000000"
+                IsVisible="{Binding MixPreview, Converter={x:Static avaloniaConv:ObjectConverters.IsNotNull}}"
+                ZIndex="999">
+            <ContentControl Content="{Binding MixPreview}">
+                <ContentControl.DataTemplates>
+                    <DataTemplate DataType="{x:Type vm:MixPreviewViewModel}">
+                        <controls:MixPreviewComponent/>
+                    </DataTemplate>
+                </ContentControl.DataTemplates>
+            </ContentControl>
         </Border>
     </Grid>
 </UserControl>

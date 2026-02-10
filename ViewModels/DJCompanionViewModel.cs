@@ -126,6 +126,16 @@ namespace SLSKDONET.ViewModels
             set => this.RaiseAndSetIfChanged(ref _isVocalGhostVisible, value);
         }
 
+        // Sprint 5: Mix Preview
+        private MixPreviewViewModel? _mixPreview;
+        public MixPreviewViewModel? MixPreview
+        {
+            get => _mixPreview;
+            set => this.RaiseAndSetIfChanged(ref _mixPreview, value);
+        }
+        
+        public ReactiveCommand<LibraryEntryEntity, Unit> PreviewTransitionCommand { get; private set; }
+
 
 
         private UnifiedTrackViewModel? _currentTrack;
@@ -288,7 +298,9 @@ namespace SLSKDONET.ViewModels
             RekordboxXmlExporter rekordboxExporter,
             IFileInteractionService fileService,
             Services.Export.IHardwareExportService hardwareExportService,
+            Services.Export.IHardwareExportService hardwareExportService,
             ILogger<DJCompanionViewModel> logger,
+            Func<MixPreviewViewModel> mixPreviewFactory,
             SetlistStressTestService? stressTestService = null,
             AppDbContext? dbContext = null)
         {
@@ -299,8 +311,8 @@ namespace SLSKDONET.ViewModels
             _rekordboxExporter = rekordboxExporter;
             _fileService = fileService;
             _hardwareExportService = hardwareExportService;
-            _hardwareExportService = hardwareExportService;
             _logger = logger;
+            _mixPreviewFactory = mixPreviewFactory;
             _setIntelligenceService = stressTestService as ISetIntelligenceService ?? 
                                      (ISetIntelligenceService)((SLSKDONET.App)Application.Current).Services.GetService(typeof(ISetIntelligenceService));
 
@@ -313,6 +325,46 @@ namespace SLSKDONET.ViewModels
             PreviewStemCommand = ReactiveCommand.CreateFromTask<string>(PreviewStemAsync);
             LoadTrackCommand = ReactiveCommand.CreateFromTask<UnifiedTrackViewModel>(LoadTrackAsync);
 
+            // Sprint 5: Transition Preview
+            PreviewTransitionCommand = ReactiveCommand.CreateFromTask<LibraryEntryEntity, Unit>(async trackB => 
+            {
+                if (trackB == null || CurrentTrack?.Model == null) return Unit.Default;
+                
+                // Stop Main Player if running
+                if (Player.IsPlaying && Player.TogglePlayPauseCommand.CanExecute(null)) 
+                    Player.TogglePlayPauseCommand.Execute(null);
+
+                // Dispose existing if any
+                if (MixPreview != null)
+                {
+                    MixPreview.Dispose();
+                    MixPreview = null;
+                }
+
+                // Initialize Mix Preview
+                var previewVm = _mixPreviewFactory();
+                await previewVm.LoadPreviewAsync(CurrentTrack.Model, trackB);
+                
+                // Auto-close when IsActive becomes false
+                // We use a composite disposable or just a one-off subscription that likely lives as long as the VM
+                // But simplified:
+                IDisposable? subscription = null;
+                subscription = previewVm.WhenAnyValue(x => x.IsActive)
+                    .Skip(1) // Skip initial true
+                    .Where(active => !active)
+                    .Subscribe(_ => 
+                    {
+                        // Close and Dispose
+                        MixPreview = null;
+                        previewVm.Dispose();
+                        subscription?.Dispose();
+                    });
+                
+                MixPreview = previewVm;
+                
+                return Unit.Default;
+            });
+            
             // Phase 5.4: Initialize Stress-Test Command
             RunSetlistStressTestCommand = ReactiveCommand.CreateFromTask<Unit, StressDiagnosticReport>(
                 async _ => await RunSetlistStressTestAsync(stressTestService, dbContext));
