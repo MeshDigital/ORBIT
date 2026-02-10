@@ -28,14 +28,30 @@
                 <TextBlock Grid.Column="0" Text="🎧 SET CURATOR" FontSize="15" FontWeight="Bold" LetterSpacing="2" VerticalAlignment="Center"/>
                 <TextBlock Grid.Column="1" Text="{Binding HelpText}" FontSize="11" Foreground="#888" Margin="24,0" VerticalAlignment="Center" TextWrapping="Wrap"/>
 
-                <Button Grid.Column="2" Command="{Binding TogglePlayCommand}"
-                        Background="#FF4081"
-                        Foreground="White"
-                        CornerRadius="16"
-                        Padding="14,6"
-                        Margin="0,0,8,0">
-                    <TextBlock Text="{Binding PlayButtonLabel}" FontWeight="SemiBold"/>
-                </Button>
+                <Panel Grid.Column="2">
+                    <!-- Ready -->
+                    <Button Command="{Binding TogglePlayCommand}"
+                            IsVisible="{Binding IsPlaylistReadyForCuration}"
+                            Background="#FF4081"
+                            Foreground="White"
+                            CornerRadius="16"
+                            Padding="14,6"
+                            Margin="0,0,8,0">
+                        <TextBlock Text="{Binding PlayButtonLabel}" FontWeight="SemiBold"/>
+                    </Button>
+                    
+                    <!-- Not Ready -->
+                    <Button Command="{Binding RunDeepAnalysisCommand}"
+                            IsVisible="{Binding !IsPlaylistReadyForCuration}"
+                            Background="#D500F9"
+                            Foreground="White"
+                            CornerRadius="16"
+                            Padding="14,6"
+                            Margin="0,0,8,0"
+                            ToolTip.Tip="Run Tier 3 Analysis (Required for Ghost Layer)">
+                        <TextBlock Text="⚡ ANALYZE" FontWeight="SemiBold"/>
+                    </Button>
+                </Panel>
 
                 <Button Grid.Column="3" Command="{Binding RunSetlistStressTestCommand}"
                         Content="🏥 Analyze Flow"
@@ -217,21 +233,22 @@
                 <!-- LARGE WAVEFORM - THE FOCUS -->
                 <Border Grid.Row="1" Background="#0a0a0a" CornerRadius="12" Padding="8" MinHeight="220">
                     <Grid RowDefinitions="*,Auto">
-                        <!-- Main Waveform with Cue Markers -->
-                        <controls:WaveformControl Grid.Row="0"
+                        <!-- Dual-Waveform Deck (Macro + Micro) -->
+                        <controls:DualWaveformDeck Grid.Row="0"
                                                   Name="FocusedWaveform"
                                                   WaveformData="{Binding CurrentTrack.WaveformData}"
                                                   Cues="{Binding CurrentTrack.OrbitCues}"
                                                   PhraseSegments="{Binding CurrentTrack.PhraseSegments}"
                                                   EnergyCurve="{Binding CurrentTrack.EnergyCurve}"
+                                                  SegmentedEnergy="{Binding CurrentTrack.SegmentedEnergy}"
+                                                  VocalDensityCurve="{Binding CurrentTrack.VocalDensityCurve}"
                                                   Progress="{Binding PlaybackProgressNormalized}"
-                                                  PlayheadBrush="#FF4081"
+                                                  Bpm="{Binding CurrentTrack.BPM, Converter={x:Static conv:NumericConverters.FloatFallback}}" 
+                                                  
                                                   SeekCommand="{Binding SeekCommand}"
                                                   CueClickedCommand="{Binding JumpToCueCommand}"
-                                                  Foreground="#4EC9B0"
-                                                  Background="#0a0a0a"
-                                                  IsEditing="{Binding IsEditingCues}"
                                                   CueUpdatedCommand="{Binding CueUpdatedCommand}"
+                                                  IsRolling="{Binding IsRollingWaveform}"
                                                   ToolTip.Tip="Scroll to zoom, Click cue for instant audition"/>
 
 
@@ -337,15 +354,30 @@
                                     <ItemsControl.ItemTemplate>
                                         <DataTemplate>
                                             <Border Background="#2a1a1a" CornerRadius="4" Padding="8" Margin="0,2">
-                                                <StackPanel Spacing="2">
-                                                    <TextBlock FontSize="10" Foreground="#FF6B6B">
-                                                        <Run Text="🎹 Key Clash: "/>
-                                                        <Run Text="{Binding TrackA}" FontWeight="Bold"/>
-                                                        <Run Text=" → "/>
-                                                        <Run Text="{Binding TrackB}" FontWeight="Bold"/>
-                                                    </TextBlock>
-                                                    <TextBlock Text="{Binding Description}" FontSize="9" Foreground="#888" TextWrapping="Wrap"/>
-                                                </StackPanel>
+                                                <Grid ColumnDefinitions="*,Auto">
+                                                    <StackPanel Grid.Column="0" Spacing="2">
+                                                        <TextBlock FontSize="10" Foreground="#FF6B6B">
+                                                            <Run Text="🎹 Key Clash: "/>
+                                                            <Run Text="{Binding TrackA}" FontWeight="Bold"/>
+                                                            <Run Text=" → "/>
+                                                            <Run Text="{Binding TrackB}" FontWeight="Bold"/>
+                                                        </TextBlock>
+                                                        <TextBlock Text="{Binding Description}" FontSize="9" Foreground="#888" TextWrapping="Wrap"/>
+                                                    </StackPanel>
+                                                    
+                                                    <!-- Fix Button -->
+                                                    <Button Grid.Column="1" 
+                                                            Content="⚡ FIX" 
+                                                            Command="{Binding DataContext.RemediateIssueCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                                            CommandParameter="{Binding}"
+                                                            Background="#FF4444" 
+                                                            Foreground="White"
+                                                            CornerRadius="4"
+                                                            FontSize="9"
+                                                            FontWeight="Bold"
+                                                            Padding="6,2"
+                                                            Margin="8,0,0,0"/>
+                                                </Grid>
                                             </Border>
                                         </DataTemplate>
                                     </ItemsControl.ItemTemplate>
@@ -356,13 +388,28 @@
                                     <ItemsControl.ItemTemplate>
                                         <DataTemplate>
                                             <Border Background="#1a2a1a" CornerRadius="4" Padding="8" Margin="0,2">
-                                                <StackPanel Spacing="2">
-                                                    <TextBlock FontSize="10" Foreground="#FFB300">
-                                                        <Run Text="⚡ Energy Gap at Track "/>
-                                                        <Run Text="{Binding TrackIndex}" FontWeight="Bold"/>
-                                                    </TextBlock>
-                                                    <TextBlock Text="{Binding Description}" FontSize="9" Foreground="#888" TextWrapping="Wrap"/>
-                                                </StackPanel>
+                                                <Grid ColumnDefinitions="*,Auto">
+                                                    <StackPanel Grid.Column="0" Spacing="2">
+                                                        <TextBlock FontSize="10" Foreground="#FFB300">
+                                                            <Run Text="⚡ Energy Gap at Track "/>
+                                                            <Run Text="{Binding TrackIndex}" FontWeight="Bold"/>
+                                                        </TextBlock>
+                                                        <TextBlock Text="{Binding Description}" FontSize="9" Foreground="#888" TextWrapping="Wrap"/>
+                                                    </StackPanel>
+
+                                                    <!-- Fix Button -->
+                                                    <Button Grid.Column="1" 
+                                                            Content="⚡ FIX" 
+                                                            Command="{Binding DataContext.RemediateIssueCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                                            CommandParameter="{Binding}"
+                                                            Background="#FFB300"
+                                                            Foreground="Black"
+                                                            CornerRadius="4"
+                                                            FontSize="9"
+                                                            FontWeight="Bold"
+                                                            Padding="6,2"
+                                                            Margin="8,0,0,0"/>
+                                                </Grid>
                                             </Border>
                                         </DataTemplate>
                                     </ItemsControl.ItemTemplate>

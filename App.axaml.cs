@@ -601,6 +601,7 @@ public partial class App : Application
         
         // Harmonic matching service (DJ feature)
         services.AddSingleton<HarmonicMatchService>();
+        services.AddSingleton<ISetIntelligenceService, SetIntelligenceService>(); // Phase 4: Set Curator Intelligence
         
         // Phase 18: Sonic Match Engine - AI-powered vibe similarity
         services.AddSingleton<Services.AI.ISonicMatchService, Services.AI.SonicMatchService>();

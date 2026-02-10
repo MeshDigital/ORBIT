@@ -1,4 +1,8 @@
 using System;
+using System.Windows.Input;
+using Avalonia;
+using Avalonia.Threading;
+using Microsoft.Extensions.Logging;
 using System.Collections.ObjectModel;
 using System.Linq;
 using System.Reactive;
@@ -16,7 +20,7 @@ using SLSKDONET.Services.Analysis;
 using SLSKDONET.Services.Audio;
 using SLSKDONET.Services.Musical;
 using SLSKDONET.ViewModels.Downloads;
-using SLSKDONET.Models;  // For OrbitCue
+
 
 namespace SLSKDONET.ViewModels
 {
@@ -34,6 +38,7 @@ namespace SLSKDONET.ViewModels
         private readonly IFileInteractionService _fileService;
         private readonly Services.Export.IHardwareExportService _hardwareExportService;
         private readonly ILogger<DJCompanionViewModel> _logger;
+        private readonly ISetIntelligenceService _setIntelligenceService;
 
 
         // Observable Collections for UI Binding
@@ -47,6 +52,21 @@ namespace SLSKDONET.ViewModels
 
         // NEW: Setlist Management (Left Panel)
         public ObservableCollection<SetlistTrackItem> CurrentSetlistTracks { get; } = new();
+
+        // Auto-Enrich Gate Properties
+        private bool _isEnrichmentNeeded;
+        public bool IsEnrichmentNeeded
+        {
+            get => _isEnrichmentNeeded;
+            set => this.RaiseAndSetIfChanged(ref _isEnrichmentNeeded, value);
+        }
+
+        private int _enrichmentNeededCount;
+        public int EnrichmentNeededCount
+        {
+            get => _enrichmentNeededCount;
+            set => this.RaiseAndSetIfChanged(ref _enrichmentNeededCount, value);
+        }
 
         // NEW: Set Intelligence (Right Panel)
         public ObservableCollection<KeyClashIssue> KeyClashes { get; } = new();
@@ -200,7 +220,11 @@ namespace SLSKDONET.ViewModels
         public SetListEntity? CurrentSetlist
         {
             get => _currentSetlist;
-            set => this.RaiseAndSetIfChanged(ref _currentSetlist, value);
+            set
+            {
+                this.RaiseAndSetIfChanged(ref _currentSetlist, value);
+                RefreshSetlistTracks();
+            }
         }
 
         public SetlistHealthBarViewModel HealthBarViewModel { get; private set; }
@@ -219,6 +243,7 @@ namespace SLSKDONET.ViewModels
         public ReactiveCommand<Unit, Unit> ExportToRekordboxCommand { get; private set; }
         public ReactiveCommand<Unit, Unit> ExportToUsbCommand { get; private set; }
         public ReactiveCommand<Unit, Unit> RefreshDrivesCommand { get; private set; }
+        public ReactiveCommand<Unit, Unit> AutoEnrichCommand { get; private set; }
 
 
 
@@ -242,7 +267,11 @@ namespace SLSKDONET.ViewModels
             _rekordboxExporter = rekordboxExporter;
             _fileService = fileService;
             _hardwareExportService = hardwareExportService;
+            _hardwareExportService = hardwareExportService;
             _logger = logger;
+            _setIntelligenceService = stressTestService as ISetIntelligenceService ?? 
+                                     (ISetIntelligenceService)((SLSKDONET.App)Application.Current).Services.GetService(typeof(ISetIntelligenceService));
+
 
 
             TogglePlayCommand = ReactiveCommand.Create(TogglePlay);
@@ -346,10 +375,117 @@ namespace SLSKDONET.ViewModels
 
             // Initial refresh
             _ = RefreshDrivesAsync();
+
+            // Subscribe to setlist changes to trigger Auto-Enrich Check
+            CurrentSetlistTracks.CollectionChanged += async (s, e) => 
+            {
+                CheckEnrichmentStatus();
+                // Run Set Intelligence
+                await AnalyzeSetlistAsync();
+            };
+            
+            // Auto-Enrich Command: Navigation to Processor with filter
+            AutoEnrichCommand = ReactiveCommand.Create(() => 
+            {
+               _eventBus.Publish(new NavigateToPageEvent("AnalysisQueue"));
+            });
+            
+            RunDeepAnalysisCommand = ReactiveCommand.Create(() =>
+            {
+                // In a real implementation, we'd queue specific tracks.
+                // For now, navigate to Analysis Queue.
+                // For now, navigate to Analysis Queue.
+                _eventBus.Publish(new NavigateToPageEvent("AnalysisQueue"));
+            });
+
+            RemediateIssueCommand = ReactiveCommand.CreateFromTask<SetHealthIssue>(RemediateIssueAsync);
+        }
+
+        public ReactiveCommand<Unit, Unit> RunDeepAnalysisCommand { get; }
+        
+        // Sprint 4: Curator Readiness
+        private bool _isPlaylistReadyForCuration = true;
+        public bool IsPlaylistReadyForCuration
+        {
+            get => _isPlaylistReadyForCuration;
+            set => this.RaiseAndSetIfChanged(ref _isPlaylistReadyForCuration, value);
+        }
+
+        
+        private void CheckEnrichmentStatus()
+        {
+            // Tier 1: Basic Metadata
+            var missingBasic = CurrentSetlistTracks
+                .Select(i => i.Track)
+                .Where(t => t != null && (t.BPM == null || string.IsNullOrEmpty(t.MusicalKey) || t.Energy == null))
+                .ToList();
+
+            // Tier 3: Deep Analysis (Instrumental Probability for Ghost Layer)
+            // In a real scenario we'd check for InstrumentalProbability data.
+            // For now, if basic data is missing, we aren't ready.
+            
+            bool basicReady = !missingBasic.Any();
+            
+            EnrichmentNeededCount = missingBasic.Count;
+            IsEnrichmentNeeded = EnrichmentNeededCount > 0;
+            IsPlaylistReadyForCuration = basicReady;
+
+            if (IsEnrichmentNeeded)
+            {
+                HelpText = $"⚠️ {EnrichmentNeededCount} tracks need analysis for accurate mixing.";
+            }
+            else
+            {
+                HelpText = "Ready for Curation via Set Intelligence.";
+            }
         }
 
 
 
+
+        private void RefreshSetlistTracks()
+        {
+            CurrentSetlistTracks.Clear();
+
+            if (CurrentSetlist?.Tracks == null) return;
+
+            var ordered = CurrentSetlist.Tracks.OrderBy(t => t.Position).ToList();
+            int idx = 1;
+            
+            foreach (var setTrack in ordered)
+            {
+                var lib = setTrack.Library;
+                if (lib == null) continue;
+
+                var item = new SetlistTrackItem
+                {
+                    Index = idx++,
+                    Title = lib.Title,
+                    Artist = lib.Artist,
+                    TrackId = lib.Id,
+                    KeyDisplay = lib.MusicalKey ?? "—",
+                    BpmDisplay = lib.BPM.HasValue ? $"{lib.BPM:F0}" : "—",
+                    EnergyLevel = lib.Energy.HasValue ? (lib.Energy > 0.7 ? "High" : "Mid") : "—",
+                    
+                    // Intelligence Data
+                    Key = lib.MusicalKey ?? "",
+                    Energy = lib.Energy ?? 0,
+                    VocalProbability = 0.5, // Default/Placeholder until we have real data
+                    
+                    // Create minimal PlaylistTrack for compatibility
+                    Track = new PlaylistTrack 
+                    { 
+                        Title = lib.Title, 
+                        Artist = lib.Artist,
+                        BPM = lib.BPM,
+                        MusicalKey = lib.MusicalKey,
+                        Energy = lib.Energy
+                    }
+                };
+                
+                CurrentSetlistTracks.Add(item);
+            }
+        }
 
         private void OnTrackSelected()
         {
@@ -748,11 +884,11 @@ namespace SLSKDONET.ViewModels
                     HelpText = $"Failed to apply rescue: {result.Message}";
                 }
 
+
                 return result;
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"Error applying rescue track: {ex.Message}");
                 HelpText = $"Error applying rescue: {ex.Message}";
                 return new ApplyRescueResult
                 {
@@ -760,6 +896,52 @@ namespace SLSKDONET.ViewModels
                     Message = ex.Message
                 };
             }
+        }
+
+        /// <summary>
+        /// Analyzes the setlist for harmonic clashes, energy drops, and vocal overlaps using SetIntelligenceService.
+        /// </summary>
+        public async Task AnalyzeSetlistAsync()
+        {
+            if (_setIntelligenceService == null) return;
+            
+            var report = await _setIntelligenceService.AnalyzeSetlistAsync(CurrentSetlistTracks);
+            
+            // Update UI on Main Thread
+            await Dispatcher.UIThread.InvokeAsync(() =>
+            {
+                SetHealthScore = report.Score;
+                
+                KeyClashes.Clear();
+                if (report.KeyClashes.Any())
+                {
+                    foreach (var issue in report.KeyClashes) KeyClashes.Add(issue);
+                }
+
+                EnergyGaps.Clear();
+                if (report.EnergyGaps.Any())
+                {
+                    foreach (var issue in report.EnergyGaps) EnergyGaps.Add(issue);
+                }
+
+                VocalClashes.Clear();
+                if (report.VocalClashes.Any())
+                {
+                    foreach (var issue in report.VocalClashes) VocalClashes.Add(issue);
+                }
+
+                foreach (var advice in report.Advice)
+                {
+                    MixingAdvice.Insert(0, new MixingAdviceItem 
+                    { 
+                        Title = advice.Title, 
+                        Description = advice.Description,
+                        Icon = advice.Icon
+                    });
+                }
+                
+                this.RaisePropertyChanged(nameof(HasIssues));
+            });
         }
 
         // Display Models for UI Binding
@@ -807,50 +989,7 @@ namespace SLSKDONET.ViewModels
         {
             public string Title { get; set; } = "";
             public string Description { get; set; } = "";
-        }
-
-        // NEW: Setlist Track Item for Left Panel
-        public class SetlistTrackItem
-        {
-            public int Index { get; set; }
-            public string Title { get; set; } = "";
-            public string Artist { get; set; } = "";
-            public string KeyDisplay { get; set; } = "";
-            public string BpmDisplay { get; set; } = "";
-            public string EnergyLevel { get; set; } = "";
-            public bool IsSelected { get; set; }
-            public Guid TrackId { get; set; }
-            public PlaylistTrack? Track { get; set; }
-            
-            // Sprint 3: Intelligence properties
-            public string Key { get; set; } = "";
-            public double Energy { get; set; }
-            public double VocalProbability { get; set; }
-        }
-
-
-        // NEW: Issue Models for Set Intelligence
-        public class KeyClashIssue
-        {
-            public string TrackA { get; set; } = "";
-            public string TrackB { get; set; } = "";
-            public string Description { get; set; } = "";
-            public int TransitionIndex { get; set; }
-        }
-
-        public class EnergyGapIssue
-        {
-            public int TrackIndex { get; set; }
-            public string Description { get; set; } = "";
-            public double FromEnergy { get; set; }
-            public double ToEnergy { get; set; }
-        }
-
-        public class VocalClashIssue
-        {
-            public string TrackA { get; set; } = "";
-            public string TrackB { get; set; } = "";
-            public int TransitionIndex { get; set; }
+            public string Icon { get; set; } = "";
         }
 
         // NEW: Handle setlist track selection
@@ -868,118 +1007,8 @@ namespace SLSKDONET.ViewModels
         }
 
         // Sprint 3: Setlist Analysis for Set Intelligence
-        /// <summary>
-        /// Analyzes the current setlist for key clashes, energy gaps, and vocal issues.
-        /// Populates the Set Intelligence panel collections.
-        /// </summary>
-        public void AnalyzeSetlist()
-        {
-            KeyClashes.Clear();
-            EnergyGaps.Clear();
-            VocalClashes.Clear();
+        // (Delegates to SetIntelligenceService via AnalyzeSetlistAsync)
 
-            var tracks = CurrentSetlistTracks.ToList();
-            if (tracks.Count < 2)
-            {
-                SetHealthScore = 100;
-                this.RaisePropertyChanged(nameof(HasIssues));
-                return;
-            }
-
-            int issueCount = 0;
-
-            // Camelot Wheel compatibility map
-            var camelotCompatible = new System.Collections.Generic.Dictionary<string, System.Collections.Generic.HashSet<string>>
-            {
-                ["1A"] = new() { "12A", "1A", "2A", "1B" },
-                ["2A"] = new() { "1A", "2A", "3A", "2B" },
-                ["3A"] = new() { "2A", "3A", "4A", "3B" },
-                ["4A"] = new() { "3A", "4A", "5A", "4B" },
-                ["5A"] = new() { "4A", "5A", "6A", "5B" },
-                ["6A"] = new() { "5A", "6A", "7A", "6B" },
-                ["7A"] = new() { "6A", "7A", "8A", "7B" },
-                ["8A"] = new() { "7A", "8A", "9A", "8B" },
-                ["9A"] = new() { "8A", "9A", "10A", "9B" },
-                ["10A"] = new() { "9A", "10A", "11A", "10B" },
-                ["11A"] = new() { "10A", "11A", "12A", "11B" },
-                ["12A"] = new() { "11A", "12A", "1A", "12B" },
-                ["1B"] = new() { "12B", "1B", "2B", "1A" },
-                ["2B"] = new() { "1B", "2B", "3B", "2A" },
-                ["3B"] = new() { "2B", "3B", "4B", "3A" },
-                ["4B"] = new() { "3B", "4B", "5B", "4A" },
-                ["5B"] = new() { "4B", "5B", "6B", "5A" },
-                ["6B"] = new() { "5B", "6B", "7B", "6A" },
-                ["7B"] = new() { "6B", "7B", "8B", "7A" },
-                ["8B"] = new() { "7B", "8B", "9B", "8A" },
-                ["9B"] = new() { "8B", "9B", "10B", "9A" },
-                ["10B"] = new() { "9B", "10B", "11B", "10A" },
-                ["11B"] = new() { "10B", "11B", "12B", "11A" },
-                ["12B"] = new() { "11B", "12B", "1B", "12A" }
-            };
-
-            for (int i = 0; i < tracks.Count - 1; i++)
-            {
-                var current = tracks[i];
-                var next = tracks[i + 1];
-
-                // 1. Key Clash Detection (Camelot Wheel)
-                var keyA = current.Key?.ToUpperInvariant()?.Trim() ?? "";
-                var keyB = next.Key?.ToUpperInvariant()?.Trim() ?? "";
-
-                if (!string.IsNullOrEmpty(keyA) && !string.IsNullOrEmpty(keyB))
-                {
-                    bool isCompatible = camelotCompatible.TryGetValue(keyA, out var compatible)
-                                        && compatible.Contains(keyB);
-
-                    if (!isCompatible && keyA != keyB)
-                    {
-                        KeyClashes.Add(new KeyClashIssue
-                        {
-                            TrackA = current.Title,
-                            TrackB = next.Title,
-                            Description = $"Key clash: {keyA} → {keyB}",
-                            TransitionIndex = i
-                        });
-                        issueCount++;
-                    }
-                }
-
-                // 2. Energy Gap Detection (>4 point drop/spike)
-                double energyA = current.Energy;
-                double energyB = next.Energy;
-                double gap = Math.Abs(energyA - energyB);
-
-                if (gap > 4)
-                {
-                    EnergyGaps.Add(new EnergyGapIssue
-                    {
-                        TrackIndex = i,
-                        FromEnergy = energyA,
-                        ToEnergy = energyB,
-                        Description = energyB > energyA
-                            ? $"Energy spike: {energyA:F0} → {energyB:F0}"
-                            : $"Energy drop: {energyA:F0} → {energyB:F0}"
-                    });
-                    issueCount++;
-                }
-
-                // 3. Vocal Clash Detection (both tracks have high vocal probability > 0.8)
-                if (current.VocalProbability > 0.8 && next.VocalProbability > 0.8)
-                {
-                    VocalClashes.Add(new VocalClashIssue
-                    {
-                        TrackA = current.Title,
-                        TrackB = next.Title,
-                        TransitionIndex = i
-                    });
-                    issueCount++;
-                }
-            }
-
-            // Calculate Set Health Score (100 - deductions per issue)
-            SetHealthScore = Math.Max(0, 100 - (issueCount * 8));
-            this.RaisePropertyChanged(nameof(HasIssues));
-        }
         private async Task ExportToRekordboxAsync()
         {
             if (CurrentSetlistTracks.Count == 0)
@@ -1016,15 +1045,23 @@ namespace SLSKDONET.ViewModels
                 var drives = _hardwareExportService.GetAvailableDrives();
                 AvailableExportDrives.Clear();
                 foreach (var d in drives)
+                {
                     AvailableExportDrives.Add(d);
+                }
 
                 if (SelectedExportDrive == null && AvailableExportDrives.Count > 0)
+                {
                     SelectedExportDrive = AvailableExportDrives[0];
+                }
                 
                 if (AvailableExportDrives.Count == 0)
+                {
                     ExportStatus = "No USB drives found";
+                }
                 else
+                {
                     ExportStatus = $"{AvailableExportDrives.Count} drives available";
+                }
             }
             catch (Exception ex)
             {
@@ -1067,8 +1104,68 @@ namespace SLSKDONET.ViewModels
                 IsLoading = false;
             }
         }
+
+        public ReactiveCommand<SLSKDONET.Models.SetHealthIssue, Unit> RemediateIssueCommand { get; }
+
+        private async Task RemediateIssueAsync(SetHealthIssue issue)
+        {
+            if (issue == null) return;
+
+            // 1. Key Clash Remediation
+            if (issue is KeyClashIssue keyClash)
+            {
+                // Finds a bridge track (e.g. 5A -> [Bridge] -> 12A)
+                // In a real implementation we would use HarmonicMatchService + LibraryService
+                // ensuring the bridge is +1/-1 Camelot from both ends if possible.
+                
+                // For now, we simulate a "Ghost Item" suggestion
+                var ghostTrack = new SetlistTrackItem
+                {
+                    Title = "Suggested Bridge Track",
+                    Artist = "Smart Recommendation",
+                    KeyDisplay = "6A", // Example bridge for 5A->7A
+                    BpmDisplay = "124",
+                    Index = keyClash.TransitionIndex + 1, // Insert between
+                    IsSelected = true
+                };
+                
+                // Insert as "Ghost" (user would need to confirm)
+                CurrentSetlistTracks.Insert(keyClash.TransitionIndex + 1, ghostTrack);
+                
+                // Re-analyze
+                await AnalyzeSetlistAsync();
+            }
+            // 2. Energy Gap Remediation
+            else if (issue is EnergyGapIssue energyGap)
+            {
+                // Energy Boost Logic: If gap is high (e.g. 6 to 9), suggest a +2 Camelot Jump to "Lift"
+                // Otherwise find an intermediate energy track.
+                
+                var ghostTrack = new SetlistTrackItem
+                {
+                    Title = "Energy Lift Track",
+                    Artist = "Smart Recommendation",
+                    EnergyLevel = "High",
+                    KeyDisplay = "+2 Lift", // MIK Strategy
+                    Index = energyGap.TrackIndex + 1,
+                    IsSelected = true
+                };
+
+                CurrentSetlistTracks.Insert(energyGap.TrackIndex + 1, ghostTrack);
+                await AnalyzeSetlistAsync();
+            }
+        }
     }
 }
+
+
+
+
+
+
+
+
+
 
 
 

@@ -58,4 +58,20 @@ public static class NumericConverters
     public static readonly IValueConverter GreaterThan = new NumericGreaterThanConverter();
     public static readonly IValueConverter IsZero = new NumericIsZeroConverter();
     public static readonly IValueConverter IsNotZero = new NumericIsNotZeroConverter();
+    public static readonly IValueConverter FloatFallback = new FloatFallbackConverter();
+}
+
+public class FloatFallbackConverter : IValueConverter
+{
+    public object? Convert(object? value, Type targetType, object? parameter, CultureInfo culture)
+    {
+        if (value is float f) return f;
+        if (value is double d) return (float)d;
+        return 0f;
+    }
+
+    public object? ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture)
+    {
+        throw new NotImplementedException();
+    }
 }
