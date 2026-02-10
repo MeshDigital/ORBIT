@@ -97,6 +97,35 @@ namespace SLSKDONET.ViewModels
             set => this.RaiseAndSetIfChanged(ref _exportStatus, value);
         }
 
+        // Sprint 4: Tactical UI LEDs
+        private bool _isBeatmatched;
+        public bool IsBeatmatched
+        {
+            get => _isBeatmatched;
+            set => this.RaiseAndSetIfChanged(ref _isBeatmatched, value);
+        }
+
+        private bool _isKeyCompatible;
+        public bool IsKeyCompatible
+        {
+            get => _isKeyCompatible;
+            set => this.RaiseAndSetIfChanged(ref _isKeyCompatible, value);
+        }
+
+        private bool _isPhraseAligned;
+        public bool IsPhraseAligned
+        {
+            get => _isPhraseAligned;
+            set => this.RaiseAndSetIfChanged(ref _isPhraseAligned, value);
+        }
+
+        private bool _isVocalGhostVisible;
+        public bool IsVocalGhostVisible
+        {
+            get => _isVocalGhostVisible;
+            set => this.RaiseAndSetIfChanged(ref _isVocalGhostVisible, value);
+        }
+
 
 
         private UnifiedTrackViewModel? _currentTrack;
@@ -244,6 +273,9 @@ namespace SLSKDONET.ViewModels
         public ReactiveCommand<Unit, Unit> ExportToUsbCommand { get; private set; }
         public ReactiveCommand<Unit, Unit> RefreshDrivesCommand { get; private set; }
         public ReactiveCommand<Unit, Unit> AutoEnrichCommand { get; private set; }
+        public ReactiveCommand<int, Unit> TriggerHotCueCommand { get; private set; }
+        public ReactiveCommand<Unit, Unit> ToggleVocalGhostCommand { get; private set; }
+        public ReactiveCommand<double, Unit> NudgeCommand { get; private set; }
 
 
 
@@ -274,7 +306,10 @@ namespace SLSKDONET.ViewModels
 
 
 
-            TogglePlayCommand = ReactiveCommand.Create(TogglePlay);
+            TogglePlayCommand = ReactiveCommand.Create(() => { if (Player != null && Player.TogglePlayPauseCommand.CanExecute(null)) Player.TogglePlayPauseCommand.Execute(null); });
+            TriggerHotCueCommand = ReactiveCommand.Create<int>(TriggerHotCue);
+            ToggleVocalGhostCommand = ReactiveCommand.Create(() => { IsVocalGhostVisible = !IsVocalGhostVisible; });
+            NudgeCommand = ReactiveCommand.Create<double>(NudgePlayback);
             PreviewStemCommand = ReactiveCommand.CreateFromTask<string>(PreviewStemAsync);
             LoadTrackCommand = ReactiveCommand.CreateFromTask<UnifiedTrackViewModel>(LoadTrackAsync);
 
@@ -1110,49 +1145,135 @@ namespace SLSKDONET.ViewModels
         private async Task RemediateIssueAsync(SetHealthIssue issue)
         {
             if (issue == null) return;
+            
+            // Fetch all candidates (in memory filter for now)
+            var allTracks = await _libraryService.LoadAllLibraryEntriesAsync();
+            if (allTracks == null || !allTracks.Any()) return;
 
             // 1. Key Clash Remediation
             if (issue is KeyClashIssue keyClash)
             {
-                // Finds a bridge track (e.g. 5A -> [Bridge] -> 12A)
-                // In a real implementation we would use HarmonicMatchService + LibraryService
-                // ensuring the bridge is +1/-1 Camelot from both ends if possible.
+                // Identify tracks involved
+                if (keyClash.TransitionIndex < 0 || keyClash.TransitionIndex >= CurrentSetlistTracks.Count - 1) return;
                 
-                // For now, we simulate a "Ghost Item" suggestion
-                var ghostTrack = new SetlistTrackItem
+                var trackA = CurrentSetlistTracks[keyClash.TransitionIndex];
+                var trackB = CurrentSetlistTracks[keyClash.TransitionIndex + 1];
+                
+                // Parse keys (Simple parsing, assuming "8A", "11B" format)
+                if (TryGetCamelotNumber(trackA.KeyDisplay, out int keyA) && TryGetCamelotNumber(trackB.KeyDisplay, out int keyB))
                 {
-                    Title = "Suggested Bridge Track",
-                    Artist = "Smart Recommendation",
-                    KeyDisplay = "6A", // Example bridge for 5A->7A
-                    BpmDisplay = "124",
-                    Index = keyClash.TransitionIndex + 1, // Insert between
-                    IsSelected = true
-                };
+                    // Find Bridge Key (Simple average logic for circular scale?)
+                    // If dist is 2 (e.g. 8->10), bridge is 9.
+                    // If dist is > 2, just pick KeyA + 1 or KeyA - 1 (whichever is closer to B)
+                    
+                    int targetBridgeKey = -1;
+                    
+                    // Simple distance check (ignoring rollover for a sec)
+                    if (Math.Abs(keyA - keyB) == 2) targetBridgeKey = (keyA + keyB) / 2;
+                    else targetBridgeKey = (keyA + 1) > 12 ? 1 : keyA + 1; // Default to +1
+                    
+                    string targetKeyStr = targetBridgeKey + "A"; // Assume A-Major for now or preserve letter?
+                    // Preserve letter of A usually
+                    string letterA = trackA.KeyDisplay.LastOrDefault().ToString();
+                    targetKeyStr = targetBridgeKey + letterA;
+
+                    // Find Candidate
+                    var candidate = allTracks
+                        .Where(t => t.MusicalKey == targetKeyStr)
+                        .OrderByDescending(t => t.Popularity) // Use Popularity
+                        .FirstOrDefault();
+
+                    if (candidate != null)
+                    {
+                        var ghostTrack = CreateGhostTrack(candidate, "Bridge: " + targetKeyStr);
+                        ghostTrack.Index = keyClash.TransitionIndex + 1;
+                        CurrentSetlistTracks.Insert(keyClash.TransitionIndex + 1, ghostTrack);
+                        await AnalyzeSetlistAsync();
+                        return;
+                    }
+                }
                 
-                // Insert as "Ghost" (user would need to confirm)
-                CurrentSetlistTracks.Insert(keyClash.TransitionIndex + 1, ghostTrack);
-                
-                // Re-analyze
-                await AnalyzeSetlistAsync();
+                // Fallback if no specific bridge found
             }
             // 2. Energy Gap Remediation
             else if (issue is EnergyGapIssue energyGap)
             {
-                // Energy Boost Logic: If gap is high (e.g. 6 to 9), suggest a +2 Camelot Jump to "Lift"
-                // Otherwise find an intermediate energy track.
+                if (energyGap.TrackIndex < 0 || energyGap.TrackIndex >= CurrentSetlistTracks.Count) return;
+                var trackA = CurrentSetlistTracks[energyGap.TrackIndex];
                 
-                var ghostTrack = new SetlistTrackItem
+                // Lift Logic: Key + 2, Energy High
+                if (TryGetCamelotNumber(trackA.KeyDisplay, out int keyA))
                 {
-                    Title = "Energy Lift Track",
-                    Artist = "Smart Recommendation",
-                    EnergyLevel = "High",
-                    KeyDisplay = "+2 Lift", // MIK Strategy
-                    Index = energyGap.TrackIndex + 1,
-                    IsSelected = true
-                };
+                    int liftKey = keyA + 2;
+                    if (liftKey > 12) liftKey -= 12;
+                    string liftKeyStr = liftKey + trackA.KeyDisplay.LastOrDefault().ToString();
+                    
+                    var candidate = allTracks
+                        .Where(t => t.MusicalKey == liftKeyStr && t.Energy > 7) // High energy
+                        .OrderByDescending(t => t.Energy)
+                        .FirstOrDefault();
+                        
+                    if (candidate != null)
+                    {
+                        var ghostTrack = CreateGhostTrack(candidate, "Energy Lift (+2)");
+                        ghostTrack.Index = energyGap.TrackIndex + 1;
+                        CurrentSetlistTracks.Insert(energyGap.TrackIndex + 1, ghostTrack);
+                        await AnalyzeSetlistAsync();
+                    }
+                }
+            }
+        }
 
-                CurrentSetlistTracks.Insert(energyGap.TrackIndex + 1, ghostTrack);
-                await AnalyzeSetlistAsync();
+        private bool TryGetCamelotNumber(string key, out int number)
+        {
+            number = 0;
+            if (string.IsNullOrEmpty(key)) return false;
+            var digitStr = new string(key.Where(char.IsDigit).ToArray());
+            return int.TryParse(digitStr, out number);
+        }
+
+        private SetlistTrackItem CreateGhostTrack(LibraryEntry entry, string remark)
+        {
+            return new SetlistTrackItem
+            {
+                Title = entry.Title,
+                Artist = entry.Artist,
+                KeyDisplay = entry.MusicalKey ?? "",
+                BpmDisplay = Math.Round(entry.BPM ?? 120).ToString(),
+                EnergyLevel = (entry.Energy ?? 0) > 0.8 ? "High" : ((entry.Energy ?? 0) > 0.5 ? "Mid" : "Low"),
+                TrackId = entry.Id,
+                Track = new PlaylistTrack 
+                { 
+                    TrackUniqueHash = entry.UniqueHash,
+                    Artist = entry.Artist,
+                    Title = entry.Title,
+                    Album = entry.Album,
+                    Status = TrackStatus.Missing // Ghost
+                }, 
+                IsSelected = true,
+                IsGhost = true,
+                Key = entry.MusicalKey ?? "",
+                Energy = entry.Energy ?? 0.0
+            };
+        }
+        private void TriggerHotCue(int cueIndex)
+        {
+            if (CurrentTrack == null) return;
+            // Find cue (1-based index)
+            // Use OrbitCues from UnifiedTrackViewModel
+            var cue = CurrentTrack.OrbitCues.OrderBy(c => c.Timestamp).Skip(cueIndex - 1).FirstOrDefault();
+            if (cue != null)
+            {
+                JumpToCueCommand.Execute(cue).Subscribe();
+            }
+        }
+
+        private void NudgePlayback(double amount)
+        {
+            if (Player != null)
+            {
+                // Player.Position is 0-1 float. Seek expects 0-1 float.
+                Player.Seek((float)(Player.Position + amount));
             }
         }
     }

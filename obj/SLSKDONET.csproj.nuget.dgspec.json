@@ -308,6 +308,10 @@
               "target": "Package",
               "version": "[2.4.3, )"
             },
+            "SkiaSharp": {
+              "target": "Package",
+              "version": "[3.119.2, )"
+            },
             "Soulseek": {
               "target": "Package",
               "version": "[8.5.0, )"

@@ -14,7 +14,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyDescriptionAttribute("Soulseek batch downloader using Soulseek.NET - Cross-platform with Avalonia UI")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("0.1.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("0.1.0-alpha+534e89c1da0e1446162e4bcbfcd668fc40893e7f")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("0.1.0-alpha+e153bef2c0642dbf1b65eb9a62086aecc766a2c0")]
 [assembly: System.Reflection.AssemblyProductAttribute("ORBIT")]
 [assembly: System.Reflection.AssemblyTitleAttribute("ORBIT")]
 [assembly: System.Reflection.AssemblyVersionAttribute("0.1.0.0")]

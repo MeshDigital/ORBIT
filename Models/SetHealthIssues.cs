@@ -18,6 +18,9 @@ namespace SLSKDONET.Models
         public string Key { get; set; } = "";
         public double Energy { get; set; }
         public double VocalProbability { get; set; }
+        
+        // Sprint 4: Ghost Item support
+        public bool IsGhost { get; set; }
     }
 
     public abstract class SetHealthIssue { }

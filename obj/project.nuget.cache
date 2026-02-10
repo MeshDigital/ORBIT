@@ -1,6 +1,6 @@
 {
   "version": 2,
-  "dgSpecHash": "9oBZzmrSQn0=",
+  "dgSpecHash": "Vf3Nk5AoHho=",
   "success": true,
   "projectFilePath": "C:\\Users\\quint\\OneDrive\\Documenten\\GitHub\\QMUSICSLSK\\SLSKDONET.csproj",
   "expectedPackageFiles": [
@@ -124,11 +124,11 @@
     "C:\\Users\\quint\\.nuget\\packages\\serilog.sinks.console\\6.0.0\\serilog.sinks.console.6.0.0.nupkg.sha512",
     "C:\\Users\\quint\\.nuget\\packages\\serilog.sinks.file\\6.0.0\\serilog.sinks.file.6.0.0.nupkg.sha512",
     "C:\\Users\\quint\\.nuget\\packages\\simple-avalonia-dragndrop-service\\2.4.3\\simple-avalonia-dragndrop-service.2.4.3.nupkg.sha512",
-    "C:\\Users\\quint\\.nuget\\packages\\skiasharp\\2.88.9\\skiasharp.2.88.9.nupkg.sha512",
+    "C:\\Users\\quint\\.nuget\\packages\\skiasharp\\3.119.2\\skiasharp.3.119.2.nupkg.sha512",
     "C:\\Users\\quint\\.nuget\\packages\\skiasharp.nativeassets.linux\\2.88.9\\skiasharp.nativeassets.linux.2.88.9.nupkg.sha512",
-    "C:\\Users\\quint\\.nuget\\packages\\skiasharp.nativeassets.macos\\2.88.9\\skiasharp.nativeassets.macos.2.88.9.nupkg.sha512",
+    "C:\\Users\\quint\\.nuget\\packages\\skiasharp.nativeassets.macos\\3.119.2\\skiasharp.nativeassets.macos.3.119.2.nupkg.sha512",
     "C:\\Users\\quint\\.nuget\\packages\\skiasharp.nativeassets.webassembly\\2.88.9\\skiasharp.nativeassets.webassembly.2.88.9.nupkg.sha512",
-    "C:\\Users\\quint\\.nuget\\packages\\skiasharp.nativeassets.win32\\2.88.9\\skiasharp.nativeassets.win32.2.88.9.nupkg.sha512",
+    "C:\\Users\\quint\\.nuget\\packages\\skiasharp.nativeassets.win32\\3.119.2\\skiasharp.nativeassets.win32.3.119.2.nupkg.sha512",
     "C:\\Users\\quint\\.nuget\\packages\\soulseek\\8.5.0\\soulseek.8.5.0.nupkg.sha512",
     "C:\\Users\\quint\\.nuget\\packages\\splat\\15.1.1\\splat.15.1.1.nupkg.sha512",
     "C:\\Users\\quint\\.nuget\\packages\\spotifyapi.web\\7.2.1\\spotifyapi.web.7.2.1.nupkg.sha512",
@@ -174,10 +174,10 @@
     "C:\\Users\\quint\\.nuget\\packages\\tmds.dbus.protocol\\0.20.0\\tmds.dbus.protocol.0.20.0.nupkg.sha512",
     "C:\\Users\\quint\\.nuget\\packages\\unosquare.swan.lite\\3.1.0\\unosquare.swan.lite.3.1.0.nupkg.sha512",
     "C:\\Users\\quint\\.nuget\\packages\\xabe.ffmpeg\\5.2.6\\xabe.ffmpeg.5.2.6.nupkg.sha512",
-    "C:\\Users\\quint\\.nuget\\packages\\microsoft.netcore.app.ref\\9.0.12\\microsoft.netcore.app.ref.9.0.12.nupkg.sha512",
-    "C:\\Users\\quint\\.nuget\\packages\\microsoft.windowsdesktop.app.ref\\9.0.12\\microsoft.windowsdesktop.app.ref.9.0.12.nupkg.sha512",
     "C:\\Users\\quint\\.nuget\\packages\\microsoft.aspnetcore.app.ref\\9.0.12\\microsoft.aspnetcore.app.ref.9.0.12.nupkg.sha512",
-    "C:\\Users\\quint\\.nuget\\packages\\microsoft.netcore.app.host.win-x64\\9.0.12\\microsoft.netcore.app.host.win-x64.9.0.12.nupkg.sha512"
+    "C:\\Users\\quint\\.nuget\\packages\\microsoft.netcore.app.host.win-x64\\9.0.12\\microsoft.netcore.app.host.win-x64.9.0.12.nupkg.sha512",
+    "C:\\Users\\quint\\.nuget\\packages\\microsoft.netcore.app.ref\\9.0.12\\microsoft.netcore.app.ref.9.0.12.nupkg.sha512",
+    "C:\\Users\\quint\\.nuget\\packages\\microsoft.windowsdesktop.app.ref\\9.0.12\\microsoft.windowsdesktop.app.ref.9.0.12.nupkg.sha512"
   ],
   "logs": []
 }

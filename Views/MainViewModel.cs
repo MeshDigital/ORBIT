@@ -66,6 +66,7 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
     public ViewModels.Timeline.SetDesignerViewModel SetDesignerViewModel { get; }
     public FlowBuilderViewModel FlowBuilderViewModel { get; }
     public ExportManagerViewModel ExportManagerViewModel { get; }
+    public CommandPaletteViewModel CommandPaletteViewModel { get; }
 
 
     public event PropertyChangedEventHandler? PropertyChanged;
@@ -157,6 +158,7 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
         FlowBuilderViewModel = flowBuilderViewModel;
         ExportManagerViewModel = exportManagerViewModel;
         DiscoveryHubViewModel = discoveryHubViewModel;
+        CommandPaletteViewModel = new CommandPaletteViewModel(navigationService);
 
 
         // Initialize commands
@@ -181,7 +183,6 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
         ZoomInCommand = new RelayCommand(ZoomIn);
         ZoomOutCommand = new RelayCommand(ZoomOut);
         ResetZoomCommand = new RelayCommand(ResetZoom);
-        ResetZoomCommand = new RelayCommand(ResetZoom);
         ToggleAnalysisPauseCommand = new RelayCommand(ToggleAnalysisPause);
         
         // Phase 24: Stem Workspace Toggle
@@ -194,6 +195,11 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
             else IntelligenceCenter.ViewState = IntelligenceViewState.Console;
         });
         CloseIntelligenceCommand = new RelayCommand(() => IntelligenceCenter.Close());
+        ToggleCommandPaletteCommand = new RelayCommand(() => 
+        {
+            CommandPaletteViewModel.IsVisible = !CommandPaletteViewModel.IsVisible;
+            if (CommandPaletteViewModel.IsVisible) CommandPaletteViewModel.SearchText = "";
+        });
 
 
         // Spotify Hub Initialization (TODO: Phase 7 - Implement when needed)
@@ -258,6 +264,12 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
         _disposables.Add(_eventBus.GetEvent<RequestTheaterModeEvent>().Subscribe(_ =>
         {
             Dispatcher.UIThread.Post(NavigateToTheater);
+        }));
+
+        // Phase 25: Generic Navigation Event
+        _disposables.Add(_eventBus.GetEvent<NavigateToPageEvent>().Subscribe(evt =>
+        {
+            Dispatcher.UIThread.Post(() => _navigationService.NavigateTo(evt.PageName));
         }));
         // Sync initial state in case events fired before subscription
         AnalysisQueueCount = _analysisQueue.QueuedCount;
@@ -649,6 +661,7 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
     public ICommand ToggleStemWorkspaceCommand { get; }
     public ICommand ToggleIntelligenceCommand { get; }
     public ICommand CloseIntelligenceCommand { get; }
+    public ICommand ToggleCommandPaletteCommand { get; }
 
     
     // Downloads Page Commands

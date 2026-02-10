@@ -1,8 +1,8 @@
 {
   "version": 2,
-  "dgSpecHash": "7PtVxf+aL4o=",
+  "dgSpecHash": "bBemY5ZZcfo=",
   "success": true,
-  "projectFilePath": "c:\\Users\\quint\\OneDrive\\Documenten\\GitHub\\QMUSICSLSK\\Tests\\SLSKDONET.Tests\\SLSKDONET.Tests.csproj",
+  "projectFilePath": "C:\\Users\\quint\\OneDrive\\Documenten\\GitHub\\QMUSICSLSK\\Tests\\SLSKDONET.Tests\\SLSKDONET.Tests.csproj",
   "expectedPackageFiles": [
     "C:\\Users\\quint\\.nuget\\packages\\avalonia\\11.2.2\\avalonia.11.2.2.nupkg.sha512",
     "C:\\Users\\quint\\.nuget\\packages\\avalonia.angle.windows.natives\\2.1.22045.20230930\\avalonia.angle.windows.natives.2.1.22045.20230930.nupkg.sha512",

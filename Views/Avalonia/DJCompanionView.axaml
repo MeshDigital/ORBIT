@@ -11,11 +11,48 @@
              Background="#1E1E1E"
              Foreground="White">
 
+    <UserControl.Styles>
+        <Style Selector="Border.ghost">
+            <Setter Property="Opacity" Value="0.6"/>
+            <Setter Property="BorderBrush" Value="#B450FF"/> <!-- Neon Purple -->
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Background" Value="#1A0A2A"/>
+        </Style>
+        <Style Selector="TextBlock.ghost">
+            <Setter Property="FontStyle" Value="Italic"/>
+            <Setter Property="Foreground" Value="#B450FF"/>
+        </Style>
+        
+        <!-- Tactical LEDs -->
+        <Style Selector="Border.led">
+            <Setter Property="Opacity" Value="0.2"/>
+        </Style>
+        <Style Selector="Border.led.active">
+            <Setter Property="Opacity" Value="1.0"/>
+            <Setter Property="BoxShadow" Value="0 0 8 1 #88FFFFFF"/>
+        </Style>
+    </UserControl.Styles>
+
     <UserControl.Resources>
         <conv:BitmapValueConverter x:Key="BitmapValueConverter"/>
         <conv:RankColorConverter x:Key="RankColorConverter"/>
         <conv:ForensicColorConverter x:Key="ForensicColorConverter"/>
     </UserControl.Resources>
+
+    <UserControl.KeyBindings>
+        <KeyBinding Command="{Binding TogglePlayCommand}" Gesture="Space"/>
+        <KeyBinding Command="{Binding ToggleVocalGhostCommand}" Gesture="G"/>
+        <KeyBinding Command="{Binding NudgeCommand}" CommandParameter="-0.005" Gesture="Left"/>
+        <KeyBinding Command="{Binding NudgeCommand}" CommandParameter="0.005" Gesture="Right"/>
+        <KeyBinding Command="{Binding TriggerHotCueCommand}" CommandParameter="1" Gesture="D1"/>
+        <KeyBinding Command="{Binding TriggerHotCueCommand}" CommandParameter="2" Gesture="D2"/>
+        <KeyBinding Command="{Binding TriggerHotCueCommand}" CommandParameter="3" Gesture="D3"/>
+        <KeyBinding Command="{Binding TriggerHotCueCommand}" CommandParameter="4" Gesture="D4"/>
+        <KeyBinding Command="{Binding TriggerHotCueCommand}" CommandParameter="5" Gesture="D5"/>
+        <KeyBinding Command="{Binding TriggerHotCueCommand}" CommandParameter="6" Gesture="D6"/>
+        <KeyBinding Command="{Binding TriggerHotCueCommand}" CommandParameter="7" Gesture="D7"/>
+        <KeyBinding Command="{Binding TriggerHotCueCommand}" CommandParameter="8" Gesture="D8"/>
+    </UserControl.KeyBindings>
 
     <Grid RowDefinitions="Auto,Auto,*" ColumnDefinitions="320,*,400">
 
@@ -90,13 +127,14 @@
 
                 <!-- Virtualized Setlist -->
                 <ListBox Grid.Row="1" 
-                         ItemsSource="{Binding CurrentSetlist}" 
+                         ItemsSource="{Binding CurrentSetlistTracks}" 
                          SelectedItem="{Binding SelectedSetlistTrack}"
                          Background="Transparent"
                          ScrollViewer.HorizontalScrollBarVisibility="Disabled">
                     <ListBox.ItemTemplate>
                         <DataTemplate>
-                            <Border Background="{Binding IsSelected, Converter={StaticResource RankColorConverter}}"
+                            <Border Classes.ghost="{Binding IsGhost}"
+                                    Background="{Binding IsSelected, Converter={StaticResource RankColorConverter}}"
                                     Padding="10,8" Margin="2" CornerRadius="6"
                                     BorderBrush="#333" BorderThickness="1">
                                 <Grid ColumnDefinitions="Auto,*,Auto">
@@ -108,6 +146,7 @@
                                     <!-- Track Info -->
                                     <StackPanel Grid.Column="1" Spacing="2" Margin="8,0">
                                         <TextBlock Text="{Binding Title}" FontSize="11" FontWeight="SemiBold"
+                                                   Classes.ghost="{Binding IsGhost}"
                                                    TextTrimming="CharacterEllipsis"/>
                                         <TextBlock Text="{Binding Artist}" FontSize="10" Foreground="#888"
                                                    TextTrimming="CharacterEllipsis"/>
@@ -173,6 +212,23 @@
 
                         <!-- Duration / Time / Export -->
                         <StackPanel Grid.Column="2" Spacing="4" VerticalAlignment="Center" HorizontalAlignment="Right">
+                            
+                            <!-- Tactical LEDs (Sprint 4) -->
+                            <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Right" Margin="0,0,0,8">
+                                <Border Classes="led" Classes.active="{Binding IsBeatmatched}" Background="#00FF00" 
+                                        CornerRadius="10" Width="16" Height="16" ToolTip.Tip="Beatmatch Aligned">
+                                    <TextBlock Text="B" FontSize="9" FontWeight="Bold" HorizontalAlignment="Center" VerticalAlignment="Center" Foreground="Black"/>
+                                </Border>
+                                <Border Classes="led" Classes.active="{Binding IsKeyCompatible}" Background="#FF4081" 
+                                        CornerRadius="10" Width="16" Height="16" ToolTip.Tip="Key Compatible">
+                                    <TextBlock Text="K" FontSize="9" FontWeight="Bold" HorizontalAlignment="Center" VerticalAlignment="Center" Foreground="Black"/>
+                                </Border>
+                                <Border Classes="led" Classes.active="{Binding IsPhraseAligned}" Background="#4EC9B0" 
+                                        CornerRadius="10" Width="16" Height="16" ToolTip.Tip="Phrase Aligned">
+                                    <TextBlock Text="P" FontSize="9" FontWeight="Bold" HorizontalAlignment="Center" VerticalAlignment="Center" Foreground="Black"/>
+                                </Border>
+                            </StackPanel>
+
                             <TextBlock Text="{Binding CurrentTimeDisplay}" FontSize="24" FontWeight="Bold" Foreground="#4EC9B0" HorizontalAlignment="Right"/>
                             <TextBlock Text="{Binding TotalTimeDisplay}" FontSize="12" Foreground="#666" HorizontalAlignment="Right" Margin="0,0,0,4"/>
                             
@@ -242,6 +298,7 @@
                                                   EnergyCurve="{Binding CurrentTrack.EnergyCurve}"
                                                   SegmentedEnergy="{Binding CurrentTrack.SegmentedEnergy}"
                                                   VocalDensityCurve="{Binding CurrentTrack.VocalDensityCurve}"
+                                                  ShowVocalGhost="{Binding IsVocalGhostVisible}"
                                                   Progress="{Binding PlaybackProgressNormalized}"
                                                   Bpm="{Binding CurrentTrack.BPM, Converter={x:Static conv:NumericConverters.FloatFallback}}" 
                                                   

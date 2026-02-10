@@ -1,5 +1,30 @@
 # Recent Changes
 
+## [0.1.0-alpha.9.9] - Actionable Surgery & Visual Intelligence (Feb 10, 2026)
+
+### New Features
+* **Vocal Ghost Layer**: Integrated `SkiaSharp` rendering on the micro waveform to visualize "Vocal Pockets" (Instrumental Probability < 20%) with a pulsing purple overlay.
+* **Actionable Remedies**:
+  * **Key Clash**: Automatically suggests "Bridge Tracks" to resolve harmonic incompatibility (e.g., 8A -> 9A -> 3B).
+  * **Energy Gap**: Suggests "Energy Lift" tracks (+2 Camelot) to bridge large energy drops.
+  * **Ghost Items**: Suggested tracks appear as semi-transparent "Ghost Items" in the setlist for preview.
+* **Tactical UI**: Added [B]eat, [K]ey, and [P]hrase confidence LEDs to the deck header.
+* **Global Hotkeys**:
+  * `Space`: Play/Pause
+  * `1-8`: Trigger Hot Cues
+  * `Arrows`: Nudge Playback
+  * `G`: Toggle Vocal Ghost Layer
+
+### Fixes & Stability
+* **Build Integrity**: Resolved 8 compilation errors and 40+ warnings across `DJCompanionViewModel`, `UnifiedTrackViewModel`, and `WaveformControl`.
+* **OrbitCues Integration**: Corrected property mapping/serialization for cue points in `UnifiedTrackViewModel`.
+* **Command Logic**: Fixed return type mismatches in `ToggleVocalGhostCommand` and `TogglePlayCommand`.
+
+### Files Modified
+* **ViewModels**: `DJCompanionViewModel.cs`, `UnifiedTrackViewModel.cs`, `PlayerViewModel.cs`
+* **Views**: `DJCompanionView.axaml`, `WaveformControl.cs`, `DualWaveformDeck.axaml`
+* **Models**: `OrbitCue.cs`, `SetHealthIssues.cs`
+
 ## [0.1.0-alpha.9.8] - Set Remediation & Stability (Feb 10, 2026)
 
 ### New Features

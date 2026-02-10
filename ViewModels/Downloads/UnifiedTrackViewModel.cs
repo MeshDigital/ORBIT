@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Reactive.Disposables;
 using System.Reactive.Linq;
 using System.Windows.Input;
@@ -33,6 +34,12 @@ public class UnifiedTrackViewModel : ReactiveObject, IDisplayableTrack, IDisposa
         set => this.RaiseAndSetIfChanged(ref _downloadSpeed, value); 
     }
     
+    
+    // Cues Support
+    private List<OrbitCue> _cues = new();
+    public IEnumerable<OrbitCue> Cues => _cues;
+    public IEnumerable<OrbitCue> OrbitCues => _cues;
+
     public UnifiedTrackViewModel(
         PlaylistTrack model, 
         DownloadManager downloadManager, 
@@ -54,6 +61,16 @@ public class UnifiedTrackViewModel : ReactiveObject, IDisplayableTrack, IDisposa
         if (model.Status == TrackStatus.Downloaded) _state = PlaylistTrackState.Completed;
         else if (model.Status == TrackStatus.Failed) _state = PlaylistTrackState.Failed;
         else _state = PlaylistTrackState.Pending;
+
+        // Parse Cues
+        if (!string.IsNullOrEmpty(Model.CuePointsJson))
+        {
+            try 
+            {
+                _cues = System.Text.Json.JsonSerializer.Deserialize<List<OrbitCue>>(Model.CuePointsJson) ?? new List<OrbitCue>();
+            }
+            catch { _cues = new List<OrbitCue>(); }
+        }
 
         // Initialize Commands
         PlayCommand = ReactiveCommand.Create(PlayTrack, this.WhenAnyValue(x => x.IsCompleted));

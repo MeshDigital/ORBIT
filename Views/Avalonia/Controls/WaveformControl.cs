@@ -6,6 +6,10 @@ using Avalonia.Platform;
 using System;
 using SLSKDONET.Models;
 using SLSKDONET.Services.Audio;
+using SkiaSharp;
+using Avalonia.Rendering.SceneGraph;
+using Avalonia.Skia;
+using Avalonia.Threading;
 
 namespace SLSKDONET.Views.Avalonia.Controls
 {
@@ -240,6 +244,56 @@ namespace SLSKDONET.Views.Avalonia.Controls
         private DateTime _lastRenderTime = DateTime.MinValue;
         private const double FrameThrottleMs = 16.67; // ~60 FPS max
         private const double SizeTolerance = 5.0; // Pixels tolerance for bitmap reuse
+
+        // Sprint 4: Vocal Ghost Layer
+        public static readonly StyledProperty<bool> ShowVocalGhostProperty =
+            AvaloniaProperty.Register<WaveformControl, bool>(nameof(ShowVocalGhost), false);
+
+        public bool ShowVocalGhost
+        {
+            get => GetValue(ShowVocalGhostProperty);
+            set => SetValue(ShowVocalGhostProperty, value);
+        }
+
+        private DispatcherTimer? _ghostPulseTimer;
+        private float _ghostOpacity = 0.6f;
+        private bool _ghostPulseUp = true;
+
+        protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e)
+        {
+            base.OnAttachedToVisualTree(e);
+            if (_ghostPulseTimer == null)
+            {
+                _ghostPulseTimer = new DispatcherTimer(TimeSpan.FromMilliseconds(33), DispatcherPriority.Render, (s, ev) =>
+                {
+                    if (ShowVocalGhost)
+                    {
+                        // Sine wave pulse logic
+                        // Simple linear approximation for now or actual sine
+                        // 0.6 to 1.0
+                        if (_ghostPulseUp)
+                        {
+                            _ghostOpacity += 0.02f;
+                            if (_ghostOpacity >= 1.0f) { _ghostOpacity = 1.0f; _ghostPulseUp = false; }
+                        }
+                        else
+                        {
+                            _ghostOpacity -= 0.02f;
+                            if (_ghostOpacity <= 0.6f) { _ghostOpacity = 0.6f; _ghostPulseUp = true; }
+                        }
+                        InvalidateVisual();
+                    }
+                });
+                _ghostPulseTimer.Start();
+            }
+        }
+
+        protected override void OnDetachedFromVisualTree(VisualTreeAttachmentEventArgs e)
+        {
+            base.OnDetachedFromVisualTree(e);
+            _ghostPulseTimer?.Stop();
+            _ghostPulseTimer = null;
+        }
 
 
         protected override void OnPropertyChanged(AvaloniaPropertyChangedEventArgs change)
@@ -524,6 +578,14 @@ namespace SLSKDONET.Views.Avalonia.Controls
 
             var width = Bounds.Width;
             var height = Bounds.Height;
+
+
+            // 0. Draw Vocal Ghost Layer (Behind everything)
+            var vocalCurve = VocalDensityCurve?.ToList();
+            if (ShowVocalGhost && vocalCurve != null && vocalCurve.Count > 0)
+            {
+                context.Custom(new VocalGhostDrawOperation(new Rect(0, 0, width, height), vocalCurve, data.DurationSeconds, Progress, _ghostOpacity, IsRolling, ZoomLevel, ViewOffset));
+            }
 
             // 1. Draw Phrase Segments (Background blocks)
             RenderPhraseSegments(context, width, height);
@@ -905,6 +967,120 @@ namespace SLSKDONET.Views.Avalonia.Controls
                 context.DrawRectangle(new SolidColorBrush(Colors.Black, 0.6), null, new Rect(x + 4, 2, formattedText.Width + 4, formattedText.Height));
                 context.DrawText(formattedText, new Point(x + 6, 2));
             }
+        }
+    }
+
+    public class VocalGhostDrawOperation : ICustomDrawOperation
+    {
+        public Rect Bounds { get; }
+        private readonly System.Collections.Generic.List<float> _vocalData;
+        private readonly double _duration;
+        private readonly float _progress;
+        private readonly float _opacity;
+        private readonly bool _isRolling;
+        private readonly double _zoom;
+        private readonly double _offset;
+
+        public VocalGhostDrawOperation(Rect bounds, System.Collections.Generic.List<float> vocalData, double duration, float progress, float opacity, bool isRolling, double zoom, double offset)
+        {
+            Bounds = bounds;
+            _vocalData = vocalData;
+            _duration = duration;
+            _progress = progress;
+            _opacity = opacity;
+            _isRolling = isRolling;
+            _zoom = zoom;
+            _offset = offset;
+        }
+
+        public void Dispose() { }
+
+        public bool HitTest(Point p) => false;
+
+        public bool Equals(ICustomDrawOperation? other) => false;
+
+        public void Render(ImmediateDrawingContext context)
+        {
+            var lease = context.TryGetFeature<ISkiaSharpApiLease>();
+            if (lease == null) return;
+
+            using var canvas = lease.SkCanvas;
+            canvas.Save();
+            
+            var width = (float)Bounds.Width;
+            var height = (float)Bounds.Height;
+            var samples = _vocalData.Count;
+            
+            // Neon Purple (#B450FF) -> SKColor
+            var baseColor = new SKColor(180, 80, 255, (byte)(_opacity * 255)); 
+
+            using var paint = new SKPaint
+            {
+                Color = baseColor,
+                BlendMode = SKBlendMode.Screen,
+                IsAntialias = true,
+                Style = SKPaintStyle.Fill
+            };
+            
+            // Create Gradient Shader (Vertical)
+            var colors = new SKColor[] { SKColors.Transparent, baseColor, SKColors.Transparent };
+            var pos = new float[] { 0.0f, 0.5f, 1.0f };
+            using var shader = SKShader.CreateLinearGradient(
+                new SKPoint(0, 0),
+                new SKPoint(0, height),
+                colors,
+                pos,
+                SKShaderTileMode.Clamp);
+            
+            paint.Shader = shader;
+
+            double duration = _duration > 0 ? _duration : 1.0;
+            
+            // Visible Range
+            double visibleDuration = duration / _zoom;
+            double startTime = _offset * duration;
+            double endTime = startTime + visibleDuration;
+            
+            int startIndex = (int)((startTime / duration) * samples);
+            int endIndex = (int)((endTime / duration) * samples);
+            
+            startIndex = Math.Clamp(startIndex, 0, samples - 1);
+            endIndex = Math.Clamp(endIndex, 0, samples - 1);
+            
+            int range = endIndex - startIndex;
+            if (range <= 0) { canvas.Restore(); return; }
+
+            // Step size for performance
+            int step = Math.Max(1, range / (int)width); 
+
+            float lastX = -1;
+            
+            for (int i = startIndex; i < endIndex; i += step)
+            {
+                if (i >= _vocalData.Count) break;
+                
+                float prob = _vocalData[i]; 
+                
+                // Logic: InstProb < 0.2 means High Vocal Presence (Vocal Pocket)
+                if (prob < 0.2f) 
+                {
+                    // Map index to X
+                    double sampleTime = (i / (double)samples) * duration;
+                    double relTime = sampleTime - startTime;
+                    double relPos = relTime / visibleDuration;
+                    
+                    float x = (float)(relPos * width);
+                    float w = Math.Max(1.0f, (float)(width / range) * step);
+                    
+                    if (x > lastX)
+                    {
+                        canvas.DrawRect(x, 0, w, height, paint);
+                        lastX = x + w;
+                    }
+                }
+            }
+            
+            canvas.Restore();
         }
     }
 }

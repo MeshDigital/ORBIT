@@ -1,23 +1,23 @@
 {
   "format": 1,
   "restore": {
-    "c:\\Users\\quint\\OneDrive\\Documenten\\GitHub\\QMUSICSLSK\\Tests\\SLSKDONET.Tests\\SLSKDONET.Tests.csproj": {}
+    "C:\\Users\\quint\\OneDrive\\Documenten\\GitHub\\QMUSICSLSK\\Tests\\SLSKDONET.Tests\\SLSKDONET.Tests.csproj": {}
   },
   "projects": {
-    "c:\\Users\\quint\\OneDrive\\Documenten\\GitHub\\QMUSICSLSK\\External\\TreeDataGrid\\src\\Avalonia.Controls.TreeDataGrid\\Avalonia.Controls.TreeDataGrid.csproj": {
+    "C:\\Users\\quint\\OneDrive\\Documenten\\GitHub\\QMUSICSLSK\\External\\TreeDataGrid\\src\\Avalonia.Controls.TreeDataGrid\\Avalonia.Controls.TreeDataGrid.csproj": {
       "version": "11.0.10",
       "restore": {
-        "projectUniqueName": "c:\\Users\\quint\\OneDrive\\Documenten\\GitHub\\QMUSICSLSK\\External\\TreeDataGrid\\src\\Avalonia.Controls.TreeDataGrid\\Avalonia.Controls.TreeDataGrid.csproj",
+        "projectUniqueName": "C:\\Users\\quint\\OneDrive\\Documenten\\GitHub\\QMUSICSLSK\\External\\TreeDataGrid\\src\\Avalonia.Controls.TreeDataGrid\\Avalonia.Controls.TreeDataGrid.csproj",
         "projectName": "Avalonia.Controls.TreeDataGrid",
-        "projectPath": "c:\\Users\\quint\\OneDrive\\Documenten\\GitHub\\QMUSICSLSK\\External\\TreeDataGrid\\src\\Avalonia.Controls.TreeDataGrid\\Avalonia.Controls.TreeDataGrid.csproj",
+        "projectPath": "C:\\Users\\quint\\OneDrive\\Documenten\\GitHub\\QMUSICSLSK\\External\\TreeDataGrid\\src\\Avalonia.Controls.TreeDataGrid\\Avalonia.Controls.TreeDataGrid.csproj",
         "packagesPath": "C:\\Users\\quint\\.nuget\\packages\\",
-        "outputPath": "c:\\Users\\quint\\OneDrive\\Documenten\\GitHub\\QMUSICSLSK\\External\\TreeDataGrid\\src\\Avalonia.Controls.TreeDataGrid\\obj\\",
+        "outputPath": "C:\\Users\\quint\\OneDrive\\Documenten\\GitHub\\QMUSICSLSK\\External\\TreeDataGrid\\src\\Avalonia.Controls.TreeDataGrid\\obj\\",
         "projectStyle": "PackageReference",
         "fallbackFolders": [
           "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages"
         ],
         "configFilePaths": [
-          "c:\\Users\\quint\\OneDrive\\Documenten\\GitHub\\QMUSICSLSK\\External\\TreeDataGrid\\NuGet.Config",
+          "C:\\Users\\quint\\OneDrive\\Documenten\\GitHub\\QMUSICSLSK\\External\\TreeDataGrid\\NuGet.Config",
           "C:\\Users\\quint\\AppData\\Roaming\\NuGet\\NuGet.Config",
           "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.FallbackLocation.config",
           "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.Offline.config"
@@ -103,14 +103,14 @@
         }
       }
     },
-    "c:\\Users\\quint\\OneDrive\\Documenten\\GitHub\\QMUSICSLSK\\SLSKDONET.csproj": {
+    "C:\\Users\\quint\\OneDrive\\Documenten\\GitHub\\QMUSICSLSK\\SLSKDONET.csproj": {
       "version": "0.1.0-alpha",
       "restore": {
-        "projectUniqueName": "c:\\Users\\quint\\OneDrive\\Documenten\\GitHub\\QMUSICSLSK\\SLSKDONET.csproj",
+        "projectUniqueName": "C:\\Users\\quint\\OneDrive\\Documenten\\GitHub\\QMUSICSLSK\\SLSKDONET.csproj",
         "projectName": "ORBIT",
-        "projectPath": "c:\\Users\\quint\\OneDrive\\Documenten\\GitHub\\QMUSICSLSK\\SLSKDONET.csproj",
+        "projectPath": "C:\\Users\\quint\\OneDrive\\Documenten\\GitHub\\QMUSICSLSK\\SLSKDONET.csproj",
         "packagesPath": "C:\\Users\\quint\\.nuget\\packages\\",
-        "outputPath": "c:\\Users\\quint\\OneDrive\\Documenten\\GitHub\\QMUSICSLSK\\obj\\",
+        "outputPath": "C:\\Users\\quint\\OneDrive\\Documenten\\GitHub\\QMUSICSLSK\\obj\\",
         "projectStyle": "PackageReference",
         "fallbackFolders": [
           "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages"
@@ -132,8 +132,8 @@
           "net9.0": {
             "targetAlias": "net9.0",
             "projectReferences": {
-              "c:\\Users\\quint\\OneDrive\\Documenten\\GitHub\\QMUSICSLSK\\External\\TreeDataGrid\\src\\Avalonia.Controls.TreeDataGrid\\Avalonia.Controls.TreeDataGrid.csproj": {
-                "projectPath": "c:\\Users\\quint\\OneDrive\\Documenten\\GitHub\\QMUSICSLSK\\External\\TreeDataGrid\\src\\Avalonia.Controls.TreeDataGrid\\Avalonia.Controls.TreeDataGrid.csproj"
+              "C:\\Users\\quint\\OneDrive\\Documenten\\GitHub\\QMUSICSLSK\\External\\TreeDataGrid\\src\\Avalonia.Controls.TreeDataGrid\\Avalonia.Controls.TreeDataGrid.csproj": {
+                "projectPath": "C:\\Users\\quint\\OneDrive\\Documenten\\GitHub\\QMUSICSLSK\\External\\TreeDataGrid\\src\\Avalonia.Controls.TreeDataGrid\\Avalonia.Controls.TreeDataGrid.csproj"
               }
             }
           }
@@ -387,14 +387,14 @@
         }
       }
     },
-    "c:\\Users\\quint\\OneDrive\\Documenten\\GitHub\\QMUSICSLSK\\Tests\\SLSKDONET.Tests\\SLSKDONET.Tests.csproj": {
+    "C:\\Users\\quint\\OneDrive\\Documenten\\GitHub\\QMUSICSLSK\\Tests\\SLSKDONET.Tests\\SLSKDONET.Tests.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "c:\\Users\\quint\\OneDrive\\Documenten\\GitHub\\QMUSICSLSK\\Tests\\SLSKDONET.Tests\\SLSKDONET.Tests.csproj",
+        "projectUniqueName": "C:\\Users\\quint\\OneDrive\\Documenten\\GitHub\\QMUSICSLSK\\Tests\\SLSKDONET.Tests\\SLSKDONET.Tests.csproj",
         "projectName": "SLSKDONET.Tests",
-        "projectPath": "c:\\Users\\quint\\OneDrive\\Documenten\\GitHub\\QMUSICSLSK\\Tests\\SLSKDONET.Tests\\SLSKDONET.Tests.csproj",
+        "projectPath": "C:\\Users\\quint\\OneDrive\\Documenten\\GitHub\\QMUSICSLSK\\Tests\\SLSKDONET.Tests\\SLSKDONET.Tests.csproj",
         "packagesPath": "C:\\Users\\quint\\.nuget\\packages\\",
-        "outputPath": "c:\\Users\\quint\\OneDrive\\Documenten\\GitHub\\QMUSICSLSK\\Tests\\SLSKDONET.Tests\\obj\\",
+        "outputPath": "C:\\Users\\quint\\OneDrive\\Documenten\\GitHub\\QMUSICSLSK\\Tests\\SLSKDONET.Tests\\obj\\",
         "projectStyle": "PackageReference",
         "fallbackFolders": [
           "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages"
@@ -416,8 +416,8 @@
           "net9.0": {
             "targetAlias": "net9.0",
             "projectReferences": {
-              "c:\\Users\\quint\\OneDrive\\Documenten\\GitHub\\QMUSICSLSK\\SLSKDONET.csproj": {
-                "projectPath": "c:\\Users\\quint\\OneDrive\\Documenten\\GitHub\\QMUSICSLSK\\SLSKDONET.csproj"
+              "C:\\Users\\quint\\OneDrive\\Documenten\\GitHub\\QMUSICSLSK\\SLSKDONET.csproj": {
+                "projectPath": "C:\\Users\\quint\\OneDrive\\Documenten\\GitHub\\QMUSICSLSK\\SLSKDONET.csproj"
               }
             }
           }

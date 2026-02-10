@@ -416,3 +416,6 @@ C:\Users\quint\OneDrive\Documenten\GitHub\QMUSICSLSK\obj\Debug\net9.0\refint\Ava
 C:\Users\quint\OneDrive\Documenten\GitHub\QMUSICSLSK\obj\Debug\net9.0\SLSKDONET.csproj.Up2Date
 C:\Users\quint\OneDrive\Documenten\GitHub\QMUSICSLSK\obj\Debug\net9.0\SLSKDONET.genruntimeconfig.cache
 C:\Users\quint\OneDrive\Documenten\GitHub\QMUSICSLSK\obj\Debug\net9.0\ref\ORBIT.dll
+C:\Users\quint\OneDrive\Documenten\GitHub\QMUSICSLSK\bin\Debug\net9.0\runtimes\win-arm64\native\libSkiaSharp.pdb
+C:\Users\quint\OneDrive\Documenten\GitHub\QMUSICSLSK\bin\Debug\net9.0\runtimes\win-x64\native\libSkiaSharp.pdb
+C:\Users\quint\OneDrive\Documenten\GitHub\QMUSICSLSK\bin\Debug\net9.0\runtimes\win-x86\native\libSkiaSharp.pdb

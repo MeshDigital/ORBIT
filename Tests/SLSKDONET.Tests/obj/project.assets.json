@@ -12247,11 +12247,11 @@
   "project": {
     "version": "1.0.0",
     "restore": {
-      "projectUniqueName": "c:\\Users\\quint\\OneDrive\\Documenten\\GitHub\\QMUSICSLSK\\Tests\\SLSKDONET.Tests\\SLSKDONET.Tests.csproj",
+      "projectUniqueName": "C:\\Users\\quint\\OneDrive\\Documenten\\GitHub\\QMUSICSLSK\\Tests\\SLSKDONET.Tests\\SLSKDONET.Tests.csproj",
       "projectName": "SLSKDONET.Tests",
-      "projectPath": "c:\\Users\\quint\\OneDrive\\Documenten\\GitHub\\QMUSICSLSK\\Tests\\SLSKDONET.Tests\\SLSKDONET.Tests.csproj",
+      "projectPath": "C:\\Users\\quint\\OneDrive\\Documenten\\GitHub\\QMUSICSLSK\\Tests\\SLSKDONET.Tests\\SLSKDONET.Tests.csproj",
       "packagesPath": "C:\\Users\\quint\\.nuget\\packages\\",
-      "outputPath": "c:\\Users\\quint\\OneDrive\\Documenten\\GitHub\\QMUSICSLSK\\Tests\\SLSKDONET.Tests\\obj\\",
+      "outputPath": "C:\\Users\\quint\\OneDrive\\Documenten\\GitHub\\QMUSICSLSK\\Tests\\SLSKDONET.Tests\\obj\\",
       "projectStyle": "PackageReference",
       "fallbackFolders": [
         "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages"
@@ -12273,8 +12273,8 @@
         "net9.0": {
           "targetAlias": "net9.0",
           "projectReferences": {
-            "c:\\Users\\quint\\OneDrive\\Documenten\\GitHub\\QMUSICSLSK\\SLSKDONET.csproj": {
-              "projectPath": "c:\\Users\\quint\\OneDrive\\Documenten\\GitHub\\QMUSICSLSK\\SLSKDONET.csproj"
+            "C:\\Users\\quint\\OneDrive\\Documenten\\GitHub\\QMUSICSLSK\\SLSKDONET.csproj": {
+              "projectPath": "C:\\Users\\quint\\OneDrive\\Documenten\\GitHub\\QMUSICSLSK\\SLSKDONET.csproj"
             }
           }
         }
