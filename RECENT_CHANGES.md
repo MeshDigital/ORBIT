@@ -1,5 +1,26 @@
 # Recent Changes
 
+## [0.1.0-alpha.9.8] - Set Remediation & Stability (Feb 10, 2026)
+
+### New Features
+* **Set Remediation (The "Magic Wand")**:
+  * **Key Clash**: Automatically suggests "Bridge Tracks" to resolving harmonic clashes.
+  * **Energy Gap**: Suggests "Lift Tracks" (Energy Boost) or smoother bridges for large energy drops.
+  * **UI**: "⚡ FIX" buttons in the Set Intelligence panel for one-click remediation.
+
+### Fixes & Stability
+* **Build Restoration**: Resolved persistent `CS1022` (brace mismatches) and `CS0246` (missing namespace) errors in `DJCompanionViewModel`.
+* **Architecture**: Decoupled `SetHealthIssue` models into `Models/SetHealthIssues.cs` to fix circular dependencies.
+* **XAML Binding**: Added `FloatFallback` converter to `NumericConverters.cs` to resolve `Bpm` binding errors in `DJCompanionView`.
+* **DI/Services**: Corrected `Application.Current` service access in `DJCompanionViewModel`.
+
+### Files Modified
+* **Refactored**: `ViewModels/DJCompanionViewModel.cs` (Cleanup, Remediation logic)
+* **Created**: `Models/SetHealthIssues.cs`
+* **Modified**: `Views/Avalonia/DJCompanionView.axaml`
+* **Modified**: `Views/Avalonia/Converters/NumericConverters.cs`
+
+
 ## [0.1.0-alpha.9.6] - Search Grid + Schema Hardening (Feb 06, 2026)
 
 ### Fixes
