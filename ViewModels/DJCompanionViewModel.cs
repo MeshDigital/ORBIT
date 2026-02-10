@@ -12,6 +12,7 @@ using SLSKDONET.Data;
 using SLSKDONET.Data.Entities;
 using SLSKDONET.Models;
 using SLSKDONET.Models.Musical;
+using System.Reactive.Linq;
 using Microsoft.EntityFrameworkCore;
 
 using SLSKDONET.Services;
@@ -33,11 +34,13 @@ namespace SLSKDONET.ViewModels
     {
         private readonly HarmonicMatchService _harmonicMatchService;
         private readonly LibraryService _libraryService;
+        private readonly DatabaseService _databaseService;
         private readonly IEventBus _eventBus;
         private readonly RekordboxXmlExporter _rekordboxExporter;
         private readonly IFileInteractionService _fileService;
         private readonly Services.Export.IHardwareExportService _hardwareExportService;
         private readonly ILogger<DJCompanionViewModel> _logger;
+        private readonly Func<MixPreviewViewModel> _mixPreviewFactory;
         private readonly ISetIntelligenceService _setIntelligenceService;
 
 
@@ -293,11 +296,11 @@ namespace SLSKDONET.ViewModels
         public DJCompanionViewModel(
             HarmonicMatchService harmonicMatchService,
             LibraryService libraryService,
+            DatabaseService databaseService,
             PlayerViewModel playerViewModel,
             IEventBus eventBus,
             RekordboxXmlExporter rekordboxExporter,
             IFileInteractionService fileService,
-            Services.Export.IHardwareExportService hardwareExportService,
             Services.Export.IHardwareExportService hardwareExportService,
             ILogger<DJCompanionViewModel> logger,
             Func<MixPreviewViewModel> mixPreviewFactory,
@@ -306,6 +309,7 @@ namespace SLSKDONET.ViewModels
         {
             _harmonicMatchService = harmonicMatchService;
             _libraryService = libraryService;
+            _databaseService = databaseService;
             _eventBus = eventBus;
             _player = playerViewModel;
             _rekordboxExporter = rekordboxExporter;
@@ -328,8 +332,11 @@ namespace SLSKDONET.ViewModels
             // Sprint 5: Transition Preview
             PreviewTransitionCommand = ReactiveCommand.CreateFromTask<LibraryEntryEntity, Unit>(async trackB => 
             {
-                if (trackB == null || CurrentTrack?.Model == null) return Unit.Default;
+                if (trackB == null || CurrentTrack?.GlobalId == null) return Unit.Default;
                 
+                var trackA = await _databaseService.GetLibraryEntryAsync(CurrentTrack.GlobalId);
+                if (trackA == null) return Unit.Default;
+
                 // Stop Main Player if running
                 if (Player.IsPlaying && Player.TogglePlayPauseCommand.CanExecute(null)) 
                     Player.TogglePlayPauseCommand.Execute(null);
@@ -343,11 +350,9 @@ namespace SLSKDONET.ViewModels
 
                 // Initialize Mix Preview
                 var previewVm = _mixPreviewFactory();
-                await previewVm.LoadPreviewAsync(CurrentTrack.Model, trackB);
+                await previewVm.LoadPreviewAsync(trackA, trackB);
                 
                 // Auto-close when IsActive becomes false
-                // We use a composite disposable or just a one-off subscription that likely lives as long as the VM
-                // But simplified:
                 IDisposable? subscription = null;
                 subscription = previewVm.WhenAnyValue(x => x.IsActive)
                     .Skip(1) // Skip initial true

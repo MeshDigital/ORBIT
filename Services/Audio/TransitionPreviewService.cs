@@ -7,6 +7,9 @@ using Microsoft.Extensions.Logging;
 using System.Linq;
 using System.Collections.Generic;
 using System.Text.Json;
+using SLSKDONET.Services.Repositories;
+using SLSKDONET.Data;
+using SLSKDONET.Models.Musical;
 
 namespace SLSKDONET.Services.Audio
 {
@@ -68,7 +71,7 @@ namespace SLSKDONET.Services.Audio
 
             _laneA = new TrackLaneSampler 
             { 
-                TrackId = trackA.Id, 
+                TrackId = trackA.Id.ToString(), 
                 TrackTitle = trackA.Title,
                 Assignment = LaneAssignment.DeckA,
                 Volume = 1.0f 
@@ -77,7 +80,7 @@ namespace SLSKDONET.Services.Audio
 
             _laneB = new TrackLaneSampler 
             { 
-                TrackId = trackB.Id, 
+                TrackId = trackB.Id.ToString(), 
                 TrackTitle = trackB.Title,
                 Assignment = LaneAssignment.DeckB,
                 Volume = CalculateGainCheck(trackA, trackB) // Auto-Gain
@@ -139,7 +142,7 @@ namespace SLSKDONET.Services.Audio
                 {
                     var segments = JsonSerializer.Deserialize<List<PhraseSegment>>(track.AudioFeatures.PhraseSegmentsJson);
                     var outro = segments?.FirstOrDefault(s => s.Label.Contains("Outro") || s.Label.Contains("MixOut"));
-                    if (outro != null) return outro.StartTime;
+                    if (outro != null) return outro.Start;
                     
                     // Fallback: Last Drop + 32 bars? Or just End - 30s
                 }
@@ -160,7 +163,7 @@ namespace SLSKDONET.Services.Audio
                     var segments = JsonSerializer.Deserialize<List<PhraseSegment>>(track.AudioFeatures.PhraseSegmentsJson);
                     // If DropSwap, find Drop 1
                     var drop = segments?.FirstOrDefault(s => s.Label.Contains("Drop") || s.Label.Contains("Chorus"));
-                    if (drop != null) return drop.StartTime;
+                    if (drop != null) return drop.Start;
                 }
                 catch {}
             }

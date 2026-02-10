@@ -6,6 +6,7 @@ using ReactiveUI;
 using SLSKDONET.Services;
 using SLSKDONET.Services.Audio;
 using SLSKDONET.Data.Entities;
+using SLSKDONET.Data;
 using SLSKDONET.Models;
 using Avalonia.Threading;
 

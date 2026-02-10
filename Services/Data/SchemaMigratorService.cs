@@ -1076,14 +1076,21 @@ public class SchemaMigratorService
             // 5. AudioFeatures Table Columns - Force attempt (table may not exist yet during cold start)
             try
             {
-                _logger.LogInformation("Attempting to add AiEmbeddingJson column to audio_features...");
-                command.CommandText = @"ALTER TABLE ""audio_features"" ADD COLUMN ""AiEmbeddingJson"" TEXT NULL;";
-                await command.ExecuteNonQueryAsync();
-                _logger.LogInformation("✅ AiEmbeddingJson column added successfully");
-            }
-            catch (Microsoft.Data.Sqlite.SqliteException ex) when (ex.Message.Contains("duplicate column"))
-            {
-                _logger.LogInformation("AiEmbeddingJson column already exists, skipping");
+                _logger.LogInformation("Attempting to add missing columns to audio_features...");
+                
+                // AiEmbeddingJson
+                try {
+                    command.CommandText = @"ALTER TABLE ""audio_features"" ADD COLUMN ""AiEmbeddingJson"" TEXT NULL;";
+                    await command.ExecuteNonQueryAsync();
+                    _logger.LogInformation("✅ AiEmbeddingJson column added to audio_features");
+                } catch { }
+
+                // CuePointsJson [Phase 17/Sprint 5 Fix]
+                try {
+                    command.CommandText = @"ALTER TABLE ""audio_features"" ADD COLUMN ""CuePointsJson"" TEXT NULL;";
+                    await command.ExecuteNonQueryAsync();
+                    _logger.LogInformation("✅ CuePointsJson column added to audio_features");
+                } catch { }
             }
             catch (Microsoft.Data.Sqlite.SqliteException ex) when (ex.Message.Contains("no such table"))
             {
