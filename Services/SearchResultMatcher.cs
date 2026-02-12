@@ -162,6 +162,25 @@ public class SearchResultMatcher
             }
         }
 
+        // 5. Availability Bonus (Phase 2)
+        if (candidate.HasFreeUploadSlot)
+        {
+            score += 5;
+            breakdown.Add("Free Slot: +5");
+        }
+        
+        // 6. Speed Bonus (> 1MB/s = +3, > 500KB/s = +1)
+        if (candidate.UploadSpeed > 1000000)
+        {
+             score += 3;
+             breakdown.Add("High Speed: +3");
+        }
+        else if (candidate.UploadSpeed > 500000) 
+        {
+            score += 1;
+            breakdown.Add("Med Speed: +1");
+        }
+
         var finalScore = Math.Min(100, score);
         var breakdownStr = string.Join(" | ", breakdown);
         

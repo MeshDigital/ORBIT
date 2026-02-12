@@ -62,10 +62,13 @@ public class DownloadContext
     public DownloadFailureReason? FailureReason { get; set; }
     public List<SearchAttemptLog> SearchAttempts { get; set; } = new();
     public string? DetailedFailureMessage { get; set; }
+    public bool IsVip { get; set; } // [NEW] Overhaul Phase: Bypasses semaphore
+    public DateTime? SearchStartedAt { get; set; } // Phase 10
 
     public DownloadContext(PlaylistTrack model)
     {
         Model = model;
+        SearchStartedAt = model.SearchStartedAt;
         
         // Map initial state from persistence
         if (model.Status == TrackStatus.Downloaded)

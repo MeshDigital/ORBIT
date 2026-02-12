@@ -416,7 +416,8 @@ public class DiscoveryHubViewModel : ReactiveObject, IDisposable
             Username = track.Username ?? string.Empty,
             FullPath = track.Filename ?? string.Empty,
             QualityScore = CalculateQualityScore(track),
-            Track = track
+            Track = track,
+            MatchReason = track.ScoreBreakdown
         };
     }
 
@@ -469,7 +470,8 @@ public class DiscoveryHubViewModel : ReactiveObject, IDisposable
                 Status = TrackStatus.Missing,
                 Priority = 0,
                 Bitrate = dto.Bitrate,
-                Format = dto.Format
+                Format = dto.Format,
+                DiscoveryReason = dto.MatchReason
             };
 
             _downloadManager.QueueTracks(new System.Collections.Generic.List<PlaylistTrack> { playlistTrack });

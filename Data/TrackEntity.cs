@@ -112,6 +112,7 @@ public class TrackEntity
     public double? DropTimestamp { get; set; }
     public int? ManualEnergy { get; set; }
     public string? SourceProvenance { get; set; }
+    public string? StalledReason { get; set; } // [NEW] Overhaul Phase
 }
 
 /// <summary>
@@ -251,6 +252,8 @@ public class PlaylistTrackEntity
     public string? SourcePlaylistName { get; set; }
     
     public bool IsEnriched { get; set; } = false;
+    public bool IsUserPaused { get; set; } = false; // Phase 13 Hardening
+    public string? StalledReason { get; set; } // [NEW] Overhaul Phase
     public bool IsPrepared { get; set; } = false; // Phase 10
     
     public AnalysisStatus AnalysisStatus { get; set; } = AnalysisStatus.None;

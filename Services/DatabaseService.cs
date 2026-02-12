@@ -473,6 +473,20 @@ public class DatabaseService
         await _trackRepository.SavePlaylistTrackAsync(track);
     }
 
+    public async Task UpdatePlaylistTrackUserPausedAsync(Guid id, bool isUserPaused)
+    {
+        await _writeSemaphore.WaitAsync();
+        try
+        {
+            using var context = new AppDbContext();
+            await context.Database.ExecuteSqlInterpolatedAsync($"UPDATE PlaylistTracks SET IsUserPaused = {isUserPaused} WHERE Id = {id}");
+        }
+        finally
+        {
+            _writeSemaphore.Release();
+        }
+    }
+
     /// <summary>
     /// Saves or updates an AudioFeatures entity (Essentia analysis results).
     /// </summary>
@@ -1405,7 +1419,8 @@ public class DatabaseService
     public async Task UpdateAudioFeaturesAsync(AudioFeaturesEntity features)
     {
         using var context = new AppDbContext();
-        var existing = await context.AudioFeatures.FindAsync(features.TrackUniqueHash);
+        var existing = await context.AudioFeatures.FirstOrDefaultAsync(f => f.TrackUniqueHash == features.TrackUniqueHash);
+
         if (existing != null)
         {
             context.Entry(existing).CurrentValues.SetValues(features);

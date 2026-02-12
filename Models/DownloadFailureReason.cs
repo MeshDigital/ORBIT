@@ -18,6 +18,7 @@ public enum DownloadFailureReason
     AtomicRenameFailed,
     MaxRetriesExceeded,
     NetworkError,
+    Timeout,
     DiskFull,
     PermissionDenied,
     UserCancelled
@@ -43,6 +44,7 @@ public static class DownloadFailureReasonExtensions
             DownloadFailureReason.AtomicRenameFailed => "System error: File rename failed",
             DownloadFailureReason.MaxRetriesExceeded => "Max retry attempts exceeded",
             DownloadFailureReason.NetworkError => "Network error: Connection timeout",
+            DownloadFailureReason.Timeout => "Operation timed out (stalled)",
             DownloadFailureReason.DiskFull => "System error: No space left on device",
             DownloadFailureReason.PermissionDenied => "System error: Permission denied",
             DownloadFailureReason.UserCancelled => "Cancelled by user",

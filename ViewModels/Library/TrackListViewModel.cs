@@ -873,7 +873,10 @@ public class TrackListViewModel : ReactiveObject, IDisposable
             "Bulk Download"
         );
 
+        await _downloadManager.StartAsync();
+
         SelectedTracks.Clear();
+
     }
 
     private async Task ExecuteCopyToFolderAsync()

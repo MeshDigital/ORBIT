@@ -31,6 +31,8 @@
         <conv_root:BoolOpacityConverter x:Key="BoolToOpacityConverter"/>
         <converters:BoolToWidthConverter x:Key="BoolToWidthConverter"/>
         <conv_root:BoolToStringConverter x:Key="BoolToStringConverter"/>
+        <converters:BoolToAngleConverter x:Key="BoolToAngleConverter"/>
+
         
         <!-- Utility Converters -->
         <converters:RepeatModeIconConverter x:Key="RepeatModeIconConverter"/>

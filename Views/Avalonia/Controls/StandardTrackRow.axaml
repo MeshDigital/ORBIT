@@ -121,6 +121,26 @@
                     <!-- Progress Overlay -->
                     <Arc Width="36" Height="36" StartAngle="-90" SweepAngle="{Binding Progress, Converter={StaticResource PercentageToAngleConverter}}" Stroke="#00BFFF" StrokeThickness="2" IsVisible="{Binding IsActive}" Opacity="0.8"/>
                     
+                    <!-- Activity Icons (Phase 11.1 Gating) -->
+                    <Border Background="#66000000" IsVisible="{Binding IsActive}" CornerRadius="4">
+                        <Panel>
+                             <TextBlock Text="🔍" FontSize="16" HorizontalAlignment="Center" VerticalAlignment="Center" IsVisible="{Binding IsSearching}">
+                                 <TextBlock.Styles>
+                                     <Style Selector="TextBlock">
+                                         <Style.Animations>
+                                             <Animation Duration="0:0:1.5" IterationCount="Infinite">
+                                                 <KeyFrame KeyTime="0:0:0"><Setter Property="Opacity" Value="1"/></KeyFrame>
+                                                 <KeyFrame KeyTime="0:0:0.75"><Setter Property="Opacity" Value="0.3"/></KeyFrame>
+                                                 <KeyFrame KeyTime="0:0:1.5"><Setter Property="Opacity" Value="1"/></KeyFrame>
+                                             </Animation>
+                                         </Style.Animations>
+                                     </Style>
+                                 </TextBlock.Styles>
+                             </TextBlock>
+                             <TextBlock Text="📥" FontSize="16" HorizontalAlignment="Center" VerticalAlignment="Center" IsVisible="{Binding IsDownloading}"/>
+                        </Panel>
+                    </Border>
+                    
                     <!-- Enrichment Progress (Phase 2.1) -->
                     <Arc Stroke="#C586C0" StrokeThickness="2" StartAngle="0" SweepAngle="300" Width="42" Height="42" IsVisible="{Binding IsAnalyzing}">
                         <Arc.RenderTransform>
@@ -222,12 +242,45 @@
                         </StackPanel>
                     </Border>
                     
-                    <TextBlock Text="{Binding ForensicVerdict}" FontSize="10" Foreground="#888" VerticalAlignment="Center"/>
+                    <TextBlock Text="{Binding ForensicVerdict}" FontSize="10" Foreground="#888" VerticalAlignment="Center" IsVisible="{Binding !IsStalled}"/>
+                    
+                    <!-- Stalled Indicator -->
+                    <Border IsVisible="{Binding IsStalled}" Background="#3D2B1F" BorderBrush="#FFA500" BorderThickness="1" CornerRadius="4" Padding="6,2">
+                        <StackPanel Orientation="Horizontal" Spacing="4">
+                            <TextBlock Text="⏳" FontSize="10" VerticalAlignment="Center"/>
+                            <TextBlock Text="STALLED" FontSize="10" FontWeight="Bold" Foreground="#FFA500" VerticalAlignment="Center"/>
+                            <ToolTip.Tip>
+                                <TextBlock Text="{Binding StalledReason, StringFormat='Reason: {0}'}"/>
+                            </ToolTip.Tip>
+                        </StackPanel>
+                    </Border>
                 </StackPanel>
             </Border>
 
             <!-- Column 5: Badge Tray (Flexible) -->
             <StackPanel Grid.Column="5" Orientation="Horizontal" VerticalAlignment="Center" Spacing="6" Margin="8,0">
+                <!-- Peer Badge (Phase 7) -->
+                <Border IsVisible="{Binding PeerName, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"
+                        Background="#222" BorderBrush="#00BFFF" BorderThickness="1"
+                        CornerRadius="4" Padding="6,2"
+                        ToolTip.Tip="Active Peer">
+                    <StackPanel Orientation="Horizontal" Spacing="4">
+                        <TextBlock Text="👤" FontSize="10" VerticalAlignment="Center"/>
+                        <TextBlock Text="{Binding PeerName}" FontSize="10" FontWeight="Bold" Foreground="#00BFFF" VerticalAlignment="Center"/>
+                    </StackPanel>
+                </Border>
+
+                <!-- Match Reason Badge (Phase 7) -->
+                <Border IsVisible="{Binding DiscoveryReason, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"
+                        Background="#1A1A1A" BorderBrush="#FFD700" BorderThickness="1"
+                        CornerRadius="4" Padding="6,2"
+                        ToolTip.Tip="{Binding DiscoveryReason}">
+                    <StackPanel Orientation="Horizontal" Spacing="4">
+                        <TextBlock Text="🧩" FontSize="10" VerticalAlignment="Center"/>
+                        <TextBlock Text="MATCH" FontSize="10" FontWeight="Bold" Foreground="#FFD700" VerticalAlignment="Center"/>
+                    </StackPanel>
+                </Border>
+
                 <!-- Curation/Trust -->
                 <Border IsVisible="{Binding MatchConfidence, Converter={x:Static converters:NumericConverters.GreaterThan}, ConverterParameter=0}"
                         Background="{Binding MatchConfidenceColor}"
@@ -282,8 +335,54 @@
                     <TextBlock Text="INSTR" FontSize="9" Foreground="#00CED1" FontWeight="Bold"/>
                 </Border>
                 
-                <!-- Tech Info (High Contrast) -->
-                <TextBlock Text="{Binding TechnicalSummary}" FontSize="10" Foreground="#AAA" VerticalAlignment="Center" Margin="6,0" FontWeight="SemiBold"/>
+                <!-- Duration & Tech Info (Phase 10: Performance Monitoring) -->
+                <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center" Margin="6,0">
+                    <!-- Speed Badge (Phase 11) -->
+                    <Border Background="#00BFFF" CornerRadius="4" Padding="6,2" IsVisible="{Binding IsDownloading}">
+                         <StackPanel Orientation="Horizontal" Spacing="4">
+                             <TextBlock Text="⚡" FontSize="9" FontWeight="Bold" Foreground="Black" VerticalAlignment="Center"/>
+                             <TextBlock Text="{Binding SpeedDisplay}" FontSize="9" FontWeight="Bold" Foreground="Black" VerticalAlignment="Center"/>
+                         </StackPanel>
+                    </Border>
+
+                    <Border Background="#222" CornerRadius="4" Padding="4,2" IsVisible="{Binding DownloadDurationDisplay, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
+                        <StackPanel Orientation="Horizontal" Spacing="4">
+                            <TextBlock Text="⏱️" FontSize="9" VerticalAlignment="Center"/>
+                            <TextBlock Text="{Binding DownloadDurationDisplay}" FontSize="9" Foreground="#AAA" VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </Border>
+                    
+                    <Panel>
+                        <!-- Existing Pulse Logic for TechnicalSummary -->
+                        <TextBlock Text="{Binding TechnicalSummary}" FontSize="10" Foreground="#AAA" FontWeight="SemiBold">
+                            <TextBlock.Styles>
+                                <Style Selector="TextBlock">
+                                    <Style.Animations>
+                                        <Animation Duration="0:0:2" IterationCount="Infinite">
+                                            <KeyFrame KeyTime="0:0:0"><Setter Property="Opacity" Value="1"/></KeyFrame>
+                                            <KeyFrame KeyTime="0:0:1"><Setter Property="Opacity" Value="0.4"/></KeyFrame>
+                                            <KeyFrame KeyTime="0:0:2"><Setter Property="Opacity" Value="1"/></KeyFrame>
+                                        </Animation>
+                                    </Style.Animations>
+                                </Style>
+                            </TextBlock.Styles>
+                            <TextBlock.IsVisible>
+                                <MultiBinding Converter="{x:Static BoolConverters.Or}">
+                                    <Binding Path="IsActive"/>
+                                    <Binding Path="IsWaiting"/>
+                                </MultiBinding>
+                            </TextBlock.IsVisible>
+                        </TextBlock>
+                        <TextBlock Text="{Binding TechnicalSummary}" FontSize="10" Foreground="#AAA" FontWeight="SemiBold" IsVisible="{Binding !IsActive}" Opacity="0.7">
+                            <TextBlock.IsVisible>
+                                <MultiBinding Converter="{x:Static BoolConverters.And}">
+                                    <Binding Path="!IsActive"/>
+                                    <Binding Path="!IsWaiting"/>
+                                </MultiBinding>
+                            </TextBlock.IsVisible>
+                        </TextBlock>
+                    </Panel>
+                </StackPanel>
             </StackPanel>
 
             <!-- Column 6: Action Hub (Fixed) -->
@@ -291,9 +390,11 @@
                 <Button Classes="ActionBtn" Command="{Binding PlayCommand}" IsVisible="{Binding IsCompleted}" ToolTip.Tip="Play"><PathIcon Data="{StaticResource play_circle_regular}" Width="18" Height="18" Foreground="#00BFFF"/></Button>
                 <Button Classes="ActionBtn" Command="{Binding RevealFileCommand}" IsVisible="{Binding IsCompleted}" ToolTip.Tip="Open Folder"><PathIcon Data="{StaticResource folder_open_regular}" Width="16" Height="16"/></Button>
                 <Button Classes="ActionBtn" Command="{Binding AddToProjectCommand}" IsVisible="{Binding IsCompleted}" ToolTip.Tip="Add to Project"><PathIcon Data="{StaticResource add_circle_regular}" Width="16" Height="16"/></Button>
+                <Button Classes="ActionBtn" Command="{Binding ForceStartCommand}" IsVisible="{Binding CanForceStart}" ToolTip.Tip="Force Start (VIP Lane)"><PathIcon Data="{StaticResource rocket_regular}" Width="16" Height="16" Foreground="#FFD700"/></Button>
+                <Button Classes="ActionBtn" Command="{Binding ResumeCommand}" IsVisible="{Binding CanResume}" ToolTip.Tip="Resume"><PathIcon Data="{StaticResource play_regular}" Width="14" Height="14" Foreground="#4CAF50"/></Button>
                 <Button Classes="ActionBtn" Command="{Binding PauseCommand}" IsVisible="{Binding IsActive}" ToolTip.Tip="Pause"><PathIcon Data="{StaticResource pause_regular}" Width="14" Height="14"/></Button>
                 <Button Classes="ActionBtn" Command="{Binding CancelCommand}" IsVisible="{Binding IsActive}" ToolTip.Tip="Cancel"><PathIcon Data="{StaticResource dismiss_regular}" Width="14" Height="14" Foreground="#FF6666"/></Button>
-                <Button Classes="ActionBtn" Command="{Binding RetryCommand}" IsVisible="{Binding IsFailed}"><PathIcon Data="{StaticResource arrow_counterclockwise_regular}" Width="14" Height="14"/></Button>
+                <Button Classes="ActionBtn" Command="{Binding RetryCommand}" IsVisible="{Binding CanRetry}" ToolTip.Tip="Retry"><PathIcon Data="{StaticResource arrow_counterclockwise_regular}" Width="14" Height="14"/></Button>
             </StackPanel>
 
         </Grid>

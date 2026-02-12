@@ -139,6 +139,7 @@ public class SchemaMigratorService
     {
         var sw = System.Diagnostics.Stopwatch.StartNew();
         _logger.LogInformation("[{Ms}ms] Database Init: Starting", sw.ElapsedMilliseconds);
+        _logger.LogInformation("[{Ms}ms] Database Init: Starting", sw.ElapsedMilliseconds);
 
         // Phase 24: Automatic Database Backup & Recovery
         await CheckForForceResetAsync().ConfigureAwait(false); // Step 1: Check if user requested reset
@@ -201,6 +202,33 @@ public class SchemaMigratorService
                     INSERT OR IGNORE INTO ""__EFMigrationsHistory"" (""MigrationId"", ""ProductVersion"")
                     VALUES ('20260107122524_InitialStructure', '9.0.0');");
             }
+        }
+
+        // Critical Fix for Schema Drift:
+        // If "IsUserPaused" already exists (via manual patch), marking the migration as applied
+        // to prevent "duplicate column name" crash during MigrateAsync().
+        try
+        {
+            var conn = db.GetDbConnection();
+            await conn.OpenAsync();
+            using var cmd = conn.CreateCommand();
+            cmd.CommandText = "SELECT COUNT(*) FROM pragma_table_info('PlaylistTracks') WHERE name='IsUserPaused'";
+            var result = await cmd.ExecuteScalarAsync();
+            var columnExists = (long)(result ?? 0) > 0;
+            
+            if (columnExists)
+            {
+                 // Manually insert the migration record so EF skips it
+                 await db.ExecuteSqlRawAsync(@"
+                    INSERT OR IGNORE INTO ""__EFMigrationsHistory"" (""MigrationId"", ""ProductVersion"")
+                    VALUES ('20260212000254_AddIsUserPausedToPlaylistTrack', '9.0.0');");
+                 _logger.LogInformation("Configuration: 'IsUserPaused' exists. Marked migration 20260212000254 as applied.");
+            }
+            await conn.CloseAsync();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Failed to check/patch migration history for IsUserPaused.");
         }
 
         // Apply EF Migrations
@@ -408,6 +436,21 @@ public class SchemaMigratorService
                     );
                     CREATE UNIQUE INDEX ""IX_TechnicalDetails_PlaylistTrackId"" ON ""TechnicalDetails"" (""PlaylistTrackId"");
                 ";
+                await command.ExecuteNonQueryAsync();
+            }
+
+            // Phase: Inbox Overhaul - Stalled Detection
+            if (!ColumnExists("PlaylistTracks", "StalledReason"))
+            {
+                _logger.LogInformation("Patching Schema: Adding StalledReason to PlaylistTracks...");
+                command.CommandText = @"ALTER TABLE ""PlaylistTracks"" ADD COLUMN ""StalledReason"" TEXT NULL;";
+                await command.ExecuteNonQueryAsync();
+            }
+
+            if (!ColumnExists("Tracks", "StalledReason"))
+            {
+                _logger.LogInformation("Patching Schema: Adding StalledReason to Tracks...");
+                command.CommandText = @"ALTER TABLE ""Tracks"" ADD COLUMN ""StalledReason"" TEXT NULL;";
                 await command.ExecuteNonQueryAsync();
             }
 
@@ -883,6 +926,13 @@ public class SchemaMigratorService
             {
                 _logger.LogInformation("Patching Schema: Adding MoodTag to PlaylistTracks...");
                 command.CommandText = @"ALTER TABLE ""PlaylistTracks"" ADD COLUMN ""MoodTag"" TEXT NULL;";
+                await command.ExecuteNonQueryAsync();
+            }
+
+            if (!ColumnExists("PlaylistTracks", "IsUserPaused"))
+            {
+                _logger.LogInformation("Patching Schema: Adding IsUserPaused to PlaylistTracks...");
+                command.CommandText = @"ALTER TABLE ""PlaylistTracks"" ADD COLUMN ""IsUserPaused"" INTEGER NOT NULL DEFAULT 0;";
                 await command.ExecuteNonQueryAsync();
             }
 

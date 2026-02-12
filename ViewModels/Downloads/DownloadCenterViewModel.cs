@@ -51,6 +51,15 @@ public class DownloadCenterViewModel : ReactiveObject, IDisposable
     private readonly ReadOnlyObservableCollection<UnifiedTrackViewModel> _expressItems;
     public ReadOnlyObservableCollection<UnifiedTrackViewModel> ExpressItems => _expressItems;
 
+    private readonly ReadOnlyObservableCollection<UnifiedTrackViewModel> _activeTracks;
+    public ReadOnlyObservableCollection<UnifiedTrackViewModel> ActiveTracks => _activeTracks;
+
+    private readonly ReadOnlyObservableCollection<DownloadGroupViewModel> _expressGroups;
+    public ReadOnlyObservableCollection<DownloadGroupViewModel> ExpressGroups => _expressGroups;
+
+    private readonly ReadOnlyObservableCollection<DownloadGroupViewModel> _standardGroups;
+    public ReadOnlyObservableCollection<DownloadGroupViewModel> StandardGroups => _standardGroups;
+
     private readonly ReadOnlyObservableCollection<UnifiedTrackViewModel> _standardItems;
     public ReadOnlyObservableCollection<UnifiedTrackViewModel> StandardItems => _standardItems;
 
@@ -69,14 +78,22 @@ public class DownloadCenterViewModel : ReactiveObject, IDisposable
     public int ActiveCount
     {
         get => _activeCount;
-        set => this.RaiseAndSetIfChanged(ref _activeCount, value);
-    }
+        set 
+        {
+            this.RaiseAndSetIfChanged(ref _activeCount, value);
+            this.RaisePropertyChanged(nameof(HasAnyActiveOrQueued));
+        }
+    } 
 
     private int _queuedCount;
     public int QueuedCount
     {
         get => _queuedCount;
-        set => this.RaiseAndSetIfChanged(ref _queuedCount, value);
+        set 
+        {
+            this.RaiseAndSetIfChanged(ref _queuedCount, value);
+            this.RaisePropertyChanged(nameof(HasAnyActiveOrQueued));
+        }
     }
 
     private int _completedTodayCount;
@@ -84,6 +101,20 @@ public class DownloadCenterViewModel : ReactiveObject, IDisposable
     {
         get => _completedTodayCount;
         set => this.RaiseAndSetIfChanged(ref _completedTodayCount, value);
+    }
+
+    private bool _isGlobalSearching;
+    public bool IsGlobalSearching
+    {
+        get => _isGlobalSearching;
+        set => this.RaiseAndSetIfChanged(ref _isGlobalSearching, value);
+    }
+
+    private int _searchingCount;
+    public int SearchingCount 
+    {
+        get => _searchingCount;
+        set => this.RaiseAndSetIfChanged(ref _searchingCount, value);
     }
     
     private int _failedCount;
@@ -102,6 +133,8 @@ public class DownloadCenterViewModel : ReactiveObject, IDisposable
     
     // Alias for HomeViewModel compatibility
     public string GlobalSpeedDisplay => GlobalSpeed;
+
+    public bool HasAnyActiveOrQueued => ActiveCount > 0 || QueuedCount > 0;
 
     private bool _isAutoEnrichEnabled;
     public bool IsAutoEnrichEnabled
@@ -195,7 +228,7 @@ public class DownloadCenterViewModel : ReactiveObject, IDisposable
         var activeComparer = SortExpressionComparer<UnifiedTrackViewModel>.Descending(x => x.State == PlaylistTrackState.Downloading);
         
         sharedSource
-            .Filter(x => x.IsActive || x.IsIndeterminate) // Use helper properties
+            .Filter(x => x.IsActive) // strictly downloading/searching
             .SortAndBind(out _activeDownloads, activeComparer)
             .DisposeMany() // Dispose VMs when removed from Active? No, they might move to Completed.
             // CAREFUL: DisposeMany() here would dispose items when filtered out.
@@ -211,11 +244,22 @@ public class DownloadCenterViewModel : ReactiveObject, IDisposable
             .Subscribe()
             .DisposeWith(_subscriptions);
 
-        // 1.2 Queued Downloads (Queued/Pending)
+        // 1.2 Queued Downloads (Queued/Pending -> IsWaiting)
         sharedSource
-            .Filter(x => x.State == PlaylistTrackState.Queued || x.State == PlaylistTrackState.Pending)
+            .Filter(x => x.IsWaiting)
             .SortAndBind(out _queuedDownloads, SortExpressionComparer<UnifiedTrackViewModel>.Ascending(x => x.Model.Priority).ThenByAscending(x => x.Model.AddedAt))
-            .Subscribe()
+            .Subscribe(_ => QueuedCount = _queuedDownloads.Count)
+            .DisposeWith(_subscriptions);
+
+        // Phase 11.1: Global Search Status Logic
+        sharedSource
+            .Filter(x => x.State == PlaylistTrackState.Searching)
+            .ObserveOn(RxApp.MainThreadScheduler)
+            .Subscribe(_ => 
+            {
+                SearchingCount = _downloadsSource.Items.Count(x => x.State == PlaylistTrackState.Searching);
+                IsGlobalSearching = SearchingCount > 0;
+            })
             .DisposeWith(_subscriptions);
 
 
@@ -225,20 +269,64 @@ public class DownloadCenterViewModel : ReactiveObject, IDisposable
             .Subscribe(_ => ActiveCount = _activeDownloads.Count)
             .DisposeWith(_subscriptions);
 
-        // Fix: Subscribe to _queuedDownloads pipeline to capture in-place state changes (Downloading -> Pending)
         _queuedDownloads.ToObservableChangeSet()
             .ObserveOn(RxApp.MainThreadScheduler)
             .Subscribe(_ => QueuedCount = _queuedDownloads.Count)
             .DisposeWith(_subscriptions);
 
+        // Phase 11: Global Search Status Tracking
+        sharedSource
+            .Filter(x => x.State == PlaylistTrackState.Searching)
+            .ToObservableChangeSet()
+            .ObserveOn(RxApp.MainThreadScheduler)
+            .Subscribe(_ => {
+                SearchingCount = _downloadsSource.Items.Count(x => x.State == PlaylistTrackState.Searching);
+                IsGlobalSearching = SearchingCount > 0;
+            })
+            .DisposeWith(_subscriptions);
+
         // Phase 2: Grouping Pipeline (Active Only)
         // Group by Source/Origin (e.g. Spotify Playlist ID or Search Session ID)
         sharedSource
-            .Filter(x => x.IsActive || x.IsIndeterminate) // Only group active items
+            .Filter(x => x.IsActive || x.IsWaiting || x.IsStalled) // Match active groups
             .Group(x => x.Model.SourcePlaylistId ?? x.Model.PlaylistId)
             .Transform((IGroup<UnifiedTrackViewModel, string, Guid> group) => new DownloadGroupViewModel(group))
-            .DisposeMany() // Dispose GroupVMs when removed
+            .DisposeMany() 
             .SortAndBind(out _activeGroups, SortExpressionComparer<DownloadGroupViewModel>.Descending(x => x.LastActivity))
+            .Subscribe()
+            .DisposeWith(_subscriptions);
+
+        // Phase 9: Direct Active Tracks (Searching or Downloading - Flat List)
+        // Phase 11: Prioritize Downloading over Searching
+        var directActiveComparer = SortExpressionComparer<UnifiedTrackViewModel>
+            .Descending(x => x.State == PlaylistTrackState.Downloading)
+            .ThenByDescending(x => x.Model.AddedAt);
+            
+        sharedSource
+            .Filter(x => x.IsActive)
+            .SortAndBind(out _activeTracks, directActiveComparer)
+            .Subscribe()
+            .DisposeWith(_subscriptions);
+
+        // Phase 8: Split Grouping Pipelines for Swimlanes
+        // Express Groups (Priority 0 - Only if NOT actively downloading/searching, or always? 
+        // User wants active on top, groups below. We keep groups for those waiting or stalled)
+        sharedSource
+            .Filter(x => (x.IsWaiting || x.IsStalled) && x.Model.Priority == 0)
+            .Group(x => x.Model.SourcePlaylistId ?? x.Model.PlaylistId)
+            .Transform((IGroup<UnifiedTrackViewModel, string, Guid> group) => new DownloadGroupViewModel(group))
+            .DisposeMany()
+            .SortAndBind(out _expressGroups, SortExpressionComparer<DownloadGroupViewModel>.Descending(x => x.LastActivity))
+            .Subscribe()
+            .DisposeWith(_subscriptions);
+
+        // Standard Groups (Priority >= 1)
+        sharedSource
+            .Filter(x => (x.IsWaiting || x.IsStalled) && x.Model.Priority >= 1)
+            .Group(x => x.Model.SourcePlaylistId ?? x.Model.PlaylistId)
+            .Transform((IGroup<UnifiedTrackViewModel, string, Guid> group) => new DownloadGroupViewModel(group))
+            .DisposeMany()
+            .SortAndBind(out _standardGroups, SortExpressionComparer<DownloadGroupViewModel>.Descending(x => x.LastActivity))
             .Subscribe()
             .DisposeWith(_subscriptions);
 
@@ -279,7 +367,7 @@ public class DownloadCenterViewModel : ReactiveObject, IDisposable
 
         // Failed Pipeline
         sharedSource
-            .Filter(x => x.State == PlaylistTrackState.Failed || x.State == PlaylistTrackState.Cancelled)
+            .Filter(x => x.State == PlaylistTrackState.Failed || x.State == PlaylistTrackState.Cancelled || x.State == PlaylistTrackState.Stalled)
             .Bind(out _failedDownloads)
             .Subscribe();
 
@@ -292,21 +380,21 @@ public class DownloadCenterViewModel : ReactiveObject, IDisposable
         // 2. Swimlane Pipelines (Derived from sharedSource filtered to Active)
         // Express: Priority 0
         sharedSource
-            .Filter(x => (x.IsActive || x.IsIndeterminate) && x.Model.Priority == 0)
+            .Filter(x => (x.IsActive || x.IsWaiting || x.IsStalled) && x.Model.Priority == 0)
             .ObserveOn(RxApp.MainThreadScheduler)
             .Bind(out _expressItems)
             .Subscribe();
 
         // Standard: Priority 1-9
         sharedSource
-             .Filter(x => (x.IsActive || x.IsIndeterminate) && x.Model.Priority >= 1 && x.Model.Priority < 10)
+             .Filter(x => (x.IsActive || x.IsWaiting || x.IsStalled) && x.Model.Priority >= 1 && x.Model.Priority < 10)
             .ObserveOn(RxApp.MainThreadScheduler)
             .Bind(out _standardItems)
             .Subscribe();
 
         // Background: Priority >= 10
         sharedSource
-            .Filter(x => (x.IsActive || x.IsIndeterminate) && x.Model.Priority >= 10)
+            .Filter(x => (x.IsActive || x.IsWaiting || x.IsStalled) && x.Model.Priority >= 10)
             .ObserveOn(RxApp.MainThreadScheduler)
             .Bind(out _backgroundItems)
             .Subscribe();

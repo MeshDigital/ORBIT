@@ -94,6 +94,12 @@ public class PlaylistTrack
     public DateTime? CompletedAt { get; set; }
 
     /// <summary>
+    /// Phase 10: Timestamp when the initial search for this track started.
+    /// Used to calculate total download duration.
+    /// </summary>
+    public DateTime? SearchStartedAt { get; set; }
+
+    /// <summary>
     /// Custom sort order for track reordering (Rekordbox style).
     /// </summary>
     public int SortOrder { get; set; }
@@ -181,9 +187,12 @@ public class PlaylistTrack
     public string? SourcePlaylistName { get; set; }
     
     public bool IsEnriched { get; set; } = false;
+    public bool IsUserPaused { get; set; } = false; // Phase 13 Hardening
+    public string? StalledReason { get; set; } // [NEW] Overhaul Phase
     public bool IsPrepared { get; set; } = false; // Phase 10
     public bool IsReviewNeeded { get; set; } = false; // Phase 10.4
     public string? PrimaryGenre { get; set; } // Phase 10
+    public string? DiscoveryReason { get; set; } // [NEW] Phase 7: Match Reasoning
 
     // Phase 10.5: Reliability & Transparency
     public SLSKDONET.Data.Entities.CurationConfidence CurationConfidence { get; set; } = SLSKDONET.Data.Entities.CurationConfidence.None;
@@ -232,5 +241,6 @@ public enum PlaylistTrackState
     Deferred,
     Completed,
     Failed,
-    Cancelled
+    Cancelled,
+    Stalled
 }

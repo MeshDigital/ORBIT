@@ -21,6 +21,7 @@ public record TransferProgressEvent(string Filename, string Username, long Bytes
 public record TransferFinishedEvent(string Filename, string Username);
 public record TransferCancelledEvent(string Filename, string Username);
 public record TransferFailedEvent(string Filename, string Username, string Error);
+public record SharedFilesStatusEvent(int Count, string Directory);
 
 // Library Service Events
 public record LibraryEntryAddedEvent(LibraryEntry Entry);
@@ -55,10 +56,11 @@ public record SeekToSecondsRequestEvent(double Seconds);
 public record TrackAddedEvent(PlaylistTrack TrackModel, PlaylistTrackState? InitialState = null);
 public record TrackRemovedEvent(string TrackGlobalId);
 public record TrackMovedEvent(string TrackGlobalId, Guid OldProjectId, Guid NewProjectId);
-public record TrackStateChangedEvent(string TrackGlobalId, Guid ProjectId, PlaylistTrackState State, DownloadFailureReason FailureReason = DownloadFailureReason.None, string? Error = null, SearchAttemptLog? SearchLog = null);
+public record TrackStateChangedEvent(string TrackGlobalId, Guid ProjectId, PlaylistTrackState State, DownloadFailureReason FailureReason = DownloadFailureReason.None, string? Error = null, SearchAttemptLog? SearchLog = null, string? PeerName = null);
 // Phase 2.5: Enhanced with byte-level progress tracking
 public record TrackProgressChangedEvent(string TrackGlobalId, double Progress, long BytesReceived, long TotalBytes);
 public record TrackMetadataUpdatedEvent(string TrackGlobalId);
+public record ForceStartRequestEvent(string TrackGlobalId);
 
 // Audio Analysis Pipeline (Phase 3 Integration + Phase 1 Progress)
 public record TrackAnalysisCompletedEvent(string TrackGlobalId, bool Success, string? ErrorMessage = null) { public Guid? DatabaseId { get; init; } }

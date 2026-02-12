@@ -349,9 +349,11 @@ public class PlaylistTrackViewModel : INotifyPropertyChanged, Library.ILibraryNo
     public Avalonia.Media.Imaging.Bitmap? ArtworkBitmap => _artwork?.Image;
 
     // Status Properties for StandardTrackRow
-    public bool IsActive => State == PlaylistTrackState.Downloading || State == PlaylistTrackState.Searching || State == PlaylistTrackState.Queued || State == PlaylistTrackState.Pending;
+    public bool IsActive => (State == PlaylistTrackState.Downloading || State == PlaylistTrackState.Searching || State == PlaylistTrackState.Queued || State == PlaylistTrackState.Pending) && State != PlaylistTrackState.Stalled;
     public bool IsFailed => State == PlaylistTrackState.Failed || State == PlaylistTrackState.Cancelled;
     public bool IsCompleted => State == PlaylistTrackState.Completed;
+    public bool IsStalled => State == PlaylistTrackState.Stalled;
+    public string? StalledReason => Model.StalledReason;
 
     public string StatusText => State switch
     {
@@ -361,6 +363,7 @@ public class PlaylistTrackViewModel : INotifyPropertyChanged, Library.ILibraryNo
         PlaylistTrackState.Queued => "Queued",
         PlaylistTrackState.Failed => !string.IsNullOrEmpty(ErrorMessage) ? ErrorMessage : "Failed",
         PlaylistTrackState.Paused => "Paused",
+        PlaylistTrackState.Stalled => $"Stalled: {StalledReason ?? "Waiting for data"}",
         _ => State.ToString()
     };
 
@@ -371,6 +374,7 @@ public class PlaylistTrackViewModel : INotifyPropertyChanged, Library.ILibraryNo
         PlaylistTrackState.Cancelled => Avalonia.Media.Brushes.Gray,
         PlaylistTrackState.Downloading => Avalonia.Media.Brushes.Cyan,
         PlaylistTrackState.Searching => Avalonia.Media.Brushes.Yellow,
+        PlaylistTrackState.Stalled => Avalonia.Media.Brushes.Orange,
         _ => Avalonia.Media.Brushes.LightGray
     };
 
@@ -732,6 +736,7 @@ public class PlaylistTrackViewModel : INotifyPropertyChanged, Library.ILibraryNo
     public ICommand FindNewVersionCommand { get; }
     public ICommand AnalyzeTrackCommand { get; }
     public ICommand SeparateStemsCommand { get; }
+    public ICommand ForceStartCommand { get; }
     public ICommand PlayCommand { get; }
     public ICommand RevealFileCommand { get; }
     public ICommand AddToProjectCommand { get; }
@@ -784,6 +789,7 @@ public class PlaylistTrackViewModel : INotifyPropertyChanged, Library.ILibraryNo
         AddToProjectCommand = new RelayCommand(() => _eventBus?.Publish(new Models.AddToProjectRequestEvent(new[] { Model })), () => IsCompleted);
         RetryCommand = new RelayCommand(FindNewVersion, () => CanHardRetry);
         HardRetryCommand = RetryCommand;
+        ForceStartCommand = new RelayCommand(ForceStart, () => CanForceStart);
         
         // REMOVED: 8000+ redundant event listeners eliminated.
         // Centralized dispatch moved to VirtualizedTrackCollection.
@@ -1264,6 +1270,7 @@ public class PlaylistTrackViewModel : INotifyPropertyChanged, Library.ILibraryNo
     public bool CanCancel => State != PlaylistTrackState.Completed && State != PlaylistTrackState.Cancelled;
     public bool CanHardRetry => State == PlaylistTrackState.Failed || State == PlaylistTrackState.Cancelled; // Or Completed if we want to re-download
     public bool CanDeleteFile => State == PlaylistTrackState.Completed || State == PlaylistTrackState.Failed || State == PlaylistTrackState.Cancelled;
+    public bool CanForceStart => State == PlaylistTrackState.Pending || State == PlaylistTrackState.Stalled || State == PlaylistTrackState.Paused;
 
     public string MetadataStatusColor => MetadataStatus switch
     {
@@ -1424,6 +1431,14 @@ public class PlaylistTrackViewModel : INotifyPropertyChanged, Library.ILibraryNo
         if (!string.IsNullOrEmpty(Model.ResolvedFilePath))
         {
             _eventBus?.Publish(new Models.RevealFileRequestEvent(Model.ResolvedFilePath));
+        }
+    }
+
+    public void ForceStart()
+    {
+        if (CanForceStart && _eventBus != null)
+        {
+            _eventBus.Publish(new Models.ForceStartRequestEvent(GlobalId));
         }
     }
 }

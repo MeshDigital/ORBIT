@@ -243,6 +243,27 @@ namespace SLSKDONET.Views.Avalonia.Converters
         public object[] ConvertBack(object value, Type[] targetTypes, object parameter, CultureInfo culture) => throw new NotImplementedException();
     }
 
+    public class BoolToAngleConverter : IValueConverter
+    {
+        public object? Convert(object? value, Type targetType, object? parameter, CultureInfo culture)
+        {
+            if (value is bool b && b)
+            {
+                if (parameter != null && double.TryParse(parameter.ToString(), out double angle))
+                {
+                    return angle;
+                }
+                return 90.0;
+            }
+            return 0.0;
+        }
+
+        public object? ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture)
+        {
+            throw new NotImplementedException();
+        }
+    }
+
     public static class BooleanConverters
     {
         public static readonly IMultiValueConverter And = new BooleanAndConverter();

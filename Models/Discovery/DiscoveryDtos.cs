@@ -117,4 +117,7 @@ public record DiscoverySearchResultDto
     
     /// <summary>The underlying Track object for download operations</summary>
     public Track? Track { get; init; }
+
+    /// <summary>Match reasoning / discovery logic</summary>
+    public string? MatchReason { get; init; }
 }

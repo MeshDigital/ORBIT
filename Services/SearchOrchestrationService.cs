@@ -54,7 +54,9 @@ public class SearchOrchestrationService
         _personalClassifier = personalClassifier;
         
         // Initialize simple signaling semaphore
-        _searchSemaphore = new SemaphoreSlim(Math.Max(1, _config.MaxConcurrentSearches));
+        // Golden Rule: Max 4 concurrent searches to avoid bans
+        int maxSearches = Math.Min(4, Math.Max(1, _config.MaxConcurrentSearches));
+        _searchSemaphore = new SemaphoreSlim(maxSearches);
     }
     
     public bool IsConnected => _soulseek.IsConnected;

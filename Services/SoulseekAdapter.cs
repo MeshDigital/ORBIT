@@ -22,6 +22,10 @@ public class SoulseekAdapter : ISoulseekAdapter, IDisposable
     private SoulseekClient? _client;
     public bool IsConnected => _client?.State.HasFlag(SoulseekClientStates.Connected) ?? false;
 
+    // Rate Limiting
+    private static readonly SemaphoreSlim _rateLimitLock = new(1, 1);
+    private DateTime _lastSearchTime = DateTime.MinValue;
+
     public SoulseekAdapter(ILogger<SoulseekAdapter> logger, AppConfig config, IEventBus eventBus)
     {
         _logger = logger;
@@ -71,21 +75,33 @@ public class SoulseekAdapter : ISoulseekAdapter, IDisposable
                     {
                         // Wait for login to stabilize
                         await Task.Delay(5000, ct);
+                        
+                        // Phase 3: Shared Files Warning
+                        int sharedCount = 0;
+                        if (System.IO.Directory.Exists(_config.DownloadDirectory))
+                        {
+                            sharedCount = System.IO.Directory.GetFiles(_config.DownloadDirectory, "*", SearchOption.AllDirectories).Length;
+                        }
+                        
+                        if (sharedCount == 0)
+                        {
+                            _logger.LogWarning("⚠️ NO SHARED FILES DETECTED! You may be banned by peers. Please add files to {Path}", _config.DownloadDirectory);
+                        }
+                        else
+                        {
+                            _logger.LogInformation("✅ Shared Files Check Passed: {Count} files found in {Path}", sharedCount, _config.DownloadDirectory);
+                        }
+                        
+                        _eventBus.Publish(new SharedFilesStatusEvent(sharedCount, _config.DownloadDirectory ?? "Unset"));
+
                         if (_client.State.HasFlag(SoulseekClientStates.LoggedIn))
                         {
-                            _logger.LogInformation("Soulseek: Scanning shared files in {Path}...", _config.DownloadDirectory);
-                            // NOTE: BuildSharedFileListAsync/UpdateSharedFilesAsync not found in Soulseek.NET 1.0.0
-                            // TODO: Implement file sharing correctly when library support is confirmed
-                            /*
-                            var sharedFiles = await _client.BuildSharedFileListAsync(_config.DownloadDirectory);
-                            await _client.UpdateSharedFilesAsync(sharedFiles);
-                            _logger.LogInformation("Soulseek: Now sharing {Count} files to improve peer acceptance.", sharedFiles.Count);
-                            */
+                            // Future: Implement actual sharing
                         }
                     }
                     catch (Exception ex)
                     {
-                        _logger.LogWarning(ex, "Failed to initialize shared files (non-critical)");
+                        _logger.LogWarning(ex, "Failed to initialize shared files check (non-critical)");
                     }
                 }, ct);
             }
@@ -170,6 +186,25 @@ public class SoulseekAdapter : ISoulseekAdapter, IDisposable
         {
             var minBitrateStr = bitrateFilter.Min?.ToString() ?? "0";
             var maxBitrateStr = bitrateFilter.Max?.ToString() ?? "unlimited";
+            
+            // Golden Rule: Rate Limiting (500ms global delay)
+            await _rateLimitLock.WaitAsync(ct);
+            try
+            {
+                var timeSinceLast = DateTime.UtcNow - _lastSearchTime;
+                if (timeSinceLast.TotalMilliseconds < 550) // 550ms just to be safe
+                {
+                    var delay = 550 - (int)timeSinceLast.TotalMilliseconds;
+                    _logger.LogDebug("Rate Limiting: Delaying search by {Ms}ms", delay);
+                    await Task.Delay(delay, ct);
+                }
+                _lastSearchTime = DateTime.UtcNow;
+            }
+            finally
+            {
+                _rateLimitLock.Release();
+            }
+
             _logger.LogInformation("Search started for query {SearchQuery} with mode {SearchMode}, format filter {FormatFilter}, bitrate range {MinBitrate}-{MaxBitrate}",
                 query, mode, formatFilter == null ? "NONE" : string.Join(", ", formatFilter), minBitrateStr, maxBitrateStr);
             

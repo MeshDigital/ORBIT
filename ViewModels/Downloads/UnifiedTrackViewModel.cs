@@ -38,6 +38,13 @@ public class UnifiedTrackViewModel : ReactiveObject, IDisplayableTrack, IDisposa
         get => _downloadSpeed; 
         set => this.RaiseAndSetIfChanged(ref _downloadSpeed, value); 
     }
+
+    private string? _peerName;
+    public string? PeerName
+    {
+        get => _peerName;
+        set => this.RaiseAndSetIfChanged(ref _peerName, value);
+    }
     
     
     // Cues Support
@@ -109,7 +116,11 @@ public class UnifiedTrackViewModel : ReactiveObject, IDisplayableTrack, IDisposa
 
         RetryCommand = ReactiveCommand.Create(() => 
             _downloadManager.HardRetryTrack(GlobalId),
-            this.WhenAnyValue(x => x.IsFailed));
+            this.WhenAnyValue(x => x.IsFailed, x => x.IsStalled, (f, s) => f || s));
+
+        ForceStartCommand = ReactiveCommand.CreateFromTask(async () => 
+            await _downloadManager.ForceStartTrack(GlobalId),
+            this.WhenAnyValue(x => x.State, s => s == PlaylistTrackState.Pending || s == PlaylistTrackState.Stalled || s == PlaylistTrackState.Paused));
             
         SearchAgainCommand = ReactiveCommand.Create(() => 
         {
@@ -204,8 +215,14 @@ public class UnifiedTrackViewModel : ReactiveObject, IDisplayableTrack, IDisposa
                 this.RaisePropertyChanged(nameof(IsFailed));
                 this.RaisePropertyChanged(nameof(IsPaused));
                 this.RaisePropertyChanged(nameof(IsActive));
+                this.RaisePropertyChanged(nameof(IsStalled));
                 this.RaisePropertyChanged(nameof(IsCompleted));
                 this.RaisePropertyChanged(nameof(TechnicalSummary));
+                this.RaisePropertyChanged(nameof(DownloadDurationDisplay));
+                this.RaisePropertyChanged(nameof(IsSearching));
+                this.RaisePropertyChanged(nameof(IsDownloading));
+                this.RaisePropertyChanged(nameof(CanRetry));
+                this.RaisePropertyChanged(nameof(CanResume));
             }
         }
     }
@@ -214,10 +231,11 @@ public class UnifiedTrackViewModel : ReactiveObject, IDisplayableTrack, IDisposa
     {
         PlaylistTrackState.Completed => "Ready",
         PlaylistTrackState.Downloading => $"{(int)(Progress)}%",
-        PlaylistTrackState.Searching => "Searching...",
+        PlaylistTrackState.Searching => SearchAttemptCount > 1 ? $"Searching... ({SearchAttemptCount})" : "Searching...",
         PlaylistTrackState.Queued => "Queued",
         PlaylistTrackState.Failed => !string.IsNullOrEmpty(FailureReason) ? FailureReason : "Failed",
         PlaylistTrackState.Paused => "Paused",
+        PlaylistTrackState.Stalled => "Stalled",
 
         _ => State.ToString()
     };
@@ -230,6 +248,7 @@ public class UnifiedTrackViewModel : ReactiveObject, IDisplayableTrack, IDisposa
         PlaylistTrackState.Cancelled => Avalonia.Media.Brushes.Gray,
         PlaylistTrackState.Downloading => Avalonia.Media.Brushes.Cyan,
         PlaylistTrackState.Searching => Avalonia.Media.Brushes.Yellow,
+        PlaylistTrackState.Stalled => Avalonia.Media.Brushes.Orange,
         _ => Avalonia.Media.Brushes.LightGray
     };
 
@@ -248,9 +267,38 @@ public class UnifiedTrackViewModel : ReactiveObject, IDisplayableTrack, IDisposa
     public bool IsIndeterminate => State == PlaylistTrackState.Searching || State == PlaylistTrackState.Queued;
     public bool IsFailed => State == PlaylistTrackState.Failed || State == PlaylistTrackState.Cancelled;
     public bool IsPaused => State == PlaylistTrackState.Paused;
-    // Fix: Include Pending and Queued in IsActive so they appear in the Active tab
-    public bool IsActive => State == PlaylistTrackState.Downloading || State == PlaylistTrackState.Searching || State == PlaylistTrackState.Queued || State == PlaylistTrackState.Pending;
+    
+    // Phase 6 & 9: Refined IsActive for "Direct Active" swimlane (strictly downloading/searching)
+    public bool IsActive => State == PlaylistTrackState.Downloading || State == PlaylistTrackState.Searching;
+
+    // Phase 11: Specific activity flags
+    public bool IsSearching => State == PlaylistTrackState.Searching;
+    public bool IsDownloading => State == PlaylistTrackState.Downloading;
+    
+    // Phase 11.1: UI Helper flags
+    public bool CanRetry => IsFailed || State == PlaylistTrackState.Stalled;
+    public bool CanResume => State == PlaylistTrackState.Paused;
+    public bool CanForceStart => State == PlaylistTrackState.Pending || State == PlaylistTrackState.Stalled || State == PlaylistTrackState.Paused;
+
+    // Phase 9: Helper for "Waiting" swimlane (strictly queued/pending, NOT searching)
+    public bool IsWaiting => State == PlaylistTrackState.Pending || State == PlaylistTrackState.Queued;
+
     public bool IsCompleted => State == PlaylistTrackState.Completed;
+
+    // Phase 11.1: Restored Missing Animation Flags
+    private bool _isAnalyzing;
+    public bool IsAnalyzing
+    {
+        get => _isAnalyzing;
+        set => this.RaiseAndSetIfChanged(ref _isAnalyzing, value);
+    }
+
+    private bool _isEnriching;
+    public bool IsEnriching
+    {
+        get => _isEnriching;
+        set => this.RaiseAndSetIfChanged(ref _isEnriching, value);
+    }
 
     private string? _failureReason;
     public string? FailureReason
@@ -304,6 +352,28 @@ public class UnifiedTrackViewModel : ReactiveObject, IDisplayableTrack, IDisposa
     {
         get => _hasRejectionDetails;
         set => this.RaiseAndSetIfChanged(ref _hasRejectionDetails, value);
+    }
+
+    // Phase 9: Search Diagnostics
+    public int SearchAttemptCount => RejectionDetails?.Count ?? 0;
+
+    // Phase 10: Performance Monitoring - Total Download Duration
+    public string? DownloadDurationDisplay
+    {
+        get
+        {
+            if (Model.SearchStartedAt == null) return null;
+            
+            var end = Model.CompletedAt ?? (IsActive ? DateTime.UtcNow : (DateTime?)null);
+            if (end == null) return null;
+            
+            var duration = end.Value - Model.SearchStartedAt.Value;
+            if (duration < TimeSpan.Zero) return null;
+
+            return duration.TotalMinutes >= 1 
+                ? $"{(int)duration.TotalMinutes}m {duration.Seconds:D2}s"
+                : $"{duration.Seconds}s";
+        }
     }
 
     public string CompletedAtDisplay => Model.CompletedAt?.ToString("g") ?? Model.AddedAt.ToString("g");
@@ -380,6 +450,9 @@ public class UnifiedTrackViewModel : ReactiveObject, IDisplayableTrack, IDisposa
     public bool IsEnriched => Model.IsEnriched;
     public bool IsPrepared => Model.IsPrepared;
     public string? PrimaryGenre => Model.PrimaryGenre;
+    public string? DiscoveryReason => Model.DiscoveryReason;
+    public bool IsStalled => State == PlaylistTrackState.Stalled;
+    public string? StalledReason => Model.StalledReason;
     public string? DetectedSubGenre => Model.DetectedSubGenre;
     public float? SubGenreConfidence => Model.SubGenreConfidence;
 
@@ -491,6 +564,7 @@ public class UnifiedTrackViewModel : ReactiveObject, IDisplayableTrack, IDisposa
     public ICommand ResumeCommand { get; }
     public ICommand CancelCommand { get; }
     public ICommand RetryCommand { get; }
+    public ICommand ForceStartCommand { get; }
     public ICommand SearchAgainCommand { get; }
     public ICommand CleanCommand { get; }
     public ICommand FilterByVibeCommand { get; }
@@ -510,13 +584,6 @@ public class UnifiedTrackViewModel : ReactiveObject, IDisplayableTrack, IDisposa
         ? $"{_currentSpeed / 1024 / 1024:F1} MB/s" 
         : $"{_currentSpeed / 1024:F0} KB/s";
 
-    // Phase 4+: Discovery Features
-    private string? _discoveryReason;
-    public string? DiscoveryReason
-    {
-        get => _discoveryReason;
-        set => this.RaiseAndSetIfChanged(ref _discoveryReason, value);
-    }
 
     // Phase 0.6: Truth in UI - Stems
     private bool? _hasStems;
@@ -563,11 +630,23 @@ public class UnifiedTrackViewModel : ReactiveObject, IDisplayableTrack, IDisposa
         FailureReason = e.Error;
         FailureEnum = e.FailureReason;
         
+        // Capture Peer Name if provided in the event or available from manager
+        if (e.State == PlaylistTrackState.Downloading)
+        {
+            PeerName = e.PeerName; // Assuming TrackStateChangedEvent now has PeerName
+        }
+        else
+        {
+            PeerName = null; // Clear peer name when not downloading
+        }
+        
         // Phase 0.5: Populate Search Diagnostics
         if (e.SearchLog != null && e.SearchLog.Top3RejectedResults.Any())
         {
              RejectionDetails = new System.Collections.ObjectModel.ObservableCollection<RejectedResult>(e.SearchLog.Top3RejectedResults);
              HasRejectionDetails = true;
+             this.RaisePropertyChanged(nameof(SearchAttemptCount));
+             this.RaisePropertyChanged(nameof(StatusText));
         }
         else if (State == PlaylistTrackState.Pending || State == PlaylistTrackState.Searching)
         {

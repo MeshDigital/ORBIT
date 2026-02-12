@@ -77,6 +77,8 @@ public class HarmonicMatchService
         { "4A", new HashSet<string> { "4A", "4B", "3A", "5A" } }, // Ab Minor
     };
 
+    protected HarmonicMatchService() { }
+
     public HarmonicMatchService(ILogger<HarmonicMatchService> logger, ILibraryService libraryService, DatabaseService databaseService)
     {
         _logger = logger;
