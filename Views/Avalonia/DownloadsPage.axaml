@@ -222,6 +222,42 @@
             </Grid>
         </Border>
 
+        <!-- Phase 12.3: Bulk Selection Action Bar (Overlay) -->
+        <Border Grid.Row="0" Background="#007ACC" Padding="24,20" BorderBrush="#005A9E" BorderThickness="0,0,0,1" IsVisible="{Binding HasSelection}">
+            <Grid ColumnDefinitions="Auto, *, Auto">
+                <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="16">
+                    <TextBlock Text="{Binding SelectedItems.Count}" FontSize="28" FontWeight="Bold" Foreground="White" VerticalAlignment="Center"/>
+                    <TextBlock Text="selected" FontSize="18" Foreground="#E0E0E0" VerticalAlignment="Center" Margin="0,4,0,0"/>
+                </StackPanel>
+
+                <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="12">
+                    <Button Command="{Binding VipStartSelectedCommand}"
+                            Background="White"
+                            Foreground="#007ACC"
+                            Padding="16,8"
+                            CornerRadius="6"
+                            FontWeight="Bold">
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                            <TextBlock Text="🚀" FontSize="16"/>
+                            <TextBlock Text="VIP Start" VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </Button>
+                    
+                    <Button Command="{Binding CancelSelectedCommand}"
+                            Background="#D32F2F"
+                            Foreground="White"
+                            Padding="16,8"
+                            CornerRadius="6"
+                            FontWeight="Bold">
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                            <TextBlock Text="✖" FontSize="14"/>
+                            <TextBlock Text="Cancel" VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </Button>
+                </StackPanel>
+            </Grid>
+        </Border>
+
         <!-- Tab Control -->
         <TabControl Grid.Row="1" Background="Transparent" Padding="0">
             <TabControl.Styles>

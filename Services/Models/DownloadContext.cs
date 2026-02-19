@@ -62,6 +62,7 @@ public class DownloadContext
     public DownloadFailureReason? FailureReason { get; set; }
     public List<SearchAttemptLog> SearchAttempts { get; set; } = new();
     public string? DetailedFailureMessage { get; set; }
+    public string? StalledReason { get; set; } // [NEW] Overhaul Phase
     public bool IsVip { get; set; } // [NEW] Overhaul Phase: Bypasses semaphore
     public DateTime? SearchStartedAt { get; set; } // Phase 10
 

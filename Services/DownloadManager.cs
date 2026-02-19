@@ -2340,44 +2340,37 @@ public class DownloadManager : INotifyPropertyChanged, IDisposable
         Dictionary<int, int> activeByPriority)
     {
         // Sort by Priority (ascending = High -> Low), then AddedAt (FIFO)
-        // Priority 0 = High (Lane A)
-        // Priority 1 = Standard (Lane B)
-        // Priority 10+ = Background (Lane C)
         var sortedTracks = eligibleTracks
-            .OrderBy(t => t.Model.Priority)
+            .OrderByDescending(t => t.IsVip) // [NEW] Overhaul: VIPs jump everything
+            .ThenBy(t => t.Model.Priority)
             .ThenBy(t => t.Model.AddedAt)
             .ToList();
 
-        // Since the Semaphore (_downloadSemaphore) already enforces the rigorous global limit (MaxActiveDownloads),
-        // we do NOT need to enforce artificial caps on specific lanes (e.g. "Only 2 High Priority tracks").
-        // This was causing the "Max 4 Downloads" bug where having 20 slots open but no Background tracks meant only 4 slots were used.
-        
-        // The logic is now:
-        // 1. Pick the highest priority track available.
-        // 2. The Semaphore prevents us from exceeding the global limit.
-        
         foreach (var track in sortedTracks)
         {
-            var priority = track.Model.Priority;
-            
-            // Log selection for debugging lane behavior
-            if (priority == 0)
-            {
-                 _logger.LogDebug("Selected High Priority track: {Title} (Lane A)", track.Model.Title);
-            }
-            else if (priority == 1)
-            {
-                 _logger.LogDebug("Selected Standard Priority track: {Title} (Lane B)", track.Model.Title);
-            }
-            else
-            {
-                 _logger.LogDebug("Selected Background Priority track: {Title} (Lane C)", track.Model.Title);
-            }
-            
+            // If it's a VIP, we return it immediately. The semaphore reservation 
+            // will still happen unless we explicitly bypass it in ProcessTrack.
             return track;
         }
 
         return null; // No eligible tracks
+    }
+
+    public void BumpTrackToTop(string globalId)
+    {
+        DownloadContext? ctx;
+        lock (_collectionLock) ctx = _downloads.FirstOrDefault(d => d.GlobalId == globalId);
+        if (ctx != null)
+        {
+            ctx.Model.Priority = 0;
+            ctx.Model.AddedAt = DateTime.MinValue; // Absolute top
+            
+            if (ctx.State == PlaylistTrackState.Pending || ctx.State == PlaylistTrackState.Stalled || ctx.State == PlaylistTrackState.Paused)
+            {
+                _ = UpdateStateAsync(ctx, PlaylistTrackState.Pending);
+            }
+            _ = RefillQueueAsync();
+        }
     }
 
     /// <summary>

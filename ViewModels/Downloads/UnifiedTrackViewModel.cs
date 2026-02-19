@@ -46,6 +46,14 @@ public class UnifiedTrackViewModel : ReactiveObject, IDisplayableTrack, IDisposa
         set => this.RaiseAndSetIfChanged(ref _peerName, value);
     }
     
+    // Phase 12.3: Selection State
+    private bool _isSelected;
+    public bool IsSelected
+    {
+        get => _isSelected;
+        set => this.RaiseAndSetIfChanged(ref _isSelected, value);
+    }
+    
     
     // Cues Support
     private List<OrbitCue> _cues = new();
@@ -171,6 +179,11 @@ public class UnifiedTrackViewModel : ReactiveObject, IDisplayableTrack, IDisposa
          {
              _eventBus.Publish(new SearchRequestedEvent($"{Model.Artist} {Model.Title}"));
          });
+
+         BumpToTopCommand = ReactiveCommand.Create(() => 
+         {
+             _downloadManager.BumpTrackToTop(GlobalId);
+         }, this.WhenAnyValue(x => x.State, s => s == PlaylistTrackState.Pending || s == PlaylistTrackState.Paused || s == PlaylistTrackState.Stalled));
     }
     
     private void FindSimilar()
@@ -223,6 +236,8 @@ public class UnifiedTrackViewModel : ReactiveObject, IDisplayableTrack, IDisposa
                 this.RaisePropertyChanged(nameof(IsDownloading));
                 this.RaisePropertyChanged(nameof(CanRetry));
                 this.RaisePropertyChanged(nameof(CanResume));
+                this.RaisePropertyChanged(nameof(CanBumpToTop));
+                this.RaisePropertyChanged(nameof(CanForceStart));
             }
         }
     }
@@ -233,9 +248,10 @@ public class UnifiedTrackViewModel : ReactiveObject, IDisplayableTrack, IDisposa
         PlaylistTrackState.Downloading => $"{(int)(Progress)}%",
         PlaylistTrackState.Searching => SearchAttemptCount > 1 ? $"Searching... ({SearchAttemptCount})" : "Searching...",
         PlaylistTrackState.Queued => "Queued",
-        PlaylistTrackState.Failed => !string.IsNullOrEmpty(FailureReason) ? FailureReason : "Failed",
+        PlaylistTrackState.Failed => !string.IsNullOrEmpty(FailureReason) ? FailureReason : 
+                                     (FailureEnum != DownloadFailureReason.None ? FailureEnum.ToDisplayMessage() : "Failed"),
         PlaylistTrackState.Paused => "Paused",
-        PlaylistTrackState.Stalled => "Stalled",
+        PlaylistTrackState.Stalled => !string.IsNullOrEmpty(StalledReason) ? $"Stalled: {StalledReason}" : "Stalled (Waiting for Peer)",
 
         _ => State.ToString()
     };
@@ -280,6 +296,9 @@ public class UnifiedTrackViewModel : ReactiveObject, IDisplayableTrack, IDisposa
     public bool CanResume => State == PlaylistTrackState.Paused;
     public bool CanForceStart => State == PlaylistTrackState.Pending || State == PlaylistTrackState.Stalled || State == PlaylistTrackState.Paused;
 
+    // Phase 12: Priority Control
+    public bool CanBumpToTop => (State == PlaylistTrackState.Pending || State == PlaylistTrackState.Paused || State == PlaylistTrackState.Stalled) && !IsCompleted;
+
     // Phase 9: Helper for "Waiting" swimlane (strictly queued/pending, NOT searching)
     public bool IsWaiting => State == PlaylistTrackState.Pending || State == PlaylistTrackState.Queued;
 
@@ -298,6 +317,23 @@ public class UnifiedTrackViewModel : ReactiveObject, IDisplayableTrack, IDisposa
     {
         get => _isEnriching;
         set => this.RaiseAndSetIfChanged(ref _isEnriching, value);
+    }
+
+    public void PreservedDiagnostics(DownloadFailureReason reason, string? message, System.Collections.Generic.List<SearchAttemptLog>? attempts)
+    {
+        FailureEnum = reason;
+        FailureReason = message;
+        if (attempts != null)
+        {
+            RejectionDetails = new System.Collections.ObjectModel.ObservableCollection<RejectedResult>(
+                attempts.SelectMany(a => a.Top3RejectedResults?.Select(r => new RejectedResult { Username = r.Username, RejectionReason = r.RejectionReason }) ?? Enumerable.Empty<RejectedResult>())
+            );
+            HasRejectionDetails = RejectionDetails.Any();
+        }
+        
+        this.RaisePropertyChanged(nameof(StatusText));
+        this.RaisePropertyChanged(nameof(DetailedStatusText));
+        this.RaisePropertyChanged(nameof(SearchAttemptCount));
     }
 
     private string? _failureReason;
@@ -571,12 +607,14 @@ public class UnifiedTrackViewModel : ReactiveObject, IDisplayableTrack, IDisposa
     public ICommand FindSimilarCommand { get; }
     public ICommand FindSimilarAiCommand { get; }
     public ICommand ViewAllSearchResultsCommand { get; }
+    public ICommand BumpToTopCommand { get; }
 
     // Internal State
     private long _totalBytes;
     private long _bytesReceived;
     private double _currentSpeed;
     private DateTime _lastProgressTime;
+    public DateTime LastActivity { get; private set; } = DateTime.UtcNow;
     
     public double CurrentSpeedBytes => _currentSpeed;
 
@@ -699,6 +737,7 @@ public class UnifiedTrackViewModel : ReactiveObject, IDisplayableTrack, IDisposa
          }
 
          this.RaisePropertyChanged(nameof(StatusText));
+         LastActivity = DateTime.UtcNow;
     }
 
     private async Task PerformInFlightForensicsAsync(string stage)

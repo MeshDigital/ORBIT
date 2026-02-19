@@ -94,6 +94,17 @@
             <Setter Property="FontWeight" Value="Black"/>
             <Setter Property="VerticalAlignment" Value="Center"/>
         </Style>
+
+        <!-- [NEW] Overhaul Phase: Pulsing Amber Stall Signaling -->
+        <Style Selector="PathIcon.pulse_amber">
+            <Style.Animations>
+                <Animation Duration="0:0:1.5" IterationCount="Infinite">
+                    <KeyFrame KeyTime="0:0:0"><Setter Property="Opacity" Value="1"/><Setter Property="Foreground" Value="#FFA500"/></KeyFrame>
+                    <KeyFrame KeyTime="0:0:0.75"><Setter Property="Opacity" Value="0.3"/><Setter Property="Foreground" Value="#FFD700"/></KeyFrame>
+                    <KeyFrame KeyTime="0:0:1.5"><Setter Property="Opacity" Value="1"/><Setter Property="Foreground" Value="#FFA500"/></KeyFrame>
+                </Animation>
+            </Style.Animations>
+        </Style>
     </UserControl.Styles>
 
     <Border Classes="root">
@@ -182,6 +193,27 @@
                             </Style>
                         </Arc.Styles>
                     </Arc>
+
+                    <!-- Phase 12.3: Bulk Selection Overlay -->
+                    <Border Background="#40000000" IsVisible="{Binding IsSelected}" VerticalAlignment="Stretch" HorizontalAlignment="Stretch"/>
+                    <CheckBox IsChecked="{Binding IsSelected}" 
+                              HorizontalAlignment="Left" VerticalAlignment="Top" 
+                              Margin="-2,-2,0,0">
+                         <CheckBox.Styles>
+                             <Style Selector="CheckBox">
+                                 <Setter Property="Opacity" Value="0"/> 
+                                 <Setter Property="Background" Value="#222"/>
+                                 <Setter Property="BorderBrush" Value="#666"/>
+                             </Style>
+                             <Style Selector="CheckBox:pointerover">
+                                 <Setter Property="Opacity" Value="1"/>
+                             </Style>
+                             <Style Selector="CheckBox:checked">
+                                 <Setter Property="Opacity" Value="1"/>
+                                 <Setter Property="Background" Value="#00BFFF"/>
+                             </Style>
+                         </CheckBox.Styles>
+                    </CheckBox>
                 </Panel>
             </Border>
             
@@ -245,13 +277,15 @@
                     <TextBlock Text="{Binding ForensicVerdict}" FontSize="10" Foreground="#888" VerticalAlignment="Center" IsVisible="{Binding !IsStalled}"/>
                     
                     <!-- Stalled Indicator -->
-                    <Border IsVisible="{Binding IsStalled}" Background="#3D2B1F" BorderBrush="#FFA500" BorderThickness="1" CornerRadius="4" Padding="6,2">
+                    <Border IsVisible="{Binding IsStalled}" 
+                            Background="#3D2B1F" BorderBrush="#FFA500" BorderThickness="1" 
+                            CornerRadius="4" Padding="6,2">
+                        <ToolTip.Tip>
+                            <TextBlock Text="{Binding StalledReason, StringFormat='Reason: {0}'}"/>
+                        </ToolTip.Tip>
                         <StackPanel Orientation="Horizontal" Spacing="4">
-                            <TextBlock Text="⏳" FontSize="10" VerticalAlignment="Center"/>
-                            <TextBlock Text="STALLED" FontSize="10" FontWeight="Bold" Foreground="#FFA500" VerticalAlignment="Center"/>
-                            <ToolTip.Tip>
-                                <TextBlock Text="{Binding StalledReason, StringFormat='Reason: {0}'}"/>
-                            </ToolTip.Tip>
+                            <PathIcon Data="{StaticResource warning_regular}" Width="12" Height="12" Classes="pulse_amber"/>
+                            <TextBlock Text="{Binding StatusText}" FontSize="10" Foreground="#FFA500" FontWeight="SemiBold" VerticalAlignment="Center"/>
                         </StackPanel>
                     </Border>
                 </StackPanel>
@@ -385,16 +419,22 @@
                 </StackPanel>
             </StackPanel>
 
-            <!-- Column 6: Action Hub (Fixed) -->
+            <!-- Column 6: Action Hub (Refined Phase 12) -->
             <StackPanel Grid.Column="6" Orientation="Horizontal" Spacing="2" VerticalAlignment="Center" Margin="0,0,8,0">
+                <!-- Group 1: Success/Playback -->
                 <Button Classes="ActionBtn" Command="{Binding PlayCommand}" IsVisible="{Binding IsCompleted}" ToolTip.Tip="Play"><PathIcon Data="{StaticResource play_circle_regular}" Width="18" Height="18" Foreground="#00BFFF"/></Button>
                 <Button Classes="ActionBtn" Command="{Binding RevealFileCommand}" IsVisible="{Binding IsCompleted}" ToolTip.Tip="Open Folder"><PathIcon Data="{StaticResource folder_open_regular}" Width="16" Height="16"/></Button>
                 <Button Classes="ActionBtn" Command="{Binding AddToProjectCommand}" IsVisible="{Binding IsCompleted}" ToolTip.Tip="Add to Project"><PathIcon Data="{StaticResource add_circle_regular}" Width="16" Height="16"/></Button>
-                <Button Classes="ActionBtn" Command="{Binding ForceStartCommand}" IsVisible="{Binding CanForceStart}" ToolTip.Tip="Force Start (VIP Lane)"><PathIcon Data="{StaticResource rocket_regular}" Width="16" Height="16" Foreground="#FFD700"/></Button>
+                
+                <!-- Group 2: Control/Priority (The "Damn Active" Tray) -->
+                <Button Classes="ActionBtn" Command="{Binding BumpToTopCommand}" IsVisible="{Binding CanBumpToTop}" ToolTip.Tip="Bump to Top (Priority 0)"><PathIcon Data="{StaticResource arrow_up_regular}" Width="14" Height="14" Foreground="#FFD700"/></Button>
+                <Button Classes="ActionBtn" Command="{Binding ForceStartCommand}" IsVisible="{Binding CanForceStart}" ToolTip.Tip="Force Start (VIP Rocket 🚀)"><PathIcon Data="{StaticResource rocket_regular}" Width="18" Height="18" Foreground="#FFD700"/></Button>
+                
+                <!-- Group 3: Real-time State Control -->
                 <Button Classes="ActionBtn" Command="{Binding ResumeCommand}" IsVisible="{Binding CanResume}" ToolTip.Tip="Resume"><PathIcon Data="{StaticResource play_regular}" Width="14" Height="14" Foreground="#4CAF50"/></Button>
                 <Button Classes="ActionBtn" Command="{Binding PauseCommand}" IsVisible="{Binding IsActive}" ToolTip.Tip="Pause"><PathIcon Data="{StaticResource pause_regular}" Width="14" Height="14"/></Button>
                 <Button Classes="ActionBtn" Command="{Binding CancelCommand}" IsVisible="{Binding IsActive}" ToolTip.Tip="Cancel"><PathIcon Data="{StaticResource dismiss_regular}" Width="14" Height="14" Foreground="#FF6666"/></Button>
-                <Button Classes="ActionBtn" Command="{Binding RetryCommand}" IsVisible="{Binding CanRetry}" ToolTip.Tip="Retry"><PathIcon Data="{StaticResource arrow_counterclockwise_regular}" Width="14" Height="14"/></Button>
+                <Button Classes="ActionBtn" Command="{Binding RetryCommand}" IsVisible="{Binding CanRetry}" ToolTip.Tip="Retry"><PathIcon Data="{StaticResource arrow_counterclockwise_regular}" Width="14" Height="14" Foreground="#4CAF50"/></Button>
             </StackPanel>
 
         </Grid>

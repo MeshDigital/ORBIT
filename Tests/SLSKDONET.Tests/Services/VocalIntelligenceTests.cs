@@ -54,7 +54,9 @@ namespace SLSKDONET.Tests.Services
         public TransitionAdvisorTests()
         {
             _vocalMock = new Mock<VocalIntelligenceService>();
-            _harmonicMock = new Mock<HarmonicMatchService>(new Mock<ILogger<HarmonicMatchService>>().Object, null);
+            
+            _harmonicMock = new Mock<HarmonicMatchService>();
+            
             _phraseMock = new Mock<IPhraseAlignmentService>();
             _advisor = new TransitionAdvisorService(
                 new Mock<ILogger<TransitionAdvisorService>>().Object,

@@ -729,19 +729,19 @@ public class PlaylistTrackViewModel : INotifyPropertyChanged, Library.ILibraryNo
     }
 
     // Commands
+    public ICommand RetryCommand { get; }
+    public ICommand HardRetryCommand { get; }
+    public ICommand ForceStartCommand { get; }
+    public ICommand BumpToTopCommand { get; }
     public ICommand PauseCommand { get; }
     public ICommand ResumeCommand { get; }
     public ICommand CancelCommand { get; }
-
     public ICommand FindNewVersionCommand { get; }
     public ICommand AnalyzeTrackCommand { get; }
     public ICommand SeparateStemsCommand { get; }
-    public ICommand ForceStartCommand { get; }
     public ICommand PlayCommand { get; }
     public ICommand RevealFileCommand { get; }
     public ICommand AddToProjectCommand { get; }
-    public ICommand RetryCommand { get; }
-    public ICommand HardRetryCommand { get; }
 
     private readonly IEventBus? _eventBus;
     private readonly ILibraryService? _libraryService;
@@ -790,6 +790,7 @@ public class PlaylistTrackViewModel : INotifyPropertyChanged, Library.ILibraryNo
         RetryCommand = new RelayCommand(FindNewVersion, () => CanHardRetry);
         HardRetryCommand = RetryCommand;
         ForceStartCommand = new RelayCommand(ForceStart, () => CanForceStart);
+        BumpToTopCommand = new RelayCommand(BumpToTop, () => CanBumpToTop);
         
         // REMOVED: 8000+ redundant event listeners eliminated.
         // Centralized dispatch moved to VirtualizedTrackCollection.
@@ -1441,4 +1442,14 @@ public class PlaylistTrackViewModel : INotifyPropertyChanged, Library.ILibraryNo
             _eventBus.Publish(new Models.ForceStartRequestEvent(GlobalId));
         }
     }
+
+    public void BumpToTop()
+    {
+        if (CanBumpToTop && _eventBus != null)
+        {
+            _eventBus.Publish(new Models.BumpToTopRequestEvent(GlobalId));
+        }
+    }
+
+    public bool CanBumpToTop => (State == PlaylistTrackState.Pending || State == PlaylistTrackState.Paused || State == PlaylistTrackState.Stalled) && !IsCompleted;
 }

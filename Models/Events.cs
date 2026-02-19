@@ -61,6 +61,7 @@ public record TrackStateChangedEvent(string TrackGlobalId, Guid ProjectId, Playl
 public record TrackProgressChangedEvent(string TrackGlobalId, double Progress, long BytesReceived, long TotalBytes);
 public record TrackMetadataUpdatedEvent(string TrackGlobalId);
 public record ForceStartRequestEvent(string TrackGlobalId);
+public record BumpToTopRequestEvent(string TrackGlobalId); // [NEW] Overhaul Phase
 
 // Audio Analysis Pipeline (Phase 3 Integration + Phase 1 Progress)
 public record TrackAnalysisCompletedEvent(string TrackGlobalId, bool Success, string? ErrorMessage = null) { public Guid? DatabaseId { get; init; } }
