@@ -50,13 +50,6 @@ public class DownloadManager : INotifyPropertyChanged, IDisposable
     private readonly MetadataEnrichmentOrchestrator _enrichmentOrchestrator;
     private readonly PathProviderService _pathProvider;
     private readonly IFileWriteService _fileWriteService; // Phase 1A
-    // The following two lines are duplicates from above, keeping the first set.
-    // private readonly ILogger<DownloadManager> _logger;
-    // private readonly SoulseekAdapter _soulseek;
-    // private readonly ILibraryService _libraryService;
-    // private readonly IEventBus _eventBus;
-    // private readonly AppConfig _config;
-    // private readonly ConfigManager _configManager;
     private readonly CrashRecoveryJournal _crashJournal;
     private readonly IEnrichmentTaskRepository _enrichmentTaskRepository; // [NEW]
     private readonly IAudioAnalysisService _audioAnalysisService; // Phase 3: Local Audio Analysis
@@ -438,7 +431,8 @@ public class DownloadManager : INotifyPropertyChanged, IDisposable
                         Status = TrackStatus.Missing,
                         ResolvedFilePath = string.Empty,
                         TrackNumber = idx++,
-                        Priority = 0,
+                        AddedAt = DateTime.UtcNow,
+                        Priority = 5, // Default priority changed from 0 (High) to 5 (Standard)
                         // Map Metadata if available from import
                         SpotifyTrackId = track.SpotifyTrackId,
                         SpotifyAlbumId = track.SpotifyAlbumId,
@@ -533,9 +527,9 @@ public class DownloadManager : INotifyPropertyChanged, IDisposable
                         existingCtx.State == PlaylistTrackState.Deferred ||
                         existingCtx.State == PlaylistTrackState.Pending)
                     {
-                        _logger.LogInformation("Retrying existing track {Title} (State: {State}) - Bumping to Priority 0", track.Title, existingCtx.State);
+                        _logger.LogInformation("Retrying existing track {Title} (State: {State}) - Bumping to Priority 5", track.Title, existingCtx.State);
                         
-                        existingCtx.Model.Priority = 0;
+                        existingCtx.Model.Priority = 5;
                         _ = UpdateStateAsync(existingCtx, PlaylistTrackState.Pending);
                         
                         existingCtx.RetryCount = 0;
@@ -1398,13 +1392,12 @@ public class DownloadManager : INotifyPropertyChanged, IDisposable
                     continue;
                 }
 
-                // CRITICAL: VIP Bypass logic
-                // If the track is marked as VIP (Force Start), we skip the semaphore wait.
-                // This allows the user to jump the queue if they are in a hurry.
+                bool tookSemaphoreSlot = false;
                 if (!nextContext.IsVip)
                 {
                     // Regular track: Wait for one of the semaphore slots to open up
                     await _downloadSemaphore.WaitAsync(token);
+                    tookSemaphoreSlot = true;
                 }
                 else
                 {
@@ -1434,7 +1427,7 @@ public class DownloadManager : INotifyPropertyChanged, IDisposable
                 {
                     // False alarm or lane filled up while waiting
                     _logger.LogDebug("Race Condition: Slot acquired but no eligible track found after wait. Releasing.");
-                    _downloadSemaphore.Release();
+                    if (tookSemaphoreSlot) _downloadSemaphore.Release();
                     await Task.Delay(100, token); // Backoff
                     continue;
                 }
@@ -1447,6 +1440,7 @@ public class DownloadManager : INotifyPropertyChanged, IDisposable
                 await UpdateStateAsync(nextContext, PlaylistTrackState.Searching);
 
                 // Fire-and-forget pattern with guaranteed semaphore release
+                bool finalTookSlot = tookSemaphoreSlot; // Capture for lambda
                 _ = Task.Run(async () =>
                 {
                     try
@@ -1456,7 +1450,7 @@ public class DownloadManager : INotifyPropertyChanged, IDisposable
                     finally
                     {
                         // ALWAYS release the semaphore, but ONLY if we actually took a slot (not VIP)
-                        if (!nextContext.IsVip)
+                        if (finalTookSlot)
                         {
                             _downloadSemaphore.Release();
                             _logger.LogDebug("Released semaphore slot. Available slots: {Available}/4", 
