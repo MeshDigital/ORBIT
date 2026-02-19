@@ -290,6 +290,13 @@ public class TrackRepository : ITrackRepository
                 // Stage 2 (Features) is removed, so identification success is enough to mark as Enriched
                 existing.IsEnriched = result.Success || (existing.SpotifyTrackId == "FAILED");
                 
+                // Sync with master Track record
+                var tr = await context.Tracks.FindAsync(uniqueHash);
+                if (tr != null)
+                {
+                    ApplyMetadata(tr, result);
+                }
+
                 existing.LastUsedAt = DateTime.UtcNow;
                 await context.SaveChangesAsync();
             }
@@ -373,6 +380,13 @@ public class TrackRepository : ITrackRepository
                 // We DON'T set IsEnriched=true here unless we truly have features or reached MaxAttempts.
                 track.IsEnriched = (result.Success && result.Bpm > 0) || (track.SpotifyTrackId == "FAILED");
                 
+                // Sync with master Track record
+                var tr = await context.Tracks.FindAsync(track.TrackUniqueHash);
+                if (tr != null)
+                {
+                    ApplyMetadata(tr, result);
+                }
+
                 await context.SaveChangesAsync();
             }
         }
@@ -908,6 +922,13 @@ public class TrackRepository : ITrackRepository
             ApplyMetadata(entry, result);
         }
 
+        // 1.5 Update master Track record
+        var masterTrack = await context.Tracks.FindAsync(trackHash);
+        if (masterTrack != null)
+        {
+            ApplyMetadata(masterTrack, result);
+        }
+
         // 2. Update all PlaylistTracks
         var tracks = await context.PlaylistTracks
             .Where(t => t.TrackUniqueHash == trackHash)
@@ -970,6 +991,24 @@ public class TrackRepository : ITrackRepository
             if (!string.IsNullOrEmpty(result.DetectedSubGenre)) pt.DetectedSubGenre = result.DetectedSubGenre;
             if (result.SubGenreConfidence > 0) pt.SubGenreConfidence = result.SubGenreConfidence;
             pt.IsEnriched = true;
+        }
+        else if (entity is TrackEntity tr)
+        {
+            if (!string.IsNullOrEmpty(result.SpotifyId)) tr.SpotifyTrackId = result.SpotifyId;
+            if (!string.IsNullOrEmpty(result.SpotifyAlbumId)) tr.SpotifyAlbumId = result.SpotifyAlbumId;
+            if (!string.IsNullOrEmpty(result.SpotifyArtistId)) tr.SpotifyArtistId = result.SpotifyArtistId;
+            if (!string.IsNullOrEmpty(result.ISRC)) tr.ISRC = result.ISRC;
+            if (!string.IsNullOrEmpty(result.MusicBrainzId)) tr.MusicBrainzId = result.MusicBrainzId;
+            if (!string.IsNullOrEmpty(result.AlbumArtUrl)) tr.AlbumArtUrl = result.AlbumArtUrl;
+            if (result.Bpm > 0) tr.BPM = result.Bpm;
+            if (result.Energy > 0) tr.Energy = result.Energy;
+            if (result.Danceability > 0) tr.Danceability = result.Danceability;
+            if (result.Valence > 0) tr.Valence = result.Valence;
+            if (!string.IsNullOrEmpty(result.MusicalKey)) tr.MusicalKey = result.MusicalKey;
+            if (result.Genres?.Any() == true) tr.Genres = string.Join(", ", result.Genres);
+            if (!string.IsNullOrEmpty(result.DetectedSubGenre)) tr.DetectedSubGenre = result.DetectedSubGenre;
+            if (result.SubGenreConfidence > 0) tr.SubGenreConfidence = result.SubGenreConfidence;
+            tr.IsEnriched = true;
         }
     }
 }

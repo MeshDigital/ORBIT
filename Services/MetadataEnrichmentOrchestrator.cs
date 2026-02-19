@@ -57,6 +57,9 @@ public class MetadataEnrichmentOrchestrator : IDisposable
         _sonicIntegrityService = sonicIntegrityService;
         _eventBus = eventBus;
         _config = config;
+
+        // Subscribe to metadata updates (Phase 0.1: Antigravity)
+        _eventBus.GetEvent<TrackMetadataUpdatedEvent>().Subscribe(OnTrackMetadataUpdated);
     }
 
     public void Start()
@@ -195,6 +198,7 @@ public class MetadataEnrichmentOrchestrator : IDisposable
                 var updatedTrack = await _databaseService.FindTrackAsync(task.TrackId);
                 if (updatedTrack != null)
                 {
+                    updatedTrack.IsEnriched = true; // Ensure it's marked
                     await ApplyAutoTaggingAsync(updatedTrack);
                     await _databaseService.SaveTrackAsync(updatedTrack);
                     _eventBus.Publish(new TrackMetadataUpdatedEvent(updatedTrack.GlobalId));
@@ -205,6 +209,7 @@ public class MetadataEnrichmentOrchestrator : IDisposable
             {
                 _logger.LogDebug("No metadata match found for {Artist} - {Title}", trackEntity.Artist, trackEntity.Title);
                 
+                trackEntity.IsEnriched = true; // Mark as done even if match fails to prevent loop
                 // Even if not enriched via Spotify, try auto-tagging if analysis results exist
                 await ApplyAutoTaggingAsync(trackEntity);
                 await _databaseService.SaveTrackAsync(trackEntity);
@@ -270,6 +275,35 @@ public class MetadataEnrichmentOrchestrator : IDisposable
         catch (Exception ex)
         {
             _logger.LogWarning(ex, "Auto-tagging failed for {Hash}", track.GlobalId);
+        }
+    }
+
+    private void OnTrackMetadataUpdated(TrackMetadataUpdatedEvent e)
+    {
+        // Guard: Don't re-queue if it's already enriched and has Spotify ID
+        // We use FindTrackAsync synchronously if possible, or just queue it and let 
+        // the idempotency check in QueueTaskAsync handle it.
+        // However, to be extra safe against event floods:
+        _ = HandleMetadataUpdateAsync(e.TrackGlobalId);
+    }
+
+    private async Task HandleMetadataUpdateAsync(string trackId)
+    {
+        try
+        {
+            var track = await _databaseService.FindTrackAsync(trackId);
+            if (track == null) return;
+
+            // Only queue if NOT enriched
+            if (!track.IsEnriched || string.IsNullOrEmpty(track.SpotifyTrackId))
+            {
+                _logger.LogDebug("Triggering auto-enrichment for {TrackId} due to metadata update", trackId);
+                await QueueForEnrichmentAsync(trackId);
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to handle metadata update for {TrackId}", trackId);
         }
     }
 
