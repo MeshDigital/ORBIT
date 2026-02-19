@@ -23,6 +23,13 @@ public class HarmonicMatchService
     private readonly ILibraryService _libraryService;
     private readonly DatabaseService _databaseService;
 
+    public HarmonicMatchService(ILogger<HarmonicMatchService> logger, ILibraryService libraryService, DatabaseService databaseService)
+    {
+        _logger = logger;
+        _libraryService = libraryService;
+        _databaseService = databaseService;
+    }
+
     // CAMELOT WHEEL MUSIC THEORY:
     // WHY: Professional DJs use harmonic mixing to create seamless transitions
     // 
@@ -77,14 +84,9 @@ public class HarmonicMatchService
         { "4A", new HashSet<string> { "4A", "4B", "3A", "5A" } }, // Ab Minor
     };
 
-    protected HarmonicMatchService() { }
 
-    public HarmonicMatchService(ILogger<HarmonicMatchService> logger, ILibraryService libraryService, DatabaseService databaseService)
-    {
-        _logger = logger;
-        _libraryService = libraryService;
-        _databaseService = databaseService;
-    }
+
+
 
     /// <summary>
     /// Finds tracks that mix well with the seed track based on harmonic key and BPM.

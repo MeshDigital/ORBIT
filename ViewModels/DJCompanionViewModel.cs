@@ -41,7 +41,7 @@ namespace SLSKDONET.ViewModels
         private readonly Services.Export.IHardwareExportService _hardwareExportService;
         private readonly ILogger<DJCompanionViewModel> _logger;
         private readonly Func<MixPreviewViewModel> _mixPreviewFactory;
-        private readonly ISetIntelligenceService _setIntelligenceService;
+        private readonly ISetIntelligenceService? _setIntelligenceService;
 
 
         // Observable Collections for UI Binding

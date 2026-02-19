@@ -1,4 +1,4 @@
-using System;
+   using System;
 using System.Reactive;
 using System.Threading.Tasks;
 using System.Windows.Input;
@@ -9,6 +9,7 @@ using SLSKDONET.Data.Entities;
 using SLSKDONET.Data;
 using SLSKDONET.Models;
 using Avalonia.Threading;
+using Microsoft.Extensions.Logging; // Added for ILogger
 
 namespace SLSKDONET.ViewModels
 {
@@ -16,11 +17,13 @@ namespace SLSKDONET.ViewModels
     {
         private readonly TransitionPreviewService _previewService;
         private readonly WaveformAnalysisService _waveformService;
+        private readonly ILogger<MixPreviewViewModel> _logger; // Added
+        private readonly AudioPlayerService _audioPlayer; // Added
         
         private LibraryEntryEntity? _trackA;
         private LibraryEntryEntity? _trackB;
-        private WaveformAnalysisData _waveformDataA;
-        private WaveformAnalysisData _waveformDataB;
+        private WaveformAnalysisData _waveformDataA = new WaveformAnalysisData(); // Initialized to fix CS8618
+        private WaveformAnalysisData _waveformDataB = new WaveformAnalysisData(); // Initialized to fix CS8618
         private double _progressA;
         private double _progressB;
         private float _phaseConfidence;
@@ -31,10 +34,14 @@ namespace SLSKDONET.ViewModels
 
         public MixPreviewViewModel(
             TransitionPreviewService previewService, 
-            WaveformAnalysisService waveformService)
+            WaveformAnalysisService waveformService,
+            ILogger<MixPreviewViewModel> logger,
+            AudioPlayerService audioPlayer)
         {
             _previewService = previewService;
             _waveformService = waveformService;
+            _logger = logger;
+            _audioPlayer = audioPlayer;
 
             PlayCommand = ReactiveCommand.Create(Play);
             PauseCommand = ReactiveCommand.Create(Pause);

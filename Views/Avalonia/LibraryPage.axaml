@@ -6,6 +6,7 @@
              xmlns:vm="clr-namespace:SLSKDONET.ViewModels"
              xmlns:controls="clr-namespace:SLSKDONET.Views.Avalonia.Controls"
              xmlns:views="clr-namespace:SLSKDONET.Views.Avalonia"
+             xmlns:sidebar="clr-namespace:SLSKDONET.Views.Avalonia.Sidebar"
              xmlns:conv="clr-namespace:SLSKDONET.Views.Avalonia.Converters"
              xmlns:dg="clr-namespace:Avalonia.Controls;assembly=Avalonia.Controls.DataGrid"
              xmlns:rootConv="clr-namespace:SLSKDONET.Converters"
@@ -17,6 +18,7 @@
              x:Class="SLSKDONET.Views.Avalonia.LibraryPage"
              x:DataType="vm:LibraryViewModel"
              Background="#1E1E1E" Foreground="White">
+
 
     <UserControl.Resources>
         <conv:BitmapValueConverter x:Key="BitmapValueConverter"/>
@@ -523,15 +525,24 @@
                 </Grid>
 
                 <!-- RIGHT PANEL SPLITTER -->
-                <GridSplitter Grid.Column="3" Width="1" Background="#3E3E3E" 
+                <GridSplitter Grid.Column="3" Width="1" Background="#3E3E3E"
                               IsVisible="{Binding IsRightPanelVisible}"/>
 
-                <!-- RIGHT PANEL: Mix Helper -->
-                <Border Grid.Column="4" Background="#202020" 
-                        Width="320"
-                        IsVisible="{Binding IsMixHelperVisible}">
-                    <views:MixHelperView/>
-                </Border>
+                <!-- RIGHT PANEL: Mix Helper + Contextual Sidebar -->
+                <StackPanel Grid.Column="4" Orientation="Horizontal">
+
+                    <!-- Mix Helper (legacy: discovery lane seed track panel) -->
+                    <Border Background="#202020"
+                            Width="320"
+                            IsVisible="{Binding IsMixHelperVisible}">
+                        <views:MixHelperView/>
+                    </Border>
+
+                    <!-- Contextual Sidebar (new: selection-reactive inspector) -->
+                    <sidebar:ContextualSidebarView DataContext="{Binding Sidebar}"
+                                                   IsVisible="{Binding Sidebar.IsSidebarOpen}"/>
+
+                </StackPanel>
             </Grid>
         </Grid>
 

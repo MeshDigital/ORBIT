@@ -91,6 +91,7 @@ public class DiscoveryHubViewModel : ReactiveObject, IDisposable
     public ICommand SearchAllWorkbenchCommand { get; }
     public ICommand ClearWorkbenchCommand { get; }
     public ICommand DownloadTrackCommand { get; }
+    public ICommand SearchSavedTrackCommand { get; }
 
     public DiscoveryHubViewModel(
         ILogger<DiscoveryHubViewModel> logger,
@@ -118,6 +119,7 @@ public class DiscoveryHubViewModel : ReactiveObject, IDisposable
         SearchAllWorkbenchCommand = ReactiveCommand.CreateFromTask(SearchAllWorkbenchItemsAsync);
         ClearWorkbenchCommand = ReactiveCommand.Create(ClearWorkbench);
         DownloadTrackCommand = ReactiveCommand.CreateFromTask<DiscoverySearchResultDto>(DownloadTrackAsync);
+        SearchSavedTrackCommand = ReactiveCommand.CreateFromTask<SpotifySavedTrackDto>(SearchSavedTrack);
 
         // Auto-refresh on load
         Task.Run(RefreshSpotifyLibraryAsync);
@@ -445,6 +447,19 @@ public class DiscoveryHubViewModel : ReactiveObject, IDisposable
         else score += 5;
         
         return Math.Min(100, score);
+    }
+
+    private async Task SearchSavedTrack(SpotifySavedTrackDto track)
+    {
+        if (track == null) return;
+        SearchQuery = $"{track.Artist} - {track.Name}";
+        CurrentViewMode = DiscoveryViewMode.Search;
+        // Trigger search by ensuring input mode detection runs and then executing if valid
+        if (!string.IsNullOrWhiteSpace(SearchQuery))
+        {
+            // Trigger the command execution manually as setting property might not suffice if we want immediate action
+             await ExecuteCascadeSearchAsync();
+        }
     }
 
     private async Task DownloadTrackAsync(DiscoverySearchResultDto? dto)

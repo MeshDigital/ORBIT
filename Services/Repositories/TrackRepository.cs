@@ -941,6 +941,7 @@ public class TrackRepository : ITrackRepository
 
         // 3. Update AudioFeatures if they exist
         var features = await context.AudioFeatures.FirstOrDefaultAsync(af => af.TrackUniqueHash == trackHash);
+        if (features != null)
         {
             if (!string.IsNullOrEmpty(result.MusicBrainzId)) features.MusicBrainzId = result.MusicBrainzId;
             if (result.Bpm > 0) features.Bpm = (float)result.Bpm.Value;
@@ -989,7 +990,6 @@ public class TrackRepository : ITrackRepository
             if (!string.IsNullOrEmpty(result.MusicalKey)) pt.MusicalKey = result.MusicalKey;
             if (result.Genres?.Any() == true) pt.Genres = string.Join(", ", result.Genres);
             if (!string.IsNullOrEmpty(result.DetectedSubGenre)) pt.DetectedSubGenre = result.DetectedSubGenre;
-            if (result.SubGenreConfidence > 0) pt.SubGenreConfidence = result.SubGenreConfidence;
             pt.IsEnriched = true;
         }
         else if (entity is TrackEntity tr)
@@ -1007,7 +1007,6 @@ public class TrackRepository : ITrackRepository
             if (!string.IsNullOrEmpty(result.MusicalKey)) tr.MusicalKey = result.MusicalKey;
             if (result.Genres?.Any() == true) tr.Genres = string.Join(", ", result.Genres);
             if (!string.IsNullOrEmpty(result.DetectedSubGenre)) tr.DetectedSubGenre = result.DetectedSubGenre;
-            if (result.SubGenreConfidence > 0) tr.SubGenreConfidence = result.SubGenreConfidence;
             tr.IsEnriched = true;
         }
     }

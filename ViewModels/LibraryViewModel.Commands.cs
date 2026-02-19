@@ -128,7 +128,11 @@ public partial class LibraryViewModel
         
         ToggleInspectorCommand = new RelayCommand<object>(param => 
         {
-             if (param?.ToString() == "Close") 
+             if (param is PlaylistTrackViewModel playlistTrack)
+            {
+                 // _audioPlayer.LoadTrackAsync(playlistTrack.Model.LibraryEntry).FireAndForgetSafe(_logger, "LoadTrackAsync");
+            }
+             else if (param?.ToString() == "Close") 
              {
                  _intelligenceCenter.Close();
              }

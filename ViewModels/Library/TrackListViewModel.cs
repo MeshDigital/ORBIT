@@ -470,7 +470,7 @@ public class TrackListViewModel : ReactiveObject, IDisposable
 
         BulkDownloadCommand = ReactiveCommand.CreateFromTask(ExecuteBulkDownloadAsync);
         CopyToFolderCommand = ReactiveCommand.CreateFromTask(ExecuteCopyToFolderAsync);
-        BulkRetryCommand = ReactiveCommand.CreateFromTask(ExecuteBulkRetryAsync);
+        SeparateStemsCommand = ReactiveCommand.CreateFromTask<PlaylistTrack>(SeparateStemsAsync);
         BulkCancelCommand = ReactiveCommand.CreateFromTask(ExecuteBulkCancelAsync);
         BulkReEnrichCommand = ReactiveCommand.CreateFromTask(ExecuteBulkReEnrichAsync);
         
@@ -719,6 +719,41 @@ public class TrackListViewModel : ReactiveObject, IDisposable
                  track.SeparateStemsCommand.Execute(null);
              }
          }
+    }
+
+    private async Task SeparateStemsAsync(PlaylistTrack? singleTrack)
+    {
+        // If single track provided (context menu on item), use it.
+        // If null (toolbar button), use selection.
+        var tracksToProcess = new System.Collections.Generic.List<PlaylistTrackViewModel>();
+        
+        if (singleTrack != null)
+        {
+            // Find the VM for this track
+            var vm = FilteredTracks.FirstOrDefault(t => t.Model == singleTrack);
+            if (vm != null) tracksToProcess.Add(vm);
+        }
+        else if (SelectedTracks != null && SelectedTracks.Any())
+        {
+            tracksToProcess.AddRange(SelectedTracks);
+        }
+
+        if (!tracksToProcess.Any()) return;
+
+        // Use Bulk Coordinator if available? 
+        // Current SeparateStemsCommand implementation in PlaylistTrackViewModel calls SeparateStems() -> void
+        // which triggers a background task/event.
+        // So we can just call Execute on them.
+        
+        foreach (var track in tracksToProcess)
+        {
+            if (track.SeparateStemsCommand.CanExecute(null))
+            {
+                track.SeparateStemsCommand.Execute(null);
+            }
+        }
+        
+        await Task.CompletedTask;
     }
 
     public void RefreshFilteredTracks()

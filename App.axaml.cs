@@ -762,6 +762,12 @@ public partial class App : Application
         services.AddTransient<ViewModels.Library.TrackOperationsViewModel>();
         services.AddTransient<ViewModels.Library.SmartPlaylistViewModel>();
         
+        // Contextual Sidebar ViewModels (reactive right-side panel)
+        services.AddSingleton<ViewModels.Sidebar.MetadataInspectorViewModel>();
+        services.AddSingleton<ViewModels.Sidebar.BulkActionSidebarViewModel>();
+        services.AddSingleton<ViewModels.Sidebar.SimilaritySidebarViewModel>();
+        services.AddSingleton<ViewModels.Sidebar.ContextualSidebarViewModel>();
+
         services.AddSingleton<LibraryViewModel>();
         services.AddSingleton<ImportPreviewViewModel>();
         services.AddSingleton<ImportHistoryViewModel>();

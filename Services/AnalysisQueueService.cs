@@ -1004,17 +1004,24 @@ public class AnalysisWorker : BackgroundService
             
             while (retryCount < maxRetries)
             {
+                using var dbContext = new AppDbContext();
                 try
                 {
-                    using var dbContext = new AppDbContext();
                     // Phase 5C Hardening: Explicit transaction for atomic batch updates
                     using var transaction = await dbContext.Database.BeginTransactionAsync(token);
+
                     
                     try
                     {
                         foreach (var result in batchToSave)
                         {
                             var trackHash = result.TrackHash;
+
+                            if (string.IsNullOrEmpty(trackHash))
+                            {
+                                 _logger.LogWarning("⚠️ Skipping analysis result with missing TrackHash (Correlation: {CorrelationId})", result.CorrelationId);
+                                 continue;
+                            }
 
                             if (result.MusicalResult != null)
                             {
@@ -1040,10 +1047,21 @@ public class AnalysisWorker : BackgroundService
                             foreach (var track in playlistTracks)
                             {
                                 ApplyResultsToTrack(track, result);
-                                if (track.TechnicalDetails != null && dbContext.Entry(track.TechnicalDetails).State == EntityState.Detached)
+                                
+                                // Sanity Check: Ensure track integrity before saving
+                                if (string.IsNullOrEmpty(track.TrackUniqueHash))
                                 {
-                                    dbContext.TechnicalDetails.Add(track.TechnicalDetails);
+                                    _logger.LogError("⚠️ CORRUPTION DETECTED: PlaylistTrack {Id} has empty hash after enrichment! Aborting update for this track.", track.Id);
+                                    continue; // Skip saving this particular tracker update to avoid crashing the batch
                                 }
+
+                                // EF Core Tracking:
+                                // track is already tracked (Unchanged/Modified).
+                                // track.TechnicalDetails (if created) is assigned to navigation property.
+                                // EF Core should detect the new child entity automatically upon SaveChanges.
+                                // Explicitly adding it caused confusing graph issues (implicit parent inserts).
+                                // if (track.TechnicalDetails != null && dbContext.Entry(track.TechnicalDetails).State == EntityState.Detached)
+                                //    dbContext.TechnicalDetails.Add(track.TechnicalDetails);
                             }
                             
                             var libraryEntry = await dbContext.LibraryEntries.FirstOrDefaultAsync(e => e.UniqueHash == trackHash, token);
@@ -1096,6 +1114,34 @@ public class AnalysisWorker : BackgroundService
                     
                     // Exponential Backoff
                     await Task.Delay(1000 * retryCount, token); 
+                }
+                catch (Microsoft.EntityFrameworkCore.DbUpdateException dbEx)
+                {
+                     _logger.LogError(dbEx, "❌ Database Update Failed! Inspecting ChangeTracker...");
+                     
+                     foreach (var entry in dbContext.ChangeTracker.Entries())
+                     {
+                         if (entry.State == EntityState.Added || entry.State == EntityState.Modified)
+                         {
+                             var entityType = entry.Entity.GetType().Name;
+                             var props = entry.Properties.Where(p => p.Metadata.Name == "TrackUniqueHash" || p.Metadata.Name == "Id"). ToDictionary(p => p.Metadata.Name, p => p.CurrentValue);
+                             
+                             // Check for specific constraint violation culprit
+                             if (entry.Entity is PlaylistTrackEntity pt && string.IsNullOrEmpty(pt.TrackUniqueHash))
+                             {
+                                 _logger.LogError("🔥 CULPRIT FOUND: PlaylistTrack {Id} ({State}) has NULL/Empty TrackUniqueHash!", pt.Id, entry.State);
+                             }
+
+                             if (entry.State == EntityState.Added)
+                                _logger.LogWarning("Attempting to ADD {Type}: {Props}", entityType, System.Text.Json.JsonSerializer.Serialize(props));
+                         }
+                     }
+                     
+                     foreach (var result in batchToSave)
+                     {
+                         _eventBus.Publish(new TrackAnalysisFailedEvent(result.TrackHash, $"Batch Save Failed: {dbEx.Message}"));
+                     }
+                     return;
                 }
                 catch (Exception ex)
                 {

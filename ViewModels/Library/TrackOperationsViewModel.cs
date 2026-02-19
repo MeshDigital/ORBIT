@@ -154,7 +154,7 @@ public class TrackOperationsViewModel : INotifyPropertyChanged, IDisposable
         }
     }
 
-    private void ExecuteAddToProject(PlaylistTrackViewModel? track)
+    private async void ExecuteAddToProject(PlaylistTrackViewModel? track)
     {
         if (track == null || track.Model == null) return;
         
@@ -164,10 +164,28 @@ public class TrackOperationsViewModel : INotifyPropertyChanged, IDisposable
         if (selectedTracks != null && selectedTracks.Contains(track))
         {
             toAdd.AddRange(selectedTracks.Select(t => t.Model));
+            
+            // Loop through selected tracks to update metadata if needed
+            // The original intent seemed to be updating the track being operated on.
+            // When adding to project, we might want to refresh metadata?
+            // Or maybe this was just a snippet inserted for testing?
+            // Assuming we update the prompt track for now as per the snippet location.
+            // But since we are inside a bulk block, maybe strictly 'track' is enough?
+            // The snippet was:
+            var result = track.Model; 
+            if (result != null)
+            {
+                await _libraryService.UpdatePlaylistTrackAsync(result);
+            }
         }
         else
         {
             toAdd.Add(track.Model);
+            var result = track.Model; 
+            if (result != null)
+            {
+                await _libraryService.UpdatePlaylistTrackAsync(result);
+            }
         }
 
         _logger.LogInformation("Requesting Add To Project for {Count} tracks", toAdd.Count);

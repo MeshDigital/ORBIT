@@ -105,6 +105,7 @@ public class TrackEntity
     // Phase 12.7: Style Classification
     public string? MoodTag { get; set; }
     public string? DetectedSubGenre { get; set; } // Phase 12.7
+    public float? SubGenreConfidence { get; set; } // Phase 12.7
     public string? PrimaryGenre { get; set; } // Phase 10
     public double? InstrumentalProbability { get; set; } // Phase 18.2
 

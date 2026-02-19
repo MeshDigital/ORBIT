@@ -14,6 +14,7 @@ using System.Reactive.Disposables;
 using System.Reactive.Linq;
 using Avalonia.Threading;
 using SLSKDONET.Events;
+using SLSKDONET.ViewModels.Sidebar;
 
 namespace SLSKDONET.ViewModels;
 
@@ -52,7 +53,6 @@ public partial class LibraryViewModel : INotifyPropertyChanged, IDisposable
     // Infrastructure for Sidebars/Delayed operations
     private System.Threading.Timer? _selectionDebounceTimer;
 
-    // Child ViewModels
     public Library.ProjectListViewModel Projects { get; }
     public Library.TrackListViewModel Tracks { get; }
     public Library.TrackOperationsViewModel Operations { get; }
@@ -62,6 +62,7 @@ public partial class LibraryViewModel : INotifyPropertyChanged, IDisposable
     public System.Collections.ObjectModel.ObservableCollection<ColumnDefinition> AvailableColumns { get; } = new();
     public LibrarySourcesViewModel LibrarySourcesViewModel { get; }
     public ForensicLabViewModel ForensicLab => _forensicLab;
+    public ContextualSidebarViewModel Sidebar { get; }
 
     private Views.MainViewModel? _mainViewModel;
     public Views.MainViewModel? MainViewModel
@@ -202,7 +203,8 @@ public partial class LibraryViewModel : INotifyPropertyChanged, IDisposable
         ForensicLabViewModel forensicLab,
         IntelligenceCenterViewModel intelligenceCenter,
         DownloadManager downloadManager,
-        Services.Library.ColumnConfigurationService columnConfigService)
+        Services.Library.ColumnConfigurationService columnConfigService,
+        ContextualSidebarViewModel sidebar)
     {
         _logger = logger;
         _navigationService = navigationService;
@@ -228,6 +230,7 @@ public partial class LibraryViewModel : INotifyPropertyChanged, IDisposable
         _downloadManager = downloadManager;
         _columnConfigService = columnConfigService;
         LibrarySourcesViewModel = librarySourcesViewModel;
+        Sidebar = sidebar;
 
         Projects = projects;
         Tracks = tracks;

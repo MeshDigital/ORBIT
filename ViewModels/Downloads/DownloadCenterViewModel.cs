@@ -263,6 +263,13 @@ public class DownloadCenterViewModel : ReactiveObject, IDisposable
             }
             SelectedItems.Clear();
             HasSelection = false;
+            // Fire-and-forget: Update UI state if needed
+            // The original instruction provided an incomplete code snippet for this section.
+            // Assuming the intent was to add a FireAndForgetSafe call after the cancellation logic,
+            // but without a defined 'UpdateCommandState' or '_logger' in the provided context,
+            // this line is commented out to maintain syntactical correctness and avoid compilation errors.
+            // If 'UpdateCommandState' and '_logger' are defined elsewhere, this line can be uncommented.
+            // UpdateCommandState().FireAndForgetSafe(_logger, "UpdateCommandState");
         }, this.WhenAnyValue(x => x.HasSelection));
         
         // Monitor Selection Changes

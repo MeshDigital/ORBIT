@@ -49,25 +49,43 @@ public partial class LibraryViewModel
 
     private async void OnTrackSelectionChanged(object? sender, System.Collections.Specialized.NotifyCollectionChangedEventArgs e)
     {
-        // We only care about the most recently selected item for the Inspector/Sidebars
-        var lastSelected = Tracks.SelectedTracks.LastOrDefault();
-        
+        var selectedTracks = Tracks.SelectedTracks.ToList();
+
+        // ── Inspector (legacy, always updated) ──────────────────────────────
+        var lastSelected = selectedTracks.LastOrDefault();
         if (lastSelected is PlaylistTrackViewModel trackVm)
         {
-             // Update Inspector
-             TrackInspector.Track = trackVm.Model;
-             
-             // Phase 4+: Discovery Lane Update
-             // Only auto-trigger if Discovery Lane is visible OR if it's the Analysts/Preparer workspace
-             if (IsDiscoveryLaneVisible || CurrentWorkspace == ActiveWorkspace.Preparer)
-             {
-                 // Start debounced match load
-                 _selectionDebounceTimer?.Dispose();
-                 _selectionDebounceTimer = new System.Threading.Timer(async _ => 
-                 {
-                     await LoadHarmonicMatchesAsync(trackVm, System.Threading.CancellationToken.None);
-                 }, null, 150, System.Threading.Timeout.Infinite);
-             }
+            TrackInspector.Track = trackVm.Model;
+        }
+
+        // ── Contextual Sidebar (debounced) ──────────────────────────────────
+        // Cancel any pending sidebar update
+        _selectionDebounceTimer?.Dispose();
+
+        if (selectedTracks.Count == 0)
+        {
+            // Immediately hide sidebar when nothing is selected
+            Avalonia.Threading.Dispatcher.UIThread.Post(() => Sidebar.UpdateContext(Array.Empty<PlaylistTrackViewModel>()));
+        }
+        else
+        {
+            // Debounce for 150ms to avoid rapid updates while the user is click-selecting
+            var snapshot = selectedTracks.ToList();
+            _selectionDebounceTimer = new System.Threading.Timer(_ =>
+            {
+                Avalonia.Threading.Dispatcher.UIThread.Post(() => Sidebar.UpdateContext(snapshot));
+            }, null, 150, System.Threading.Timeout.Infinite);
+        }
+
+        // ── Discovery Lane (harmonic matches, legacy path) ──────────────────
+        if (lastSelected is PlaylistTrackViewModel seedTrack &&
+            (IsDiscoveryLaneVisible || CurrentWorkspace == ActiveWorkspace.Preparer))
+        {
+            _selectionDebounceTimer?.Dispose();
+            _selectionDebounceTimer = new System.Threading.Timer(async _ =>
+            {
+                await LoadHarmonicMatchesAsync(seedTrack, System.Threading.CancellationToken.None);
+            }, null, 150, System.Threading.Timeout.Infinite);
         }
     }
 
