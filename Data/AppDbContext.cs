@@ -43,29 +43,32 @@ public class AppDbContext : DbContext
 
     protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
     {
-        var appData = System.Environment.GetFolderPath(System.Environment.SpecialFolder.ApplicationData);
-        var dbPath = Path.Combine(appData, "ORBIT", "library.db");
-        Directory.CreateDirectory(Path.GetDirectoryName(dbPath)!);
+        if (!optionsBuilder.IsConfigured)
+        {
+            var appData = System.Environment.GetFolderPath(System.Environment.SpecialFolder.ApplicationData);
+            var dbPath = Path.Combine(appData, "ORBIT", "library.db");
+            Directory.CreateDirectory(Path.GetDirectoryName(dbPath)!);
 
-        // Phase 1B/0: Enable WAL Mode and Busy Timeout for better concurrency
-        var connectionString = new SqliteConnectionStringBuilder
-        {
-            DataSource = dbPath,
-            Mode = SqliteOpenMode.ReadWriteCreate,
-            Cache = SqliteCacheMode.Shared, // Enable shared cache for better concurrency
-            DefaultTimeout = 5000 // 5 seconds busy timeout - prevents "Database is locked"
-        }.ToString();
+            // Phase 1B/0: Enable WAL Mode and Busy Timeout for better concurrency
+            var connectionString = new SqliteConnectionStringBuilder
+            {
+                DataSource = dbPath,
+                Mode = SqliteOpenMode.ReadWriteCreate,
+                Cache = SqliteCacheMode.Shared, // Enable shared cache for better concurrency
+                DefaultTimeout = 5000 // 5 seconds busy timeout - prevents "Database is locked"
+            }.ToString();
 
-        optionsBuilder.UseSqlite(connectionString, options =>
-        {
-            options.CommandTimeout(30); // 30 second timeout for long operations
-        })
-        .ConfigureWarnings(warnings =>
-        {
-            // Suppress this warning since we use runtime schema patching via SchemaMigratorService
-            // instead of code-first migrations for flexibility
-            warnings.Ignore(Microsoft.EntityFrameworkCore.Diagnostics.RelationalEventId.PendingModelChangesWarning);
-        });
+            optionsBuilder.UseSqlite(connectionString, options =>
+            {
+                options.CommandTimeout(30); // 30 second timeout for long operations
+            })
+            .ConfigureWarnings(warnings =>
+            {
+                // Suppress this warning since we use runtime schema patching via SchemaMigratorService
+                // instead of code-first migrations for flexibility
+                warnings.Ignore(Microsoft.EntityFrameworkCore.Diagnostics.RelationalEventId.PendingModelChangesWarning);
+            });
+        }
     }
 
     /// <summary>
