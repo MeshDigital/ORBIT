@@ -530,33 +530,27 @@ namespace SLSKDONET.ViewModels
         {
             if (CurrentTrack == null) return;
 
-            // Toggle state
-            IsCurrentTrackLiked = !IsCurrentTrackLiked;
+            // Toggle local state
+            bool newLikedStatus = !IsCurrentTrackLiked;
+            IsCurrentTrackLiked = newLikedStatus;
 
-            // Persist to database (atomic operation)
             try
             {
-                var track = CurrentTrack.Model;
-                track.IsLiked = IsCurrentTrackLiked;
-                
-                // Manually map to Entity for simple update
-                var entity = new SLSKDONET.Data.PlaylistTrackEntity
+                // Global persistence (Library + all Project instances)
+                if (global::Avalonia.Application.Current is SLSKDONET.App app && app.Services != null)
                 {
-                    Id = track.Id,
-                    IsLiked = track.IsLiked,
-                    Rating = track.Rating,
-                    PlayCount = track.PlayCount,
-                    LastPlayedAt = track.LastPlayedAt,
-                    Status = track.Status
-                };
-
-                await _databaseService.UpdatePlaylistTrackAsync(entity);
+                    var libraryService = app.Services.GetService(typeof(ILibraryService)) as ILibraryService;
+                    if (libraryService != null)
+                    {
+                        await libraryService.UpdateLikeStatusAsync(CurrentTrack.Model.TrackUniqueHash, newLikedStatus);
+                    }
+                }
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"[PlayerViewModel] Failed to save like status: {ex.Message}");
+                Console.WriteLine($"[PlayerViewModel] Failed to save global like status: {ex.Message}");
                 // Revert on failure
-                IsCurrentTrackLiked = !IsCurrentTrackLiked;
+                IsCurrentTrackLiked = !newLikedStatus;
             }
         }        
         // Queue Management Methods

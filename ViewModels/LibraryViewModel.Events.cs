@@ -58,24 +58,8 @@ public partial class LibraryViewModel
             TrackInspector.Track = trackVm.Model;
         }
 
-        // ── Contextual Sidebar (debounced) ──────────────────────────────────
-        // Cancel any pending sidebar update
-        _selectionDebounceTimer?.Dispose();
-
-        if (selectedTracks.Count == 0)
-        {
-            // Immediately hide sidebar when nothing is selected
-            Avalonia.Threading.Dispatcher.UIThread.Post(() => Sidebar.UpdateContext(Array.Empty<PlaylistTrackViewModel>()));
-        }
-        else
-        {
-            // Debounce for 150ms to avoid rapid updates while the user is click-selecting
-            var snapshot = selectedTracks.ToList();
-            _selectionDebounceTimer = new System.Threading.Timer(_ =>
-            {
-                Avalonia.Threading.Dispatcher.UIThread.Post(() => Sidebar.UpdateContext(snapshot));
-            }, null, 150, System.Threading.Timeout.Infinite);
-        }
+        // Contextual Sidebar: Now handled reactively via Sidebar.AttachToSelection()
+        // which is wired up in the LibraryViewModel constructor.
 
         // ── Discovery Lane (harmonic matches, legacy path) ──────────────────
         if (lastSelected is PlaylistTrackViewModel seedTrack &&

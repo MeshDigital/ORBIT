@@ -1308,8 +1308,18 @@ public class DownloadManager : INotifyPropertyChanged, IDisposable
                 {
                     if (disconnectBackoff == 0)
                     {
-                         _logger.LogWarning("🔌 Circuit Breaker: Queue processing PAUSED due to disconnection.");
-                        // _eventBus.Publish(new NotificationEvent("Download Queue Paused", "Waiting for Soulseek connection before processing queue...", NotificationType.Warning));
+                        _logger.LogWarning("🔌 Circuit Breaker: Queue processing PAUSED due to disconnection.");
+                        _eventBus.Publish(new GlobalStatusEvent("Disconnected: Waiting for Soulseek...", true, true));
+                        
+                        // Transition active downloads to waiting state
+                        lock (_collectionLock)
+                        {
+                            var activeDownloading = _downloads.Where(d => d.State == PlaylistTrackState.Downloading).ToList();
+                            foreach (var d in activeDownloading)
+                            {
+                                _ = UpdateStateAsync(d, PlaylistTrackState.WaitingForConnection);
+                            }
+                        }
                     }
                     
                     // Exponential Backoff: 2, 4, 8, 16... max 60s
@@ -1319,6 +1329,7 @@ public class DownloadManager : INotifyPropertyChanged, IDisposable
                     if (disconnectBackoff % 5 == 0) // Log occasionally
                     {
                         _logger.LogInformation("Circuit Breaker: Waiting for connection... (Next check in {Seconds}s)", delaySeconds);
+                        _eventBus.Publish(new GlobalStatusEvent($"Disconnected: Retrying in {delaySeconds}s...", true, true));
                     }
 
                     await Task.Delay(delaySeconds * 1000, token);
@@ -1329,8 +1340,18 @@ public class DownloadManager : INotifyPropertyChanged, IDisposable
                 if (disconnectBackoff > 0)
                 {
                     _logger.LogInformation("✅ Circuit Breaker: Connection restored! Resuming queue processing.");
-                    // _eventBus.Publish(new NotificationEvent("Download Queue Resumed", "Soulseek connection restored.", NotificationType.Success));
+                    _eventBus.Publish(new GlobalStatusEvent("Connection Restored", false));
                     disconnectBackoff = 0;
+                    
+                    // Transition waiting downloads back to pending
+                    lock (_collectionLock)
+                    {
+                        var waiting = _downloads.Where(d => d.State == PlaylistTrackState.WaitingForConnection).ToList();
+                        foreach (var d in waiting)
+                        {
+                            _ = UpdateStateAsync(d, PlaylistTrackState.Pending);
+                        }
+                    }
                 }
 
                 DownloadContext? nextContext = null;
@@ -2480,11 +2501,16 @@ public class DownloadManager : INotifyPropertyChanged, IDisposable
         }
 
         // 3. Reset to Pending to trigger immediate pickup
+        ctx.Model.Priority = 0; // VIP Pass
         await UpdateStateAsync(ctx, PlaylistTrackState.Pending);
         
-        // 4. Force save to DB to ensure 'IsUserPaused=false' persists
-        // Use the specific method we just added to DatabaseService
+        // 4. Force immediate queue refill and check
+        _ = RefillQueueAsync();
+        
+        // 5. Force save to DB to ensure 'IsUserPaused=false' and Priority persists
         await _databaseService.UpdatePlaylistTrackUserPausedAsync(ctx.Model.Id, false);
+        // We'll trust the SaveTrackToDb call within UpdateStateAsync to persist the Priority, 
+        // or explicitly save here if needed.
     }
 
 }

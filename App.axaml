@@ -28,6 +28,8 @@
         <converters:BoolToBackgroundConverter x:Key="BoolToBackgroundConverter"/>
         <converters:BoolToFontWeightConverter x:Key="BoolToFontWeightConverter"/>
         <converters:BooleanToStatusColorConverter x:Key="BooleanToStatusColorConverter"/>
+        <converters:BoolToErrorColorConverter x:Key="BoolToErrorColorConverter"/>
+        <converters:BoolToFontStyleConverter x:Key="BoolToFontStyleConverter"/>
         <conv_root:BoolOpacityConverter x:Key="BoolToOpacityConverter"/>
         <converters:BoolToWidthConverter x:Key="BoolToWidthConverter"/>
         <conv_root:BoolToStringConverter x:Key="BoolToStringConverter"/>
@@ -53,6 +55,7 @@
         <converters:EnumToColorConverter x:Key="EnumToColorConverter"/>
         <converters:PassThroughConverter x:Key="PassThroughConverter"/>
         <converters:ForensicLevelToColorConverter x:Key="ForensicLevelToColorConverter"/>
+        <converters:PercentToWidthConverter x:Key="PercentToWidthConverter"/>
         
         <!-- Phase 18: Sonic Match Visual Converters -->
         <conv_root:EnergyToColorConverter x:Key="EnergyToColorConverter"/>

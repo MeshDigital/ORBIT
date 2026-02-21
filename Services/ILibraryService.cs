@@ -225,4 +225,9 @@ public interface ILibraryService
     /// Phase 2: Updates the surgical structural features for a track.
     /// </summary>
     Task UpdateAudioFeaturesAsync(AudioFeaturesEntity entity);
+
+    /// <summary>
+    /// Global "Like" update: synchronizes status across Library and all Projects.
+    /// </summary>
+    Task UpdateLikeStatusAsync(string trackHash, bool isLiked);
 }

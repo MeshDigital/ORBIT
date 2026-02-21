@@ -130,6 +130,27 @@ public class DownloadCenterViewModel : ReactiveObject, IDisposable
         get => _globalSpeed;
         set => this.RaiseAndSetIfChanged(ref _globalSpeed, value);
     }
+
+    private string? _globalStatusMessage;
+    public string? GlobalStatusMessage
+    {
+        get => _globalStatusMessage;
+        set => this.RaiseAndSetIfChanged(ref _globalStatusMessage, value);
+    }
+
+    private bool _isGlobalStatusVisible;
+    public bool IsGlobalStatusVisible
+    {
+        get => _isGlobalStatusVisible;
+        set => this.RaiseAndSetIfChanged(ref _isGlobalStatusVisible, value);
+    }
+
+    private bool _isGlobalStatusError;
+    public bool IsGlobalStatusError
+    {
+        get => _isGlobalStatusError;
+        set => this.RaiseAndSetIfChanged(ref _isGlobalStatusError, value);
+    }
     
     // Alias for HomeViewModel compatibility
     public string GlobalSpeedDisplay => GlobalSpeed;
@@ -190,6 +211,8 @@ public class DownloadCenterViewModel : ReactiveObject, IDisposable
     // Phase 12.3: Bulk Commands
     public ICommand VipStartSelectedCommand { get; }
     public ICommand CancelSelectedCommand { get; }
+    public ICommand PauseSelectedCommand { get; }
+    public ICommand ResumeSelectedCommand { get; }
     
     private readonly ArtworkCacheService _artworkCache;
     private readonly ILibraryService _libraryService;
@@ -263,13 +286,36 @@ public class DownloadCenterViewModel : ReactiveObject, IDisposable
             }
             SelectedItems.Clear();
             HasSelection = false;
-            // Fire-and-forget: Update UI state if needed
-            // The original instruction provided an incomplete code snippet for this section.
-            // Assuming the intent was to add a FireAndForgetSafe call after the cancellation logic,
-            // but without a defined 'UpdateCommandState' or '_logger' in the provided context,
-            // this line is commented out to maintain syntactical correctness and avoid compilation errors.
-            // If 'UpdateCommandState' and '_logger' are defined elsewhere, this line can be uncommented.
-            // UpdateCommandState().FireAndForgetSafe(_logger, "UpdateCommandState");
+        }, this.WhenAnyValue(x => x.HasSelection));
+        
+        PauseSelectedCommand = ReactiveCommand.CreateFromTask(async () => 
+        {
+            var selectedArgs = SelectedItems.ToList();
+            foreach (var item in selectedArgs)
+            {
+                if (item.IsActive)
+                {
+                    await _downloadManager.PauseTrackAsync(item.GlobalId);
+                }
+            }
+            // Keep selection? Usually pause/resume implies we might want to do more. 
+            // matching behavior of Cancel (clear) for consistency.
+            SelectedItems.Clear();
+            HasSelection = false;
+        }, this.WhenAnyValue(x => x.HasSelection));
+
+        ResumeSelectedCommand = ReactiveCommand.CreateFromTask(async () => 
+        {
+            var selectedArgs = SelectedItems.ToList();
+            foreach (var item in selectedArgs)
+            {
+                if (item.IsPaused)
+                {
+                    await _downloadManager.ResumeTrackAsync(item.GlobalId);
+                }
+            }
+            SelectedItems.Clear();
+            HasSelection = false;
         }, this.WhenAnyValue(x => x.HasSelection));
         
         // Monitor Selection Changes
@@ -277,6 +323,12 @@ public class DownloadCenterViewModel : ReactiveObject, IDisposable
         
         // Initialize DynamicData Pipelines
         
+        // Critical: Lifecycle Management - Dispose ViewModels when removed from SourceCache (e.g. Clear Completed)
+        _downloadsSource.Connect()
+            .DisposeMany()
+            .Subscribe()
+            .DisposeWith(_subscriptions);
+
         // 1. Base Pipeline (Active vs Completed vs Failed)
         var sharedSource = _downloadsSource.Connect()
             .AutoRefresh(x => x.State) // Logic re-evaluates when State changes
@@ -468,6 +520,16 @@ public class DownloadCenterViewModel : ReactiveObject, IDisposable
         _eventBus.GetEvent<TrackRemovedEvent>()
              .Subscribe(OnTrackRemoved)
              .DisposeWith(_subscriptions);
+
+        _eventBus.GetEvent<GlobalStatusEvent>()
+            .ObserveOn(RxApp.MainThreadScheduler)
+            .Subscribe(e =>
+            {
+                GlobalStatusMessage = e.Message;
+                IsGlobalStatusVisible = e.IsActive;
+                IsGlobalStatusError = e.IsError;
+            })
+            .DisposeWith(_subscriptions);
         
         // Start global speed calculator
         StartGlobalSpeedTimer();

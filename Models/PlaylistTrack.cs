@@ -242,5 +242,6 @@ public enum PlaylistTrackState
     Completed,
     Failed,
     Cancelled,
-    Stalled
+    Stalled,
+    WaitingForConnection
 }

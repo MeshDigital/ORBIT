@@ -208,10 +208,14 @@ public class EssentiaAnalyzerService : IAudioIntelligenceService, IDisposable
                 using var process = new Process { StartInfo = startInfo };
                 process.Start();
                 
-                // Phase 1.2: Multicore Optimization (Leaf Icon / EcoQoS)
+                // Phase 1.2: Dynamic Priority Control
                 if (priority != System.Diagnostics.ProcessPriorityClass.Normal)
                 {
                     SystemInfoHelper.ConfigureProcessPriority(process, priority);
+                }
+                else
+                {
+                    SystemInfoHelper.ConfigureProcessPriority(process, ProcessPriorityClass.BelowNormal);
                 }
                 
                 // Zombie prevention
@@ -223,8 +227,6 @@ public class EssentiaAnalyzerService : IAudioIntelligenceService, IDisposable
                 // Process tracking
                 processId = process.Id;
                 _activeProcesses.TryAdd(processId, process);
-                
-                SystemInfoHelper.ConfigureProcessPriority(process, ProcessPriorityClass.BelowNormal);
 
                 // Phase 13B: Hardening - Watchdog Implementation
                 using var watchdogCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);

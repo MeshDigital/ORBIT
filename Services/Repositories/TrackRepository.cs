@@ -913,45 +913,92 @@ public class TrackRepository : ITrackRepository
     {
         if (string.IsNullOrEmpty(trackHash) || !result.Success) return;
 
-        using var context = new AppDbContext();
-        
-        // 1. Update LibraryEntry
-        var entry = await context.LibraryEntries.FindAsync(trackHash);
-        if (entry != null)
+        await _writeSemaphore.WaitAsync();
+        try
         {
-            ApplyMetadata(entry, result);
-        }
+            using var context = new AppDbContext();
+            
+            // 1. Update LibraryEntry
+            var entry = await context.LibraryEntries.FindAsync(trackHash);
+            if (entry != null)
+            {
+                ApplyMetadata(entry, result);
+            }
 
-        // 1.5 Update master Track record
-        var masterTrack = await context.Tracks.FindAsync(trackHash);
-        if (masterTrack != null)
+            // 2. Update Master Track record
+            var masterTrack = await context.Tracks.FindAsync(trackHash);
+            if (masterTrack != null)
+            {
+                ApplyMetadata(masterTrack, result);
+            }
+
+            // 3. Update all PlaylistTracks
+            var tracks = await context.PlaylistTracks
+                .Where(t => t.TrackUniqueHash == trackHash)
+                .ToListAsync();
+
+            foreach (var t in tracks)
+            {
+                ApplyMetadata(t, result);
+            }
+
+            // 4. Update AudioFeatures if they exist
+            var features = await context.AudioFeatures.FirstOrDefaultAsync(af => af.TrackUniqueHash == trackHash);
+            if (features != null)
+            {
+                if (!string.IsNullOrEmpty(result.MusicBrainzId)) features.MusicBrainzId = result.MusicBrainzId;
+                if (result.Bpm > 0) features.Bpm = (float)result.Bpm.Value;
+                if (result.Energy > 0) features.Energy = (float)result.Energy.Value;
+                if (result.Danceability > 0) features.Danceability = (float)result.Danceability.Value;
+                if (result.Valence > 0) features.Valence = (float)result.Valence.Value;
+                if (!string.IsNullOrEmpty(result.MusicalKey)) features.Key = result.MusicalKey;
+            }
+
+            await context.SaveChangesAsync();
+        }
+        finally
         {
-            ApplyMetadata(masterTrack, result);
+            _writeSemaphore.Release();
         }
+    }
 
-        // 2. Update all PlaylistTracks
-        var tracks = await context.PlaylistTracks
-            .Where(t => t.TrackUniqueHash == trackHash)
-            .ToListAsync();
-
-        foreach (var t in tracks)
+    public async Task UpdateLikeStatusAsync(string trackHash, bool isLiked)
+    {
+        await _writeSemaphore.WaitAsync();
+        try
         {
-            ApplyMetadata(t, result);
-        }
+            using var context = new AppDbContext();
 
-        // 3. Update AudioFeatures if they exist
-        var features = await context.AudioFeatures.FirstOrDefaultAsync(af => af.TrackUniqueHash == trackHash);
-        if (features != null)
+            // 1. Update LibraryEntry
+            var entry = await context.LibraryEntries.FindAsync(trackHash);
+            if (entry != null)
+            {
+                entry.IsLiked = isLiked;
+            }
+
+            // 2. Update Master Track record
+            var tr = await context.Tracks.FindAsync(trackHash);
+            if (tr != null)
+            {
+                tr.IsLiked = isLiked;
+            }
+
+            // 3. Update all PlaylistTracks
+            var tracks = await context.PlaylistTracks
+                .Where(t => t.TrackUniqueHash == trackHash)
+                .ToListAsync();
+
+            foreach (var t in tracks)
+            {
+                t.IsLiked = isLiked;
+            }
+
+            await context.SaveChangesAsync();
+        }
+        finally
         {
-            if (!string.IsNullOrEmpty(result.MusicBrainzId)) features.MusicBrainzId = result.MusicBrainzId;
-            if (result.Bpm > 0) features.Bpm = (float)result.Bpm.Value;
-            if (result.Energy > 0) features.Energy = (float)result.Energy.Value;
-            if (result.Danceability > 0) features.Danceability = (float)result.Danceability.Value;
-            if (result.Valence > 0) features.Valence = (float)result.Valence.Value;
-            if (!string.IsNullOrEmpty(result.MusicalKey)) features.Key = result.MusicalKey;
+            _writeSemaphore.Release();
         }
-
-        await context.SaveChangesAsync();
     }
 
     private void ApplyMetadata(object entity, TrackEnrichmentResult result)

@@ -14,7 +14,7 @@ using System.Reactive.Disposables;
 using System.Reactive.Linq;
 using Avalonia.Threading;
 using SLSKDONET.Events;
-using SLSKDONET.ViewModels.Sidebar;
+using SLSKDONET.Features.LibrarySidebar.ViewModels;
 
 namespace SLSKDONET.ViewModels;
 
@@ -62,7 +62,6 @@ public partial class LibraryViewModel : INotifyPropertyChanged, IDisposable
     public System.Collections.ObjectModel.ObservableCollection<ColumnDefinition> AvailableColumns { get; } = new();
     public LibrarySourcesViewModel LibrarySourcesViewModel { get; }
     public ForensicLabViewModel ForensicLab => _forensicLab;
-    public ContextualSidebarViewModel Sidebar { get; }
 
     private Views.MainViewModel? _mainViewModel;
     public Views.MainViewModel? MainViewModel
@@ -199,9 +198,9 @@ public partial class LibraryViewModel : INotifyPropertyChanged, IDisposable
         Services.AI.PersonalClassifierService personalClassifier,
         DatabaseService databaseService,
         SearchFilterViewModel searchFilters,
-        SmartCrateService smartCrateService,
         ForensicLabViewModel forensicLab,
         IntelligenceCenterViewModel intelligenceCenter,
+        SmartCrateService smartCrateService,
         DownloadManager downloadManager,
         Services.Library.ColumnConfigurationService columnConfigService,
         ContextualSidebarViewModel sidebar)
@@ -222,15 +221,14 @@ public partial class LibraryViewModel : INotifyPropertyChanged, IDisposable
         _playerViewModel = playerViewModel;
         _libraryCacheService = libraryCacheService;
         _hardwareExportService = hardwareExportService;
+        _forensicLab = forensicLab;
+        _intelligenceCenter = intelligenceCenter;
         _serviceProvider = serviceProvider;
         _databaseService = databaseService;
         _smartCrateService = smartCrateService;
-        _forensicLab = forensicLab;
-        _intelligenceCenter = intelligenceCenter;
         _downloadManager = downloadManager;
         _columnConfigService = columnConfigService;
         LibrarySourcesViewModel = librarySourcesViewModel;
-        Sidebar = sidebar;
 
         Projects = projects;
         Tracks = tracks;
@@ -250,6 +248,15 @@ public partial class LibraryViewModel : INotifyPropertyChanged, IDisposable
         Projects.ProjectSelected += OnProjectSelected;
         SmartPlaylists.SmartPlaylistSelected += OnSmartPlaylistSelected;
         Tracks.SelectedTracks.CollectionChanged += OnTrackSelectionChanged;
+        
+        
+        // Wire up reactive sidebar selection piping (Global Sidebar)
+        sidebar.AttachToSelection(
+            Observable.FromEventPattern<System.Collections.Specialized.NotifyCollectionChangedEventHandler, System.Collections.Specialized.NotifyCollectionChangedEventArgs>(
+                h => Tracks.SelectedTracks.CollectionChanged += h,
+                h => Tracks.SelectedTracks.CollectionChanged -= h)
+            .Select(_ => (IReadOnlyList<PlaylistTrackViewModel>)Tracks.SelectedTracks.ToList())
+            .StartWith(Tracks.SelectedTracks.ToList()));
         
         _projectAddedSubscription = _eventBus.GetEvent<ProjectAddedEvent>().Subscribe(OnProjectAdded);
         _findSimilarSubscription = _eventBus.GetEvent<FindSimilarRequestEvent>().Subscribe(OnFindSimilarRequest);

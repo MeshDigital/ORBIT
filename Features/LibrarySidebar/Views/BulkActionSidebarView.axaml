@@ -1,0 +1,25 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:vm="clr-namespace:SLSKDONET.Features.LibrarySidebar.ViewModels"
+             mc:Ignorable="d" d:DesignWidth="350" d:DesignHeight="800"
+             x:Class="SLSKDONET.Features.LibrarySidebar.Views.BulkActionSidebarView"
+             x:DataType="vm:BulkActionSidebarViewModel">
+    <Grid RowDefinitions="Auto,*">
+        <StackPanel Grid.Row="0" Margin="16" Spacing="8">
+            <TextBlock Text="Bulk Operations" FontSize="18" FontWeight="SemiBold" Foreground="#FF5D5D"/>
+            <TextBlock Text="Apply changes to all selected tracks simultaneously." 
+                       TextWrapping="Wrap" FontSize="12" Foreground="#888"/>
+        </StackPanel>
+        
+        <!-- Action list will go here in Phase 3 -->
+        <ScrollViewer Grid.Row="1">
+            <StackPanel Margin="16" Spacing="10">
+                <Button HorizontalAlignment="Stretch" Content="Analyze Selected" Classes="danger"/>
+                <Button HorizontalAlignment="Stretch" Content="Move to Folder..."/>
+                <Button HorizontalAlignment="Stretch" Content="Remove from Library" Classes="danger"/>
+            </StackPanel>
+        </ScrollViewer>
+    </Grid>
+</UserControl>

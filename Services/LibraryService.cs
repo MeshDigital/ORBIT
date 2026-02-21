@@ -710,6 +710,22 @@ public class LibraryService : ILibraryService
         }
     }
     
+    public async Task UpdateLikeStatusAsync(string trackHash, bool isLiked)
+    {
+        try
+        {
+            await _databaseService.UpdateLikeStatusAsync(trackHash, isLiked).ConfigureAwait(false);
+            _logger.LogDebug("Updated like status globally for hash {Hash}: {IsLiked}", trackHash, isLiked);
+            
+            // Invalidate cache since library items might have changed
+            _cache.InvalidateGlobalLibrary();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to update global like status for {Hash}", trackHash);
+        }
+    }
+
     public async Task SavePlaylistTracksAsync(List<PlaylistTrack> tracks)
     {
         try

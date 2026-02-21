@@ -45,4 +45,13 @@ public interface ITrackRepository
     Task<List<PlaylistTrackEntity>> GetPagedAllTracksAsync(int skip, int take, string? filter = null, bool? downloadedOnly = null);
     Task<List<LibraryEntryEntity>> SearchLibraryFtsAsync(string searchTerm, int limit = 100);
     Task UpdateAllInstancesMetadataAsync(string trackHash, TrackEnrichmentResult result);
+    /// <summary>
+    /// Phase 2: Updates the surgical structural features for a track.
+    /// </summary>
+    Task UpdateAudioFeaturesAsync(AudioFeaturesEntity entity);
+
+    /// <summary>
+    /// Global "Like" update: synchronizes status across Library and all Projects.
+    /// </summary>
+    Task UpdateLikeStatusAsync(string trackHash, bool isLiked);
 }

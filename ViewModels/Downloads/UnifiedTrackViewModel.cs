@@ -162,6 +162,12 @@ public class UnifiedTrackViewModel : ReactiveObject, IDisplayableTrack, IDisposa
          // Initialize sliding window for speed
          _lastProgressTime = DateTime.MinValue;
 
+         // Initialize Ghost Stall Timer (active UI polling for inactive downloads)
+         // Checks every second if an active download has stalled
+         _ghostStallTimer = new DispatcherTimer(TimeSpan.FromSeconds(1), DispatcherPriority.Background, GhostStallCheck_Tick);
+         _ghostStallTimer.Start();
+         Disposable.Create(() => _ghostStallTimer.Stop()).DisposeWith(_disposables);
+
          // Phase 0: Load artwork via Proxy
          _artwork = new ArtworkProxy(_artworkCache, Model.AlbumArtUrl);
          
@@ -184,6 +190,32 @@ public class UnifiedTrackViewModel : ReactiveObject, IDisplayableTrack, IDisposa
          {
              _downloadManager.BumpTrackToTop(GlobalId);
          }, this.WhenAnyValue(x => x.State, s => s == PlaylistTrackState.Pending || s == PlaylistTrackState.Paused || s == PlaylistTrackState.Stalled));
+
+         ViewLogCommand = ReactiveCommand.Create(() => 
+         {
+             // Phase 0.8: View Log Logic
+             // For now, we can just show a dialog or dump to debug console.
+             // Ideally this should open a dialog with the rejection details.
+             // For this step, we'll assume a "ViewLogRequest" event or similar.
+             var log = string.Join("\n", RejectionDetails?.Select(r => $"{r.Rank}. [{r.ShortReason}] {r.Filename} ({r.Bitrate}kbps) @{r.Username}") ?? Enumerable.Empty<string>());
+             // _eventBus.Publish(new ShowDialogRequest("Diagnostic Log", log)); // Need a generic dialog mechanism
+             System.Diagnostics.Debug.WriteLine($"[Diagnostic Log] {log}");
+             
+             // Or copy to clipboard as a fallback if no dialog
+             if (Avalonia.Application.Current?.ApplicationLifetime is Avalonia.Controls.ApplicationLifetimes.IClassicDesktopStyleApplicationLifetime desktop)
+             {
+                 desktop.MainWindow?.Clipboard?.SetTextAsync(log);
+             }
+         }, this.WhenAnyValue(x => x.HasRejectionDetails));
+
+         CopyLogCommand = ReactiveCommand.CreateFromTask(async () => 
+         {
+             if (Avalonia.Application.Current?.ApplicationLifetime is Avalonia.Controls.ApplicationLifetimes.IClassicDesktopStyleApplicationLifetime desktop)
+             {
+                 var log = string.Join("\n", RejectionDetails?.Select(r => $"{r.Rank}. [{r.ShortReason}] {r.Filename} ({r.Bitrate}kbps) @{r.Username}") ?? Enumerable.Empty<string>());
+                 await desktop.MainWindow?.Clipboard?.SetTextAsync(log);
+             }
+         }, this.WhenAnyValue(x => x.HasRejectionDetails));
     }
     
     private void FindSimilar()
@@ -226,8 +258,14 @@ public class UnifiedTrackViewModel : ReactiveObject, IDisplayableTrack, IDisposa
                 this.RaisePropertyChanged(nameof(DetailedStatusText)); // Added
                 this.RaisePropertyChanged(nameof(IsIndeterminate));
                 this.RaisePropertyChanged(nameof(IsFailed));
-                this.RaisePropertyChanged(nameof(IsPaused));
                 this.RaisePropertyChanged(nameof(IsActive));
+                this.RaisePropertyChanged(nameof(IsWaiting));
+                this.RaisePropertyChanged(nameof(CanForceStart));
+                this.RaisePropertyChanged(nameof(CanRetry));
+                this.RaisePropertyChanged(nameof(CanBumpToTop));
+                this.RaisePropertyChanged(nameof(IsSearching));
+                this.RaisePropertyChanged(nameof(IsDownloading));
+                this.RaisePropertyChanged(nameof(IsPaused));
                 this.RaisePropertyChanged(nameof(IsStalled));
                 this.RaisePropertyChanged(nameof(IsCompleted));
                 this.RaisePropertyChanged(nameof(TechnicalSummary));
@@ -252,6 +290,7 @@ public class UnifiedTrackViewModel : ReactiveObject, IDisplayableTrack, IDisposa
                                      (FailureEnum != DownloadFailureReason.None ? FailureEnum.ToDisplayMessage() : "Failed"),
         PlaylistTrackState.Paused => "Paused",
         PlaylistTrackState.Stalled => !string.IsNullOrEmpty(StalledReason) ? $"Stalled: {StalledReason}" : "Stalled (Waiting for Peer)",
+        PlaylistTrackState.WaitingForConnection => "Waiting for Connection...",
 
         _ => State.ToString()
     };
@@ -265,6 +304,7 @@ public class UnifiedTrackViewModel : ReactiveObject, IDisplayableTrack, IDisposa
         PlaylistTrackState.Downloading => Avalonia.Media.Brushes.Cyan,
         PlaylistTrackState.Searching => Avalonia.Media.Brushes.Yellow,
         PlaylistTrackState.Stalled => Avalonia.Media.Brushes.Orange,
+        PlaylistTrackState.WaitingForConnection => Avalonia.Media.Brushes.DarkGray,
         _ => Avalonia.Media.Brushes.LightGray
     };
 
@@ -280,12 +320,12 @@ public class UnifiedTrackViewModel : ReactiveObject, IDisplayableTrack, IDisposa
         set => this.RaiseAndSetIfChanged(ref _progress, value);
     }
 
-    public bool IsIndeterminate => State == PlaylistTrackState.Searching || State == PlaylistTrackState.Queued;
+    public bool IsIndeterminate => State == PlaylistTrackState.Searching || State == PlaylistTrackState.Queued || State == PlaylistTrackState.WaitingForConnection;
     public bool IsFailed => State == PlaylistTrackState.Failed || State == PlaylistTrackState.Cancelled;
     public bool IsPaused => State == PlaylistTrackState.Paused;
     
     // Phase 6 & 9: Refined IsActive for "Direct Active" swimlane (strictly downloading/searching)
-    public bool IsActive => State == PlaylistTrackState.Downloading || State == PlaylistTrackState.Searching;
+    public bool IsActive => State == PlaylistTrackState.Downloading || State == PlaylistTrackState.Searching || State == PlaylistTrackState.WaitingForConnection;
 
     // Phase 11: Specific activity flags
     public bool IsSearching => State == PlaylistTrackState.Searching;
@@ -476,6 +516,8 @@ public class UnifiedTrackViewModel : ReactiveObject, IDisplayableTrack, IDisposa
             return $"{Model.MusicalKey} ({camelot})";
         }
     }
+
+    public string CamelotDisplay => !string.IsNullOrEmpty(Model.MusicalKey) ? Utils.KeyConverter.ToCamelot(Model.MusicalKey) : "—";
     public string YearDisplay => Model.ReleaseDate.HasValue ? Model.ReleaseDate.Value.Year.ToString() : "";
     
     // Technical Audio Display
@@ -608,6 +650,8 @@ public class UnifiedTrackViewModel : ReactiveObject, IDisplayableTrack, IDisposa
     public ICommand FindSimilarAiCommand { get; }
     public ICommand ViewAllSearchResultsCommand { get; }
     public ICommand BumpToTopCommand { get; }
+    public ICommand ViewLogCommand { get; }
+    public ICommand CopyLogCommand { get; }
 
     // Internal State
     private long _totalBytes;
@@ -637,6 +681,42 @@ public class UnifiedTrackViewModel : ReactiveObject, IDisplayableTrack, IDisposa
                 _ = CheckStemsAsync();
             }
             return _hasStems.Value;
+        }
+    }
+    
+    private readonly DispatcherTimer _ghostStallTimer;
+
+    private void GhostStallCheck_Tick(object? sender, EventArgs e)
+    {
+        // Only care if we are supposedly downloading
+        if (State != PlaylistTrackState.Downloading) return;
+
+        // If explicitly set speed to 0 by logic
+        if (DownloadSpeed == 0)
+        {
+             // Check how long since last activity
+             var secondsSince = (DateTime.UtcNow - LastActivity).TotalSeconds;
+             
+             // If > 30s of silence, mark as visually stalled
+             if (secondsSince > 30)
+             {
+                 State = PlaylistTrackState.Stalled;
+                 // We set a custom StalledReason if none exists, to hint it's a timeout
+                 Model.StalledReason = "Connection Timeout (Ghost)";
+                 this.RaisePropertyChanged(nameof(StalledReason));
+                 this.RaisePropertyChanged(nameof(StatusText)); // Refresh text
+             }
+        }
+        else
+        {
+            // If speed > 0, we aren't stalled.
+            // But if we haven't had progress in a while, decay speed to 0.
+            var secondsSince = (DateTime.UtcNow - LastActivity).TotalSeconds;
+            if (secondsSince > 5)
+            {
+                DownloadSpeed = 0; // Decay speed display
+                // Next tick will catch the stall counter if it persists
+            }
         }
     }
     
@@ -697,6 +777,14 @@ public class UnifiedTrackViewModel : ReactiveObject, IDisplayableTrack, IDisposa
     private void OnProgressChanged(TrackProgressChangedEvent e)
     {
         if (e.TrackGlobalId != GlobalId) return;
+        
+        // Auto-heal ghost stall if improved
+        if (State == PlaylistTrackState.Stalled)
+        {
+            State = PlaylistTrackState.Downloading;
+            Model.StalledReason = null; // Clear reason
+            this.RaisePropertyChanged(nameof(StalledReason));
+        }
         
          Progress = e.Progress;
          _totalBytes = e.TotalBytes;
@@ -834,6 +922,7 @@ public class UnifiedTrackViewModel : ReactiveObject, IDisplayableTrack, IDisposa
                 this.RaisePropertyChanged(nameof(AlbumArtUrl));
                 this.RaisePropertyChanged(nameof(BpmDisplay));
                 this.RaisePropertyChanged(nameof(KeyDisplay));
+                this.RaisePropertyChanged(nameof(CamelotDisplay));
                 this.RaisePropertyChanged(nameof(LoudnessDisplay));
                 this.RaisePropertyChanged(nameof(TruePeakDisplay));
                 this.RaisePropertyChanged(nameof(DynamicRangeDisplay));

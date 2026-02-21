@@ -218,16 +218,29 @@ public static class SystemInfoHelper
         public int ECoreCount;      // Physical E-Cores
         public int TotalThreads;    // Total logical processors
         public bool IsHybrid => ECoreCount > 0;
+        public string ShortLabel => IsHybrid ? $"{PCoreCount}P + {ECoreCount}E" : $"{PCoreCount}C";
 
         public override string ToString() => IsHybrid 
             ? $"Hybrid ({PCoreCount}P + {ECoreCount}E, {TotalThreads} threads)" 
             : $"Standard ({PCoreCount} Cores, {TotalThreads} threads)";
     }
 
+    private static CpuTopology? _cachedTopology;
+    public static CpuTopology Topology => GetCpuTopology();
+
     /// <summary>
     /// Detects the CPU topology to distinguish between Performance and Efficiency cores.
     /// </summary>
     public static CpuTopology GetCpuTopology()
+    {
+        if (_cachedTopology.HasValue) return _cachedTopology.Value;
+
+        var result = ExecuteGetCpuTopology();
+        _cachedTopology = result;
+        return result;
+    }
+
+    private static CpuTopology ExecuteGetCpuTopology()
     {
         if (Environment.OSVersion.Platform != PlatformID.Win32NT)
         {

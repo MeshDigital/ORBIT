@@ -1,17 +1,11 @@
 using Avalonia.Controls;
-using Avalonia.Markup.Xaml;
 
-namespace SLSKDONET.Views.Avalonia.Sidebar;
+namespace SLSKDONET.Features.LibrarySidebar.Views;
 
 public partial class SimilaritySidebarView : UserControl
 {
     public SimilaritySidebarView()
     {
         InitializeComponent();
-    }
-
-    private void InitializeComponent()
-    {
-        AvaloniaXamlLoader.Load(this);
     }
 }

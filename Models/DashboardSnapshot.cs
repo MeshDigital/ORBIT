@@ -31,6 +31,7 @@ public class DashboardSnapshot
     // Forensic Telemetry (Phase 12.7)
     public bool IsForensicLockdownActive { get; init; }
     public double CurrentCpuLoad { get; init; }
+    public Services.SystemInfoHelper.CpuTopology Topology { get; init; }
 
     // Active Operations
     public List<MissionOperation> ActiveOperations { get; init; } = new();

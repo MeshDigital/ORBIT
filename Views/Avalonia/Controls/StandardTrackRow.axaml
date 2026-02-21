@@ -95,16 +95,6 @@
             <Setter Property="VerticalAlignment" Value="Center"/>
         </Style>
 
-        <!-- [NEW] Overhaul Phase: Pulsing Amber Stall Signaling -->
-        <Style Selector="PathIcon.pulse_amber">
-            <Style.Animations>
-                <Animation Duration="0:0:1.5" IterationCount="Infinite">
-                    <KeyFrame KeyTime="0:0:0"><Setter Property="Opacity" Value="1"/><Setter Property="Foreground" Value="#FFA500"/></KeyFrame>
-                    <KeyFrame KeyTime="0:0:0.75"><Setter Property="Opacity" Value="0.3"/><Setter Property="Foreground" Value="#FFD700"/></KeyFrame>
-                    <KeyFrame KeyTime="0:0:1.5"><Setter Property="Opacity" Value="1"/><Setter Property="Foreground" Value="#FFA500"/></KeyFrame>
-                </Animation>
-            </Style.Animations>
-        </Style>
     </UserControl.Styles>
 
     <Border Classes="root">
@@ -115,10 +105,10 @@
         <Grid RowDefinitions="Auto" Margin="0,2">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="58"/>
-                <ColumnDefinition Width="180"/> <!-- Artist -->
-                <ColumnDefinition Width="240"/> <!-- Title -->
-                <ColumnDefinition Width="100"/> <!-- BPM/Key -->
-                <ColumnDefinition Width="140"/> <!-- Forensics -->
+                <ColumnDefinition SharedSizeGroup="ArtistCol"/> <!-- Artist -->
+                <ColumnDefinition SharedSizeGroup="TitleCol"/> <!-- Title -->
+                <ColumnDefinition SharedSizeGroup="BpmKeyCol"/> <!-- BPM/Key -->
+                <ColumnDefinition SharedSizeGroup="ForensicCol"/> <!-- Forensics -->
                 <ColumnDefinition Width="*"/>
                 <ColumnDefinition Width="Auto"/>
             </Grid.ColumnDefinitions>
@@ -126,7 +116,7 @@
             <!-- Column 0: Album Art / Status / Health -->
             <Border Grid.Column="0" Width="44" Height="44" Margin="6,4,8,4" CornerRadius="4" ClipToBounds="True" Background="{DynamicResource SurfaceBrush}" VerticalAlignment="Center">
                 <Panel>
-                    <Image Source="{Binding Artwork.Image}" Stretch="UniformToFill" IsVisible="{Binding Artwork.Image, Converter={x:Static ObjectConverters.IsNotNull}}"/>
+                    <Image Source="{Binding Artwork.Image}" Stretch="UniformToFill" RenderOptions.BitmapInterpolationMode="MediumQuality" IsVisible="{Binding Artwork.Image, Converter={x:Static ObjectConverters.IsNotNull}}"/>
                     <PathIcon Data="{StaticResource music_regular}" Foreground="#333" Width="20" Height="20" IsVisible="{Binding Artwork.Image, Converter={x:Static ObjectConverters.IsNull}}"/>
                     
                     <!-- Progress Overlay -->
@@ -242,7 +232,7 @@
                 <StackPanel Orientation="Horizontal" Spacing="10">
                     <TextBlock Text="{Binding BpmDisplay}" Foreground="#AAA" FontSize="11" Width="32" TextAlignment="Right" VerticalAlignment="Center"/>
                     <Border Background="{Binding ColorBrush}" CornerRadius="4" Padding="4,1" MinWidth="32" VerticalAlignment="Center">
-                        <TextBlock Text="{Binding KeyDisplay}" Foreground="White" FontSize="10" FontWeight="Bold" HorizontalAlignment="Center"/>
+                        <TextBlock Text="{Binding CamelotDisplay}" Foreground="White" FontSize="10" FontWeight="Bold" HorizontalAlignment="Center"/>
                     </Border>
                 </StackPanel>
             </Border>
@@ -340,19 +330,55 @@
                     <TextBlock Text="{Binding CurationIcon}" FontSize="9" VerticalAlignment="Center"/>
                 </Border>
                 <!-- Verified -->
-                <Border Background="#2000FF00" BorderBrush="#00FF00" BorderThickness="1" CornerRadius="2" Padding="3,0" IsVisible="{Binding IsSecure}">
+                <Border Background="#2000FF00" BorderBrush="#00FF00" BorderThickness="1" CornerRadius="2" Padding="3,0">
+                    <Border.IsVisible>
+                        <MultiBinding Converter="{x:Static BoolConverters.And}">
+                            <Binding Path="IsSecure"/>
+                            <Binding Path="IsCompleted"/>
+                        </MultiBinding>
+                    </Border.IsVisible>
                     <TextBlock Text="✓" FontSize="9" Foreground="#00FF00" FontWeight="Bold"/>
                 </Border>
                 <!-- Stems -->
                 <Border Background="#10E91E63" BorderBrush="#E91E63" BorderThickness="1" CornerRadius="2" Padding="3,0" IsVisible="{Binding HasStems}">
                     <TextBlock Text="🎹" FontSize="9"/>
                 </Border>
-                <!-- Vibe (Genre) -->
-                <Border Background="{Binding VibeColor}" CornerRadius="10" Padding="8,1" 
-                        IsVisible="{Binding DetectedSubGenre, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"
-                        ToolTip.Tip="{Binding VibeTooltip}">
-                    <TextBlock Text="{Binding DetectedSubGenre}" FontSize="9" Foreground="White" FontWeight="Bold"/>
-                </Border>
+                <!-- Vibe (Genre) - Phase 1.0: Skeleton State when not completed -->
+                <Panel>
+                    <!-- Active Vibe (shown when completed + has genre) -->
+                    <Border Background="{Binding VibeColor}" CornerRadius="10" Padding="8,1" 
+                            ToolTip.Tip="{Binding VibeTooltip}">
+                        <Border.IsVisible>
+                            <MultiBinding Converter="{x:Static BoolConverters.And}">
+                                <Binding Path="DetectedSubGenre" Converter="{x:Static StringConverters.IsNotNullOrEmpty}"/>
+                                <Binding Path="IsCompleted"/>
+                            </MultiBinding>
+                        </Border.IsVisible>
+                        <Border.Transitions>
+                            <Transitions>
+                                <BrushTransition Property="Background" Duration="0:0:0.6"/>
+                            </Transitions>
+                        </Border.Transitions>
+                        <TextBlock Text="{Binding DetectedSubGenre}" FontSize="9" Foreground="White" FontWeight="Bold"/>
+                    </Border>
+                    <!-- Skeleton Vibe (shown when NOT completed — pulsing grey placeholder) -->
+                    <Border Background="#333" CornerRadius="10" Padding="8,1" 
+                            IsVisible="{Binding !IsCompleted}"
+                            ToolTip.Tip="Analyzing vibe...">
+                        <Border.Styles>
+                            <Style Selector="Border">
+                                <Style.Animations>
+                                    <Animation Duration="0:0:1.5" IterationCount="Infinite">
+                                        <KeyFrame KeyTime="0:0:0"><Setter Property="Opacity" Value="0.3"/></KeyFrame>
+                                        <KeyFrame KeyTime="0:0:0.75"><Setter Property="Opacity" Value="0.6"/></KeyFrame>
+                                        <KeyFrame KeyTime="0:0:1.5"><Setter Property="Opacity" Value="0.3"/></KeyFrame>
+                                    </Animation>
+                                </Style.Animations>
+                            </Style>
+                        </Border.Styles>
+                        <TextBlock Text="· · ·" FontSize="9" Foreground="#666" FontWeight="Bold" HorizontalAlignment="Center"/>
+                    </Border>
+                </Panel>
                 
                 <!-- Mood -->
                 <Border Background="#337B68EE" BorderBrush="#7B68EE" BorderThickness="1" CornerRadius="10" Padding="8,1" 
@@ -387,34 +413,43 @@
                     </Border>
                     
                     <Panel>
-                        <!-- Existing Pulse Logic for TechnicalSummary -->
-                        <TextBlock Text="{Binding TechnicalSummary}" FontSize="10" Foreground="#AAA" FontWeight="SemiBold">
-                            <TextBlock.Styles>
-                                <Style Selector="TextBlock">
-                                    <Style.Animations>
-                                        <Animation Duration="0:0:2" IterationCount="Infinite">
-                                            <KeyFrame KeyTime="0:0:0"><Setter Property="Opacity" Value="1"/></KeyFrame>
-                                            <KeyFrame KeyTime="0:0:1"><Setter Property="Opacity" Value="0.4"/></KeyFrame>
-                                            <KeyFrame KeyTime="0:0:2"><Setter Property="Opacity" Value="1"/></KeyFrame>
-                                        </Animation>
-                                    </Style.Animations>
-                                </Style>
-                            </TextBlock.Styles>
-                            <TextBlock.IsVisible>
+                        <!-- Phase 1.5: TechnicalSummary with Pulse (Active/Waiting) -->
+                        <StackPanel Orientation="Horizontal" Spacing="4" VerticalAlignment="Center">
+                             <StackPanel.IsVisible>
                                 <MultiBinding Converter="{x:Static BoolConverters.Or}">
                                     <Binding Path="IsActive"/>
                                     <Binding Path="IsWaiting"/>
                                 </MultiBinding>
-                            </TextBlock.IsVisible>
-                        </TextBlock>
-                        <TextBlock Text="{Binding TechnicalSummary}" FontSize="10" Foreground="#AAA" FontWeight="SemiBold" IsVisible="{Binding !IsActive}" Opacity="0.7">
-                            <TextBlock.IsVisible>
+                             </StackPanel.IsVisible>
+                             <TextBlock Text="📊" FontSize="10" Foreground="#DDD" VerticalAlignment="Center" Opacity="0.5"/>
+                             <TextBlock Text="{Binding TechnicalSummary}" FontSize="10" Foreground="#DDD" FontWeight="SemiBold"
+                                       Classes.pulse="True">
+                                 <TextBlock.Styles>
+                                    <Style Selector="TextBlock.pulse">
+                                        <Style.Animations>
+                                            <Animation Duration="0:0:2" IterationCount="Infinite">
+                                                <KeyFrame KeyTime="0:0:0"><Setter Property="Opacity" Value="1"/></KeyFrame>
+                                                <KeyFrame KeyTime="0:0:1"><Setter Property="Opacity" Value="0.4"/></KeyFrame>
+                                                <KeyFrame KeyTime="0:0:2"><Setter Property="Opacity" Value="1"/></KeyFrame>
+                                            </Animation>
+                                        </Style.Animations>
+                                    </Style>
+                                </TextBlock.Styles>
+                             </TextBlock>
+                        </StackPanel>
+                        <!-- Phase 1.5: TechnicalSummary for Completed/Failed -->
+                        <StackPanel Orientation="Horizontal" Spacing="4" VerticalAlignment="Center">
+                            <StackPanel.IsVisible>
                                 <MultiBinding Converter="{x:Static BoolConverters.And}">
                                     <Binding Path="!IsActive"/>
                                     <Binding Path="!IsWaiting"/>
                                 </MultiBinding>
-                            </TextBlock.IsVisible>
-                        </TextBlock>
+                            </StackPanel.IsVisible>
+                            <TextBlock Text="📊" FontSize="10" Foreground="#DDD" VerticalAlignment="Center" Opacity="0.5"/>
+                            <TextBlock Text="{Binding TechnicalSummary}" FontSize="10" Foreground="#DDD" FontWeight="SemiBold"
+                                       FontStyle="{Binding IsCompleted, Converter={StaticResource BoolToFontStyleConverter}}"
+                                       Opacity="0.8"/>
+                        </StackPanel>
                     </Panel>
                 </StackPanel>
             </StackPanel>

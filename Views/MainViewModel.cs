@@ -6,6 +6,7 @@ using System.Windows.Input;
 using Microsoft.Extensions.DependencyInjection; // Added for GetRequiredService
 using Microsoft.Extensions.Logging;
 using SLSKDONET.Configuration;
+using SLSKDONET.Features.LibrarySidebar;
 using SLSKDONET.Services;
 using SLSKDONET.ViewModels;
 using Avalonia.Threading;
@@ -67,6 +68,7 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
     public FlowBuilderViewModel FlowBuilderViewModel { get; }
     public ExportManagerViewModel ExportManagerViewModel { get; }
     public CommandPaletteViewModel CommandPaletteViewModel { get; }
+    public Features.LibrarySidebar.ViewModels.ContextualSidebarViewModel Sidebar { get; }
 
 
     public event PropertyChangedEventHandler? PropertyChanged;
@@ -120,7 +122,8 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
         ViewModels.Timeline.SetDesignerViewModel setDesignerViewModel,
         FlowBuilderViewModel flowBuilderViewModel,
         ExportManagerViewModel exportManagerViewModel,
-        DiscoveryHubViewModel discoveryHubViewModel)
+        DiscoveryHubViewModel discoveryHubViewModel,
+        Features.LibrarySidebar.ViewModels.ContextualSidebarViewModel sidebar)
 
     {
         _logger = logger;
@@ -158,6 +161,7 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
         FlowBuilderViewModel = flowBuilderViewModel;
         ExportManagerViewModel = exportManagerViewModel;
         DiscoveryHubViewModel = discoveryHubViewModel;
+        Sidebar = sidebar;
         CommandPaletteViewModel = new CommandPaletteViewModel(navigationService);
 
 
@@ -440,6 +444,16 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
             {
                 OnPropertyChanged(nameof(IsPlayerInSidebar));
                 OnPropertyChanged(nameof(IsPlayerAtBottomVisible));
+                
+                // Sync with the contextual sidebar
+                if (!IsPlayerAtBottom && Sidebar != null)
+                {
+                    Sidebar.IsSidebarOpen = value;
+                    if (value && Sidebar.ActiveMode == SLSKDONET.Features.LibrarySidebar.LibrarySidebarMode.None)
+                    {
+                        Sidebar.ShowPlayerCommand.Execute(null);
+                    }
+                }
             }
         }
     }
@@ -534,7 +548,7 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
 
 
     public bool IsPlayerInSidebar => !IsPlayerAtBottom && IsPlayerSidebarVisible && CurrentPageType != PageType.TheaterMode;
-    public bool IsPlayerAtBottomVisible => IsPlayerAtBottom && IsPlayerSidebarVisible && CurrentPageType != PageType.TheaterMode;
+    public bool IsPlayerAtBottomVisible => IsPlayerAtBottom && CurrentPageType != PageType.TheaterMode;
 
     private double _baseFontSize = 14.0;
     public double BaseFontSize

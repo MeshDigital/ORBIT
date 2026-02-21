@@ -7,6 +7,9 @@
         xmlns:stemviews="clr-namespace:SLSKDONET.Views.Avalonia.Stem"
         xmlns:controls="clr-namespace:SLSKDONET.Views.Avalonia.Controls"
         xmlns:models="clr-namespace:SLSKDONET.Models"
+        xmlns:sidebar="clr-namespace:SLSKDONET.Features.LibrarySidebar.Views"
+        xmlns:vmSidebar="clr-namespace:SLSKDONET.Features.LibrarySidebar.ViewModels"
+        xmlns:vmCore="clr-namespace:SLSKDONET.ViewModels"
         mc:Ignorable="d" d:DesignWidth="1400" d:DesignHeight="900"
         x:Class="SLSKDONET.Views.Avalonia.MainWindow"
         x:DataType="vm:MainViewModel"
@@ -176,7 +179,7 @@
         </Border>
 
         <!-- Main Content Area with Sidebars -->
-        <Grid Grid.Row="1" ColumnDefinitions="Auto,*,Auto">
+        <Grid Grid.Row="1" ColumnDefinitions="Auto,*">
             
             <!-- Left Navigation Sidebar -->
             <Border Grid.Column="0" 
@@ -348,34 +351,60 @@
                 </ScrollViewer>
             </Border>
 
-            <!-- Center Content Area with Page Transitions -->
-            <TransitioningContentControl Grid.Column="1" 
-                                       Content="{Binding CurrentPage}" 
-                                       Background="#1E1E1E">
-                <TransitioningContentControl.PageTransition>
-                    <CrossFade Duration="0:0:0.25"/>
-                </TransitioningContentControl.PageTransition>
-            </TransitioningContentControl>
+            <!-- Center Content Area with Global Contextual Sidebar -->
+            <SplitView Grid.Column="1"
+                       IsPaneOpen="{Binding Sidebar.IsSidebarOpen}"
+                       DisplayMode="Overlay"
+                       PanePlacement="Right"
+                       OpenPaneLength="350">
+                
+                <SplitView.Pane>
+                    <Border Background="#252526" BorderBrush="#3E3E3E" BorderThickness="1,0,0,0">
+                        <Grid RowDefinitions="Auto,*">
+                            <Border Grid.Row="0" Padding="12" Background="#1E1E1E" BorderBrush="#3E3E3E" BorderThickness="0,0,0,1">
+                                <Grid ColumnDefinitions="Auto,*,Auto">
+                                    <TextBlock Text="{Binding Sidebar.ModeIcon}" FontSize="16" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                                    <TextBlock Grid.Column="1" Text="{Binding Sidebar.ModeLabel}" FontWeight="Bold" VerticalAlignment="Center" Foreground="#DDD"/>
+                                    <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="4">
+                                        <Button Classes="tool" Command="{Binding Sidebar.ShowPlayerCommand}" ToolTip.Tip="Show Player">
+                                            <TextBlock Text="🎵" FontSize="12"/>
+                                        </Button>
+                                        <Button Classes="tool" Command="{Binding Sidebar.HideCommand}" Content="✖" Foreground="#888"/>
+                                    </StackPanel>
+                                </Grid>
+                            </Border>
+                            
+                            <ContentControl Grid.Row="1" Content="{Binding Sidebar.CurrentContent}">
+                                <ContentControl.DataTemplates>
+                                    <DataTemplate DataType="vmSidebar:SimilaritySidebarViewModel">
+                                        <sidebar:SimilaritySidebarView/>
+                                    </DataTemplate>
+                                    <DataTemplate DataType="vmSidebar:BulkActionSidebarViewModel">
+                                        <sidebar:BulkActionSidebarView/>
+                                    </DataTemplate>
+                                    <DataTemplate DataType="vmSidebar:ForensicSidebarViewModel">
+                                        <sidebar:ForensicSidebarView/>
+                                    </DataTemplate>
+                                    <DataTemplate DataType="vmSidebar:MetadataSidebarViewModel">
+                                        <sidebar:MetadataSidebarView/>
+                                    </DataTemplate>
+                                    <DataTemplate DataType="vmCore:PlayerViewModel">
+                                        <views:PlayerControl/>
+                                    </DataTemplate>
+                                </ContentControl.DataTemplates>
+                            </ContentControl>
+                        </Grid>
+                    </Border>
+                </SplitView.Pane>
 
-            <!-- Right Player Sidebar -->
-            <Border Grid.Column="2" 
-                    Background="#252526" 
-                    BorderBrush="#3E3E3E" 
-                    BorderThickness="1,0,0,0"
-                    Width="300">
-                <Border.IsVisible>
-                    <MultiBinding Converter="{x:Static BoolConverters.And}">
-                        <Binding Path="IsPlayerInSidebar"/>
-                        <Binding Path="PlayerViewModel.IsPlayerVisible"/>
-                    </MultiBinding>
-                </Border.IsVisible>
-                <Grid>
-                    <views:PlayerControl DataContext="{Binding PlayerViewModel}" 
-                                       IsVisible="{Binding !IsQueueOpen}"/>
-                    <views:QueuePanel DataContext="{Binding PlayerViewModel}" 
-                                    IsVisible="{Binding IsQueueOpen}"/>
-                </Grid>
-            </Border>
+                <TransitioningContentControl Content="{Binding CurrentPage}" 
+                                           Background="#1E1E1E">
+                    <TransitioningContentControl.PageTransition>
+                        <CrossFade Duration="0:0:0.25"/>
+                    </TransitioningContentControl.PageTransition>
+                </TransitioningContentControl>
+            </SplitView>
+
         </Grid>
 
         <!-- Login Overlay -->

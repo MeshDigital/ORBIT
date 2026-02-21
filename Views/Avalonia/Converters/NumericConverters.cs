@@ -61,6 +61,30 @@ public static class NumericConverters
     public static readonly IValueConverter FloatFallback = new FloatFallbackConverter();
 }
 
+/// <summary>
+/// Phase 1.0: Converts a percentage value (0-100) to a pixel width for progress bars.
+/// ConverterParameter = max width in pixels.
+/// Example: SearchScore=45, Parameter=60 → Width=27px
+/// </summary>
+public class PercentToWidthConverter : IValueConverter
+{
+    public object? Convert(object? value, Type targetType, object? parameter, CultureInfo culture)
+    {
+        double percent = 0;
+        if (value is double d) percent = d;
+        else if (value is int i) percent = i;
+        else if (value is float f) percent = f;
+
+        double maxWidth = 60;
+        if (parameter != null && double.TryParse(parameter.ToString(), out double mw))
+            maxWidth = mw;
+
+        return Math.Clamp(percent / 100.0 * maxWidth, 0, maxWidth);
+    }
+
+    public object? ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture) => throw new NotImplementedException();
+}
+
 public class FloatFallbackConverter : IValueConverter
 {
     public object? Convert(object? value, Type targetType, object? parameter, CultureInfo culture)

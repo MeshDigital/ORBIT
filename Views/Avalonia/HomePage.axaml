@@ -46,7 +46,26 @@
         <!-- Header -->
         <Grid Grid.Row="0" ColumnDefinitions="*,Auto" Margin="0,0,0,32">
             <StackPanel Grid.Column="0">
-                <TextBlock Text="Mission Control" FontSize="32" FontWeight="Black" Foreground="White" LetterSpacing="-0.5"/>
+                <StackPanel Orientation="Horizontal" Spacing="12">
+                    <TextBlock Text="Mission Control" FontSize="32" FontWeight="Black" Foreground="White" LetterSpacing="-0.5"/>
+                    <Border Background="#FF5252" CornerRadius="4" Padding="8,4" VerticalAlignment="Center" IsVisible="{Binding IsLockdownActive}">
+                        <StackPanel Orientation="Horizontal" Spacing="6">
+                            <TextBlock Text="🛡️" FontSize="12" VerticalAlignment="Center"/>
+                            <TextBlock Text="FORENSIC LOCKDOWN ACTIVE" FontSize="11" FontWeight="Bold" Foreground="White" VerticalAlignment="Center"/>
+                        </StackPanel>
+                        <Border.Styles>
+                            <Style Selector="Border">
+                                <Style.Animations>
+                                    <Animation Duration="0:0:1" IterationCount="Infinite">
+                                        <KeyFrame KeyTime="0:0:0"><Setter Property="Opacity" Value="1"/></KeyFrame>
+                                        <KeyFrame KeyTime="0:0:0.5"><Setter Property="Opacity" Value="0.4"/></KeyFrame>
+                                        <KeyFrame KeyTime="0:0:1"><Setter Property="Opacity" Value="1"/></KeyFrame>
+                                    </Animation>
+                                </Style.Animations>
+                            </Style>
+                        </Border.Styles>
+                    </Border>
+                </StackPanel>
                 <TextBlock Text="System Status &amp; Intelligence Dashboard" FontSize="14" Foreground="#808080" Margin="0,4,0,0"/>
             </StackPanel>
             
@@ -131,7 +150,10 @@
                     <!-- System Resilience (Predictive Maintenance) -->
                     <Border Grid.Column="2" Classes="glass" Padding="20">
                         <Grid RowDefinitions="Auto,*,Auto">
-                            <TextBlock Grid.Row="0" Text="PREDICTIVE MAINTENANCE" FontSize="11" FontWeight="Bold" Foreground="#606060" LetterSpacing="1"/>
+                            <Grid Grid.Row="0" ColumnDefinitions="*,Auto">
+                                <TextBlock Text="PREDICTIVE MAINTENANCE" FontSize="11" FontWeight="Bold" Foreground="#606060" LetterSpacing="1"/>
+                                <TextBlock Text="SECURE" IsVisible="{Binding !IsLockdownActive}" FontSize="9" FontWeight="SemiBold" Foreground="#1DB954"/>
+                            </Grid>
                             
                             <StackPanel Grid.Row="1" VerticalAlignment="Center" Spacing="12">
                                 <Grid ColumnDefinitions="*,Auto">
@@ -149,8 +171,8 @@
 
                                 <Grid ColumnDefinitions="*,Auto">
                                     <StackPanel Spacing="2">
-                                        <TextBlock Text="Forensic Lockdown" FontSize="10" Foreground="#808080"/>
-                                        <TextBlock Text="{Binding LockdownStatusText}" FontSize="13" FontWeight="Bold" Foreground="{Binding IsLockdownActive, Converter={StaticResource CountToColorConverter}}"/>
+                                        <TextBlock Text="CPU Topology" FontSize="10" Foreground="#808080"/>
+                                        <TextBlock Text="{Binding CurrentSnapshot.Topology.ShortLabel}" FontSize="13" FontWeight="Bold" Foreground="#00A3FF"/>
                                     </StackPanel>
                                     <StackPanel Grid.Column="1" Spacing="2" HorizontalAlignment="Right">
                                         <TextBlock Text="CPU Load" FontSize="10" Foreground="#808080" HorizontalAlignment="Right"/>

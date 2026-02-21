@@ -73,5 +73,33 @@ public class RejectedResult
     {
         return $"#{Rank}: {Bitrate}kbps {Format} from @{Username} (Score: {SearchScore:F1}) - {RejectionReason}";
     }
+    
+    public Avalonia.Media.IBrush ReasonColor
+    {
+        get
+        {
+            if (string.IsNullOrEmpty(ShortReason)) return Avalonia.Media.Brushes.Gray;
+            
+            if (ShortReason.Contains("Bitrate") || RejectionReason.Contains("Bitrate")) return Avalonia.Media.Brushes.Orange;
+            if (ShortReason.Contains("Length") || RejectionReason.Contains("Length")) return Avalonia.Media.Brushes.Yellow;
+            if (ShortReason.Contains("Score") || RejectionReason.Contains("Score")) return Avalonia.Media.Brushes.IndianRed; 
+            
+            return Avalonia.Media.Brushes.PaleVioletRed;
+        }
+    }
+
+    /// <summary>
+    /// Phase 1.0: Color for the search score progress bar.
+    /// Green = close to threshold (70), Red = far from it.
+    /// </summary>
+    public Avalonia.Media.IBrush ScoreColor
+    {
+        get
+        {
+            if (SearchScore >= 60) return Avalonia.Media.Brushes.LimeGreen;
+            if (SearchScore >= 40) return Avalonia.Media.Brushes.Orange;
+            return Avalonia.Media.Brushes.IndianRed;
+        }
+    }
 }
 

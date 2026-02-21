@@ -102,3 +102,5 @@ public record RecoveryCompletedEvent(
     int FailureCount,
     int DeadLetterCount,
     TimeSpan RecoveryDuration);
+// Phase 10: Connectivity & Background Events
+public record GlobalStatusEvent(string Message, bool IsActive, bool IsError = false);

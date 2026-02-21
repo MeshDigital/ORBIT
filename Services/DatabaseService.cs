@@ -438,6 +438,11 @@ public class DatabaseService
 
     // ===== PlaylistTrack Methods =====
 
+    public async Task UpdateLikeStatusAsync(string trackHash, bool isLiked)
+    {
+        await _trackRepository.UpdateLikeStatusAsync(trackHash, isLiked);
+    }
+
     public async Task<List<PlaylistTrackEntity>> LoadPlaylistTracksAsync(Guid jobId)
     {
         return await _trackRepository.LoadPlaylistTracksAsync(jobId);

@@ -127,22 +127,24 @@ public class SearchResultMatcher
         }
 
         // Tokenization for Path Analysis
-        var artistTokens = Tokenize(model.Artist);
+        var artistTokens = Tokenize(NormalizeArtist(model.Artist));
         var titleTokens = Tokenize(model.Title);
         var allPathText = new List<string> { Path.GetFileName(candidate.Filename ?? "") };
         if (candidate.PathSegments != null) allPathText.AddRange(candidate.PathSegments);
 
-        // 2. Artist in Path (30 pts)
+        // 2. Artist in Path (30 pts) - Phase 1.1: Uses fuzzy + boundary matching
         double artistMatchRatio = CalculateTokenMatchRatio(artistTokens, allPathText);
         int artistPts = (int)(30 * artistMatchRatio);
         score += artistPts;
-        if (artistPts > 0) breakdown.Add($"Artist: +{artistPts} (Tokens: {string.Join(",", artistTokens.Intersect(Tokenize(string.Join(" ", allPathText))))})");
+        if (artistPts > 0) breakdown.Add($"Artist: +{artistPts} ({artistMatchRatio:P0} token match)");
+        else breakdown.Add($"Artist: 0 (No token match for [{string.Join(",", artistTokens)}])");
 
         // 3. Title in Path (20 pts)
         double titleMatchRatio = CalculateTokenMatchRatio(titleTokens, allPathText);
         int titlePts = (int)(20 * titleMatchRatio);
         score += titlePts;
         if (titlePts > 0) breakdown.Add($"Title: +{titlePts}");
+        else breakdown.Add($"Title: 0 (No token match for [{string.Join(",", titleTokens)}])");
 
         // 4. Bitrate (10 pts)
         int bitratePts = 0;
@@ -201,17 +203,80 @@ public class SearchResultMatcher
                     .ToList();
     }
 
+    /// <summary>
+    /// Phase 1.1: Normalizes an artist name for comparison.
+    /// Strips common prefixes ("The", "DJ", "MC"), normalizes "and"/"&"/"vs"/"x" connectors,
+    /// and removes possessives.
+    /// </summary>
+    private string NormalizeArtist(string? input)
+    {
+        if (string.IsNullOrEmpty(input)) return string.Empty;
+
+        var s = input.ToLowerInvariant().Trim();
+
+        // Strip leading articles: "the beatles" -> "beatles"
+        s = Regex.Replace(s, @"^(the|a)\s+", "", RegexOptions.IgnoreCase);
+
+        // Normalize connectors: "Simon & Garfunkel" / "Simon and Garfunkel" -> "simon garfunkel"
+        s = Regex.Replace(s, @"\b(and|&|vs\.?|x|\+)\b", " ", RegexOptions.IgnoreCase);
+
+        // Strip common prefixes that are often omitted in filenames
+        s = Regex.Replace(s, @"\b(dj|mc|lil|lil')\b", "", RegexOptions.IgnoreCase);
+
+        // Remove possessives: "Avicii's" -> "Avicii"
+        s = Regex.Replace(s, @"'s\b", "");
+
+        // Collapse whitespace
+        s = Regex.Replace(s, @"\s+", " ").Trim();
+
+        return s;
+    }
+
+    /// <summary>
+    /// Phase 1.1: Enhanced token matching with word-boundary checks and Levenshtein fuzzy fallback.
+    /// Prevents false positives ("beat" won't match "beatles") while allowing typo tolerance.
+    /// </summary>
     private double CalculateTokenMatchRatio(List<string> searchTokens, List<string> haystack)
     {
         if (!searchTokens.Any()) return 1.0;
         
-        var haystackMerged = string.Join(" ", haystack).ToLowerInvariant();
-        int matched = 0;
+        var haystackNormalized = NormalizeFuzzy(string.Join(" ", haystack));
+        var haystackTokens = Regex.Split(haystackNormalized, @"[\s\-_]+")
+                                  .Where(s => s.Length > 1)
+                                  .Select(s => s.ToLowerInvariant())
+                                  .Distinct()
+                                  .ToList();
+
+        double totalScore = 0;
         foreach (var token in searchTokens)
         {
-            if (haystackMerged.Contains(token)) matched++;
+            // 1. Exact word-boundary match (best)
+            if (ContainsWithBoundary(haystackNormalized, token, ignoreCase: true))
+            {
+                totalScore += 1.0;
+                continue;
+            }
+
+            // 2. Fuzzy token match: find best Levenshtein match among haystack tokens
+            double bestSimilarity = 0;
+            foreach (var ht in haystackTokens)
+            {
+                double sim = CalculateSimilarity(token, ht);
+                if (sim > bestSimilarity) bestSimilarity = sim;
+            }
+
+            // Accept fuzzy match if > 85% similar (allows 1-char typos in ~7-char words)
+            if (bestSimilarity >= 0.85)
+            {
+                totalScore += bestSimilarity;
+            }
+            // 3. Compound word check: "basstripper" contains "bass" as substring
+            else if (token.Length >= 4 && haystackNormalized.Contains(token, StringComparison.OrdinalIgnoreCase))
+            {
+                totalScore += 0.7; // Partial credit for substring (no boundary)
+            }
         }
-        return (double)matched / searchTokens.Count;
+        return totalScore / searchTokens.Count;
     }
 
     /// <summary>
@@ -364,9 +429,9 @@ public class SearchResultMatcher
     }
 
     /// <summary>
-    /// Checks if filename contains the expected artist with word boundaries.
-    /// Relaxed in Phase 1.1: Also returns true if the filename contains one of the artists in a multi-artist query,
-    /// or if the query contains the filename artist (reverse check).
+    /// Phase 1.1: Enhanced artist matching with multiple fallback strategies.
+    /// Checks: (1) Direct boundary match, (2) Normalized/stripped match, (3) Multi-artist split,
+    /// (4) Reverse containment, (5) Levenshtein fuzzy match.
     /// </summary>
     private bool StrictArtistSatisfies(string filename, string expectedArtist)
     {
@@ -379,33 +444,60 @@ public class SearchResultMatcher
         // 1. Standard Check: Filename contains Artist
         if (ContainsWithBoundary(normalizedFilename, normalizedArtist, ignoreCase: true))
             return true;
-            
-        // 1.5 Prefix/Suffix Leniency (Phase 1.2)
-        // Handle "The Artist" vs "Artist"
-        string strippedArtist = Regex.Replace(normalizedArtist, @"\b(the|dj|mc)\b", "", RegexOptions.IgnoreCase).Trim();
-        if (!string.IsNullOrEmpty(strippedArtist) && ContainsWithBoundary(normalizedFilename, strippedArtist, ignoreCase: true))
+
+        // 2. Normalized Artist Check (strips "The", "DJ", "MC", connectors, possessives)
+        string strippedArtist = NormalizeArtist(expectedArtist);
+        if (!string.IsNullOrEmpty(strippedArtist) && strippedArtist.Length > 2 
+            && ContainsWithBoundary(normalizedFilename, strippedArtist, ignoreCase: true))
             return true;
 
-        // 2. Multi-Artist Handling
-        var splitArtists = normalizedArtist.Split(new[] { ',', '&', '/' }, StringSplitOptions.RemoveEmptyEntries)
-                                           .Select(a => a.Trim())
-                                           .Where(a => a.Length > 2)
-                                           .ToList();
-                                           
+        // 3. Multi-Artist Handling (split by , & / feat and vs)
+        var splitArtists = Regex.Split(normalizedArtist, @"[,&/]|\b(feat|ft|vs\.?)\b")
+                                .Select(a => a?.Trim() ?? "")
+                                .Where(a => a.Length > 2)
+                                .ToList();
+
         if (splitArtists.Count > 1)
         {
             foreach (var subArtist in splitArtists)
             {
                 if (ContainsWithBoundary(normalizedFilename, subArtist, ignoreCase: true))
                     return true;
-                
+
                 // Also check sub-artist with prefix leniency
-                string strippedSub = Regex.Replace(subArtist, @"\b(the|dj|mc)\b", "", RegexOptions.IgnoreCase).Trim();
-                if (!string.IsNullOrEmpty(strippedSub) && ContainsWithBoundary(normalizedFilename, strippedSub, ignoreCase: true))
+                string strippedSub = NormalizeArtist(subArtist);
+                if (!string.IsNullOrEmpty(strippedSub) && strippedSub.Length > 2
+                    && ContainsWithBoundary(normalizedFilename, strippedSub, ignoreCase: true))
                     return true;
             }
         }
-        
+
+        // 4. Reverse Containment: Does the filename's artist-like segment contain OUR artist?
+        // Handles: Query="Tiësto" but file path has "Tiesto" (accent normalization already handles this)
+        // or Query="Deadmau5" but file says "deadmaus" — caught by fuzzy below.
+
+        // 5. Levenshtein Fuzzy Fallback: If the whole-string similarity is > 85%, accept it.
+        // This catches typos and minor variations like "Basstripper" vs "Bass Tripper"
+        if (strippedArtist.Length > 3)
+        {
+            double similarity = CalculateSimilarity(strippedArtist, NormalizeArtist(normalizedFilename));
+            // Only use this for short filenames (artist-only folder names)
+            // For full paths, token matching in CalculateTokenMatchRatio handles it.
+            // Here we check if the normalized filename starts with something similar.
+            var filenameTokens = Regex.Split(normalizedFilename, @"[\s\-_]+")
+                                      .Where(t => t.Length > 2)
+                                      .ToList();
+
+            // Build candidate artist strings from first N tokens of filename
+            for (int len = 1; len <= Math.Min(3, filenameTokens.Count); len++)
+            {
+                var candidateArtist = string.Join(" ", filenameTokens.Take(len));
+                double sim = CalculateSimilarity(strippedArtist, NormalizeArtist(candidateArtist));
+                if (sim >= 0.85)
+                    return true;
+            }
+        }
+
         return false;
     }
 

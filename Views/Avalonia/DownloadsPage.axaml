@@ -42,6 +42,8 @@
                         <MenuItem Header="Retry Download" Command="{Binding RetryCommand}"><MenuItem.Icon><PathIcon Data="{StaticResource arrow_counterclockwise_regular}" Width="16" Height="16"/></MenuItem.Icon></MenuItem>
                         <MenuItem Header="View All Search Results" Command="{Binding ViewAllSearchResultsCommand}"><MenuItem.Icon><PathIcon Data="{StaticResource search_regular}" Width="16" Height="16"/></MenuItem.Icon></MenuItem>
                         <MenuItem Header="Remove from History" Command="{Binding CleanCommand}"><MenuItem.Icon><PathIcon Data="{StaticResource delete_regular}" Width="16" Height="16"/></MenuItem.Icon></MenuItem>
+                        <Separator/>
+                        <MenuItem Header="Copy Failure Log" Command="{Binding CopyLogCommand}"><MenuItem.Icon><PathIcon Data="{StaticResource copy_regular}" Width="16" Height="16"/></MenuItem.Icon></MenuItem>
                     </ContextMenu>
                 </Border.ContextMenu>
                 
@@ -83,10 +85,20 @@
                                                  <!-- Rank -->
                                                  <TextBlock Grid.Row="0" Grid.Column="0" Text="{Binding Rank, StringFormat='{}#{0}'}" Foreground="#555" FontSize="11" VerticalAlignment="Top" Margin="0,1,0,0"/>
                                                  
-                                                 <!-- Top Row: Reason + Tech Stats -->
-                                                 <Grid Grid.Row="0" Grid.Column="1" ColumnDefinitions="*, Auto">
-                                                     <TextBlock Grid.Column="0" Text="{Binding ShortReason}" Foreground="#DD6666" FontSize="11" FontWeight="SemiBold" TextTrimming="CharacterEllipsis"/>
-                                                     <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="6" Margin="8,0,0,0">
+                                                 <!-- Top Row: Reason + Score + Tech Stats -->
+                                                 <Grid Grid.Row="0" Grid.Column="1" ColumnDefinitions="*, Auto, Auto">
+                                                     <TextBlock Grid.Column="0" Text="{Binding ShortReason}" Foreground="{Binding ReasonColor}" FontSize="11" FontWeight="SemiBold" TextTrimming="CharacterEllipsis"/>
+                                                     
+                                                     <!-- Phase 1.0: Search Score Indicator -->
+                                                     <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="4" Margin="8,0" VerticalAlignment="Center">
+                                                         <Border Background="#222" CornerRadius="3" Width="60" Height="6" VerticalAlignment="Center">
+                                                             <Border Background="{Binding ScoreColor}" CornerRadius="3" HorizontalAlignment="Left"
+                                                                     Width="{Binding SearchScore, Converter={StaticResource PercentToWidthConverter}, ConverterParameter=60}"/>
+                                                         </Border>
+                                                         <TextBlock Text="{Binding SearchScore, StringFormat='{}{0:0}%'}" Foreground="#AAA" FontSize="10" FontWeight="Bold" VerticalAlignment="Center"/>
+                                                     </StackPanel>
+                                                     
+                                                     <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="6" Margin="8,0,0,0">
                                                           <TextBlock Text="{Binding Bitrate, StringFormat='{}{0}kbps'}" Foreground="#888" FontSize="11"/>
                                                           <TextBlock Text="{Binding Format}" Foreground="#888" FontSize="11"/>
                                                           <TextBlock Text="{Binding Username, StringFormat='{}@{0}'}" Foreground="#555" FontSize="11"/>
@@ -97,15 +109,8 @@
                                                  <TextBlock Grid.Row="1" Grid.Column="1" 
                                                             Text="{Binding Filename}" 
                                                             Foreground="#666" FontStyle="Italic" FontSize="10" 
-                                                            TextTrimming="CharacterEllipsis" Margin="0,1,0,0">
-                                                     <ToolTip.Tip>
-                                                         <MultiBinding StringFormat="Score: {0}/100 | {1} &#x0a;{2}">
-                                                             <Binding Path="SearchScore"/>
-                                                             <Binding Path="ShortReason"/>
-                                                             <Binding Path="ScoreBreakdown"/>
-                                                         </MultiBinding>
-                                                     </ToolTip.Tip>
-                                                 </TextBlock>
+                                                            TextTrimming="CharacterEllipsis" Margin="0,1,0,0"
+                                                            ToolTip.Tip="{Binding Filename}"/>
                                              </Grid>
                                          </DataTemplate>
                                      </ItemsControl.ItemTemplate>
@@ -114,19 +119,28 @@
                         </StackPanel>
                         
                         <!-- Action -->
-                        <Button Grid.Column="1" Command="{Binding RetryCommand}" 
-                                Background="Transparent" 
-                                BorderThickness="1" BorderBrush="#2E7D32" 
-                                Foreground="#4CAF50"
-                                Padding="12,6" 
-                                CornerRadius="4" 
-                                VerticalAlignment="Center"
-                                Margin="12,0,0,0">
-                            <StackPanel Orientation="Horizontal" Spacing="6">
-                                <PathIcon Data="{StaticResource arrow_counterclockwise_regular}" Width="14" Height="14" Foreground="#4CAF50"/>
-                                <TextBlock Text="Retry" FontSize="12" FontWeight="SemiBold"/>
-                            </StackPanel>
-                        </Button>
+                        <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                            <!-- View Log Button (Micro) -->
+                            <Button Command="{Binding ViewLogCommand}" 
+                                    Background="Transparent" 
+                                    BorderThickness="0"
+                                    ToolTip.Tip="View Diagnostic Log"
+                                    IsVisible="{Binding HasRejectionDetails}">
+                                <PathIcon Data="{StaticResource document_text_regular}" Width="14" Height="14" Foreground="#666"/>
+                            </Button>
+                            
+                            <Button Command="{Binding RetryCommand}" 
+                                    Background="Transparent" 
+                                    BorderThickness="1" BorderBrush="#2E7D32" 
+                                    Foreground="#4CAF50"
+                                    Padding="12,6" 
+                                    CornerRadius="4">
+                                <StackPanel Orientation="Horizontal" Spacing="6">
+                                    <PathIcon Data="{StaticResource arrow_counterclockwise_regular}" Width="14" Height="14" Foreground="#4CAF50"/>
+                                    <TextBlock Text="Retry" FontSize="12" FontWeight="SemiBold"/>
+                                </StackPanel>
+                            </Button>
+                        </StackPanel>
                     </Grid>
                 </Border>
             </Border>
@@ -243,6 +257,30 @@
                         </StackPanel>
                     </Button>
                     
+                    <Button Command="{Binding ResumeSelectedCommand}"
+                            Background="#4CAF50"
+                            Foreground="White"
+                            Padding="16,8"
+                            CornerRadius="6"
+                            FontWeight="Bold">
+                         <StackPanel Orientation="Horizontal" Spacing="8">
+                            <TextBlock Text="▶" FontSize="14"/>
+                            <TextBlock Text="Resume" VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </Button>
+                    
+                    <Button Command="{Binding PauseSelectedCommand}"
+                            Background="#FFB74D"
+                            Foreground="#4E342E" 
+                            Padding="16,8"
+                            CornerRadius="6"
+                            FontWeight="Bold">
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                            <TextBlock Text="⏸" FontSize="14"/>
+                            <TextBlock Text="Pause" VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </Button>
+
                     <Button Command="{Binding CancelSelectedCommand}"
                             Background="#D32F2F"
                             Foreground="White"
@@ -273,6 +311,31 @@
             <!-- Active Downloads Tab -->
             <TabItem Header="Active">
                 <Grid RowDefinitions="Auto,*">
+                    <!-- Global Status Indicator (Circuit Breaker / Connection Alerts) -->
+                    <Border Grid.Row="0" 
+                            IsVisible="{Binding IsGlobalStatusVisible}"
+                            Background="{Binding IsGlobalStatusError, Converter={StaticResource BoolToErrorColorConverter}}"
+                            Opacity="0.8"
+                            Margin="16,16,16,0"
+                            Padding="16,10"
+                            CornerRadius="8"
+                            BorderThickness="1"
+                            BorderBrush="#44FFFFFF">
+                        <StackPanel Orientation="Horizontal" Spacing="12">
+                            <TextBlock Text="⚠️" FontSize="16" VerticalAlignment="Center"/>
+                            <TextBlock Text="{Binding GlobalStatusMessage}" 
+                                       Foreground="White" 
+                                       FontWeight="SemiBold" 
+                                       VerticalAlignment="Center"/>
+                            <ProgressBar IsIndeterminate="True" 
+                                         Width="100" 
+                                         Height="2" 
+                                         VerticalAlignment="Center" 
+                                         Margin="12,0,0,0"
+                                         IsVisible="{Binding IsGlobalStatusError}"/>
+                        </StackPanel>
+                    </Border>
+
                     <!-- Empty State -->
                     <Border Grid.Row="1" 
                             IsVisible="{Binding !HasAnyActiveOrQueued}"
@@ -291,91 +354,95 @@
                         </StackPanel>
                     </Border>
 
-                    <!-- Grouped List Layout (Active) -->
-                    <ScrollViewer Grid.Row="1" IsVisible="{Binding HasAnyActiveOrQueued}" VerticalScrollBarVisibility="Auto">
-                        <StackPanel Spacing="24" Margin="16,16,16,24">
-                            
-                            <!-- Phase 9: Swimlane: DIRECT ACTIVE (Searching or Downloading - First Results) -->
-                            <StackPanel Spacing="8" IsVisible="{Binding ActiveTracks.Count}">
-                                <Border Background="#00BFFF" CornerRadius="4" Padding="12,4" HorizontalAlignment="Left">
-                                    <StackPanel Orientation="Horizontal" Spacing="8">
-                                        <TextBlock Text="🚀 DIRECT ACTIVE" FontSize="11" FontWeight="Bold" Foreground="Black"/>
-                                        <TextBlock Text="{Binding ActiveTracks.Count}" FontSize="11" Foreground="#444" FontWeight="Bold"/>
-                                    </StackPanel>
-                                </Border>
-                                <ItemsRepeater ItemsSource="{Binding ActiveTracks}">
-                                    <ItemsRepeater.ItemTemplate>
-                                        <DataTemplate>
-                                            <c:StandardTrackRow Classes="card"/>
-                                        </DataTemplate>
-                                    </ItemsRepeater.ItemTemplate>
-                                </ItemsRepeater>
-                            </StackPanel>
-
-                            <!-- Swimlane: EXPRESS (Priority 0) -->
-                            <StackPanel Spacing="8" IsVisible="{Binding ExpressGroups.Count}">
-                                <Border Background="#FFD700" CornerRadius="4" Padding="12,4" HorizontalAlignment="Left">
-                                    <StackPanel Orientation="Horizontal" Spacing="8">
-                                        <TextBlock Text="🚀 EXPRESS" FontSize="11" FontWeight="Bold" Foreground="Black"/>
-                                        <TextBlock Text="{Binding ExpressGroups.Count}" FontSize="11" Foreground="#444" FontWeight="Bold"/>
-                                    </StackPanel>
-                                </Border>
-                                <!-- Grouped EXPRESS cards -->
-                                <ItemsRepeater ItemsSource="{Binding ExpressGroups}">
-                                    <ItemsRepeater.ItemTemplate>
-                                        <DataTemplate>
-                                            <c:DownloadGroupRow/>
-                                        </DataTemplate>
-                                    </ItemsRepeater.ItemTemplate>
-                                </ItemsRepeater>
-                            </StackPanel>
-
-                            <!-- Main Ongoing Section (Using StandardGroups) -->
-                            <StackPanel Spacing="16" IsVisible="{Binding StandardGroups.Count}">
-                                <Border Background="#2D2D2D" CornerRadius="4" Padding="12,6">
-                                    <StackPanel Orientation="Horizontal" Spacing="8">
-                                        <TextBlock Text="🔥 ACTIVE GROUPS" FontSize="11" FontWeight="Bold" Foreground="#00BCD4"/>
-                                        <TextBlock Text="{Binding StandardGroups.Count}" FontSize="11" Foreground="#888"/>
-                                    </StackPanel>
-                                </Border>
-                                
-                                <ItemsRepeater ItemsSource="{Binding StandardGroups}">
-                                    <ItemsRepeater.ItemTemplate>
-                                        <DataTemplate>
-                                            <c:DownloadGroupRow/>
-                                        </DataTemplate>
-                                    </ItemsRepeater.ItemTemplate>
-                                </ItemsRepeater>
-                            </StackPanel>
-
-                            <!-- Queue Section (Flat list for visibility of upcoming items) -->
-                            <StackPanel Spacing="8" IsVisible="{Binding QueuedDownloads.Count}">
-                                <Border Background="#2D2D2D" CornerRadius="4" Padding="12,6">
-                                    <StackPanel Orientation="Horizontal" Spacing="8">
-                                        <TextBlock Text="⏳ QUEUE" FontSize="11" FontWeight="Bold" Foreground="#FFA500"/>
-                                        <TextBlock Text="{Binding QueuedDownloads.Count}" FontSize="11" Foreground="#888"/>
-                                    </StackPanel>
-                                </Border>
-                                
-                                <ItemsRepeater ItemsSource="{Binding QueuedDownloads}">
-                                    <ItemsRepeater.ItemTemplate>
-                                        <DataTemplate>
-                                            <Border Background="Transparent">
-                                                <Border.ContextMenu>
-                                                    <ContextMenu>
-                                                        <MenuItem Header="Pause" Command="{Binding PauseCommand}" IsVisible="{Binding IsActive}"><MenuItem.Icon><PathIcon Data="{StaticResource pause_regular}" Width="16" Height="16"/></MenuItem.Icon></MenuItem>
-                                                        <MenuItem Header="Resume" Command="{Binding ResumeCommand}" IsVisible="{Binding IsPaused}"><MenuItem.Icon><PathIcon Data="{StaticResource play_regular}" Width="16" Height="16"/></MenuItem.Icon></MenuItem>
-                                                        <MenuItem Header="Cancel" Command="{Binding CancelCommand}"><MenuItem.Icon><PathIcon Data="{StaticResource dismiss_regular}" Width="16" Height="16"/></MenuItem.Icon></MenuItem>
-                                                    </ContextMenu>
-                                                </Border.ContextMenu>
+                    <!-- Grouped List Layout (Active) - Split for Virtualization -->
+                    <Grid Grid.Row="1" RowDefinitions="Auto, Auto, *" IsVisible="{Binding HasAnyActiveOrQueued}">
+                        
+                        <!-- Top Section: Active & Groups (Auto/Pinned) -->
+                        <ScrollViewer Grid.Row="0" MaxHeight="500" VerticalScrollBarVisibility="Auto">
+                            <StackPanel Spacing="24" Margin="16,16,16,8">
+                                <!-- Phase 9: Swimlane: DIRECT ACTIVE (Searching or Downloading - First Results) -->
+                                <StackPanel Spacing="8" IsVisible="{Binding ActiveTracks.Count}">
+                                    <Border Background="#00BFFF" CornerRadius="4" Padding="12,4" HorizontalAlignment="Left">
+                                        <StackPanel Orientation="Horizontal" Spacing="8">
+                                            <TextBlock Text="🚀 DIRECT ACTIVE" FontSize="11" FontWeight="Bold" Foreground="Black"/>
+                                            <TextBlock Text="{Binding ActiveTracks.Count}" FontSize="11" Foreground="#444" FontWeight="Bold"/>
+                                        </StackPanel>
+                                    </Border>
+                                    <ItemsRepeater ItemsSource="{Binding ActiveTracks}">
+                                        <ItemsRepeater.ItemTemplate>
+                                            <DataTemplate>
                                                 <c:StandardTrackRow Classes="card"/>
-                                            </Border>
-                                        </DataTemplate>
-                                    </ItemsRepeater.ItemTemplate>
-                                </ItemsRepeater>
+                                            </DataTemplate>
+                                        </ItemsRepeater.ItemTemplate>
+                                    </ItemsRepeater>
+                                </StackPanel>
+
+                                <!-- Swimlane: EXPRESS (Priority 0) -->
+                                <StackPanel Spacing="8" IsVisible="{Binding ExpressGroups.Count}">
+                                    <Border Background="#FFD700" CornerRadius="4" Padding="12,4" HorizontalAlignment="Left">
+                                        <StackPanel Orientation="Horizontal" Spacing="8">
+                                            <TextBlock Text="🚀 EXPRESS" FontSize="11" FontWeight="Bold" Foreground="Black"/>
+                                            <TextBlock Text="{Binding ExpressGroups.Count}" FontSize="11" Foreground="#444" FontWeight="Bold"/>
+                                        </StackPanel>
+                                    </Border>
+                                    <!-- Grouped EXPRESS cards -->
+                                    <ItemsRepeater ItemsSource="{Binding ExpressGroups}">
+                                        <ItemsRepeater.ItemTemplate>
+                                            <DataTemplate>
+                                                <c:DownloadGroupRow/>
+                                            </DataTemplate>
+                                        </ItemsRepeater.ItemTemplate>
+                                    </ItemsRepeater>
+                                </StackPanel>
+
+                                <!-- Main Ongoing Section (Using StandardGroups) -->
+                                <StackPanel Spacing="16" IsVisible="{Binding StandardGroups.Count}">
+                                    <Border Background="#2D2D2D" CornerRadius="4" Padding="12,6">
+                                        <StackPanel Orientation="Horizontal" Spacing="8">
+                                            <TextBlock Text="🔥 ACTIVE GROUPS" FontSize="11" FontWeight="Bold" Foreground="#00BCD4"/>
+                                            <TextBlock Text="{Binding StandardGroups.Count}" FontSize="11" Foreground="#888"/>
+                                        </StackPanel>
+                                    </Border>
+                                    
+                                    <ItemsRepeater ItemsSource="{Binding StandardGroups}">
+                                        <ItemsRepeater.ItemTemplate>
+                                            <DataTemplate>
+                                                <c:DownloadGroupRow/>
+                                            </DataTemplate>
+                                        </ItemsRepeater.ItemTemplate>
+                                    </ItemsRepeater>
+                                </StackPanel>
                             </StackPanel>
-                        </StackPanel>
-                    </ScrollViewer>
+                        </ScrollViewer>
+
+                        <!-- Queue Header (Pinned) -->
+                        <Border Grid.Row="1" Background="#2D2D2D" CornerRadius="4" Padding="12,6" Margin="16,8,16,8" IsVisible="{Binding QueuedDownloads.Count}">
+                            <StackPanel Orientation="Horizontal" Spacing="8">
+                                <TextBlock Text="⏳ QUEUE" FontSize="11" FontWeight="Bold" Foreground="#FFA500"/>
+                                <TextBlock Text="{Binding QueuedDownloads.Count}" FontSize="11" Foreground="#888"/>
+                            </StackPanel>
+                        </Border>
+                        
+                        <!-- Queue List (Virtualized) -->
+                        <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto" IsVisible="{Binding QueuedDownloads.Count}">
+                            <ItemsRepeater ItemsSource="{Binding QueuedDownloads}" Margin="16,0,16,16">
+                                <ItemsRepeater.ItemTemplate>
+                                    <DataTemplate>
+                                        <Border Background="Transparent">
+                                            <Border.ContextMenu>
+                                                <ContextMenu>
+                                                    <MenuItem Header="Pause" Command="{Binding PauseCommand}" IsVisible="{Binding IsActive}"><MenuItem.Icon><PathIcon Data="{StaticResource pause_regular}" Width="16" Height="16"/></MenuItem.Icon></MenuItem>
+                                                    <MenuItem Header="Resume" Command="{Binding ResumeCommand}" IsVisible="{Binding IsPaused}"><MenuItem.Icon><PathIcon Data="{StaticResource play_regular}" Width="16" Height="16"/></MenuItem.Icon></MenuItem>
+                                                    <MenuItem Header="Cancel" Command="{Binding CancelCommand}"><MenuItem.Icon><PathIcon Data="{StaticResource dismiss_regular}" Width="16" Height="16"/></MenuItem.Icon></MenuItem>
+                                                </ContextMenu>
+                                            </Border.ContextMenu>
+                                            <c:StandardTrackRow Classes="card"/>
+                                        </Border>
+                                    </DataTemplate>
+                                </ItemsRepeater.ItemTemplate>
+                            </ItemsRepeater>
+                        </ScrollViewer>
+                    </Grid>
                 </Grid>
             </TabItem>
 

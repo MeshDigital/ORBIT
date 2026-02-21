@@ -197,7 +197,8 @@ namespace SLSKDONET.Services
                 ActiveOperations = operations,
                 ResilienceLog = resilienceLog,
                 IsForensicLockdownActive = _lockdown.IsLockdownActive,
-                CurrentCpuLoad = _lockdown.CurrentCpuLoad
+                CurrentCpuLoad = _lockdown.CurrentCpuLoad,
+                Topology = SystemInfoHelper.Topology
             };
         }
 

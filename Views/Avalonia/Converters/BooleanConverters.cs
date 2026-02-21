@@ -162,6 +162,24 @@ namespace SLSKDONET.Views.Avalonia.Converters
         }
     }
 
+    /// <summary>
+    /// Phase 1.0: Converts boolean to FontStyle.
+    /// true (IsCompleted) → Normal, false → Italic (pending state).
+    /// </summary>
+    public class BoolToFontStyleConverter : IValueConverter
+    {
+        public object? Convert(object? value, Type targetType, object? parameter, CultureInfo culture)
+        {
+            if (value is bool b)
+            {
+                return b ? global::Avalonia.Media.FontStyle.Normal : global::Avalonia.Media.FontStyle.Italic;
+            }
+            return global::Avalonia.Media.FontStyle.Normal;
+        }
+
+        public object? ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture) => throw new NotImplementedException();
+    }
+
     public class BooleanToStatusColorConverter : IValueConverter
     {
         public object? Convert(object? value, Type targetType, object? parameter, CultureInfo culture)
@@ -169,6 +187,23 @@ namespace SLSKDONET.Views.Avalonia.Converters
             if (value is bool isOk)
             {
                 return isOk ? Brushes.Green : Brushes.Red;
+            }
+            return Brushes.Gray;
+        }
+
+        public object? ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture)
+        {
+            throw new NotImplementedException();
+        }
+    }
+
+    public class BoolToErrorColorConverter : IValueConverter
+    {
+        public object? Convert(object? value, Type targetType, object? parameter, CultureInfo culture)
+        {
+            if (value is bool isError)
+            {
+                return isError ? Brushes.Red : Brushes.Orange;
             }
             return Brushes.Gray;
         }
