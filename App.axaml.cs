@@ -605,6 +605,7 @@ public partial class App : Application
         
         // Phase 18: Sonic Match Engine - AI-powered vibe similarity
         services.AddSingleton<Services.AI.ISonicMatchService, Services.AI.SonicMatchService>();
+        services.AddSingleton<Services.Musical.SonicMatchService>();
 
         // Phase 25: Universal Music Engine (MusicBrainz Integration)
         services.AddSingleton<IMusicBrainzService, MusicBrainzService>();

@@ -22,7 +22,7 @@ We have successfully completed Phase 1 (UI Refinement & Harmonic Search) and pro
 - [ ] **The "Like" Loop**:
     - [x] Implement `ToggleLikeCommand` in `PlayerViewModel`.
     - [x] Persistence: Save "Liked" status to the physical file (Tag) and database.
-    - [ ] UI: Pulsing heart animation on success.
+    - [x] UI: Pulsing heart animation on success.
 - [ ] **Vibe Visualizer 2.0**:
     - [ ] Refine `VibeVisualizer` (SkiaSharp) to react to `Energy` (color intensity) and `MoodTag` (vibe patterns).
     - [ ] Add 60fps spectrum analyzer backdrop.
@@ -72,6 +72,6 @@ We have successfully completed Phase 1 (UI Refinement & Harmonic Search) and pro
 ---
 
 ## 📝 Getting Started (Immediate Tasks)
-1. **Pulse Animation**: Add `LikeAnimation` to the `Heart` button in `PlayerControl.axaml`.
-2. **AnalysisWorker Audit**: Implement `IDisposable` in `AnalysisQueueService` for `PerformanceCounter`.
-3. **Similarity Logic**: Implement the first pass of `SonicMatchService` using Energy/BPM matching.
+1. **Vibe Visualizer 2.0**: Implement SkiaSharp-based energy reactiveness in the player backdrop.
+2. **Smart Context Menu**: Add "Show in Search" and "Go to Album" commands to the Library grid.
+3. **Spotify Resilience**: Integrate Polly policies for `SpotifyMetadataService` rate limiting.

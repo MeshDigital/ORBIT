@@ -38,9 +38,9 @@ public class SonicMatchService
 
     /// <summary>
     /// Finds professional-grade matches for a source track.
-    /// Algorithm: Weighted Euclidean distance + Vibe Gating.
+    /// Algorithm: Weighted Euclidean distance + Harmonic Gating.
     /// </summary>
-    public async Task<List<SonicMatchResult>> GetMatchesAsync(LibraryEntryEntity source, int limit = 10)
+    public async Task<List<SonicMatchResult>> GetMatchesAsync(LibraryEntryEntity source, int limit = 15)
     {
         try
         {
@@ -52,7 +52,7 @@ public class SonicMatchService
 
             if (sourceFeatures == null) return new();
 
-            // 2. Identify Vibe for gating (concurrently if possible, but let's keep it simple first)
+            // 2. Identify Vibe for gating
             var sourceVibe = "Unknown";
             if (!string.IsNullOrEmpty(sourceFeatures.AiEmbeddingJson))
             {
@@ -64,9 +64,9 @@ public class SonicMatchService
                 }
             }
 
-            // 3. Load candidate pool (pre-filter by BPM ±10% for basic performance)
-            var minBpm = (double)sourceFeatures.Bpm * 0.90;
-            var maxBpm = (double)sourceFeatures.Bpm * 1.10;
+            // 3. Load candidate pool (Filter: BPM ±6% industry standard)
+            var minBpm = (double)sourceFeatures.Bpm * 0.94;
+            var maxBpm = (double)sourceFeatures.Bpm * 1.06;
 
             var candidates = await _dbContext.LibraryEntries
                 .Include(le => le.AudioFeatures)
@@ -82,18 +82,33 @@ public class SonicMatchService
                 if (candFeatures == null) continue;
 
                 // A. Key Compatibility (±1 Camelot Step)
-                var keyScore = CalculateKeyCompatibility(sourceFeatures.Key, candFeatures.Key);
-                if (keyScore < 0.5) continue; // Skip incompatible keys
+                var keyComp = CalculateKeyCompatibility(sourceFeatures.Key, candFeatures.Key);
+                if (keyComp < 0.5) continue; // Harmonic Gate: must be compatible
 
-                // B. Energy Proximity (±1 on 1-10 scale)
-                var energyDist = Math.Abs(sourceFeatures.EnergyScore - candFeatures.EnergyScore);
-                var energyScore = Math.Max(0, 1.0 - (energyDist / 10.0));
+                // B. Euclidean distance in Feature Space (Normalized)
+                // We use (1 - score) as distance components
+                
+                // Energy Gap (0-10 scale)
+                double energyGap = Math.Abs(sourceFeatures.EnergyScore - candFeatures.EnergyScore) / 10.0;
+                
+                // BPM Gap (relative to source)
+                double bpmGap = Math.Abs(sourceFeatures.Bpm - candFeatures.Bpm) / (sourceFeatures.Bpm > 0 ? sourceFeatures.Bpm : 120f) / 0.06;
+                bpmGap = Math.Min(1.0, bpmGap); // Cap at 1.0
 
-                // C. BPM Distance (±6% industry standard)
-                var bpmDist = Math.Abs(sourceFeatures.Bpm - candFeatures.Bpm) / (sourceFeatures.Bpm > 0 ? sourceFeatures.Bpm : 120f);
-                var bpmScore = Math.Max(0, 1.0 - (bpmDist / 0.06));
+                // Key Gap (Harmonically)
+                double keyGap = 1.0 - keyComp;
 
-                // D. Vibe Gating (Style Compatibility)
+                // Weighted Euclidean Distance: sqrt(w1*d1^2 + w2*d2^2 + ...)
+                double distanceSquared = (KeyWeight * keyGap * keyGap) + 
+                                         (EnergyWeight * energyGap * energyGap) + 
+                                         (BpmWeight * bpmGap * bpmGap);
+                
+                double distance = Math.Sqrt(distanceSquared);
+                
+                // Convert distance back to a 0-100 Score
+                double score = Math.Max(0, 100 * (1.0 - (distance / Math.Sqrt(KeyWeight + EnergyWeight + BpmWeight))));
+
+                // D. Vibe Bonus
                 bool vibeMatch = false;
                 if (sourceVibe != "Unknown" && !string.IsNullOrEmpty(candFeatures.AiEmbeddingJson))
                 {
@@ -105,14 +120,12 @@ public class SonicMatchService
                     }
                 }
 
-                // Weighted Total
-                var totalScore = (keyScore * KeyWeight) + (energyScore * EnergyWeight) + (bpmScore * BpmWeight);
-                if (vibeMatch) totalScore += 0.1; // Bonus for vibe match
+                if (vibeMatch) score += 5; // Small loyalty bonus for matching style
 
                 results.Add(new SonicMatchResult
                 {
                     Track = cand,
-                    Score = (float)Math.Clamp(totalScore * 100, 0, 100),
+                    Score = (float)Math.Clamp(score, 0, 100),
                     VibeMatch = vibeMatch
                 });
             }

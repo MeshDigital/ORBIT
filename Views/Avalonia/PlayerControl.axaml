@@ -302,15 +302,40 @@
                         Background="Transparent"
                         BorderThickness="0"
                         Width="36" Height="36"
-                        ToolTip.Tip="Like">
+                        ToolTip.Tip="Like"
+                        Classes.liked="{Binding IsCurrentTrackLiked}">
                     <Button.Styles>
                         <Style Selector="Button:pointerover">
                             <Setter Property="Background" Value="#2D2D2D"/>
                         </Style>
+                        <!-- Pulsing Heart Animation -->
+                        <Style Selector="Button.liked TextBlock">
+                            <Style.Animations>
+                                <Animation Duration="0:0:0.5" Easing="BackEaseOut" IterationCount="1">
+                                    <KeyFrame KeyTime="0:0:0.0">
+                                        <Setter Property="ScaleTransform.ScaleX" Value="1.0"/>
+                                        <Setter Property="ScaleTransform.ScaleY" Value="1.0"/>
+                                    </KeyFrame>
+                                    <KeyFrame KeyTime="0:0:0.25">
+                                        <Setter Property="ScaleTransform.ScaleX" Value="1.4"/>
+                                        <Setter Property="ScaleTransform.ScaleY" Value="1.4"/>
+                                    </KeyFrame>
+                                    <KeyFrame KeyTime="0:0:0.5">
+                                        <Setter Property="ScaleTransform.ScaleX" Value="1.0"/>
+                                        <Setter Property="ScaleTransform.ScaleY" Value="1.0"/>
+                                    </KeyFrame>
+                                </Animation>
+                            </Style.Animations>
+                        </Style>
                     </Button.Styles>
                     <TextBlock Text="{Binding IsCurrentTrackLiked, Converter={StaticResource BoolToHeartConverter}}" 
                                FontSize="18" 
-                               Foreground="{Binding IsCurrentTrackLiked, Converter={StaticResource BoolToHeartColorConverter}}"/>
+                               Foreground="{Binding IsCurrentTrackLiked, Converter={StaticResource BoolToHeartColorConverter}}"
+                               RenderTransformOrigin="50%,50%">
+                        <TextBlock.RenderTransform>
+                            <ScaleTransform ScaleX="1.0" ScaleY="1.0"/>
+                        </TextBlock.RenderTransform>
+                    </TextBlock>
                 </Button>
                 
                 <Button Command="{Binding ToggleQueueCommand}"

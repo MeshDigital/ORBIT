@@ -525,6 +525,26 @@ public class AnalysisWorker : BackgroundService
         return optimal;
     }
     
+    public override void Dispose()
+    {
+        if (_cpuCounter != null)
+        {
+            try
+            {
+#pragma warning disable CA1416 // Validate platform compatibility
+                _cpuCounter.Dispose();
+#pragma warning restore CA1416 // Validate platform compatibility
+                _cpuCounter = null;
+                _logger.LogDebug("🗑️ AnalysisWorker: PerformanceCounter disposed.");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning("Failed to dispose CPU counter: {Message}", ex.Message);
+            }
+        }
+        base.Dispose();
+    }
+
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
         _logger.LogInformation("🧠 Musical Brain (AnalysisWorker) started with ~{Threads} parallel threads.", SystemInfoHelper.GetOptimalParallelism());

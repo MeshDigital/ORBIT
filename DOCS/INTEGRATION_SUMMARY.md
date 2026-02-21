@@ -10,10 +10,14 @@ The application has undergone a significant architectural shift by promoting the
     - `PlayerViewModel.ToggleLikeCommand` triggers the update.
     - `LibraryService.UpdateLikeStatusAsync` handles the business logic and cache invalidation.
     - `TrackRepository.UpdateLikeStatusAsync` persists the `IsLiked` status to the SQLite database.
-    - UI feedback is provided via a data-bound heart icon in `PlayerControl.axaml`.
+    - **UI Polish**: Added an elastic pulsing animation to the heart icon in `PlayerControl.axaml` using Avalonia KeyFrame animations.
 
-## Known Stubs
-- **Similarity Module**: The UI is wired and the ViewModel structure exists, but the `SonicMatchService` logic (using Energy/BPM/Acoustic features) is still a stub to be implemented in Phase 2.3.
+## Intelligence Engine
+- **Similarity Module**: The `SonicMatchService` has been upgraded from a stub to a weighted Euclidean matching engine. It calculates proximity based on:
+    - **Key**: ±1 Camelot step compatibility.
+    - **BPM**: Industry-standard ±6% window.
+    - **Energy**: EnergyScore proximity.
+- **SideBar Reactivity**: `SimilaritySidebarViewModel` now performs real-time matching via `Task.Run` and updates the UI on the main thread when a track is selected globally.
 
-## Resource Management Note
-- **AnalysisWorker**: I identified that `AnalysisQueueService` uses `System.Diagnostics.PerformanceCounter`, which should be disposed. An `IDisposable` pattern needs to be implemented.
+## Resource Management
+- **AnalysisWorker**: Implemented `IDisposable` in `AnalysisQueueService` (AnalysisWorker) to explicitly release Windows `PerformanceCounter` handles, ensuring system stability during long analysis sessions.
