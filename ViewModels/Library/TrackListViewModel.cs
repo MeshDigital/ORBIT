@@ -469,6 +469,7 @@ public class TrackListViewModel : ReactiveObject, IDisposable
         });
 
         BulkDownloadCommand = ReactiveCommand.CreateFromTask(ExecuteBulkDownloadAsync);
+        BulkRetryCommand = ReactiveCommand.CreateFromTask(ExecuteBulkRetryAsync);
         CopyToFolderCommand = ReactiveCommand.CreateFromTask(ExecuteCopyToFolderAsync);
         SeparateStemsCommand = ReactiveCommand.CreateFromTask<PlaylistTrack>(SeparateStemsAsync);
         BulkCancelCommand = ReactiveCommand.CreateFromTask(ExecuteBulkCancelAsync);

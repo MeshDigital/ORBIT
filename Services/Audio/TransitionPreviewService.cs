@@ -60,8 +60,8 @@ namespace SLSKDONET.Services.Audio
             // We want to start Track A near its Outro or a mix-out point.
             // For preview, let's start 32 bars before the end, or at the "Drop" if it's a DropSwap.
             
-            string pathA = await GetAudioPathAsync(trackA);
-            string pathB = await GetAudioPathAsync(trackB);
+            string? pathA = await GetAudioPathAsync(trackA);
+            string? pathB = await GetAudioPathAsync(trackB);
 
             if (pathA == null || pathB == null) 
             {

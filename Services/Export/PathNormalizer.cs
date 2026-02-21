@@ -26,16 +26,15 @@ namespace SLSKDONET.Services.Export
             if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
             {
                 // Windows: C:\path\to\file.wav → file://localhost/C:/path/to/file.wav
+                // Windows: C:\path\to\file.wav → file:///C:/path/to/file.wav (which Rekordbox accepts via file://localhost/ workaround)
                 string normalized = absolutePath.Replace('\\', '/');
-                // Escape characters like spaces but keep slashes and colons
-                string escaped = Uri.EscapeUriString(normalized);
-                return $"file://localhost/{escaped}";
+                if (!normalized.StartsWith("/")) normalized = "/" + normalized;
+                return $"file://localhost{normalized.Replace(" ", "%20")}"; // Manual space escaping for Rekordbox localhost format
             }
             else
             {
                 // macOS/Linux: /Users/path/to/file.wav → file://localhost/Users/path/to/file.wav
-                string escaped = Uri.EscapeUriString(absolutePath);
-                return $"file://localhost{escaped}";
+                return $"file://localhost{absolutePath.Replace(" ", "%20")}";
             }
         }
 

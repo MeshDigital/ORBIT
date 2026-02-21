@@ -166,8 +166,8 @@ public class DiscoveryHubViewModel : ReactiveObject, IDisposable
         {
             WorkbenchTracks.Add(new BatchTrackItem
             {
-                Artist = track.Artist,
-                Title = track.Title,
+                Artist = track.Artist ?? string.Empty,
+                Title = track.Title ?? string.Empty,
                 OriginalLine = $"{track.Artist} - {track.Title}",
                 IsSearched = false,
                 ResultCount = 0

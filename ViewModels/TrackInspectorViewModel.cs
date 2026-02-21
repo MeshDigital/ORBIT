@@ -1033,7 +1033,7 @@ namespace SLSKDONET.ViewModels
         {
             get
             {
-                if ((Track?.BPM ?? 0) > 0) return $"{Track.BPM:F1} BPM";
+                if (Track?.BPM > 0) return $"{Track.BPM:F1} BPM";
                 if (EssentiaBpm > 0) return $"{EssentiaBpm:F1} BPM (Est.)";
                 return "--";
             }

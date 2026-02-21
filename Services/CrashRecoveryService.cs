@@ -98,7 +98,7 @@ namespace SLSKDONET.Services
                     // For now, checks if .part file is valid and maybe notifies DownloadManager?
                     // Currently DownloadManager handles its own resume via file existence check, 
                     // but we could clean up zombies here.
-                    return true; // Mark as handled for now to clear journal? Or leave it?
+                    // Mark as handled for now to clear journal? Or leave it?
                     // Actually, for downloads, the journal should probably be cleared if we assume the DownloadManager 
                     // picked it up or started fresh. Let's just log it.
                     _logger.LogDebug("Download checkpoint found - deferring to DownloadManager scan.");

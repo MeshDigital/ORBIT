@@ -251,7 +251,7 @@ namespace SLSKDONET.Services.Export
             // In a real scenario, we'd sum up cue points from the tracks
             // For now, providing a high-quality estimate based on ORBIT's intelligence
             int cueCount = tracks.Count * 8; // Average 8 cues per track (structural + manual)
-            int harmonicChanges = 0;
+
             
             // This would normally involve checking the database for analyzed status, etc.
             

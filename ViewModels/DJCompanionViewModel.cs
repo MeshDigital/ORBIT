@@ -318,7 +318,7 @@ namespace SLSKDONET.ViewModels
             _logger = logger;
             _mixPreviewFactory = mixPreviewFactory;
             _setIntelligenceService = stressTestService as ISetIntelligenceService ?? 
-                                     (ISetIntelligenceService)((SLSKDONET.App)Application.Current).Services.GetService(typeof(ISetIntelligenceService));
+                                     (ISetIntelligenceService?)((SLSKDONET.App?)Application.Current)?.Services?.GetService(typeof(ISetIntelligenceService));
 
 
 

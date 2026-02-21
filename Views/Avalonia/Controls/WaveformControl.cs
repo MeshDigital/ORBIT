@@ -240,7 +240,7 @@ namespace SLSKDONET.Views.Avalonia.Controls
 
         // Sprint 4: Performance Optimizations
         private double _lastZoomLevel = 1.0;
-        private double _lastViewOffset = 0.0;
+
         private DateTime _lastRenderTime = DateTime.MinValue;
         private const double FrameThrottleMs = 16.67; // ~60 FPS max
         private const double SizeTolerance = 5.0; // Pixels tolerance for bitmap reuse

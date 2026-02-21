@@ -213,7 +213,10 @@ public class UnifiedTrackViewModel : ReactiveObject, IDisplayableTrack, IDisposa
              if (Avalonia.Application.Current?.ApplicationLifetime is Avalonia.Controls.ApplicationLifetimes.IClassicDesktopStyleApplicationLifetime desktop)
              {
                  var log = string.Join("\n", RejectionDetails?.Select(r => $"{r.Rank}. [{r.ShortReason}] {r.Filename} ({r.Bitrate}kbps) @{r.Username}") ?? Enumerable.Empty<string>());
-                 await desktop.MainWindow?.Clipboard?.SetTextAsync(log);
+                 if (desktop.MainWindow?.Clipboard != null)
+                 {
+                     await desktop.MainWindow.Clipboard.SetTextAsync(log);
+                 }
              }
          }, this.WhenAnyValue(x => x.HasRejectionDetails));
     }

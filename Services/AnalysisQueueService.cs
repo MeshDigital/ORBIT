@@ -452,7 +452,8 @@ public class AnalysisWorker : BackgroundService
     private readonly List<AnalysisResultContext> _pendingResults = new();
     private DateTime _lastBatchSave = DateTime.UtcNow;
     private static readonly SemaphoreSlim _dbWriteSemaphore = new SemaphoreSlim(1, 1);
-    private int _currentBatchSize = 3; // Reduced from 10 to 3 for safer persistence
+    private readonly IAudioPlayerService _audioPlayer;
+    private int _currentBatchSize = 3; 
     private readonly TimeSpan BatchTimeout = TimeSpan.FromSeconds(2); // Reduced from 5s to 2s
 
     public AnalysisWorker(
@@ -465,7 +466,8 @@ public class AnalysisWorker : BackgroundService
         Services.Musical.CueGenerationEngine cueEngine, 
         IForensicLockdownService lockdown, 
         Services.Audio.PhraseDetectionService phraseDetector,
-        Services.Musical.VocalIntelligenceService vocalService)
+        Services.Musical.VocalIntelligenceService vocalService,
+        IAudioPlayerService audioPlayer)
     {
         _queue = queue;
         _serviceProvider = serviceProvider;
@@ -476,6 +478,7 @@ public class AnalysisWorker : BackgroundService
         _lockdown = lockdown;
         _phraseDetector = phraseDetector;
         _vocalService = vocalService;
+        _audioPlayer = audioPlayer;
         
         // Initialize CPU Counter for Pressure Monitor (Windows only)
         if (System.Runtime.InteropServices.RuntimeInformation.IsOSPlatform(System.Runtime.InteropServices.OSPlatform.Windows))
@@ -513,6 +516,12 @@ public class AnalysisWorker : BackgroundService
                 _lastCpuCheck = DateTime.UtcNow;
             }
             
+            // NEW: Phase 2 Logic - If visualizer is active, throttle down aggressively
+            if (_audioPlayer.IsVisualizerActive && _lastCpuUsage > 60)
+            {
+                return 0; // Suspend processing to protect visual fluidity
+            }
+
             // Pressure Logic:
             // > 85% CPU: Throttle down aggressively
             if (_lastCpuUsage > 85)
@@ -617,8 +626,16 @@ public class AnalysisWorker : BackgroundService
             if (batch.Count == 0) continue;
 
             // Check pause state
-            while (_queue.IsPaused && !stoppingToken.IsCancellationRequested)
+            while ((_queue.IsPaused || GetDynamicConcurrencyLimit() <= 0) && !stoppingToken.IsCancellationRequested)
             {
+                if (GetDynamicConcurrencyLimit() <= 0 && _audioPlayer.IsVisualizerActive)
+                {
+                     // Update thread statuses to reflect visualizer priority
+                     for (int i = 0; i < currentMaxThreads; i++)
+                     {
+                         _queue.UpdateThreadStatus(i, string.Empty, "✨ Visualizer Priority", 0);
+                     }
+                }
                 await Task.Delay(500, stoppingToken);
             }
 

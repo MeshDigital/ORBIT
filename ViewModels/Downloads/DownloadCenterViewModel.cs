@@ -254,7 +254,7 @@ public class DownloadCenterViewModel : ReactiveObject, IDisposable
             foreach (var item in failedItems)
             {
                 // Fix: Call manager directly to ensure execution and avoid ReactiveCommand subscription issues
-                _downloadManager.HardRetryTrack(item.GlobalId);
+                await _downloadManager.HardRetryTrack(item.GlobalId);
             }
             await Task.CompletedTask;
         }, this.WhenAnyValue(x => x.FailedCount, count => count > 0));

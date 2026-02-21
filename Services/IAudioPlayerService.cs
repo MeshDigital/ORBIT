@@ -11,12 +11,14 @@ namespace SLSKDONET.Services
         long Time { get; }   // Current time in ms
         float Position { get; set; } // 0.0 to 1.0
         int Volume { get; set; }     // 0 to 100
+        bool IsVisualizerActive { get; set; } // Phase 2: High-Performance rendering coordination
 
         event EventHandler<long> TimeChanged;
         event EventHandler<float> PositionChanged;
         event EventHandler<long> LengthChanged;
         event EventHandler<AudioLevelsEventArgs> AudioLevelsChanged;
         event EventHandler<float[]> SpectrumChanged;
+        IObservable<SLSKDONET.Features.Player.Rendering.FftFrame> FftStream { get; }
         event EventHandler EndReached;
         event EventHandler PausableChanged;
 

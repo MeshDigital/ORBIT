@@ -36,7 +36,7 @@ public class AutoCleanerService
         if (parsedTracks.Any())
         {
             var first = parsedTracks.First();
-            var (normalizedArtist, normalizedTitle) = _normalizationService.NormalizeForSoulseek(first.Artist, first.Title);
+            var (normalizedArtist, normalizedTitle) = _normalizationService.NormalizeForSoulseek(first.Artist ?? string.Empty, first.Title ?? string.Empty);
             result.Smart = string.IsNullOrEmpty(normalizedArtist) ? normalizedTitle : $"{normalizedArtist} - {normalizedTitle}";
         }
         else

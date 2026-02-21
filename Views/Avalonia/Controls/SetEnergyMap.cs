@@ -272,13 +272,13 @@ public class SetEnergyMap : Control
             canvas.DrawLine(0, y, width, y, paint);
             
             // Label
+            using var font = new SKFont(SKTypeface.Default, 10);
             using var textPaint = new SKPaint
             {
                 Color = new SKColor(255, 255, 255, 150),
-                TextSize = 10,
                 IsAntialias = true
             };
-            canvas.DrawText("Target", 5, y - 3, textPaint);
+            canvas.DrawText("Target", 5, y - 3, font, textPaint);
         }
 
         private void RenderTrackMarkers(SKCanvas canvas, float width, float height)

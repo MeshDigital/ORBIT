@@ -4,6 +4,7 @@
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              xmlns:vm="clr-namespace:SLSKDONET.ViewModels"
              xmlns:controls="clr-namespace:SLSKDONET.Views.Avalonia.Controls"
+             xmlns:viz="clr-namespace:SLSKDONET.Features.Player.Views"
              mc:Ignorable="d" d:DesignWidth="300" d:DesignHeight="800"
              x:Class="SLSKDONET.Views.Avalonia.PlayerControl"
              x:DataType="vm:PlayerViewModel"
@@ -34,14 +35,11 @@
                     HorizontalAlignment="Center"
                     DragDrop.AllowDrop="True">
                 <Panel>
-                    <!-- Phase 1.7: Vibe Visualizer (Reactive Backdrop) -->
-                    <controls:VibeVisualizer IsPlaying="{Binding IsPlaying}"
-                                             VuLeft="{Binding VuLeft}"
-                                             VuRight="{Binding VuRight}"
-                                             SpectrumData="{Binding SpectrumData}"
-                                             Energy="{Binding CurrentTrack.Energy}"
-                                             MoodTag="{Binding CurrentTrack.MoodTag}"
-                                             Opacity="0.8"/>
+                    <!-- Phase 2: High-Performance Skia Visualizer -->
+                    <viz:VibeVisualizer2Control Energy="{Binding CurrentTrack.Energy}"
+                                               MoodTag="{Binding CurrentTrack.MoodTag}"
+                                               Opacity="0.8"
+                                               IsActive="{Binding IsPlaying}"/>
                     
                     <Grid ColumnDefinitions="4,*,4" Margin="4">
                         <!-- VU Meter Left -->

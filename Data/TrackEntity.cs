@@ -114,6 +114,12 @@ public class TrackEntity
     public int? ManualEnergy { get; set; }
     public string? SourceProvenance { get; set; }
     public string? StalledReason { get; set; } // [NEW] Overhaul Phase
+
+    // Phase 5: Ultimate Track View
+    public int Rating { get; set; } = 0;
+    public bool IsLiked { get; set; } = false;
+    public int PlayCount { get; set; } = 0;
+    public DateTime? LastPlayedAt { get; set; }
 }
 
 /// <summary>

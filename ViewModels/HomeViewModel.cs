@@ -496,15 +496,7 @@ public class HomeViewModel : INotifyPropertyChanged, IDisposable
         _logger.LogInformation("✨ Processing Vibe Search: {Query}", VibeSearchText);
         
         // Phase 12.8: Simple Keyword Analysis
-        double? targetEnergy = null;
-        double? targetValence = null;
-        
-        var query = VibeSearchText.ToLower();
-        if (query.Contains("chill") || query.Contains("relaxed") || query.Contains("ambient")) targetEnergy = 0.3;
-        if (query.Contains("dark") || query.Contains("heavy") || query.Contains("aggressive")) targetEnergy = 0.9;
-        
-        if (query.Contains("happy") || query.Contains("sunny") || query.Contains("bright")) targetValence = 0.8;
-        if (query.Contains("dark") || query.Contains("sad") || query.Contains("moody")) targetValence = 0.2;
+
 
         _notificationService.Show("Vibe Analyzed", $"Filtering library for your vibe...", NotificationType.Information);
         

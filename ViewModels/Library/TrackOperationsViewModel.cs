@@ -92,15 +92,15 @@ public class TrackOperationsViewModel : INotifyPropertyChanged, IDisposable
 
         // Initialize commands
         PlayTrackCommand = new RelayCommand<PlaylistTrackViewModel>(ExecutePlayTrack);
-        HardRetryCommand = new RelayCommand<PlaylistTrackViewModel>(ExecuteHardRetry);
-        PauseCommand = new RelayCommand<PlaylistTrackViewModel>(ExecutePause);
-        ResumeCommand = new RelayCommand<PlaylistTrackViewModel>(ExecuteResume);
+        HardRetryCommand = new AsyncRelayCommand<PlaylistTrackViewModel>(ExecuteHardRetry);
+        PauseCommand = new AsyncRelayCommand<PlaylistTrackViewModel>(ExecutePause);
+        ResumeCommand = new AsyncRelayCommand<PlaylistTrackViewModel>(ExecuteResume);
         CancelCommand = new RelayCommand<PlaylistTrackViewModel>(ExecuteCancel);
         DownloadAlbumCommand = new AsyncRelayCommand<PlaylistTrackViewModel>(ExecuteDownloadAlbum);
         RemoveTrackCommand = new AsyncRelayCommand<PlaylistTrackViewModel>(ExecuteRemoveTrack);
         DeleteAndBlacklistCommand = new AsyncRelayCommand<PlaylistTrackViewModel>(ExecuteDeleteAndBlacklist); // Phase 7
         CloneTrackCommand = new AsyncRelayCommand<PlaylistTrackViewModel>(ExecuteCloneTrack); // Phase 11.6
-        AddToProjectCommand = new RelayCommand<PlaylistTrackViewModel>(ExecuteAddToProject);
+        AddToProjectCommand = new AsyncRelayCommand<PlaylistTrackViewModel>(ExecuteAddToProject);
         RetryOfflineTracksCommand = new AsyncRelayCommand(ExecuteRetryOfflineTracks);
         OpenFolderCommand = new RelayCommand<PlaylistTrackViewModel>(ExecuteOpenFolder);
         
@@ -154,7 +154,7 @@ public class TrackOperationsViewModel : INotifyPropertyChanged, IDisposable
         }
     }
 
-    private async void ExecuteAddToProject(PlaylistTrackViewModel? track)
+    private async Task ExecuteAddToProject(PlaylistTrackViewModel? track)
     {
         if (track == null || track.Model == null) return;
         
@@ -218,21 +218,21 @@ public class TrackOperationsViewModel : INotifyPropertyChanged, IDisposable
         _playerViewModel.AddToQueue(track);
     }
 
-    private void ExecuteHardRetry(PlaylistTrackViewModel? track)
+    private async Task ExecuteHardRetry(PlaylistTrackViewModel? track)
     {
         if (track == null) return;
         _logger.LogInformation("Hard retry for track: {Title}", track.Title);
-        _downloadManager.HardRetryTrack(track.GlobalId);
+        await _downloadManager.HardRetryTrack(track.GlobalId);
     }
 
-    private async void ExecutePause(PlaylistTrackViewModel? track)
+    private async Task ExecutePause(PlaylistTrackViewModel? track)
     {
         if (track == null) return;
         _logger.LogInformation("Pausing track: {Title}", track.Title);
         await _downloadManager.PauseTrackAsync(track.GlobalId);
     }
 
-    private async void ExecuteResume(PlaylistTrackViewModel? track)
+    private async Task ExecuteResume(PlaylistTrackViewModel? track)
     {
         if (track == null) return;
         _logger.LogInformation("Resuming track: {Title}", track.Title);
@@ -328,7 +328,7 @@ public class TrackOperationsViewModel : INotifyPropertyChanged, IDisposable
 
             foreach (var track in offlineTracks)
             {
-                _downloadManager.HardRetryTrack(track.GlobalId);
+                await _downloadManager.HardRetryTrack(track.GlobalId);
                 await Task.Delay(100); // Small delay to avoid overwhelming the system
             }
 

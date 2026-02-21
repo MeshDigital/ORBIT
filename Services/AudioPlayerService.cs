@@ -24,6 +24,9 @@ namespace SLSKDONET.Services
         public event EventHandler? EndReached;
         public event EventHandler? PausableChanged;
 
+        private readonly System.Reactive.Subjects.Subject<SLSKDONET.Features.Player.Rendering.FftFrame> _fftSubject = new();
+        public IObservable<SLSKDONET.Features.Player.Rendering.FftFrame> FftStream => _fftSubject;
+
 
         private DateTime _lastSpectrumUpdate = DateTime.MinValue;
         private int _vuMeterSkipCounter = 0;
@@ -82,6 +85,8 @@ namespace SLSKDONET.Services
             set { if (_outputDevice != null) _outputDevice.Volume = value / 100f; }
         }
 
+        public bool IsVisualizerActive { get; set; }
+
         public void Play(string filePath)
         {
             Stop();
@@ -94,14 +99,10 @@ namespace SLSKDONET.Services
                 _sampleChannel = new SampleChannel(_audioFile, true);
                 
                 // 1. Intercept for FFT (Spectrum) - Using larger buffer to reduce frequency
-                var fftProvider = new FftSampleProvider(_sampleChannel, 2048, data => 
+                var fftProvider = new FftSampleProvider(_sampleChannel, 2048, frame => 
                 {
-                    var now = DateTime.UtcNow;
-                    if ((now - _lastSpectrumUpdate).TotalMilliseconds > 40) // 25fps for spectrum
-                    {
-                        SpectrumChanged?.Invoke(this, data);
-                        _lastSpectrumUpdate = now;
-                    }
+                    _fftSubject.OnNext(frame);
+                     SpectrumChanged?.Invoke(this, frame.Magnitudes);
                 });
 
                 // 2. Wrap in Metering for VU
@@ -143,16 +144,16 @@ namespace SLSKDONET.Services
         {
             private readonly ISampleProvider _source;
             private readonly int _fftSize;
-            private readonly Action<float[]> _onFftCalculated;
+            private readonly Action<SLSKDONET.Features.Player.Rendering.FftFrame> _onFftCalculated;
             private readonly float[] _buffer;
             private float[] _processingBuffer;
             private int _pos;
             private readonly System.Numerics.Complex[] _complexBuffer;
-            private int _fftBusy = 0; // Interlocked flag: 0 = free, 1 = busy
+            private int _fftBusy = 0; 
 
             public WaveFormat WaveFormat => _source.WaveFormat;
 
-            public FftSampleProvider(ISampleProvider source, int fftSize, Action<float[]> onFftCalculated)
+            public FftSampleProvider(ISampleProvider source, int fftSize, Action<SLSKDONET.Features.Player.Rendering.FftFrame> onFftCalculated)
             {
                 _source = source;
                 _fftSize = fftSize;
@@ -212,7 +213,7 @@ namespace SLSKDONET.Services
                         magnitude[i] = (float)_complexBuffer[i].Magnitude;
                     }
 
-                    _onFftCalculated(magnitude);
+                    _onFftCalculated(new SLSKDONET.Features.Player.Rendering.FftFrame(magnitude, WaveFormat.SampleRate, DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()));
                 }
                 finally
                 {

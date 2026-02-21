@@ -74,7 +74,7 @@ public class DownloadDiscoveryService
         var queryTiers = new[] { tiers.Dirty, tiers.Smart, tiers.Aggressive };
         var tierNames = new[] { "Dirty", "Smart", "Aggressive" };
 
-        DiscoveryResult? bestResult = null;
+
 
         for (int i = 0; i < queryTiers.Length; i++)
         {

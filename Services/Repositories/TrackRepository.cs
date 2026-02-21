@@ -1057,4 +1057,40 @@ public class TrackRepository : ITrackRepository
             tr.IsEnriched = true;
         }
     }
+
+    public async Task UpdateAudioFeaturesAsync(AudioFeaturesEntity entity)
+    {
+        await _writeSemaphore.WaitAsync();
+        try
+        {
+            using var context = new AppDbContext();
+            var existing = await context.AudioFeatures
+                .FirstOrDefaultAsync(f => f.TrackUniqueHash == entity.TrackUniqueHash);
+
+            if (existing == null)
+            {
+                context.AudioFeatures.Add(entity);
+            }
+            else
+            {
+                context.Entry(existing).CurrentValues.SetValues(entity);
+            }
+
+            // Sync with LibraryEntry for denormalized fields
+            var entry = await context.LibraryEntries.FindAsync(entity.TrackUniqueHash);
+            if (entry != null)
+            {
+                entry.BPM = entity.Bpm;
+                entry.Energy = entity.Energy;
+                entry.MusicalKey = entity.Key;
+                entry.IsEnriched = true;
+            }
+
+            await context.SaveChangesAsync();
+        }
+        finally
+        {
+            _writeSemaphore.Release();
+        }
+    }
 }

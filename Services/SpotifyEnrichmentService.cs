@@ -397,7 +397,7 @@ public class SpotifyEnrichmentService
             var request = new PlaylistCurrentUsersRequest { Limit = 50 };
             var firstPage = await client.Playlists.CurrentUsers(request);
             
-            return (System.Collections.Generic.IEnumerable<object>)firstPage.Items;
+            return (System.Collections.Generic.IEnumerable<object>?)firstPage.Items ?? Enumerable.Empty<object>();
         }
         catch (Exception ex)
         {

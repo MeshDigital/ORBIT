@@ -216,7 +216,10 @@ public class ForensicUnifiedViewModel : ReactiveObject
             if (track == null || _playerViewModel.Queue == null) return;
             
             // 1. Find the next track in the queue
-            var currentIndex = _playerViewModel.Queue.IndexOf(_playerViewModel.Queue.FirstOrDefault(pt => pt.GlobalId == track.UniqueHash));
+            var firstMatch = _playerViewModel.Queue.FirstOrDefault(pt => pt.GlobalId == track.UniqueHash);
+            if (firstMatch == null) return;
+            
+            var currentIndex = _playerViewModel.Queue.IndexOf(firstMatch);
             if (currentIndex == -1 || currentIndex >= _playerViewModel.Queue.Count - 1) return;
             
             var trackA = track;
@@ -461,7 +464,8 @@ public class ForensicUnifiedViewModel : ReactiveObject
 
     private async Task UpdateRecommendationsAsync(LibraryEntryEntity source)
     {
-        var matches = await _matchService.FindSonicMatchesAsync(CurrentTrack.UniqueHash);
+        if (source == null) return;
+        var matches = await _matchService.FindSonicMatchesAsync(source.UniqueHash);
         AiMatches.Clear();
         foreach (var m in matches)
         {
@@ -478,7 +482,10 @@ public class ForensicUnifiedViewModel : ReactiveObject
 
         if (_playerViewModel.Queue != null && _playerViewModel.Queue.Count > 0)
         {
-            var currentIndex = _playerViewModel.Queue.IndexOf(_playerViewModel.Queue.FirstOrDefault(pt => pt.GlobalId == CurrentTrack.UniqueHash));
+            var firstMatch = _playerViewModel.Queue.FirstOrDefault(pt => pt.GlobalId == CurrentTrack.UniqueHash);
+            if (firstMatch == null) return;
+
+            var currentIndex = _playerViewModel.Queue.IndexOf(firstMatch);
             if (currentIndex != -1 && currentIndex < _playerViewModel.Queue.Count - 1)
             {
                 var nextTrackVm = _playerViewModel.Queue[currentIndex + 1];

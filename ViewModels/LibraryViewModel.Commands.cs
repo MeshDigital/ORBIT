@@ -148,7 +148,7 @@ public partial class LibraryViewModel
                   if (_intelligenceCenter.SelectedTrackHash == trackVM.Model.TrackUniqueHash && _intelligenceCenter.IsVisible)
                       _intelligenceCenter.Close();
                   else
-                      _intelligenceCenter.OpenAsync(trackVM.Model.TrackUniqueHash, IntelligenceViewState.Blade);
+                      _ = _intelligenceCenter.OpenAsync(trackVM.Model.TrackUniqueHash, IntelligenceViewState.Blade);
              }
              else
              {
@@ -157,7 +157,7 @@ public partial class LibraryViewModel
                   if (hash != null)
                   {
                       if (_intelligenceCenter.IsVisible) _intelligenceCenter.Close();
-                      else _intelligenceCenter.OpenAsync(hash, IntelligenceViewState.Blade);
+                      else _ = _intelligenceCenter.OpenAsync(hash, IntelligenceViewState.Blade);
                   }
              }
         });

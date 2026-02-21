@@ -658,7 +658,7 @@ namespace SLSKDONET.Services.Analysis
                 {
                     Success = false,
                     Message = "Invalid parameters for rescue application.",
-                    UpdatedSetlist = setlist
+                    UpdatedSetlist = setlist!
                 };
             }
 

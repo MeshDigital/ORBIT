@@ -2492,7 +2492,7 @@ public class DownloadManager : INotifyPropertyChanged, IDisposable
             {
                  // Check if it's actually valid? No, hard retry = force redownload.
                  File.Delete(ctx.Model.ResolvedFilePath);
-                 ctx.Model.ResolvedFilePath = null;
+                 ctx.Model.ResolvedFilePath = string.Empty;
             }
         }
         catch (Exception ex)

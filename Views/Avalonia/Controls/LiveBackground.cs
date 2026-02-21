@@ -32,7 +32,7 @@ namespace SLSKDONET.Views.Avalonia.Controls
             set => SetValue(EnergyProperty, value);
         }
 
-        private SKBitmap? _blurredBitmap;
+        private SKImage? _blurredImage;
         private Bitmap? _lastSource;
         private float _animationValue;
         private readonly DispatcherTimer _timer;
@@ -72,8 +72,8 @@ namespace SLSKDONET.Views.Avalonia.Controls
 
             if (source == null)
             {
-                _blurredBitmap?.Dispose();
-                _blurredBitmap = null;
+                _blurredImage?.Dispose();
+                _blurredImage = null;
                 return;
             }
 
@@ -108,7 +108,7 @@ namespace SLSKDONET.Views.Avalonia.Controls
                     int sw = 300;
                     int sh = 300;
                     var scaled = new SKBitmap(sw, sh);
-                    original.ScalePixels(scaled, SKFilterQuality.Medium);
+                    original.ScalePixels(scaled, SKSamplingOptions.Default);
 
                     var blurred = new SKBitmap(sw, sh);
                     using (var canvas = new SKCanvas(blurred))
@@ -120,8 +120,10 @@ namespace SLSKDONET.Views.Avalonia.Controls
                         canvas.DrawBitmap(scaled, 0, 0, paint);
                     }
 
-                    var old = Interlocked.Exchange(ref _blurredBitmap, blurred);
+                    var image = SKImage.FromBitmap(blurred);
+                    var old = Interlocked.Exchange(ref _blurredImage, image);
                     old?.Dispose();
+                    blurred.Dispose();
                     scaled.Dispose();
 
                     Dispatcher.UIThread.Post(InvalidateVisual);
@@ -135,27 +137,27 @@ namespace SLSKDONET.Views.Avalonia.Controls
             UpdateBlurredBitmap(Source);
 
             var rect = Bounds;
-            if (_blurredBitmap == null)
+            if (_blurredImage == null)
             {
                 context.FillRectangle(Brushes.Black, rect);
                 return;
             }
 
             // Custom Skia Rendering for Parallax/Drift/Breathing
-            context.Custom(new LiveBackgroundCustomDrawOperation(rect, _blurredBitmap, _animationValue, (float)Energy));
+            context.Custom(new LiveBackgroundCustomDrawOperation(rect, _blurredImage, _animationValue, (float)Energy));
         }
 
         private class LiveBackgroundCustomDrawOperation : ICustomDrawOperation
         {
             private readonly Rect _bounds;
-            private readonly SKBitmap _bitmap;
+            private readonly SKImage _image;
             private readonly float _animation;
             private readonly float _energy;
 
-            public LiveBackgroundCustomDrawOperation(Rect bounds, SKBitmap bitmap, float animation, float energy)
+            public LiveBackgroundCustomDrawOperation(Rect bounds, SKImage image, float animation, float energy)
             {
                 _bounds = bounds;
-                _bitmap = bitmap;
+                _image = image;
                 _animation = animation;
                 _energy = energy;
             }
@@ -180,8 +182,8 @@ namespace SLSKDONET.Views.Avalonia.Controls
                 
                 // Phase 21: Dynamic Cinematic Motion
                 // Core scale to fill
-                float baseScaleX = (float)_bounds.Width / _bitmap.Width * 1.3f;
-                float baseScaleY = (float)_bounds.Height / _bitmap.Height * 1.3f;
+                float baseScaleX = (float)_bounds.Width / _image.Width * 1.3f;
+                float baseScaleY = (float)_bounds.Height / _image.Height * 1.3f;
                 float baseScale = Math.Max(baseScaleX, baseScaleY);
 
                 // Heartbeat Breathing: Subtle scale oscillation based on Energy
@@ -194,15 +196,14 @@ namespace SLSKDONET.Views.Avalonia.Controls
 
                 canvas.Translate((float)_bounds.Width / 2 + driftX, (float)_bounds.Height / 2 + driftY);
                 canvas.Scale(finalScale, finalScale);
-                canvas.Translate(-_bitmap.Width / 2f, -_bitmap.Height / 2f);
+                canvas.Translate(-_image.Width / 2f, -_image.Height / 2f);
 
                 using var paint = new SKPaint { 
-                    FilterQuality = SKFilterQuality.Low,
                     // Subtle opacity pulsing
                     Color = new SKColor(255, 255, 255, (byte)(230 + (Math.Sin(_animation) * 25 * _energy)))
                 };
                 
-                canvas.DrawBitmap(_bitmap, 0, 0, paint);
+                canvas.DrawImage(_image, new SKRect(0, 0, _image.Width, _image.Height), SKSamplingOptions.Default, paint);
 
                 // Add dark vignette/overlay
                 using var overlay = new SKPaint
@@ -210,7 +211,7 @@ namespace SLSKDONET.Views.Avalonia.Controls
                     // Darker vignette for lower energy (more chill), brighter for higher energy
                     Color = new SKColor(0, 0, 0, (byte)(200 - (_energy * 60)))
                 };
-                canvas.DrawRect(0, 0, _bitmap.Width, _bitmap.Height, overlay);
+                canvas.DrawRect(0, 0, _image.Width, _image.Height, overlay);
 
                 canvas.Restore();
             }
