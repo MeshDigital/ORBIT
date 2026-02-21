@@ -35,7 +35,7 @@ public class SonicMatchService : ISonicMatchService
     private const double WeightDanceability = 1.5; // Rhythm is crucial
     
     // === PENALTY THRESHOLDS ===
-    private const double BpmPenaltyThreshold = 0.15; // 15% BPM difference
+    private const double BpmPenaltyThreshold = 0.06; // 6% BPM difference (Industry Standard)
     private const double BpmPenaltyValue = 5.0;      // Large penalty to push to bottom
     private const double GenrePenaltyValue = 0.5;    // Small nudge for cross-genre
     

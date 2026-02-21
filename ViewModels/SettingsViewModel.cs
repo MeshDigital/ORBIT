@@ -29,6 +29,7 @@ public enum SpotifyAuthStatus
 public class SettingsViewModel : INotifyPropertyChanged, IDisposable
 {
     private bool _isDisposed;
+    private IDisposable? _libraryFoldersSubscription;
 
     private readonly ILogger<SettingsViewModel> _logger;
     private readonly AppConfig _config;
@@ -694,7 +695,7 @@ public class SettingsViewModel : INotifyPropertyChanged, IDisposable
         _ = CheckFfmpegAsync(); // Phase 8: Check FFmpeg on startup
         _ = LoadLibraryFoldersAsync(); // Phase 0.10
 
-        _eventBus.GetEvent<LibraryFoldersChangedEvent>().Subscribe(e => { _ = LoadLibraryFoldersAsync(); });
+        _libraryFoldersSubscription = _eventBus.GetEvent<LibraryFoldersChangedEvent>().Subscribe(e => { _ = LoadLibraryFoldersAsync(); });
         
         // Force update of derived properties to ensure UI booleans are in sync with SpotifyState
         UpdateDerivedProperties(SpotifyState);
@@ -1104,6 +1105,9 @@ public class SettingsViewModel : INotifyPropertyChanged, IDisposable
         if (_isDisposed) return;
 
         _spotifyAuthService.AuthenticationChanged -= OnSpotifyAuthenticationChanged;
+        
+        _libraryFoldersSubscription?.Dispose();
+        _libraryFoldersSubscription = null;
         
         _authWatchdogCts?.Cancel();
         _authWatchdogCts?.Dispose();

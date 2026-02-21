@@ -21,6 +21,9 @@ public class SoulseekAdapter : ISoulseekAdapter, IDisposable
     private readonly IEventBus _eventBus;
     private SoulseekClient? _client;
     public bool IsConnected => _client?.State.HasFlag(SoulseekClientStates.Connected) ?? false;
+    
+    public event EventHandler<DownloadProgressEventArgs>? DownloadProgressChanged;
+    public event EventHandler<DownloadCompletedEventArgs>? DownloadCompleted;
 
     // Rate Limiting
     private static readonly SemaphoreSlim _rateLimitLock = new(1, 1);
@@ -629,6 +632,9 @@ public class SoulseekAdapter : ISoulseekAdapter, IDisposable
                         {
                             double percentage = (double)args.Transfer.BytesTransferred / size.Value;
                             progress?.Report(percentage);
+                            
+                            DownloadProgressChanged?.Invoke(this, new DownloadProgressEventArgs(
+                                filename, username, percentage, args.Transfer.BytesTransferred, size.Value));
                         }
                     }
                 });
@@ -670,42 +676,61 @@ public class SoulseekAdapter : ISoulseekAdapter, IDisposable
             this._logger.LogInformation("Download completed: {Filename}", filename);
             progress?.Report(1.0);
             _eventBus.Publish(new TransferFinishedEvent(filename, username));
+            
+            DownloadCompleted?.Invoke(this, new DownloadCompletedEventArgs(filename, username, true));
+            
             return true;
         }
         catch (OperationCanceledException)
         {
             this._logger.LogWarning("Download cancelled: {Filename}", filename);
             _eventBus.Publish(new TransferCancelledEvent(filename, username));
+            
+            DownloadCompleted?.Invoke(this, new DownloadCompletedEventArgs(filename, username, false, "Cancelled"));
+            
             throw; 
         }
         catch (TimeoutException ex)
         {
             this._logger.LogWarning("Download timeout: {Filename} from {Username} - {Message}", filename, username, ex.Message);
             _eventBus.Publish(new TransferFailedEvent(filename, username, "Connection timeout"));
+            
+            DownloadCompleted?.Invoke(this, new DownloadCompletedEventArgs(filename, username, false, "Timeout"));
+            
             return false;
         }
         catch (IOException ex)
         {
             this._logger.LogError(ex, "I/O error during download: {Filename} from {Username}", filename, username);
             _eventBus.Publish(new TransferFailedEvent(filename, username, "I/O error: " + ex.Message));
+            
+            DownloadCompleted?.Invoke(this, new DownloadCompletedEventArgs(filename, username, false, "I/O Error: " + ex.Message));
+            
             return false;
         }
         catch (Exception ex) when (ex.Message.Contains("refused") || ex.Message.Contains("aborted") || ex.Message.Contains("Unable to read"))
         {
             this._logger.LogWarning("Network error during download: {Filename} from {Username} - {Message}", filename, username, ex.Message);
             _eventBus.Publish(new TransferFailedEvent(filename, username, "Connection failed"));
+            
+            DownloadCompleted?.Invoke(this, new DownloadCompletedEventArgs(filename, username, false, "Connection Failed"));
+            
             return false;
         }
-        catch (Soulseek.TransferRejectedException)
+        catch (Soulseek.TransferRejectedException ex)
         {
              // RETHROW: "Too many files" or "Banned" 
              // This allows DownloadManager to catch it and trigger Exponential Backoff / Retry
+             DownloadCompleted?.Invoke(this, new DownloadCompletedEventArgs(filename, username, false, "Rejected: " + ex.Message));
              throw; 
         }
         catch (Exception ex)
         {
             this._logger.LogError(ex, "Download failed: {Message}", ex.Message);
             _eventBus.Publish(new TransferFailedEvent(filename, username, ex.Message));
+            
+            DownloadCompleted?.Invoke(this, new DownloadCompletedEventArgs(filename, username, false, ex.Message));
+            
             return false;
         }
     }

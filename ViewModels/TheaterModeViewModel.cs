@@ -5,6 +5,7 @@ using System;
 using System.Collections.ObjectModel;
 using System.Collections.Generic;
 using System.Linq;
+using System.Reactive.Disposables;
 using System.Reactive.Linq;
 using System.Threading.Tasks;
 using System.Windows.Input;
@@ -16,7 +17,7 @@ using Avalonia.Threading;
 
 namespace SLSKDONET.ViewModels;
 
-public class TheaterModeViewModel : ReactiveObject
+public class TheaterModeViewModel : ReactiveObject, IDisposable
 {
     private readonly PlayerViewModel _playerViewModel;
     private readonly INavigationService _navigationService;
@@ -28,6 +29,7 @@ public class TheaterModeViewModel : ReactiveObject
     private readonly IUniversalCueService _cueService;
     private readonly WaveformAnalysisService _waveformService;
     private readonly DispatcherTimer _playbackTimer;
+    private readonly CompositeDisposable _disposables = new();
 
     public PlayerViewModel Player => _playerViewModel;
 
@@ -197,29 +199,35 @@ public class TheaterModeViewModel : ReactiveObject
         this.WhenAnyValue(x => x.SearchText)
             .Throttle(TimeSpan.FromMilliseconds(300))
             .ObserveOn(RxApp.MainThreadScheduler)
-            .Subscribe(async query => await PerformSearchAsync(query));
+            .Subscribe(async query => await PerformSearchAsync(query))
+            .DisposeWith(_disposables);
 
         // Auto-load cues and stems on track change
         this.WhenAnyValue(x => x.Player.CurrentTrack)
             .Where(track => track != null)
-            .Subscribe(async track => await LoadPerformanceDataAsync(track!));
+            .Subscribe(async track => await LoadPerformanceDataAsync(track!))
+            .DisposeWith(_disposables);
 
         // Sync logic for Player updates when Stems are NOT active
         this.WhenAnyValue(x => x.Player.Position)
             .Where(_ => !IsStemActive)
-            .Subscribe(pos => DisplayPosition = pos);
+            .Subscribe(pos => DisplayPosition = pos)
+            .DisposeWith(_disposables);
             
         this.WhenAnyValue(x => x.Player.CurrentTimeStr)
             .Where(_ => !IsStemActive)
-            .Subscribe(t => DisplayCurrentTime = t);
+            .Subscribe(t => DisplayCurrentTime = t)
+            .DisposeWith(_disposables);
 
         this.WhenAnyValue(x => x.Player.TotalTimeStr)
             .Where(_ => !IsStemActive)
-            .Subscribe(t => DisplayTotalTime = t);
+            .Subscribe(t => DisplayTotalTime = t)
+            .DisposeWith(_disposables);
             
         this.WhenAnyValue(x => x.Player.IsPlaying)
             .Where(_ => !IsStemActive)
-            .Subscribe(p => IsUnifiedPlaying = p);
+            .Subscribe(p => IsUnifiedPlaying = p)
+            .DisposeWith(_disposables);
 
         // Timer for Stem Playback Sync
         _playbackTimer = new DispatcherTimer
@@ -558,6 +566,19 @@ public class TheaterModeViewModel : ReactiveObject
         catch (Exception)
         {
             // Log error
+        }
+    }
+
+    public void Dispose()
+    {
+        _playbackTimer.Stop();
+        _playbackTimer.Tick -= OnPlaybackTimerTick;
+        _disposables.Dispose();
+        
+        if (IsStemActive)
+        {
+            _stemEngine.Pause();
+            IsStemActive = false;
         }
     }
 }

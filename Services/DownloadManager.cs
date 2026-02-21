@@ -160,6 +160,10 @@ public class DownloadManager : INotifyPropertyChanged, IDisposable
         // Phase 6: Library Interactions
         _eventBus.GetEvent<DownloadAlbumRequestEvent>().Subscribe(OnDownloadAlbumRequest);
         _eventBus.GetEvent<ForceStartRequestEvent>().Subscribe(e => _ = ForceStartTrack(e.TrackGlobalId));
+
+        // Phase 12: Adapter Event Subscriptions
+        _soulseek.DownloadProgressChanged += OnDownloadProgressChanged;
+        _soulseek.DownloadCompleted += OnDownloadCompleted;
     }
 
     /// <summary>
@@ -432,7 +436,7 @@ public class DownloadManager : INotifyPropertyChanged, IDisposable
                         ResolvedFilePath = string.Empty,
                         TrackNumber = idx++,
                         AddedAt = DateTime.UtcNow,
-                        Priority = 5, // Default priority changed from 0 (High) to 5 (Standard)
+                        Priority = 10, // Default: Bulk lane. Express (0) = VIP only, Standard (1-9) = user bumps
                         // Map Metadata if available from import
                         SpotifyTrackId = track.SpotifyTrackId,
                         SpotifyAlbumId = track.SpotifyAlbumId,
@@ -527,9 +531,9 @@ public class DownloadManager : INotifyPropertyChanged, IDisposable
                         existingCtx.State == PlaylistTrackState.Deferred ||
                         existingCtx.State == PlaylistTrackState.Pending)
                     {
-                        _logger.LogInformation("Retrying existing track {Title} (State: {State}) - Bumping to Priority 5", track.Title, existingCtx.State);
+                        _logger.LogInformation("Retrying existing track {Title} (State: {State}) - Bumping to Priority 10 (Standard)", track.Title, existingCtx.State);
                         
-                        existingCtx.Model.Priority = 5;
+                        existingCtx.Model.Priority = 10;
                         _ = UpdateStateAsync(existingCtx, PlaylistTrackState.Pending);
                         
                         existingCtx.RetryCount = 0;
@@ -1023,20 +1027,16 @@ public class DownloadManager : INotifyPropertyChanged, IDisposable
 
         _logger.LogInformation("🚀 Force Start (VIP) triggered for {Title}", ctx.Model.Title);
         
-        // 1. Mark as VIP so it bypasses semaphore waits in ProcessQueueLoop
+        // 1. Mark as VIP so it bypasses semaphore waits
         ctx.IsVip = true;
         ctx.Model.Priority = 0; // Bump to top of swimlanes
         
-        // 2. If already searching/downloading, do nothing. If paused/failed/pending, wake it up.
-        if (ctx.State == PlaylistTrackState.Paused || ctx.State == PlaylistTrackState.Failed || ctx.State == PlaylistTrackState.Pending || ctx.State == PlaylistTrackState.Stalled)
+        // 2. Proactive Start: If not already active, start it immediately bypassing the loop
+        if (ctx.State != PlaylistTrackState.Downloading && ctx.State != PlaylistTrackState.Searching)
         {
             await UpdateStateAsync(ctx, PlaylistTrackState.Pending);
-            
-            // Trigger processing loop if not running
-            if (!IsRunning)
-            {
-                _ = StartAsync();
-            }
+            // Bypassing loop logic: start the process task directly
+            _ = Task.Run(() => ProcessTrackAsync(ctx, _globalCts.Token));
         }
     }
     
@@ -1409,9 +1409,13 @@ public class DownloadManager : INotifyPropertyChanged, IDisposable
 
                 if (nextContext == null)
                 {
+                    // No tracks ready or all lanes saturated (Except VIPs which are handled proactively)
                     await Task.Delay(500, token);
                     continue;
                 }
+
+                _logger.LogDebug("Spinning up search/download for {Title} (Priority: {Prio}, VIP: {Vip})", 
+                    nextContext.Model.Title, nextContext.Model.Priority, nextContext.IsVip);
 
                 bool tookSemaphoreSlot = false;
                 if (!nextContext.IsVip)
@@ -1422,7 +1426,7 @@ public class DownloadManager : INotifyPropertyChanged, IDisposable
                 }
                 else
                 {
-                     _logger.LogInformation("🚀 VIP Track detected: Bypassing semaphore for '{Title}'", nextContext.Model.Title);
+                    _logger.LogInformation("🚀 VIP Track detected in loop: Bypassing semaphore for '{Title}'", nextContext.Model.Title);
                 }
 
                 // Phase 3C Hardening: Race Condition Check
@@ -2352,23 +2356,44 @@ public class DownloadManager : INotifyPropertyChanged, IDisposable
     /// </summary>
     private DownloadContext? SelectNextTrackWithLaneAllocation(
         List<DownloadContext> eligibleTracks,
-        Dictionary<int, int> activeByPriority)
+        Dictionary<int, int>? activeByPriority) // Made optional
     {
-        // Sort by Priority (ascending = High -> Low), then AddedAt (FIFO)
-        var sortedTracks = eligibleTracks
-            .OrderByDescending(t => t.IsVip) // [NEW] Overhaul: VIPs jump everything
-            .ThenBy(t => t.Model.Priority)
-            .ThenBy(t => t.Model.AddedAt)
-            .ToList();
+        if (!eligibleTracks.Any()) return null;
 
-        foreach (var track in sortedTracks)
+        // Count current in-flight activity by lane
+        // We consider Searching and Downloading as "consuming" lane capacity
+        var inFlight = _downloads.Where(d => d.State == PlaylistTrackState.Searching || d.State == PlaylistTrackState.Downloading).ToList();
+        
+        var laneA_Count = inFlight.Count(d => d.Model.Priority == 0); // Express/VIP
+        var laneB_Count = inFlight.Count(d => d.Model.Priority > 0 && d.Model.Priority < 10); // Standard
+        var laneC_Count = inFlight.Count(d => d.Model.Priority >= 10); // Bulk
+
+        foreach (var track in eligibleTracks)
         {
-            // If it's a VIP, we return it immediately. The semaphore reservation 
-            // will still happen unless we explicitly bypass it in ProcessTrack.
+            // VIPs (Marked explicitly) always bypass lane limits and semaphore
+            if (track.IsVip) return track;
+
+            // Lane A: Express (Priority 0) - Max 2 slots
+            if (track.Model.Priority == 0)
+            {
+                if (laneA_Count < 2) return track;
+                continue; 
+            }
+
+            // Lane B: Standard (Priority 1-9) - Max 2 slots
+            if (track.Model.Priority > 0 && track.Model.Priority < 10)
+            {
+                if (laneB_Count < 2) return track;
+                continue;
+            }
+
+            // Lane C: Everything else (Bulk, P10+) - Remaining capacity
+            // Bulk tracks only run if they don't block high priority lanes?
+            // Actually, the semaphore already limits total. We just allow them here if no high priority is ready.
             return track;
         }
 
-        return null; // No eligible tracks
+        return null; // All lanes saturated
     }
 
     public void BumpTrackToTop(string globalId)
@@ -2441,11 +2466,38 @@ public class DownloadManager : INotifyPropertyChanged, IDisposable
     }
 
 
+    private void OnDownloadProgressChanged(object? sender, DownloadProgressEventArgs e)
+    {
+        // Find context by username (reliable enough for active transfers)
+        DownloadContext? ctx;
+        lock (_collectionLock)
+        {
+            ctx = _downloads.FirstOrDefault(d => 
+                d.State == PlaylistTrackState.Downloading && 
+                d.CurrentUsername == e.Username);
+        }
+
+        if (ctx != null)
+        {
+            ctx.Progress = e.Progress * 100;
+            ctx.BytesReceived = e.BytesReceived;
+            ctx.TotalBytes = e.TotalBytes;
+        }
+    }
+
+    private void OnDownloadCompleted(object? sender, DownloadCompletedEventArgs e)
+    {
+        _logger.LogDebug("Adapter download completed event: {File} ({Success})", e.Filename, e.Success);
+    }
+
     public void Dispose()
     {
+        _soulseek.DownloadProgressChanged -= OnDownloadProgressChanged;
+        _soulseek.DownloadCompleted -= OnDownloadCompleted;
         _globalCts.Cancel();
         _globalCts.Dispose();
-        _processingTask?.Wait();
+        _processingTask?.Wait(1000);
+        _downloadSemaphore.Dispose();
         _enrichmentOrchestrator.Dispose();
     }
 

@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Reactive.Disposables;
 using System.Reactive.Linq;
 using System.Threading.Tasks;
 using ReactiveUI;
@@ -8,13 +9,14 @@ using SLSKDONET.ViewModels;
 
 namespace SLSKDONET.Features.LibrarySidebar.ViewModels;
 
-public class ContextualSidebarViewModel : ReactiveObject
+public class ContextualSidebarViewModel : ReactiveObject, IDisposable
 {
     private readonly SimilaritySidebarViewModel _similarityVm;
     private readonly BulkActionSidebarViewModel _bulkVm;
     private readonly MetadataSidebarViewModel _metadataVm;
     private readonly ForensicSidebarViewModel _forensicVm;
     private readonly PlayerViewModel _playerVm;
+    private readonly CompositeDisposable _disposables = new();
 
     private LibrarySidebarMode _activeMode;
     public LibrarySidebarMode ActiveMode
@@ -73,7 +75,8 @@ public class ContextualSidebarViewModel : ReactiveObject
         // Automatically hide if sidebar is closed manually
         this.WhenAnyValue(x => x.IsSidebarOpen)
             .Where(open => !open)
-            .Subscribe(_ => DeactivateCurrent());
+            .Subscribe(_ => DeactivateCurrent())
+            .DisposeWith(_disposables);
     }
 
     public void AttachToSelection(IObservable<IReadOnlyList<PlaylistTrackViewModel>> selectionStream)
@@ -81,7 +84,8 @@ public class ContextualSidebarViewModel : ReactiveObject
         selectionStream
             .Throttle(TimeSpan.FromMilliseconds(250))
             .ObserveOn(RxApp.MainThreadScheduler)
-            .Subscribe(async tracks => await UpdateContextAsync(tracks));
+            .Subscribe(async tracks => await UpdateContextAsync(tracks))
+            .DisposeWith(_disposables);
     }
 
     private async Task UpdateContextAsync(IReadOnlyList<PlaylistTrackViewModel> selectedTracks)
@@ -179,5 +183,10 @@ public class ContextualSidebarViewModel : ReactiveObject
         ActiveMode = LibrarySidebarMode.None;
         CurrentContent = null;
         DeactivateCurrent();
+    }
+
+    public void Dispose()
+    {
+        _disposables.Dispose();
     }
 }

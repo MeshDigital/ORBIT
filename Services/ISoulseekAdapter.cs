@@ -42,5 +42,42 @@ public interface ISoulseekAdapter
         IEnumerable<string>? formatFilter,
         (int? Min, int? Max) bitrateFilter,
         Action<IEnumerable<Track>> onTracksFound,
-        CancellationToken ct = default);    
+        CancellationToken ct = default);
+
+    event EventHandler<DownloadProgressEventArgs>? DownloadProgressChanged;
+    event EventHandler<DownloadCompletedEventArgs>? DownloadCompleted;
+}
+
+public class DownloadProgressEventArgs : EventArgs
+{
+    public string Filename { get; }
+    public string Username { get; }
+    public double Progress { get; }
+    public long BytesReceived { get; }
+    public long TotalBytes { get; }
+
+    public DownloadProgressEventArgs(string filename, string username, double progress, long bytesReceived, long totalBytes)
+    {
+        Filename = filename;
+        Username = username;
+        Progress = progress;
+        BytesReceived = bytesReceived;
+        TotalBytes = totalBytes;
+    }
+}
+
+public class DownloadCompletedEventArgs : EventArgs
+{
+    public string Filename { get; }
+    public string Username { get; }
+    public bool Success { get; }
+    public string? Error { get; }
+
+    public DownloadCompletedEventArgs(string filename, string username, bool success, string? error = null)
+    {
+        Filename = filename;
+        Username = username;
+        Success = success;
+        Error = error;
+    }
 }

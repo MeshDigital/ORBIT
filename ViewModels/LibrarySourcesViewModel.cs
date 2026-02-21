@@ -15,8 +15,9 @@ using SLSKDONET.Models; // For Events
 
 namespace SLSKDONET.ViewModels;
 
-public class LibrarySourcesViewModel : INotifyPropertyChanged
+public class LibrarySourcesViewModel : INotifyPropertyChanged, IDisposable
 {
+    private readonly IDisposable? _foldersChangedSubscription;
     public event PropertyChangedEventHandler? PropertyChanged;
 
     protected void OnPropertyChanged([CallerMemberName] string? propertyName = null)
@@ -70,7 +71,7 @@ public class LibrarySourcesViewModel : INotifyPropertyChanged
         _ = LoadLibraryFoldersAsync();
         
         // Phase 0.10: Sync
-        _eventBus.GetEvent<LibraryFoldersChangedEvent>().Subscribe(e => { _ = LoadLibraryFoldersAsync(); });
+        _foldersChangedSubscription = _eventBus.GetEvent<LibraryFoldersChangedEvent>().Subscribe(e => { _ = LoadLibraryFoldersAsync(); });
     }
 
     private async Task LoadLibraryFoldersAsync()
@@ -198,5 +199,10 @@ public class LibrarySourcesViewModel : INotifyPropertyChanged
             await Task.Delay(3000);
             ScanStatus = string.Empty;
         }
+    }
+
+    public void Dispose()
+    {
+        _foldersChangedSubscription?.Dispose();
     }
 }
