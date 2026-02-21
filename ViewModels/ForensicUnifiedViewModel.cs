@@ -25,7 +25,7 @@ namespace SLSKDONET.ViewModels;
 /// Phase 25/MIK Parity: Unified Forensic Intelligence ViewModel.
 /// Consolidates Forensic Lab, Stem Workspace, and AI Matching into a single mission control.
 /// </summary>
-public class ForensicUnifiedViewModel : ReactiveObject
+public class ForensicUnifiedViewModel : ReactiveObject, IDisposable
 {
     private readonly IEventBus _eventBus;
     private readonly ForensicLabViewModel _forensicLab;
@@ -525,5 +525,12 @@ public class ForensicUnifiedViewModel : ReactiveObject
         else if (EnergyScore <= 3) VerdictEntries.Add(ForensicVerdictEntry.Detail("Atmospheric build potential"));
 
         VerdictEntries.Add(ForensicVerdictEntry.Verdict(MentorVerdict));
+    }
+
+    public void Dispose()
+    {
+        _forensicLab?.Dispose();
+        DeckB?.Dispose();
+        _stemWorkspace?.Dispose();
     }
 }

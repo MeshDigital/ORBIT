@@ -13,7 +13,7 @@ using SLSKDONET.Models;
 
 namespace SLSKDONET.ViewModels;
 
-public class ConnectionViewModel : INotifyPropertyChanged
+public class ConnectionViewModel : INotifyPropertyChanged, IDisposable
 {
     private readonly ILogger<ConnectionViewModel> _logger;
     private readonly AppConfig _config;
@@ -21,6 +21,8 @@ public class ConnectionViewModel : INotifyPropertyChanged
     private readonly ISoulseekAdapter _soulseek;
     private readonly ISoulseekCredentialService _credentialService;
     private readonly SpotifyAuthService _spotifyAuthService;
+    private IDisposable? _stateChangedSubscription;
+    private EventHandler<bool>? _spotifyAuthHandler;
 
     // Connection State
     private string _username = "";
@@ -119,7 +121,7 @@ public class ConnectionViewModel : INotifyPropertyChanged
 
         // Subscribe to Soulseek state changes
         // Subscribe to Soulseek state changes
-        eventBus.GetEvent<SoulseekStateChangedEvent>().Subscribe(evt =>
+        _stateChangedSubscription = eventBus.GetEvent<SoulseekStateChangedEvent>().Subscribe(evt =>
         {
             try
             {
@@ -169,10 +171,11 @@ public class ConnectionViewModel : INotifyPropertyChanged
         }
 
         // Subscribe to Spotify auth changes
-        _spotifyAuthService.AuthenticationChanged += (s, isAuthenticated) => 
+        _spotifyAuthHandler = (s, isAuthenticated) => 
         {
             Dispatcher.UIThread.Post(() => IsSpotifyConnected = isAuthenticated);
         };
+        _spotifyAuthService.AuthenticationChanged += _spotifyAuthHandler;
         
         // Initialize Spotify status (use Post to avoid blocking constructor)
         Dispatcher.UIThread.Post(() => IsSpotifyConnected = _spotifyAuthService.IsAuthenticated);
@@ -350,5 +353,14 @@ public class ConnectionViewModel : INotifyPropertyChanged
         field = value;
         OnPropertyChanged(propertyName);
         return true;
+    }
+
+    public void Dispose()
+    {
+        _stateChangedSubscription?.Dispose();
+        if (_spotifyAuthHandler != null)
+        {
+            _spotifyAuthService.AuthenticationChanged -= _spotifyAuthHandler;
+        }
     }
 }

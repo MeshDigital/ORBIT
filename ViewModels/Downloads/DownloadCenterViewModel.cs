@@ -185,6 +185,13 @@ public class DownloadCenterViewModel : ReactiveObject, IDisposable
         }
     }
 
+    // Engine Master Status
+    public bool IsEngineRunning => _downloadManager.IsRunning;
+    public bool IsEnginePaused => _downloadManager.IsPaused;
+    public string EngineStatusText => !IsEngineRunning ? "Engine Offline" : (IsEnginePaused ? "Engine Paused" : "Engine Active");
+    public string EngineStatusColor => !IsEngineRunning ? "#FF5252" : (IsEnginePaused ? "#FFA500" : "#4CAF50");
+    public string EngineStatusIcon => !IsEngineRunning ? "⚡" : (IsEnginePaused ? "⏸" : "⚡");
+
     public int MaxConcurrentDownloads
     {
         get => _downloadManager.MaxActiveDownloads;
@@ -213,6 +220,11 @@ public class DownloadCenterViewModel : ReactiveObject, IDisposable
     public ICommand CancelSelectedCommand { get; }
     public ICommand PauseSelectedCommand { get; }
     public ICommand ResumeSelectedCommand { get; }
+
+    // Master Commands
+    public ICommand StartEngineCommand { get; }
+    public ICommand StopEngineCommand { get; }
+    public ICommand ToggleEnginePauseCommand { get; }
     
     private readonly ArtworkCacheService _artworkCache;
     private readonly ILibraryService _libraryService;
@@ -239,8 +251,29 @@ public class DownloadCenterViewModel : ReactiveObject, IDisposable
         PauseAllCommand = ReactiveCommand.Create(PauseAll, 
             this.WhenAnyValue(x => x.ActiveCount, count => count > 0));
         
-        ResumeAllCommand = ReactiveCommand.Create(ResumeAll,
-            this.WhenAnyValue(x => x.ActiveCount, count => count > 0));
+        ResumeAllCommand = ReactiveCommand.CreateFromTask(async () => await _downloadManager.ResumeAllAsync());
+        
+        StartEngineCommand = ReactiveCommand.CreateFromTask(async () => await _downloadManager.StartAsync(), 
+            this.WhenAnyValue(x => x.IsEngineRunning, running => !running));
+            
+        StopEngineCommand = ReactiveCommand.CreateFromTask(async () => await _downloadManager.StopAsync(),
+            this.WhenAnyValue(x => x.IsEngineRunning));
+
+        ToggleEnginePauseCommand = ReactiveCommand.CreateFromTask(async () => await _downloadManager.TogglePauseEngineAsync(),
+            this.WhenAnyValue(x => x.IsEngineRunning));
+
+        // Sync manager state
+        _downloadManager.PropertyChanged += (s, e) => 
+        {
+             if (e.PropertyName == nameof(DownloadManager.IsRunning) || e.PropertyName == nameof(DownloadManager.IsPaused))
+             {
+                 this.RaisePropertyChanged(nameof(IsEngineRunning));
+                 this.RaisePropertyChanged(nameof(IsEnginePaused));
+                 this.RaisePropertyChanged(nameof(EngineStatusText));
+                 this.RaisePropertyChanged(nameof(EngineStatusColor));
+                 this.RaisePropertyChanged(nameof(EngineStatusIcon));
+             }
+        };
         
         ClearCompletedCommand = ReactiveCommand.Create(() => 
             _downloadsSource.Remove(_downloadsSource.Items.Where(x => x.State == PlaylistTrackState.Completed).ToList()));
@@ -617,25 +650,9 @@ public class DownloadCenterViewModel : ReactiveObject, IDisposable
         timer.Start();
     }
     
-    private async void PauseAll()
+    private async Task PauseAll()
     {
         await _downloadManager.PauseAllAsync();
-    }
-    
-    private async void ResumeAll()
-    {
-        // MANUAL START TRIGGER (User Request)
-        if (!_downloadManager.IsRunning)
-        {
-            _ = _downloadManager.StartAsync();
-            // Allow small delay for manager to spin up
-            await Task.Delay(100);
-        }
-
-        foreach (var item in ActiveDownloads.Where(d => d.State == PlaylistTrackState.Paused).ToList())
-        {
-            item.ResumeCommand.Execute(null);
-        }
     }
     
     public void Dispose()

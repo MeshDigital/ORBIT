@@ -18,7 +18,7 @@ namespace SLSKDONET.ViewModels;
 /// ViewModel representing a track in the download queue.
 /// Manages state, progress, and updates for the UI.
 /// </summary>
-public class PlaylistTrackViewModel : INotifyPropertyChanged, Library.ILibraryNode
+public class PlaylistTrackViewModel : INotifyPropertyChanged, Library.ILibraryNode, IDisposable
 {
     private PlaylistTrackState _state;
     private double _progress;

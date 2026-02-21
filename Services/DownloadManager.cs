@@ -66,6 +66,20 @@ public class DownloadManager : INotifyPropertyChanged, IDisposable
     private readonly object _processingLock = new();
     public bool IsRunning => _processingTask != null && !_processingTask.IsCompleted;
 
+    private bool _isPaused;
+    public bool IsPaused
+    {
+        get => _isPaused;
+        private set
+        {
+            if (_isPaused != value)
+            {
+                _isPaused = value;
+                OnPropertyChanged();
+            }
+        }
+    }
+
     // STATE MACHINE:
     // WHY: Downloads are long-running stateful operations that can fail mid-flight
     // - App crash: resume from last checkpoint (CrashRecoveryJournal)
@@ -942,12 +956,66 @@ public class DownloadManager : INotifyPropertyChanged, IDisposable
 
         if (active.Any())
         {
-            _logger.LogInformation("â¸ï¸ Pausing all {Count} active downloads...", active.Count);
+            _logger.LogInformation("⏸ Pausing all {Count} active downloads...", active.Count);
             foreach(var d in active) 
             {
                  await PauseTrackAsync(d.GlobalId);
             }
         }
+    }
+
+    /// <summary>
+    /// Resumes all paused downloads and ensures engine is running.
+    /// </summary>
+    public async Task ResumeAllAsync()
+    {
+        if (!IsRunning)
+        {
+            await StartAsync();
+        }
+
+        List<DownloadContext> paused;
+        lock (_collectionLock)
+        {
+            paused = _downloads.Where(d => d.State == PlaylistTrackState.Paused).ToList();
+        }
+
+        if (paused.Any())
+        {
+            _logger.LogInformation("▶ Resuming all {Count} paused downloads...", paused.Count);
+            foreach (var d in paused)
+            {
+                await ResumeTrackAsync(d.GlobalId);
+            }
+        }
+        
+        IsPaused = false; // Globally unpause if it was
+    }
+
+    public async Task StopAsync()
+    {
+        _logger.LogInformation("Stopping DownloadManager engine (soft stop)...");
+        _ = PauseAllAsync(); // Fire and forget pause of active tracks
+        _globalCts.Cancel();
+        try
+        {
+            if (_processingTask != null)
+                await _processingTask;
+        }
+        catch (OperationCanceledException) { }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error while stopping processing loop");
+        }
+        
+        _logger.LogInformation("DownloadManager engine stopped.");
+        OnPropertyChanged(nameof(IsRunning));
+    }
+
+    public async Task TogglePauseEngineAsync()
+    {
+        IsPaused = !IsPaused;
+        _logger.LogInformation("DownloadManager engine {Status}", IsPaused ? "PAUSED" : "RESUMED");
     }
 
     public async Task ResumeTrackAsync(string globalId)
@@ -1113,7 +1181,8 @@ public class DownloadManager : INotifyPropertyChanged, IDisposable
             }
         }, ct);
 
-        _processingTask = ProcessQueueLoop(_globalCts.Token);
+        _processingTask = Task.Run(() => ProcessQueueLoop(_globalCts.Token), _globalCts.Token);
+        OnPropertyChanged(nameof(IsRunning));
 
         await Task.CompletedTask;
     }
@@ -1303,6 +1372,12 @@ public class DownloadManager : INotifyPropertyChanged, IDisposable
         {
             try
             {
+                // Global Engine Pause
+                if (_isPaused)
+                {
+                    await Task.Delay(1000, token);
+                    continue;
+                }
                 // Phase 0.9: Circuit Breaker
                 if (!_soulseek.IsConnected)
                 {

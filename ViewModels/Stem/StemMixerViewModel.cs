@@ -6,7 +6,7 @@ using SLSKDONET.Services.Audio;
 
 namespace SLSKDONET.ViewModels.Stem;
 
-public class StemMixerViewModel : ReactiveObject
+public class StemMixerViewModel : ReactiveObject, IDisposable
 {
     private readonly RealTimeStemEngine _engine;
     public ObservableCollection<StemChannelViewModel> Channels { get; } = new();
@@ -37,5 +37,14 @@ public class StemMixerViewModel : ReactiveObject
             var channelVm = new StemChannelViewModel(type, channelCallback, _engine);
             Channels.Add(channelVm);
         }
+    }
+
+    public void Dispose()
+    {
+        foreach (var channel in Channels)
+        {
+            channel.Dispose();
+        }
+        Channels.Clear();
     }
 }

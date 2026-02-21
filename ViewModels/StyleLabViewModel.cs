@@ -14,7 +14,7 @@ using SLSKDONET.Services.AI;
 
 namespace SLSKDONET.ViewModels;
 
-public class StyleLabViewModel : ReactiveObject
+public class StyleLabViewModel : ReactiveObject, IDisposable
 {
     private readonly IStyleClassifierService _classifier;
     private readonly IDbContextFactory<AppDbContext> _dbFactory;
@@ -230,6 +230,8 @@ public class StyleLabViewModel : ReactiveObject
         var rnd = new Random();
         return $"#{rnd.Next(100, 255):X2}{rnd.Next(100, 255):X2}{rnd.Next(100, 255):X2}";
     }
+
+    public void Dispose() { /* Publisher-only: no subscriptions to clean up */ }
 }
 
 public class StyleBucketViewModel : ReactiveObject

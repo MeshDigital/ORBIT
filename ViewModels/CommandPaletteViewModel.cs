@@ -2,15 +2,17 @@ using System;
 using System.Collections.ObjectModel;
 using System.Linq;
 using System.Reactive;
+using System.Reactive.Disposables;
 using System.Reactive.Linq;
 using ReactiveUI;
 using SLSKDONET.Services;
 
 namespace SLSKDONET.ViewModels
 {
-    public class CommandPaletteViewModel : ReactiveObject
+    public class CommandPaletteViewModel : ReactiveObject, IDisposable
     {
         private readonly INavigationService _navigationService;
+        private readonly CompositeDisposable _disposables = new();
 
         private bool _isVisible;
         public bool IsVisible
@@ -44,7 +46,8 @@ namespace SLSKDONET.ViewModels
             this.WhenAnyValue(x => x.SearchText)
                 .Throttle(TimeSpan.FromMilliseconds(50))
                 .ObserveOn(RxApp.MainThreadScheduler)
-                .Subscribe(_ => UpdateFilter());
+                .Subscribe(_ => UpdateFilter())
+                .DisposeWith(_disposables);
         }
 
         private void InitializeCommands()
@@ -95,6 +98,11 @@ namespace SLSKDONET.ViewModels
             item.Action?.Invoke();
             IsVisible = false;
             SearchText = "";
+        }
+
+        public void Dispose()
+        {
+            _disposables.Dispose();
         }
     }
 

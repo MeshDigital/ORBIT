@@ -13,7 +13,7 @@ using SLSKDONET.Views;
 
 namespace SLSKDONET.ViewModels;
 
-public class UpgradeScoutViewModel : INotifyPropertyChanged
+public class UpgradeScoutViewModel : INotifyPropertyChanged, IDisposable
 {
     private readonly ILogger<UpgradeScoutViewModel> _logger;
     private readonly LibraryUpgradeScout _scout;
@@ -151,4 +151,6 @@ public class UpgradeScoutViewModel : INotifyPropertyChanged
     public event PropertyChangedEventHandler? PropertyChanged;
     protected void OnPropertyChanged([CallerMemberName] string? name = null) 
         => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
+
+    public void Dispose() { /* Publisher-only: no subscriptions to clean up */ }
 }

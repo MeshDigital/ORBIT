@@ -1,14 +1,16 @@
 using System;
 using System.ComponentModel;
+using System.Reactive.Disposables;
 using System.Runtime.CompilerServices;
 using SLSKDONET.Services;
 using Avalonia.Threading;
 
 namespace SLSKDONET.ViewModels
 {
-    public class BulkOperationViewModel : INotifyPropertyChanged
+    public class BulkOperationViewModel : INotifyPropertyChanged, IDisposable
     {
         private readonly IEventBus _eventBus;
+        private readonly CompositeDisposable _disposables = new();
         
         private string _title = "Bulk Operation";
         public string Title
@@ -46,9 +48,9 @@ namespace SLSKDONET.ViewModels
         {
             _eventBus = eventBus;
             
-            _eventBus.GetEvent<BulkOperationStartedEvent>().Subscribe(OnStarted);
-            _eventBus.GetEvent<BulkOperationProgressEvent>().Subscribe(OnProgress);
-            _eventBus.GetEvent<BulkOperationCompletedEvent>().Subscribe(OnCompleted);
+            _eventBus.GetEvent<BulkOperationStartedEvent>().Subscribe(OnStarted).DisposeWith(_disposables);
+            _eventBus.GetEvent<BulkOperationProgressEvent>().Subscribe(OnProgress).DisposeWith(_disposables);
+            _eventBus.GetEvent<BulkOperationCompletedEvent>().Subscribe(OnCompleted).DisposeWith(_disposables);
         }
 
         private void OnStarted(BulkOperationStartedEvent evt)
@@ -96,6 +98,11 @@ namespace SLSKDONET.ViewModels
             field = value;
             OnPropertyChanged(propertyName);
             return true;
+        }
+
+        public void Dispose()
+        {
+            _disposables.Dispose();
         }
     }
 }

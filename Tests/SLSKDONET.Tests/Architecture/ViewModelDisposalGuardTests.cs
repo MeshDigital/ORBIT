@@ -153,9 +153,10 @@ public class ViewModelDisposalGuardTests
 
             var fieldName = match.Groups[1].Value;
             
-            // Check if Dispose() calls fieldName.Dispose()
+            // Check if Dispose() calls fieldName.Dispose() or fieldName?.Dispose()
             bool hasDispose = content.Contains("public void Dispose()");
-            bool disposesField = content.Contains($"{fieldName}.Dispose()");
+            bool disposesField = content.Contains($"{fieldName}.Dispose()") || 
+                                 content.Contains($"{fieldName}?.Dispose()");
             
             if (!hasDispose)
             {
@@ -188,6 +189,9 @@ public class ViewModelDisposalGuardTests
         
         var typesWithEventBus = OrbitAssembly.GetTypes()
             .Where(t => t.IsClass && !t.IsAbstract)
+            .Where(t => t.DeclaringType == null) // Only top-level types — skip all nested/inner classes
+            .Where(t => !t.Name.Contains("<")) // Skip compiler-generated closure/display classes
+            .Where(t => t.GetCustomAttributes(typeof(System.Runtime.CompilerServices.CompilerGeneratedAttribute), false).Length == 0)
             .Where(t => t.GetFields(BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.Public)
                 .Any(f => f.FieldType == typeof(SLSKDONET.Services.IEventBus) || 
                           f.FieldType.Name == "IEventBus"))

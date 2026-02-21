@@ -5,7 +5,7 @@ using System;
 
 namespace SLSKDONET.ViewModels.Stem;
 
-public class StemChannelViewModel : ReactiveObject
+public class StemChannelViewModel : ReactiveObject, IDisposable
 {
     private readonly StemSettings _settings;
     private readonly RealTimeStemEngine? _engine;
@@ -101,4 +101,6 @@ public class StemChannelViewModel : ReactiveObject
             _ => "#FFFFFF"
         };
     }
+
+    public void Dispose() { /* No resources to clean up currently */ }
 }

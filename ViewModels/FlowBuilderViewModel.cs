@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Linq;
 using System.Reactive;
+using System.Reactive.Disposables;
 using System.Reactive.Linq;
 using System.Threading.Tasks;
 using ReactiveUI;
@@ -16,12 +17,13 @@ using SLSKDONET.Models;
 
 namespace SLSKDONET.ViewModels
 {
-    public class FlowBuilderViewModel : ReactiveObject
+    public class FlowBuilderViewModel : ReactiveObject, IDisposable
     {
         private readonly SetListService _setListService;
         private readonly ITransitionAdvisorService _advisor;
         private readonly ITransitionPreviewPlayer _previewPlayer;
         private readonly LibraryService _libraryService;
+        private readonly CompositeDisposable _disposables = new();
 
         private SetListEntity? _currentSet;
         public SetListEntity? CurrentSet
@@ -82,7 +84,8 @@ namespace SLSKDONET.ViewModels
             this.WhenAnyValue(x => x.Weights)
                 .Throttle(TimeSpan.FromMilliseconds(300))
                 .ObserveOn(RxApp.MainThreadScheduler)
-                .Subscribe(_ => UpdateFlowAnalysis());
+                .Subscribe(_ => UpdateFlowAnalysis())
+                .DisposeWith(_disposables);
         }
 
         public async Task LoadSetAsync(Guid setListId)
@@ -149,6 +152,11 @@ namespace SLSKDONET.ViewModels
             if (CurrentSet == null) return;
             CurrentSet.FlowWeightsJson = System.Text.Json.JsonSerializer.Serialize(Weights);
             await _setListService.UpdateSetListAsync(CurrentSet);
+        }
+
+        public void Dispose()
+        {
+            _disposables.Dispose();
         }
     }
 

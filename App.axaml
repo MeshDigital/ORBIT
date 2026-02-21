@@ -34,6 +34,7 @@
         <converters:BoolToWidthConverter x:Key="BoolToWidthConverter"/>
         <conv_root:BoolToStringConverter x:Key="BoolToStringConverter"/>
         <converters:BoolToAngleConverter x:Key="BoolToAngleConverter"/>
+        <converters:BoolToTextConverter x:Key="BoolToTextConverter"/>
 
         
         <!-- Utility Converters -->

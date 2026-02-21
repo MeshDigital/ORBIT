@@ -6,6 +6,7 @@ using Microsoft.Extensions.Logging;
 using System.Collections.ObjectModel;
 using System.Linq;
 using System.Reactive;
+using System.Reactive.Disposables;
 using System.Threading.Tasks;
 using ReactiveUI;
 using SLSKDONET.Data;
@@ -30,12 +31,13 @@ namespace SLSKDONET.ViewModels
     /// Shows 1 track with AI-powered match recommendations from all services.
     /// Phase 6: Integrated ApplyRescueTrack command for rescue application.
     /// </summary>
-    public class DJCompanionViewModel : ReactiveObject
+    public class DJCompanionViewModel : ReactiveObject, IDisposable
     {
         private readonly HarmonicMatchService _harmonicMatchService;
         private readonly LibraryService _libraryService;
         private readonly DatabaseService _databaseService;
         private readonly IEventBus _eventBus;
+        private readonly CompositeDisposable _disposables = new();
         private readonly RekordboxXmlExporter _rekordboxExporter;
         private readonly IFileInteractionService _fileService;
         private readonly Services.Export.IHardwareExportService _hardwareExportService;
@@ -391,7 +393,7 @@ namespace SLSKDONET.ViewModels
             {
                 if (stressPoint != null)
                     ForensicInspectorViewModel.DisplayStressPointDetail(stressPoint);
-            });
+            }).DisposeWith(_disposables);
 
             // NEW: Initialize Cue and Seek Commands
             JumpToCueCommand = ReactiveCommand.CreateFromTask<OrbitCue, Unit>(async cue =>
@@ -1332,6 +1334,13 @@ namespace SLSKDONET.ViewModels
                 // Player.Position is 0-1 float. Seek expects 0-1 float.
                 Player.Seek((float)(Player.Position + amount));
             }
+        }
+
+        public void Dispose()
+        {
+            _disposables.Dispose();
+            MixPreview?.Dispose();
+            MixPreview = null;
         }
     }
 }

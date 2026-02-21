@@ -1,14 +1,16 @@
+using System;
+using System.Collections.ObjectModel;
+using System.Threading.Tasks;
 using ReactiveUI;
 using SLSKDONET.Services;
 using SLSKDONET.Services.Audio;
-using System.Collections.ObjectModel;
 
 namespace SLSKDONET.ViewModels.Stem;
 
 /// <summary>
 /// Manages the stem separation workspace including track loading, mixing, and project management.
 /// </summary>
-public class StemWorkspaceViewModel : ReactiveObject
+public class StemWorkspaceViewModel : ReactiveObject, IDisposable
 {
     private readonly StemSeparationService _separationService;
     private readonly RealTimeStemEngine _audioEngine;
@@ -284,6 +286,16 @@ public class StemWorkspaceViewModel : ReactiveObject
         {
             System.Diagnostics.Debug.WriteLine($"Error saving project: {ex.Message}");
             await _dialogService.ShowAlertAsync("Error", $"Failed to save mix: {ex.Message}");
+        }
+    }
+
+    public void Dispose()
+    {
+        Mixer?.Dispose();
+        // Pause audio if disposing
+        if (IsPlaying)
+        {
+            _audioEngine?.Pause();
         }
     }
 }

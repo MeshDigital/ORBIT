@@ -361,10 +361,9 @@ public partial class App : Application
                             Serilog.Log.Warning(journalEx, "Crash recovery journal initialization failed (non-critical)");
                         }
 
-                        // Initialize DownloadManager
+                        // Initialize and Start DownloadManager Orchestrator
                         var downloadManager = Services.GetRequiredService<DownloadManager>();
-                        await downloadManager.InitAsync();
-                        // _ = downloadManager.StartAsync(); // MANUAL START ONLY (User Request)
+                        _ = downloadManager.StartAsync(); // Auto-start engine on launch
 
                         // Phase 3B: Start Health Monitor
                         var healthMonitor = Services.GetRequiredService<DownloadHealthMonitor>();

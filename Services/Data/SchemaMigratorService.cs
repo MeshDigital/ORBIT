@@ -454,6 +454,124 @@ public class SchemaMigratorService
                 await command.ExecuteNonQueryAsync();
             }
 
+            // Phase: Engagement, Intelligence & Sonic Tracking
+            var primaryTables = new[] { "Tracks", "PlaylistTracks", "LibraryEntries" };
+            foreach (var table in primaryTables)
+            {
+                // Engagement fields
+                if (!ColumnExists(table, "IsLiked"))
+                {
+                    _logger.LogInformation("Patching Schema: Adding IsLiked to {Table}...", table);
+                    command.CommandText = $"ALTER TABLE \"{table}\" ADD COLUMN \"IsLiked\" INTEGER NOT NULL DEFAULT 0;";
+                    await command.ExecuteNonQueryAsync();
+                }
+                if (!ColumnExists(table, "Rating"))
+                {
+                    _logger.LogInformation("Patching Schema: Adding Rating to {Table}...", table);
+                    command.CommandText = $"ALTER TABLE \"{table}\" ADD COLUMN \"Rating\" INTEGER NOT NULL DEFAULT 0;";
+                    await command.ExecuteNonQueryAsync();
+                }
+                if (!ColumnExists(table, "PlayCount"))
+                {
+                    _logger.LogInformation("Patching Schema: Adding PlayCount to {Table}...", table);
+                    command.CommandText = $"ALTER TABLE \"{table}\" ADD COLUMN \"PlayCount\" INTEGER NOT NULL DEFAULT 0;";
+                    await command.ExecuteNonQueryAsync();
+                }
+                if (!ColumnExists(table, "LastPlayedAt"))
+                {
+                    _logger.LogInformation("Patching Schema: Adding LastPlayedAt to {Table}...", table);
+                    command.CommandText = $"ALTER TABLE \"{table}\" ADD COLUMN \"LastPlayedAt\" TEXT NULL;";
+                    await command.ExecuteNonQueryAsync();
+                }
+
+                // AI & Sonic Intelligence fields
+                if (!ColumnExists(table, "InstrumentalProbability"))
+                {
+                    _logger.LogInformation("Patching Schema: Adding InstrumentalProbability to {Table}...", table);
+                    command.CommandText = $"ALTER TABLE \"{table}\" ADD COLUMN \"InstrumentalProbability\" REAL NULL;";
+                    await command.ExecuteNonQueryAsync();
+                }
+                if (!ColumnExists(table, "DetectedSubGenre"))
+                {
+                    _logger.LogInformation("Patching Schema: Adding DetectedSubGenre to {Table}...", table);
+                    command.CommandText = $"ALTER TABLE \"{table}\" ADD COLUMN \"DetectedSubGenre\" TEXT NULL;";
+                    await command.ExecuteNonQueryAsync();
+                }
+                if (!ColumnExists(table, "SubGenreConfidence"))
+                {
+                    _logger.LogInformation("Patching Schema: Adding SubGenreConfidence to {Table}...", table);
+                    command.CommandText = $"ALTER TABLE \"{table}\" ADD COLUMN \"SubGenreConfidence\" REAL NULL;";
+                    await command.ExecuteNonQueryAsync();
+                }
+                if (!ColumnExists(table, "PrimaryGenre"))
+                {
+                    _logger.LogInformation("Patching Schema: Adding PrimaryGenre to {Table}...", table);
+                    command.CommandText = $"ALTER TABLE \"{table}\" ADD COLUMN \"PrimaryGenre\" TEXT NULL;";
+                    await command.ExecuteNonQueryAsync();
+                }
+                if (!ColumnExists(table, "DropTimestamp"))
+                {
+                    _logger.LogInformation("Patching Schema: Adding DropTimestamp to {Table}...", table);
+                    command.CommandText = $"ALTER TABLE \"{table}\" ADD COLUMN \"DropTimestamp\" REAL NULL;";
+                    await command.ExecuteNonQueryAsync();
+                }
+                if (!ColumnExists(table, "ManualEnergy"))
+                {
+                    _logger.LogInformation("Patching Schema: Adding ManualEnergy to {Table}...", table);
+                    command.CommandText = $"ALTER TABLE \"{table}\" ADD COLUMN \"ManualEnergy\" INTEGER NULL;";
+                    await command.ExecuteNonQueryAsync();
+                }
+                if (!ColumnExists(table, "SourceProvenance"))
+                {
+                    _logger.LogInformation("Patching Schema: Adding SourceProvenance to {Table}...", table);
+                    command.CommandText = $"ALTER TABLE \"{table}\" ADD COLUMN \"SourceProvenance\" TEXT NULL;";
+                    await command.ExecuteNonQueryAsync();
+                }
+
+                // Vocal Intelligence (Currently only in PlaylistTracks and LibraryEntries)
+                if (table != "Tracks")
+                {
+                    if (!ColumnExists(table, "VocalType"))
+                    {
+                        _logger.LogInformation("Patching Schema: Adding VocalType to {Table}...", table);
+                        command.CommandText = $"ALTER TABLE \"{table}\" ADD COLUMN \"VocalType\" INTEGER NOT NULL DEFAULT 0;";
+                        await command.ExecuteNonQueryAsync();
+                    }
+                    if (!ColumnExists(table, "VocalIntensity"))
+                    {
+                        _logger.LogInformation("Patching Schema: Adding VocalIntensity to {Table}...", table);
+                        command.CommandText = $"ALTER TABLE \"{table}\" ADD COLUMN \"VocalIntensity\" REAL NULL;";
+                        await command.ExecuteNonQueryAsync();
+                    }
+                    if (!ColumnExists(table, "VocalStartSeconds"))
+                    {
+                        _logger.LogInformation("Patching Schema: Adding VocalStartSeconds to {Table}...", table);
+                        command.CommandText = $"ALTER TABLE \"{table}\" ADD COLUMN \"VocalStartSeconds\" REAL NULL;";
+                        await command.ExecuteNonQueryAsync();
+                    }
+                    if (!ColumnExists(table, "VocalEndSeconds"))
+                    {
+                        _logger.LogInformation("Patching Schema: Adding VocalEndSeconds to {Table}...", table);
+                        command.CommandText = $"ALTER TABLE \"{table}\" ADD COLUMN \"VocalEndSeconds\" REAL NULL;";
+                        await command.ExecuteNonQueryAsync();
+                    }
+                }
+            }
+
+            // Phase: Library Entry Enrichment Retry
+            if (!ColumnExists("LibraryEntries", "EnrichmentAttempts"))
+            {
+                _logger.LogInformation("Patching Schema: Adding EnrichmentAttempts to LibraryEntries...");
+                command.CommandText = @"ALTER TABLE ""LibraryEntries"" ADD COLUMN ""EnrichmentAttempts"" INTEGER NOT NULL DEFAULT 0;";
+                await command.ExecuteNonQueryAsync();
+            }
+            if (!ColumnExists("LibraryEntries", "LastEnrichmentAttempt"))
+            {
+                _logger.LogInformation("Patching Schema: Adding LastEnrichmentAttempt to LibraryEntries...");
+                command.CommandText = @"ALTER TABLE ""LibraryEntries"" ADD COLUMN ""LastEnrichmentAttempt"" TEXT NULL;";
+                await command.ExecuteNonQueryAsync();
+            }
+
             // 1B. AudioFeatures Table (Phase 21: AI Brain)
             if (!TableExists("audio_features"))
             {
