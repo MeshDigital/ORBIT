@@ -1813,6 +1813,7 @@ public class DownloadManager : INotifyPropertyChanged, IDisposable
             Length = ctx.Model.CanonicalDuration // For {length} variable
         };
         var finalPath = _pathProvider.GetTrackPath(namingTrack);
+        ctx.Model.ResolvedFilePath = finalPath; // Set early so UI can probe the path (will look for .part)
 
         var partPath = finalPath + ".part";
         long startPosition = 0;

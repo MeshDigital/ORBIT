@@ -103,19 +103,31 @@
                 </Grid>
             </Border>
 
-            <!-- Items Repeater (Flat List) -->
-            <Border BorderBrush="#33333333" BorderThickness="0,1,0,0" IsVisible="{Binding IsExpanded}">
-                <ItemsRepeater ItemsSource="{Binding Tracks}" Margin="0">
+            <!-- Items Repeater (Flat List) with Thread Connector -->
+            <Grid IsVisible="{Binding IsExpanded}">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="32"/> <!-- Thread Lane -->
+                    <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
+
+                <!-- The Thread Line -->
+                <Rectangle Grid.Column="0" Width="2" HorizontalAlignment="Center" Fill="#333" Margin="0,0,0,12" VerticalAlignment="Stretch"/>
+                
+                <ItemsRepeater Grid.Column="1" ItemsSource="{Binding Tracks}" Margin="0,0,0,8">
                     <ItemsRepeater.ItemTemplate>
                         <DataTemplate>
-                           <controls:StandardTrackRow Classes="InFlightRow"/>
+                           <Grid ColumnDefinitions="24, *">
+                               <!-- Branch Connector -->
+                               <Path Grid.Column="0" Data="M 12,0 L 12,16 L 24,16" Stroke="#333" StrokeThickness="2" VerticalAlignment="Top"/>
+                               <controls:StandardTrackRow Grid.Column="1" Classes="InFlightRow"/>
+                           </Grid>
                         </DataTemplate>
                     </ItemsRepeater.ItemTemplate>
                     <ItemsRepeater.Layout>
                         <StackLayout Spacing="0"/>
                     </ItemsRepeater.Layout>
                 </ItemsRepeater>
-            </Border>
+            </Grid>
         </StackPanel>
     </Border>
 </UserControl>

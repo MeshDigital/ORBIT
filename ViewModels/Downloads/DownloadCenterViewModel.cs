@@ -117,6 +117,13 @@ public class DownloadCenterViewModel : ReactiveObject, IDisposable
         set => this.RaiseAndSetIfChanged(ref _searchingCount, value);
     }
     
+    private int _downloadingCount;
+    public int DownloadingCount
+    {
+        get => _downloadingCount;
+        set => this.RaiseAndSetIfChanged(ref _downloadingCount, value);
+    }
+    
     private int _failedCount;
     public int FailedCount
     {
@@ -129,6 +136,13 @@ public class DownloadCenterViewModel : ReactiveObject, IDisposable
     {
         get => _globalSpeed;
         set => this.RaiseAndSetIfChanged(ref _globalSpeed, value);
+    }
+
+    private string _searchText = string.Empty;
+    public string SearchText
+    {
+        get => _searchText;
+        set => this.RaiseAndSetIfChanged(ref _searchText, value);
     }
 
     private string? _globalStatusMessage;
@@ -384,7 +398,10 @@ public class DownloadCenterViewModel : ReactiveObject, IDisposable
         sharedSource
             .Filter(x => x.State == PlaylistTrackState.Downloading || x.State == PlaylistTrackState.Searching)
             .SortAndBind(out _ongoingDownloads, SortExpressionComparer<UnifiedTrackViewModel>.Descending(x => x.State == PlaylistTrackState.Downloading).ThenByDescending(x => x.DownloadSpeed))
-            .Subscribe()
+            .Subscribe(_ => {
+                DownloadingCount = _downloadsSource.Items.Count(x => x.State == PlaylistTrackState.Downloading);
+                SearchingCount = _downloadsSource.Items.Count(x => x.State == PlaylistTrackState.Searching);
+            })
             .DisposeWith(_subscriptions);
 
         // 1.2 Queued Downloads (Queued/Pending -> IsWaiting)
@@ -428,10 +445,10 @@ public class DownloadCenterViewModel : ReactiveObject, IDisposable
             })
             .DisposeWith(_subscriptions);
 
-        // Phase 2: Grouping Pipeline (Active Only)
+        // Phase 2: Grouping Pipeline (On-Deck / Waiting / Stalled Only)
         // Group by Source/Origin (e.g. Spotify Playlist ID or Search Session ID)
         sharedSource
-            .Filter(x => x.IsActive || x.IsWaiting || x.IsStalled) // Match active groups
+            .Filter(x => x.IsWaiting || x.IsStalled) // Match on-deck groups, exclude strictly active (searching/downloading)
             .Group(x => x.Model.SourcePlaylistId ?? x.Model.PlaylistId)
             .Transform((IGroup<UnifiedTrackViewModel, string, Guid> group) => new DownloadGroupViewModel(group))
             .DisposeMany() 
@@ -498,8 +515,13 @@ public class DownloadCenterViewModel : ReactiveObject, IDisposable
             .DisposeWith(_subscriptions);
 
         // Completed Pipeline
+        var completedFilter = this.WhenAnyValue(x => x.SearchText)
+            .Throttle(TimeSpan.FromMilliseconds(250))
+            .Select(BuildFilter);
+
         sharedSource
             .Filter(x => x.State == PlaylistTrackState.Completed)
+            .Filter(completedFilter)
             .SortAndBind(out _completedDownloads, SortExpressionComparer<UnifiedTrackViewModel>.Descending(x => x.Model.AddedAt))
             .Subscribe();
 
@@ -511,6 +533,7 @@ public class DownloadCenterViewModel : ReactiveObject, IDisposable
         // Failed Pipeline
         sharedSource
             .Filter(x => x.State == PlaylistTrackState.Failed || x.State == PlaylistTrackState.Cancelled || x.State == PlaylistTrackState.Stalled)
+            .Filter(completedFilter) // Reuse filter for now
             .Bind(out _failedDownloads)
             .Subscribe();
 
@@ -569,6 +592,14 @@ public class DownloadCenterViewModel : ReactiveObject, IDisposable
         
         // CRITICAL: Hydrate from existing downloads (app restart scenario)
         InitialHydration();
+    }
+
+    private Func<UnifiedTrackViewModel, bool> BuildFilter(string searchText)
+    {
+        if (string.IsNullOrWhiteSpace(searchText)) return _ => true;
+
+        return vm => vm.TrackTitle.Contains(searchText, StringComparison.OrdinalIgnoreCase) ||
+                     vm.ArtistName.Contains(searchText, StringComparison.OrdinalIgnoreCase);
     }
     
     private void InitialHydration()

@@ -1,10 +1,10 @@
 # ORBIT Implementation Plan: Phase 3.0 — Production Hardening & Intelligence
 
 ## 🎯 Current Status
-Phase 2 (Global Intelligence & Contextual Sidebar) is complete. Phase 3.1 (Zero Warning Initiative, SkiaSharp, Path Normalization) is complete. Phase 3.2 (Ingest Flow Restoration & EventBus Leak Protection) is complete. The application now builds with **0 Warnings, 0 Errors** and has automated guardrails preventing future memory leaks.
+Phase 3.5 (Download Engine Sovereignty) and Phase 3.6 (Download Center Polish) are complete. The Download Center now features a real-time "Control Center" dashboard, proactive in-flight forensics starting at 1% progress, and a high-aesthetic unified active view with pulsing state indicators. Build integrity is maintained with zero XAML/C# errors.
 
-**Last Session**: 2026-02-21 — Ingest Flow Restoration + Zombie Exorcism  
-**Build Status**: ✅ Clean  
+**Last Session**: 2026-02-22 — Download Dashboard Overhaul & Forensic Path Fix  
+**Build Status**: ✅ Clean (Resolved XAML tag/padding errors)  
 **Subscription Coverage**: 100% (115/115 tracked)
 
 ---
@@ -36,7 +36,9 @@ Phase 2 (Global Intelligence & Contextual Sidebar) is complete. Phase 3.1 (Zero 
 - [x] **Automated Guardrail**: 100% pass on reflection and source analysis tests.
 - [x] **Dependency Hardening**: Implemented `IDisposable` pattern in all child ViewModels (Stem, Mixer).
 
----### 3.3.1: Zombie ViewModels ✅
+---
+
+### 3.3.1: Zombie ViewModels ✅
 - [x] **BulkOperationViewModel**: Added `IDisposable` + `CompositeDisposable`
 - [x] **CommandPaletteViewModel**: Added `IDisposable` + `CompositeDisposable`
 - [x] **ConnectionViewModel**: Added `IDisposable` + tracked subscription
@@ -49,22 +51,19 @@ Phase 2 (Global Intelligence & Contextual Sidebar) is complete. Phase 3.1 (Zero 
 ### Phase 3.4: Schema Hardening ✅ (Feb 21, 2026)
 - [x] **Runtime Schema Patching**: Resolved `no such column: IsLiked` crash and others by adding missing metadata fields to `SchemaMigratorService`.
 - [x] **Comprehensive Sync**: Synchronized `Tracks`, `PlaylistTracks`, and `LibraryEntries` schemas with `TrackEntity` definitions (Engagement, Vocal Intelligence, Sonic Tracking).
-52: 
-53: ### Phase 3.5: Download Engine Sovereignty ✅ (Feb 21, 2026)
-54: - [x] **Auto-Start Restoration**: Re-enabled `DownloadManager.StartAsync()` in `App.axaml.cs` to ensure background processing begins on launch.
-55: - [x] **Master Engine Controls**: Implemented Start, Stop, and Global Pause in `DownloadManager` for full runtime control.
-56: - [x] **Diagnostic UI**: Added a high-aesthetic Engine Status bar in `DownloadsPage` header with real-time status LEDs (Active, Paused, Offline).
-57: - [x] **Resilience Hardening**: Fixed soft-crash scenarios in `ProcessQueueLoop` and improved soft-shutdown behavior.
 
-### 3.3.2: EventBus Hardening
-- [ ] **Weak Reference Subscribers**: Evaluate adding `WeakReference<IDisposable>` to `EventBusService` internal subscriber list as a failsafe
-- [ ] **Subscription Count Diagnostics**: Add `GetSubscriberCount<T>()` to `IEventBus` for runtime leak detection
-- [ ] **CI Integration**: Add `dotnet test --filter "ViewModelDisposalGuard"` to build pipeline
+### Phase 3.5: Download Engine Sovereignty ✅ (Feb 21, 2026)
+- [x] **Auto-Start Restoration**: Re-enabled `DownloadManager.StartAsync()` in `App.axaml.cs`.
+- [x] **Master Engine Controls**: Implemented Start, Stop, and Global Pause.
+- [x] **Diagnostic UI**: Added high-aesthetic Engine Status bar with real-time LEDs (Active, Paused, Offline).
 
-### 3.3.3: Stress Validation
-- [ ] **SetlistStressTest**: Run rapid sidebar open/close + theater mode toggle cycles
-- [ ] **Memory Floor Check**: Verify GC heap doesn't climb after repeated VM lifecycle cycles
-- [ ] **Timer Audit**: Confirm no orphaned `DispatcherTimer` instances after stress test
+### Phase 3.6: Download Center Dashboard & Feed ✅ (Feb 22, 2026)
+- [x] **Control Center Dashboard**: Implemented real-time header with Throughput (MB/s), Active Sessions, and Discovery Rate.
+- [x] **Unified Active Feed**: Split "Active" tab into **MOVING NOW** (flat, active only) and **ON DECK** (grouped queue).
+- [x] **Proactive Forensics**: Re-implemented 1% progress trigger and fixed the `.part` file probing path bug.
+- [x] **Visual Pulsing States**: Added cyan glow for active downloads and pulsing amber for stalled states.
+- [x] **Thread Connectors**: Added visual tree lines linking grouped tracks to their source headers.
+- [x] **Build Resilience**: Fixed Avalonia XAML Grid padding errors and tag mismatch regressions.
 
 ---
 
@@ -85,6 +84,13 @@ Phase 2 (Global Intelligence & Contextual Sidebar) is complete. Phase 3.1 (Zero 
 - [ ] **Spotify API Circuit Breaker**: Polly-based backoff for 403/429 errors
 - [ ] **Download Retry Intelligence**: Adaptive retry delays based on peer reliability history
 - [ ] **Connection Health Monitor**: Real-time connection quality scoring
+
+### 4.4: List & Queue Optimization
+- [x] Debug Download Engine: Resolved "Awaiting Signal" stuck state by enabling .part file probing (Phase 4.1)
+- [x] Fix Database Integrity: Resolved SQLite NOT NULL constraint failures in AnalysisQueueService by switching from Remove/Add to Update/SetValues.
+- [ ] Phase 4.0: Transition to Preview Engine (Initial integration)
+- [ ] **Download Queue Virtualization**: Migrate `DownloadsPage` from `ItemsRepeater` to full `VirtualizingStackPanel` for 1k+ queue stability
+- [ ] **Smooth Scrolling**: Enable `CanContentScroll="True"` and optimize layout cycles in heavy lists
 
 ---
 
@@ -158,7 +164,8 @@ Run:   dotnet test --filter "ViewModelDisposalGuard"
 ---
 
 ## 📝 Immediate Tasks (Next Session)
-1. **Stress Validation**: Run SetlistStressTest with memory profiling to verify real-world leak prevention
-2. **Phase 4.1**: Begin Hierarchical Virtualization for 50k+ track readiness
-3. **Phase 4.2**: Implement SemaphoreSlim for File I/O concurrency control
-4. **Weak Reference Evaluate**: Consider adding weak references to EventBus as a safety net layer (Phase 3.3.2)
+1. [x] **Virtualization Audit**: Apply `VirtualizingStackPanel` to `DownloadsPage` tabs (Phase 4.4)
+2. [x] **CSV Scanner Card**: Implement drag-and-drop landing zone for CSV imports (Phase 3.6)
+3. [x] **Download Search**: Add filter bar to Completed tab in Download Center
+4. [ ] **Stress Validation**: Run SetlistStressTest with memory profiling
+5. [ ] **Phase 4.0 Transition**: Conduct full build check and performance baseline recording

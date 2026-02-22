@@ -538,7 +538,7 @@ public class UnifiedTrackViewModel : ReactiveObject, IDisplayableTrack, IDisposa
     public float? SubGenreConfidence => Model.SubGenreConfidence;
 
     // Phase 2: In-Flight Forensics
-    private string _forensicVerdict = "Awaiting Signal";
+    private string _forensicVerdict = "Initializing Probe...";
     public string ForensicVerdict 
     { 
         get => _forensicVerdict; 
@@ -815,10 +815,10 @@ public class UnifiedTrackViewModel : ReactiveObject, IDisplayableTrack, IDisposa
          // In-Flight Forensic Triggers
          if (State == PlaylistTrackState.Downloading)
          {
-             if (!_hasPerformedHeadCheck5 && Progress >= 5)
+             if (!_hasPerformedHeadCheck5 && Progress >= 1) // Trigger early at 1%
              {
                  _hasPerformedHeadCheck5 = true;
-                 _ = PerformInFlightForensicsAsync("Head-Check (5%)");
+                 _ = PerformInFlightForensicsAsync("Head-Check (Initial)");
              }
              else if (!_hasPerformedHeadCheck15 && Progress >= 15)
              {
@@ -833,8 +833,22 @@ public class UnifiedTrackViewModel : ReactiveObject, IDisplayableTrack, IDisposa
 
     private async Task PerformInFlightForensicsAsync(string stage)
     {
-        if (string.IsNullOrEmpty(Model.ResolvedFilePath) || !System.IO.File.Exists(Model.ResolvedFilePath)) 
-            return;
+        var path = Model.ResolvedFilePath;
+        if (string.IsNullOrEmpty(path)) return;
+
+        // If the finalized file doesn't exist, try the .part file (In-Flight)
+        if (!System.IO.File.Exists(path))
+        {
+            var partPath = path + ".part";
+            if (System.IO.File.Exists(partPath))
+            {
+                path = partPath;
+            }
+            else
+            {
+                return;
+            }
+        }
 
         try 
         {
@@ -843,7 +857,7 @@ public class UnifiedTrackViewModel : ReactiveObject, IDisplayableTrack, IDisposa
 
             // Note: SonicIntegrityService is designed to handle partially readable files 
             // but we must be careful with NAudio crashes on zero-byte files.
-            var result = await _sonicService.AnalyzeTrackAsync(Model.ResolvedFilePath, GlobalId);
+            var result = await _sonicService.AnalyzeTrackAsync(path, GlobalId); // FIX: Use local path, not Model.ResolvedFilePath
             
             Dispatcher.UIThread.Post(() => {
                 BitrateLed = result.IsTrustworthy ? "✅" : "⚠️";

@@ -1063,17 +1063,33 @@ public class AnalysisWorker : BackgroundService
                             if (result.MusicalResult != null)
                             {
                                 var existingFeatures = await dbContext.AudioFeatures.FirstOrDefaultAsync(f => f.TrackUniqueHash == trackHash, token);
-                                if (existingFeatures != null) dbContext.AudioFeatures.Remove(existingFeatures);
-                                
-                                // Data Integrity: Defaults are set in constructor, but we ensure here too
-                                dbContext.AudioFeatures.Add(result.MusicalResult);
+                                if (existingFeatures != null)
+                                {
+                                    // Fix: Update existing entity instead of removing/adding.
+                                    // Removing the entity causes EF Core to NULL out foreign keys on dependent tables (like PlaylistTracks),
+                                    // which triggers 'NOT NULL constraint failed: PlaylistTracks.TrackUniqueHash' because a different part of the
+                                    // schema enforces mandatory hashes.
+                                    result.MusicalResult.Id = existingFeatures.Id; // Preserve primary key
+                                    dbContext.Entry(existingFeatures).CurrentValues.SetValues(result.MusicalResult);
+                                }
+                                else
+                                {
+                                    dbContext.AudioFeatures.Add(result.MusicalResult);
+                                }
                             }
 
                             if (result.TechResult != null)
                             {
                                 var existingAnalysis = await dbContext.AudioAnalysis.FirstOrDefaultAsync(a => a.TrackUniqueHash == trackHash, token);
-                                if (existingAnalysis != null) dbContext.AudioAnalysis.Remove(existingAnalysis);
-                                dbContext.AudioAnalysis.Add(result.TechResult);
+                                if (existingAnalysis != null)
+                                {
+                                    result.TechResult.Id = existingAnalysis.Id;
+                                    dbContext.Entry(existingAnalysis).CurrentValues.SetValues(result.TechResult);
+                                }
+                                else
+                                {
+                                    dbContext.AudioAnalysis.Add(result.TechResult);
+                                }
                             }
 
                             var playlistTracks = await dbContext.PlaylistTracks

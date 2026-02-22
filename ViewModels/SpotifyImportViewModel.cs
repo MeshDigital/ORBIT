@@ -58,6 +58,13 @@ public class SpotifyImportViewModel : INotifyPropertyChanged
         set { _statusMessage = value; OnPropertyChanged(); }
     }
 
+    private bool _isCsvDragging;
+    public bool IsCsvDragging
+    {
+        get => _isCsvDragging;
+        set { _isCsvDragging = value; OnPropertyChanged(); }
+    }
+
     public int TrackCount => Tracks.Count;
     public int SelectedCount => Tracks.Count(t => t.IsSelected);
 
@@ -205,6 +212,22 @@ public class SpotifyImportViewModel : INotifyPropertyChanged
         await _importOrchestrator.StartImportWithPreviewAsync(_likedSongsProvider, "spotify:liked");
     }
 
+    public async Task ProcessCsvFileAsync(string filePath)
+    {
+        if (string.IsNullOrWhiteSpace(filePath)) return;
+        
+        try
+        {
+             _logger.LogInformation("Processing dropped CSV file: {Path}", filePath);
+             await _importOrchestrator.StartImportWithPreviewAsync(_csvProvider, filePath);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to process dropped CSV");
+            StatusMessage = $"Error: {ex.Message}";
+        }
+    }
+
     private async Task ExecuteSelectCsvFileAsync()
     {
         try
@@ -219,7 +242,7 @@ public class SpotifyImportViewModel : INotifyPropertyChanged
 
             if (!string.IsNullOrWhiteSpace(filePath))
             {
-                await _importOrchestrator.StartImportWithPreviewAsync(_csvProvider, filePath);
+                await ProcessCsvFileAsync(filePath);
             }
         }
         catch (Exception ex)

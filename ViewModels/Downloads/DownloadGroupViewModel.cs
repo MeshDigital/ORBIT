@@ -115,17 +115,20 @@ public class DownloadGroupViewModel : ReactiveObject, IDisposable
         // Group Commands
         PauseCommand = ReactiveCommand.Create(() => 
         {
-            foreach (var t in Tracks) t.PauseCommand.Execute(null);
+            var items = Tracks.ToList();
+            foreach (var t in items) t.PauseCommand.Execute(null);
         });
         
         ResumeCommand = ReactiveCommand.Create(() => 
         {
-            foreach (var t in Tracks) t.ResumeCommand.Execute(null);
+            var items = Tracks.ToList();
+            foreach (var t in items) t.ResumeCommand.Execute(null);
         });
 
         CancelCommand = ReactiveCommand.Create(() => 
         {
-            foreach (var t in Tracks) t.CancelCommand.Execute(null);
+            var items = Tracks.ToList();
+            foreach (var t in items) t.CancelCommand.Execute(null);
         });
 
         ToggleExpandedCommand = ReactiveCommand.Create(() => { IsExpanded = !IsExpanded; });
