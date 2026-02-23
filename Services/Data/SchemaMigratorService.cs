@@ -13,6 +13,7 @@ namespace SLSKDONET.Services;
 public class SchemaMigratorService
 {
     private readonly ILogger<SchemaMigratorService> _logger;
+    private static readonly SemaphoreSlim _initLock = new SemaphoreSlim(1, 1);
 
     public SchemaMigratorService(ILogger<SchemaMigratorService> logger)
     {
@@ -137,70 +138,104 @@ public class SchemaMigratorService
 
     public async Task InitializeDatabaseAsync()
     {
-        var sw = System.Diagnostics.Stopwatch.StartNew();
+        await _initLock.WaitAsync();
+        try
+        {
+            var sw = System.Diagnostics.Stopwatch.StartNew();
         _logger.LogInformation("[{Ms}ms] Database Init: Starting", sw.ElapsedMilliseconds);
-        _logger.LogInformation("[{Ms}ms] Database Init: Starting", sw.ElapsedMilliseconds);
+        var appData = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
+        var dbPath = Path.Combine(appData, "ORBIT", "library.db");
 
         // Phase 24: Automatic Database Backup & Recovery
         await CheckForForceResetAsync().ConfigureAwait(false); // Step 1: Check if user requested reset
         await PerformBackupAsync().ConfigureAwait(false);      // Step 2: Backup existing or Restore if missing
 
+        // Initialize optimizations and WAL mode FIRST
+        try
+        {
+            using (var conn = new SqliteConnection($"Data Source={dbPath};Default Timeout=10000"))
+            {
+                await conn.OpenAsync();
+                using (var cmd = conn.CreateCommand())
+                {
+                    cmd.CommandText = "PRAGMA journal_mode=WAL; PRAGMA synchronous=NORMAL; PRAGMA busy_timeout=10000; PRAGMA wal_checkpoint(TRUNCATE);";
+                    await cmd.ExecuteNonQueryAsync();
+                }
+            }
+            _logger.LogInformation("[{Ms}ms] Database Init: WAL mode applied and Checkpoint (TRUNCATE) completed.", sw.ElapsedMilliseconds);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Failed to apply early database optimizations.");
+        }
+
         using var context = new AppDbContext();
         var db = context.Database;
 
         // Phase 12: Transition to EF Core Migrations
-        // Detect legacy database (created by EnsureCreated) and bootstrap history if needed
+        _logger.LogInformation("[{Ms}ms] Database Init: Checking for legacy database...", sw.ElapsedMilliseconds);
         bool legacyDbExists = false;
         try
         {
-            var conn = db.GetDbConnection();
-            await conn.OpenAsync();
-            using var cmd = conn.CreateCommand();
-            cmd.CommandText = "SELECT count(*) FROM sqlite_master WHERE type='table' AND name='Tracks';";
-            var result = await cmd.ExecuteScalarAsync();
-            legacyDbExists = (long)(result ?? 0) > 0;
-            await conn.CloseAsync();
-        }
-        catch { }
-
-        if (legacyDbExists)
-        {
-            bool historyExists = false;
-            try
+            using (var conn = new SqliteConnection($"Data Source={dbPath};Default Timeout=5000"))
             {
-                var conn = db.GetDbConnection();
                 await conn.OpenAsync();
                 using var cmd = conn.CreateCommand();
-                cmd.CommandText = "SELECT count(*) FROM sqlite_master WHERE type='table' AND name='__EFMigrationsHistory';";
+                cmd.CommandText = "SELECT count(*) FROM sqlite_master WHERE type='table' AND name='Tracks';";
                 var result = await cmd.ExecuteScalarAsync();
-                historyExists = (long)(result ?? 0) > 0;
-                await conn.CloseAsync();
+                legacyDbExists = (long)(result ?? 0) > 0;
             }
-            catch { }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogDebug(ex, "Legacy check failed (expected for fresh DB)");
+        }
+
+            if (legacyDbExists)
+            {
+                _logger.LogInformation("[{Ms}ms] Database Init: Legacy table 'Tracks' found. Checking migration record...", sw.ElapsedMilliseconds);
+                bool historyExists = false;
+                try
+                {
+                    using (var conn = new SqliteConnection($"Data Source={dbPath};Default Timeout=10000"))
+                    {
+                        await conn.OpenAsync();
+                        using var cmd = conn.CreateCommand();
+                        cmd.CommandText = "SELECT count(*) FROM sqlite_master WHERE type='table' AND name='__EFMigrationsHistory';";
+                        var result = await cmd.ExecuteScalarAsync();
+                        historyExists = (long)(result ?? 0) > 0;
+                    }
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogDebug(ex, "History table check failed");
+                }
 
             if (!historyExists)
             {
                 _logger.LogWarning("Legacy manually-patched database detected. Bootstrapping EF migrations history.");
 
-                await db.ExecuteSqlRawAsync(@"
-                    CREATE TABLE IF NOT EXISTS ""LibraryFolders"" (
-                        ""Id"" TEXT NOT NULL PRIMARY KEY,
-                        ""FolderPath"" TEXT NOT NULL,
-                        ""IsEnabled"" INTEGER NOT NULL DEFAULT 1,
-                        ""AddedAt"" TEXT NOT NULL,
-                        ""LastScannedAt"" TEXT NULL,
-                        ""TracksFound"" INTEGER NOT NULL DEFAULT 0
-                    );");
-
-                await db.ExecuteSqlRawAsync(@"
-                    CREATE TABLE IF NOT EXISTS ""__EFMigrationsHistory"" (
-                        ""MigrationId"" TEXT NOT NULL PRIMARY KEY,
-                        ""ProductVersion"" TEXT NOT NULL
-                    );");
-
-                await db.ExecuteSqlRawAsync(@"
-                    INSERT OR IGNORE INTO ""__EFMigrationsHistory"" (""MigrationId"", ""ProductVersion"")
-                    VALUES ('20260107122524_InitialStructure', '9.0.0');");
+                using (var conn = new SqliteConnection($"Data Source={dbPath};Default Timeout=10000"))
+                {
+                    await conn.OpenAsync();
+                    using var cmd = conn.CreateCommand();
+                    cmd.CommandText = @"
+                        CREATE TABLE IF NOT EXISTS ""LibraryFolders"" (
+                            ""Id"" TEXT NOT NULL PRIMARY KEY,
+                            ""FolderPath"" TEXT NOT NULL,
+                            ""IsEnabled"" INTEGER NOT NULL DEFAULT 1,
+                            ""AddedAt"" TEXT NOT NULL,
+                            ""LastScannedAt"" TEXT NULL,
+                            ""TracksFound"" INTEGER NOT NULL DEFAULT 0
+                        );
+                        CREATE TABLE IF NOT EXISTS ""__EFMigrationsHistory"" (
+                            ""MigrationId"" TEXT NOT NULL PRIMARY KEY,
+                            ""ProductVersion"" TEXT NOT NULL
+                        );
+                        INSERT OR IGNORE INTO ""__EFMigrationsHistory"" (""MigrationId"", ""ProductVersion"")
+                        VALUES ('20260107122524_InitialStructure', '9.0.0');";
+                    await cmd.ExecuteNonQueryAsync();
+                }
             }
         }
 
@@ -209,31 +244,77 @@ public class SchemaMigratorService
         // to prevent "duplicate column name" crash during MigrateAsync().
         try
         {
-            var conn = db.GetDbConnection();
-            await conn.OpenAsync();
-            using var cmd = conn.CreateCommand();
-            cmd.CommandText = "SELECT COUNT(*) FROM pragma_table_info('PlaylistTracks') WHERE name='IsUserPaused'";
-            var result = await cmd.ExecuteScalarAsync();
-            var columnExists = (long)(result ?? 0) > 0;
+            _logger.LogInformation("[{Ms}ms] Database Init: Checking for IsUserPaused column drift...", sw.ElapsedMilliseconds);
+            bool columnExists = false;
+            using (var conn = new SqliteConnection($"Data Source={dbPath};Default Timeout=10000"))
+            {
+                await conn.OpenAsync();
+                using var cmd = conn.CreateCommand();
+                cmd.CommandText = "SELECT COUNT(*) FROM pragma_table_info('PlaylistTracks') WHERE name='IsUserPaused'";
+                var result = await cmd.ExecuteScalarAsync();
+                columnExists = (long)(result ?? 0) > 0;
+            }
             
             if (columnExists)
             {
                  // Manually insert the migration record so EF skips it
-                 await db.ExecuteSqlRawAsync(@"
-                    INSERT OR IGNORE INTO ""__EFMigrationsHistory"" (""MigrationId"", ""ProductVersion"")
-                    VALUES ('20260212000254_AddIsUserPausedToPlaylistTrack', '9.0.0');");
-                 _logger.LogInformation("Configuration: 'IsUserPaused' exists. Marked migration 20260212000254 as applied.");
+                 using (var conn = new SqliteConnection($"Data Source={dbPath};Default Timeout=10000"))
+                 {
+                     await conn.OpenAsync();
+                     using var cmd = conn.CreateCommand();
+                     cmd.CommandText = @"
+                        INSERT OR IGNORE INTO ""__EFMigrationsHistory"" (""MigrationId"", ""ProductVersion"")
+                        VALUES ('20260212000254_AddIsUserPausedToPlaylistTrack', '9.0.0');";
+                     await cmd.ExecuteNonQueryAsync();
+                 }
+                 _logger.LogInformation("[{Ms}ms] Schema fix: 'IsUserPaused' column detected, migration record forced.", sw.ElapsedMilliseconds);
             }
-            await conn.CloseAsync();
         }
         catch (Exception ex)
         {
             _logger.LogWarning(ex, "Failed to check/patch migration history for IsUserPaused.");
         }
 
+        // Diagnostic: List pending migrations
+        try
+        {
+            var pending = (await context.Database.GetPendingMigrationsAsync()).ToList();
+            if (pending.Any())
+            {
+                _logger.LogInformation("[{Ms}ms] Pending migrations: {Migrations}", sw.ElapsedMilliseconds, string.Join(", ", pending));
+            }
+            else
+            {
+                _logger.LogInformation("[{Ms}ms] No pending EF migrations found.", sw.ElapsedMilliseconds);
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Failed to retrieve pending migrations list.");
+        }
+
         // Apply EF Migrations
-        await db.MigrateAsync();
-        _logger.LogInformation("[{Ms}ms] Database Init: Migrations applied", sw.ElapsedMilliseconds);
+        _logger.LogInformation("[{Ms}ms] Database Init: Calling MigrateAsync() on {DbPath}...", sw.ElapsedMilliseconds, dbPath);
+        
+        try
+        {
+            var migrateTask = context.Database.MigrateAsync();
+            var timeoutLimit = 180; // 3 minutes for a 253MB database
+            var timeoutTask = Task.Delay(TimeSpan.FromSeconds(timeoutLimit));
+            
+            if (await Task.WhenAny(migrateTask, timeoutTask) == timeoutTask)
+            {
+                _logger.LogError("CRITICAL: Database Migration TIMEOUT ({Timeout}s). The database file at {DbPath} (Size: {Size}MB) is taking too long to respond. This usually means another program is locking the file.", timeoutLimit, dbPath, new FileInfo(dbPath).Length / 1024 / 1024);
+            }
+            
+            await migrateTask.ConfigureAwait(false);
+            _logger.LogInformation("[{Ms}ms] Database Init: EF Migrations applied successfully", sw.ElapsedMilliseconds);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "CRITICAL: MigrateAsync failed. If 'Database is locked', please check for zombie processes.");
+            throw; // Re-throw to show in UI background task
+        }
 
         // SQLite Optimizations (WAL mode etc)
         var connection = db.GetDbConnection();
@@ -262,6 +343,11 @@ public class SchemaMigratorService
 #endif
 
         _logger.LogInformation("[{Ms}ms] Database initialization completed successfully", sw.ElapsedMilliseconds);
+        }
+        finally
+        {
+            _initLock.Release();
+        }
     }
 
     public async Task<IndexAuditReport> AuditDatabaseIndexesAsync()

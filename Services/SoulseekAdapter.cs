@@ -19,8 +19,11 @@ public class SoulseekAdapter : ISoulseekAdapter, IDisposable
     private readonly ILogger<SoulseekAdapter> _logger;
     private readonly AppConfig _config;
     private readonly IEventBus _eventBus;
-    private SoulseekClient? _client;
-    public bool IsConnected => _client?.State.HasFlag(SoulseekClientStates.Connected) ?? false;
+    private static readonly SemaphoreSlim _connectLock = new(1, 1);
+    public bool IsConnected => _client?.State.HasFlag(SoulseekClientStates.Connected) == true && 
+                              !_client.State.HasFlag(SoulseekClientStates.Disconnecting);
+    
+    public bool IsLoggedIn => _client?.State.HasFlag(SoulseekClientStates.LoggedIn) == true;
     
     public event EventHandler<DownloadProgressEventArgs>? DownloadProgressChanged;
     public event EventHandler<DownloadCompletedEventArgs>? DownloadCompleted;
@@ -36,19 +39,40 @@ public class SoulseekAdapter : ISoulseekAdapter, IDisposable
         _eventBus = eventBus;
     }
 
+    private SoulseekClient? _client;
+
     public async Task ConnectAsync(string? password = null, CancellationToken ct = default)
     {
+        await _connectLock.WaitAsync(ct);
         try
         {
+            if (IsConnected && IsLoggedIn) 
+            {
+                _logger.LogInformation("Already connected and logged in as {Username}.", _config.Username);
+                return;
+            }
+
+            if (_client != null)
+            {
+                try { _client.Disconnect(); _client.Dispose(); } catch { }
+            }
+
             _client = new SoulseekClient();
+            
+            // Subscribe to state changes BEFORE connecting to catch early login states
+            _client.StateChanged += (sender, args) =>
+            {
+                _logger.LogInformation("Soulseek state change: {State} (was {PreviousState})", 
+                    args.State, args.PreviousState);
+                
+                _eventBus.Publish(new SoulseekStateChangedEvent(
+                    args.State.ToString(), 
+                    args.State.HasFlag(SoulseekClientStates.Connected) && !args.State.HasFlag(SoulseekClientStates.Disconnecting)));
+            };
+
             _logger.LogInformation("Connecting to Soulseek as {Username} on {Server}:{Port}...", 
                 _config.Username, _config.SoulseekServer, _config.SoulseekPort);
             
-            if (string.IsNullOrEmpty(_config.SoulseekServer))
-            {
-               _logger.LogWarning("SoulseekServer is null or empty! Fallback might occur.");
-            }
-
             await _client.ConnectAsync(
                 _config.SoulseekServer ?? "server.slsknet.org", 
                 _config.SoulseekPort == 0 ? 2242 : _config.SoulseekPort, 
@@ -56,63 +80,17 @@ public class SoulseekAdapter : ISoulseekAdapter, IDisposable
                 password, 
                 ct);
             
-            // Subscribe to state changes
-            _client.StateChanged += (sender, args) =>
-            {
-                _logger.LogInformation("Soulseek state changed: {State} (was {PreviousState})", 
-                    args.State, args.PreviousState);
-                _eventBus.Publish(new SoulseekStateChangedEvent(
-                    args.State.ToString(), 
-                    args.State.HasFlag(SoulseekClientStates.Connected)));
-            };
-            
             _logger.LogInformation("Successfully connected to Soulseek as {Username}", _config.Username);
             _eventBus.Publish(new SoulseekConnectionStatusEvent("connected", _config.Username ?? "Unknown"));
-
-            // Initialize file sharing to reduce peer rejection rates (Phase 13 Optimization)
-            if (_client != null && !string.IsNullOrEmpty(_config.DownloadDirectory))
-            {
-                _ = Task.Run(async () =>
-                {
-                    try
-                    {
-                        // Wait for login to stabilize
-                        await Task.Delay(5000, ct);
-                        
-                        // Phase 3: Shared Files Warning
-                        int sharedCount = 0;
-                        if (System.IO.Directory.Exists(_config.DownloadDirectory))
-                        {
-                            sharedCount = System.IO.Directory.GetFiles(_config.DownloadDirectory, "*", SearchOption.AllDirectories).Length;
-                        }
-                        
-                        if (sharedCount == 0)
-                        {
-                            _logger.LogWarning("⚠️ NO SHARED FILES DETECTED! You may be banned by peers. Please add files to {Path}", _config.DownloadDirectory);
-                        }
-                        else
-                        {
-                            _logger.LogInformation("✅ Shared Files Check Passed: {Count} files found in {Path}", sharedCount, _config.DownloadDirectory);
-                        }
-                        
-                        _eventBus.Publish(new SharedFilesStatusEvent(sharedCount, _config.DownloadDirectory ?? "Unset"));
-
-                        if (_client.State.HasFlag(SoulseekClientStates.LoggedIn))
-                        {
-                            // Future: Implement actual sharing
-                        }
-                    }
-                    catch (Exception ex)
-                    {
-                        _logger.LogWarning(ex, "Failed to initialize shared files check (non-critical)");
-                    }
-                }, ct);
-            }
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Failed to connect to Soulseek: {Message}", ex.Message);
             throw;
+        }
+        finally
+        {
+            _connectLock.Release();
         }
     }
 

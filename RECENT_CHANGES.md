@@ -1,5 +1,27 @@
 # Recent Changes
 
+## [0.1.0-alpha.9.11] - Operational Hardening & Database Sovereignty (Feb 23, 2026)
+
+### New Features
+* **Database Startup Sovereignty**: 
+    * **Atomic WAL Checkpoints**: Added mandatory `PRAGMA wal_checkpoint(TRUNCATE)` during startup to merge and clear large lock files for 250MB+ databases.
+    * **High-Accuracy Telemetry**: Implemented microsecond-precision timing logs for every stage of database initialization (Legacy check, Schema patch, Migrations).
+    * **Decoupled Patching**: Manual schema drift fixes (like the `IsUserPaused` column) now use independent, isolated connections with extended busy timeouts.
+* **Soulseek Circuit Breaker**: 
+    * **Connectivity Hardening**: Implemented a state-aware circuit breaker in the `DownloadManager` that pauses processing during disconnections instead of erroring.
+    * **Transition Guard**: Fixed a race condition where the adapter would get stuck in a "Disconnecting" state; it now proactively disposes and cycles the client.
+
+### Fixes & Stability
+* **SQLite Busy Resilience**: Increased `DefaultTimeout` to 10 seconds across all database contexts/connections to handle concurrent background analysis and UI reads.
+* **Startup Hang Mitigation**: Optimized `SchemaMigratorService` to skip redundant legacy checks if the migration history table is detected.
+* **Format Stability**: Corrected SQLite connection string formatting issues when initializing with raw paths.
+
+### Files Modified
+* **Services**: `SoulseekAdapter.cs`, `DownloadManager.cs`, `DatabaseService.cs`, `Data/SchemaMigratorService.cs`
+* **Data**: `AppDbContext.cs`
+* **App**: `App.axaml.cs`
+
+
 ## [0.1.0-alpha.9.10] - System Hardening & Data Integrity Lockdown (Feb 10, 2026)
 
 ### New Features

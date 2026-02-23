@@ -54,8 +54,7 @@ public class AppDbContext : DbContext
             {
                 DataSource = dbPath,
                 Mode = SqliteOpenMode.ReadWriteCreate,
-                Cache = SqliteCacheMode.Shared, // Enable shared cache for better concurrency
-                DefaultTimeout = 5000 // 5 seconds busy timeout - prevents "Database is locked"
+                DefaultTimeout = 10000 // 10 seconds busy timeout
             }.ToString();
 
             optionsBuilder.UseSqlite(connectionString, options =>

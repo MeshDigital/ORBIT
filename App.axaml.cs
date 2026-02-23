@@ -169,10 +169,6 @@ public partial class App : Application
 
             try
             {
-                // Initialize database before anything else (required for app to function)
-                var databaseService = Services.GetRequiredService<DatabaseService>();
-                await databaseService.InitAsync();
-
                 // Phase 2.4: Load ranking strategy from config
                 // TEMPORARILY DISABLED: Causing NullReferenceException on startup
                 // TODO: Fix this after app launches
@@ -238,6 +234,7 @@ public partial class App : Application
                     throw;
                 }
                 mainVm.StatusText = "Initializing application...";
+                mainVm.IsInitializing = true;
                 
                 var mainWindow = new Views.Avalonia.MainWindow
                 {
@@ -252,6 +249,13 @@ public partial class App : Application
                 {
                     try
                     {
+                        // 1. Initialize Database (now in background)
+                        mainVm.StatusText = "Initializing Database...";
+                        var databaseService = Services.GetRequiredService<DatabaseService>();
+                        await databaseService.InitAsync();
+                        Serilog.Log.Information("✅ Database initialization completed in background");
+
+                        // 2. Run other initialization tasks...
                         // CRITICAL FIX: Proactively verify Spotify connection on startup
                         // This prevents the "zombie token" bug where tokens are invalid but UI shows "Connected"
                         try

@@ -1,10 +1,10 @@
 # ORBIT Implementation Plan: Phase 3.0 — Production Hardening & Intelligence
 
 ## 🎯 Current Status
-Phase 3.5 (Download Engine Sovereignty) and Phase 3.6 (Download Center Polish) are complete. The Download Center now features a real-time "Control Center" dashboard, proactive in-flight forensics starting at 1% progress, and a high-aesthetic unified active view with pulsing state indicators. Build integrity is maintained with zero XAML/C# errors.
+Phase 3.7 (Operational Hardening & Database Recovery) is complete. The application now handles 250MB+ databases with atomic WAL checkpoints, avoiding startup hangs. Soulseek connectivity is hardened with a state-aware circuit breaker and proactive client cycling. Build status is clean.
 
-**Last Session**: 2026-02-22 — Download Dashboard Overhaul & Forensic Path Fix  
-**Build Status**: ✅ Clean (Resolved XAML tag/padding errors)  
+**Last Session**: 2026-02-23 — Operational Hardening & Database Sovereignty  
+**Build Status**: ✅ Clean (Resolved startup hangs & connection race conditions)  
 **Subscription Coverage**: 100% (115/115 tracked)
 
 ---
@@ -64,6 +64,15 @@ Phase 3.5 (Download Engine Sovereignty) and Phase 3.6 (Download Center Polish) a
 - [x] **Visual Pulsing States**: Added cyan glow for active downloads and pulsing amber for stalled states.
 - [x] **Thread Connectors**: Added visual tree lines linking grouped tracks to their source headers.
 - [x] **Build Resilience**: Fixed Avalonia XAML Grid padding errors and tag mismatch regressions.
+
+---
+
+### Phase 3.7: Operational Hardening & Database Recovery ✅ (Feb 23, 2026)
+- [x] **Atomic WAL Checkpoint**: Added `PRAGMA wal_checkpoint(TRUNCATE)` to solve startup hangs on large 250MB+ databases.
+- [x] **Soulseek Circuit Breaker**: Hardened `DownloadManager` to pause/resume based on Soulseek state (Connected/LoggedIn/Disconnecting).
+- [x] **Transition Guard**: Proactively cycle and dispose `SoulseekClient` when stuck in transitional states.
+- [x] **Diagnostic Telemetry**: Added microsecond logging to `SchemaMigratorService` for startup stage isolation.
+- [x] **SQLite Resilience**: Standardized 10s BusyTimeout across all DB contexts to prevent lock failures during heavy background analysis.
 
 ---
 
