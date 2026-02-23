@@ -586,6 +586,16 @@ public class DownloadCenterViewModel : ReactiveObject, IDisposable
                 IsGlobalStatusError = e.IsError;
             })
             .DisposeWith(_subscriptions);
+
+        // Phase 3.7 Fix: Respond to background hydration completion
+        _eventBus.GetEvent<DownloadManagerHydratedEvent>()
+            .ObserveOn(RxApp.MainThreadScheduler)
+            .Subscribe(_ => 
+            {
+                Serilog.Log.Information("DownloadCenterViewModel: Received hydration signal, refreshing view...");
+                InitialHydration();
+            })
+            .DisposeWith(_subscriptions);
         
         // Start global speed calculator
         StartGlobalSpeedTimer();

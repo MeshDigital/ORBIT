@@ -13,6 +13,7 @@ public record TrackUpdatedEvent(PlaylistTrackViewModel Track);
 public record ProjectAddedEvent(Guid ProjectId);
 public record ProjectUpdatedEvent(Guid ProjectId);
 public record ProjectDeletedEvent(Guid ProjectId);
+public record DownloadManagerHydratedEvent(int TrackCount);
 
 // Soulseek Adapter Events
 public record SoulseekStateChangedEvent(string State, bool IsConnected);

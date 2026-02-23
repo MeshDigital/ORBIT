@@ -376,6 +376,9 @@ public class DownloadManager : INotifyPropertyChanged, IDisposable
             
             // Start the Enrichment Orchestrator
             _enrichmentOrchestrator.Start();
+
+            // Notify observers that we are ready and hydrated
+            _eventBus.Publish(new DownloadManagerHydratedEvent(_downloads.Count));
         }
         catch (Exception ex)
         {
