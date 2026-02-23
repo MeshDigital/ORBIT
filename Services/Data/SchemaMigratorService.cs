@@ -299,7 +299,7 @@ public class SchemaMigratorService
         try
         {
             var migrateTask = context.Database.MigrateAsync();
-            var timeoutLimit = 180; // 3 minutes for a 253MB database
+            var timeoutLimit = 600; // Increased to 10 minutes for large/slow databases
             var timeoutTask = Task.Delay(TimeSpan.FromSeconds(timeoutLimit));
             
             if (await Task.WhenAny(migrateTask, timeoutTask) == timeoutTask)

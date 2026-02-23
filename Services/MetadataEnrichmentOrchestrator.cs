@@ -307,9 +307,18 @@ public class MetadataEnrichmentOrchestrator : IDisposable
         }
     }
 
+    private bool _disposed;
     public void Dispose()
     {
-        _cts.Cancel();
+        if (_disposed) return;
+        _disposed = true;
+        
+        try
+        {
+            _cts.Cancel();
+        }
+        catch (ObjectDisposedException) { /* Already disposed */ }
+        
         _cts.Dispose();
     }
 }

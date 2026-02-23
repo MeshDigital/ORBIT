@@ -80,6 +80,9 @@ public class DownloadManager : INotifyPropertyChanged, IDisposable
         }
     }
 
+    private bool _isHydrated;
+    public bool IsHydrated => _isHydrated;
+
     // STATE MACHINE:
     // WHY: Downloads are long-running stateful operations that can fail mid-flight
     // - App crash: resume from last checkpoint (CrashRecoveryJournal)
@@ -339,6 +342,7 @@ public class DownloadManager : INotifyPropertyChanged, IDisposable
     
     public async Task InitAsync()
     {
+        if (_isHydrated) return;
         try
         {
             await _databaseService.InitAsync();
@@ -378,6 +382,8 @@ public class DownloadManager : INotifyPropertyChanged, IDisposable
             _enrichmentOrchestrator.Start();
 
             // Notify observers that we are ready and hydrated
+            _isHydrated = true;
+            OnPropertyChanged(nameof(IsHydrated));
             _eventBus.Publish(new DownloadManagerHydratedEvent(_downloads.Count));
         }
         catch (Exception ex)

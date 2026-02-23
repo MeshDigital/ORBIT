@@ -599,9 +599,14 @@ public class DownloadCenterViewModel : ReactiveObject, IDisposable
         
         // Start global speed calculator
         StartGlobalSpeedTimer();
+
+        // Phase 3.7: Defensive Hydration - Catch up if Manager already finished while we were initializing
+        if (_downloadManager.IsHydrated)
+        {
+            Serilog.Log.Information("DownloadCenterViewModel: Manager already hydrated, performing immediate hydration...");
+            InitialHydration();
+        }
         
-        // CRITICAL: Hydrate from existing downloads (app restart scenario)
-        InitialHydration();
     }
 
     private Func<UnifiedTrackViewModel, bool> BuildFilter(string searchText)

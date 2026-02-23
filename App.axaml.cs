@@ -416,6 +416,10 @@ public partial class App : Application
                             mainVm.IsInitializing = false;
                             mainVm.StatusText = "Ready";
                             Serilog.Log.Information("Background initialization completed");
+
+                            // Start maintenance tasks AFTER initialization is confirmed complete
+                            // This prevents VACUUM from locking the database during EF Migrations
+                            _ = RunMaintenanceTasksAsync();
                         });
                     }
                     catch (Exception ex)
@@ -429,8 +433,6 @@ public partial class App : Application
                     }
                 });
                 
-                // Phase 8: Start maintenance tasks (backup cleanup, database vacuum)
-                _ = RunMaintenanceTasksAsync();
             }
             catch (Exception ex)
             {
