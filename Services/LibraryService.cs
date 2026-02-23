@@ -1375,4 +1375,40 @@ public class LibraryService : ILibraryService
             await db.SaveChangesAsync();
         }
     }
+
+    public async Task<List<PlaylistTrack>> SearchAllPlaylists(string query, int limit = 50)
+    {
+        try
+        {
+            var entities = await _databaseService.SearchPlaylistTracksAsync(query, limit).ConfigureAwait(false);
+            return entities.Select(EntityToPlaylistTrack).ToList();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to search all playlists for {Query}", query);
+            return new List<PlaylistTrack>();
+        }
+    }
+
+    public async Task<List<PlaylistTrack>> FindTrackInOtherProjectsAsync(string artist, string title, Guid currentProjectId)
+    {
+        try 
+        {
+            using var context = new Data.AppDbContext();
+            var matches = await context.PlaylistTracks
+                .AsNoTracking()
+                .Where(t => t.PlaylistId != currentProjectId && 
+                            t.Artist.ToLower() == artist.ToLower() && 
+                            t.Title.ToLower() == title.ToLower() &&
+                            t.Status == TrackStatus.Downloaded)
+                .ToListAsync();
+            
+            return matches.Select(m => EntityToPlaylistTrack(m)).ToList();
+        }
+        catch (Exception ex)
+        {
+             _logger.LogError(ex, "Error finding cross-references for {Artist} - {Title}", artist, title);
+             return new List<PlaylistTrack>();
+        }
+    }
 }

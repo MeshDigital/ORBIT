@@ -170,7 +170,7 @@ public class DownloadDiscoveryService
                 // PlaylistTrack likely has 'CanonicalDuration' (int? ms).
                 // Let's check strict validation below.
                 
-                if (!safety.IsSafe)
+                if (!safety.IsSafe && !track.IgnoreSafetyGuards)
                 {
                     log.RejectedByForensics++;
                     // Log the rejection to the persistent audit trail

@@ -165,6 +165,16 @@ public class DownloadCenterViewModel : ReactiveObject, IDisposable
         get => _isGlobalStatusError;
         set => this.RaiseAndSetIfChanged(ref _isGlobalStatusError, value);
     }
+
+    private bool _showEngineLogs;
+    public bool ShowEngineLogs
+    {
+        get => _showEngineLogs;
+        set => this.RaiseAndSetIfChanged(ref _showEngineLogs, value);
+    }
+
+    public ObservableCollection<Data.Entities.ForensicLogEntry> EngineLogs { get; } = new();
+    public ICommand ToggleLogsCommand { get; }
     
     // Alias for HomeViewModel compatibility
     public string GlobalSpeedDisplay => GlobalSpeed;
@@ -205,6 +215,14 @@ public class DownloadCenterViewModel : ReactiveObject, IDisposable
     public string EngineStatusText => !IsEngineRunning ? "Engine Offline" : (IsEnginePaused ? "Engine Paused" : "Engine Active");
     public string EngineStatusColor => !IsEngineRunning ? "#FF5252" : (IsEnginePaused ? "#FFA500" : "#4CAF50");
     public string EngineStatusIcon => !IsEngineRunning ? "⚡" : (IsEnginePaused ? "⏸" : "⚡");
+    
+    // Phase 2: Diagnostic Transparency
+    public bool IsSoulseekConnected => _downloadManager.SoulseekConnected;
+    public bool IsBackingOff => _downloadManager.IsBackingOff;
+    public int BackoffSeconds => _downloadManager.CurrentBackoffSeconds;
+    public int ActiveWorkerSlots => _downloadManager.ActiveWorkerSlots;
+    public int TotalWorkerSlots => _downloadManager.TotalWorkerSlots;
+    public string WorkerSlotsDisplay => $"{ActiveWorkerSlots}/{TotalWorkerSlots}";
 
     public int MaxConcurrentDownloads
     {
@@ -244,13 +262,14 @@ public class DownloadCenterViewModel : ReactiveObject, IDisposable
     private readonly ILibraryService _libraryService;
     
     public DownloadCenterViewModel(
-        DownloadManager downloadManager, 
-        IEventBus eventBus, 
+        DownloadManager downloadManager,
+        IEventBus eventBus,
+        AppConfig config,
         ArtworkCacheService artworkCache,
         ILibraryService libraryService,
-        AppConfig config,
         AnalysisQueueService analysisQueue,
-        SonicIntegrityService sonicService)
+        SonicIntegrityService sonicService,
+        TrackForensicLogger forensicLogger)
     {
         _downloadManager = downloadManager;
         _eventBus = eventBus;
@@ -260,6 +279,18 @@ public class DownloadCenterViewModel : ReactiveObject, IDisposable
         _analysisQueue = analysisQueue;
         _sonicService = sonicService;
         _isAutoEnrichEnabled = _config.IsAutoEnrichEnabled;
+        
+        ToggleLogsCommand = ReactiveCommand.Create(() => ShowEngineLogs = !ShowEngineLogs);
+
+        // Subscribe to Forensic Logs
+        forensicLogger.LogGenerated += (s, e) => 
+        {
+            Avalonia.Threading.Dispatcher.UIThread.Post(() => 
+            {
+                EngineLogs.Insert(0, e);
+                if (EngineLogs.Count > 100) EngineLogs.RemoveAt(100);
+            });
+        };
         
         // Initialize commands (ReactiveCommand)
         PauseAllCommand = ReactiveCommand.Create(PauseAll, 
@@ -286,6 +317,20 @@ public class DownloadCenterViewModel : ReactiveObject, IDisposable
                  this.RaisePropertyChanged(nameof(EngineStatusText));
                  this.RaisePropertyChanged(nameof(EngineStatusColor));
                  this.RaisePropertyChanged(nameof(EngineStatusIcon));
+             }
+             else if (e.PropertyName == nameof(DownloadManager.ActiveWorkerSlots))
+             {
+                 this.RaisePropertyChanged(nameof(ActiveWorkerSlots));
+                 this.RaisePropertyChanged(nameof(WorkerSlotsDisplay));
+             }
+             else if (e.PropertyName == nameof(DownloadManager.SoulseekConnected))
+             {
+                 this.RaisePropertyChanged(nameof(IsSoulseekConnected));
+             }
+             else if (e.PropertyName == nameof(DownloadManager.IsBackingOff) || e.PropertyName == nameof(DownloadManager.CurrentBackoffSeconds))
+             {
+                 this.RaisePropertyChanged(nameof(IsBackingOff));
+                 this.RaisePropertyChanged(nameof(BackoffSeconds));
              }
         };
         

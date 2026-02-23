@@ -230,4 +230,14 @@ public interface ILibraryService
     /// Global "Like" update: synchronizes status across Library and all Projects.
     /// </summary>
     Task UpdateLikeStatusAsync(string trackHash, bool isLiked);
+
+    /// <summary>
+    /// Searches tracks across all playlists.
+    /// </summary>
+    Task<List<PlaylistTrack>> SearchAllPlaylists(string query, int limit = 50);
+
+    /// <summary>
+    /// Phase 2: Synergy - Finds if a track exists in other projects.
+    /// </summary>
+    Task<List<PlaylistTrack>> FindTrackInOtherProjectsAsync(string artist, string title, Guid currentProjectId);
 }

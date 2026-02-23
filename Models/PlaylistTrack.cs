@@ -165,6 +165,11 @@ public class PlaylistTrack
     public bool IsFlagged { get; set; }
     public string? FlagReason { get; set; }
     
+    /// <summary>
+    /// Phase 1: Engine Overhaul - Force download ignoring quality/safety filters.
+    /// </summary>
+    public bool IgnoreSafetyGuards { get; set; } = false;
+    
     // Phase 17: Technical Audio Analysis
     public double? Loudness { get; set; }
     public double? TruePeak { get; set; }

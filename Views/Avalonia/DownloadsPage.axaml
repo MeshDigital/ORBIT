@@ -28,6 +28,7 @@
                         <MenuItem Header="Add to Project" Command="{Binding AddToProjectCommand}" IsVisible="{Binding IsCompleted}"><MenuItem.Icon><PathIcon Data="{StaticResource add_circle_regular}" Width="16" Height="16"/></MenuItem.Icon></MenuItem>
                         <Separator/>
                         <MenuItem Header="Retry Download" Command="{Binding RetryCommand}" IsVisible="{Binding IsFailed}"><MenuItem.Icon><PathIcon Data="{StaticResource arrow_counterclockwise_regular}" Width="16" Height="16"/></MenuItem.Icon></MenuItem>
+                        <MenuItem Header="Force Download (Ignore Quality Guards)" Command="{Binding ForceDownloadIgnoreGuardsCommand}" IsVisible="{Binding IsFailed}" Foreground="#00BFFF"><MenuItem.Icon><PathIcon Data="{StaticResource rocket_regular}" Width="16" Height="16" Foreground="#00BFFF"/></MenuItem.Icon></MenuItem>
                         <MenuItem Header="Remove from History" Command="{Binding CleanCommand}"><MenuItem.Icon><PathIcon Data="{StaticResource delete_regular}" Width="16" Height="16"/></MenuItem.Icon></MenuItem>
                     </ContextMenu>
                 </Border.ContextMenu>
@@ -39,7 +40,8 @@
              <Border Background="Transparent" Margin="0,0,0,8">
                  <Border.ContextMenu>
                     <ContextMenu>
-                        <MenuItem Header="Retry Download" Command="{Binding RetryCommand}"><MenuItem.Icon><PathIcon Data="{StaticResource arrow_counterclockwise_regular}" Width="16" Height="16"/></MenuItem.Icon></MenuItem>
+                        <MenuItem Header="Retry Download (Standard)" Command="{Binding RetryCommand}"><MenuItem.Icon><PathIcon Data="{StaticResource arrow_counterclockwise_regular}" Width="16" Height="16"/></MenuItem.Icon></MenuItem>
+                        <MenuItem Header="Force Download (Ignore Quality Guards)" Command="{Binding ForceDownloadIgnoreGuardsCommand}" Foreground="#00BFFF"><MenuItem.Icon><PathIcon Data="{StaticResource rocket_regular}" Width="16" Height="16" Foreground="#00BFFF"/></MenuItem.Icon></MenuItem>
                         <MenuItem Header="View All Search Results" Command="{Binding ViewAllSearchResultsCommand}"><MenuItem.Icon><PathIcon Data="{StaticResource search_regular}" Width="16" Height="16"/></MenuItem.Icon></MenuItem>
                         <MenuItem Header="Remove from History" Command="{Binding CleanCommand}"><MenuItem.Icon><PathIcon Data="{StaticResource delete_regular}" Width="16" Height="16"/></MenuItem.Icon></MenuItem>
                         <Separator/>
@@ -73,8 +75,29 @@
                                            FontSize="11" 
                                            VerticalAlignment="Center"
                                            FontStyle="Italic"/>
+ 
+                                <!-- Synergy Badge -->
+                                <Border Background="#1A1F2C" CornerRadius="4" Padding="6,2" BorderBrush="#00BFFF" BorderThickness="1" IsVisible="{Binding HasCrossProjectReference}">
+                                     <StackPanel Orientation="Horizontal" Spacing="6">
+                                         <TextBlock Text="🔗" FontSize="10" VerticalAlignment="Center"/>
+                                         <TextBlock Text="FOUND IN:" FontSize="9" Foreground="#00BFFF" FontWeight="Black" VerticalAlignment="Center"/>
+                                         <TextBlock Text="{Binding CrossProjectReference}" FontSize="10" Foreground="#00BFFF" FontWeight="Bold" VerticalAlignment="Center" MaxWidth="150" TextTrimming="CharacterEllipsis"/>
+                                         <Button Command="{Binding AddToProjectCommand}" Background="#00BFFF" Foreground="Black" Padding="8,2" CornerRadius="3">
+                                             <TextBlock Text="ADD TO CURRENT" FontSize="9" FontWeight="Black"/>
+                                         </Button>
+                                     </StackPanel>
+                                </Border>
+ 
+                                <TextBlock Text="•" Foreground="#333" VerticalAlignment="Center" IsVisible="{Binding !HasCrossProjectReference}"/>
+ 
+                                <!-- Forensic Summary -->
+                                <TextBlock Text="{Binding RejectionSummary}" 
+                                           Foreground="#00BFFF" 
+                                           FontSize="10" 
+                                           VerticalAlignment="Center"
+                                           Opacity="0.8"/>
                             </StackPanel>
-
+ 
                             <!-- Phase 0.5: Detailed Rejection Reasons -->
                             <StackPanel IsVisible="{Binding HasRejectionDetails}" Margin="0,8,0,0">
                                  <TextBlock Text="Top Rejection Reasons:" FontSize="10" Foreground="#666" Margin="0,0,0,2"/>
@@ -104,7 +127,7 @@
                                                           <TextBlock Text="{Binding Username, StringFormat='{}@{0}'}" Foreground="#555" FontSize="11"/>
                                                      </StackPanel>
                                                  </Grid>
-
+ 
                                                  <!-- Bottom Row: Filename -->
                                                  <TextBlock Grid.Row="1" Grid.Column="1" 
                                                             Text="{Binding Filename}" 
@@ -178,9 +201,41 @@
                                     <TextBlock Text="{Binding EngineStatusText}" FontSize="10" FontWeight="Bold" Foreground="Black" VerticalAlignment="Center"/>
                                 </StackPanel>
                             </Border>
+                            
+                            <!-- Phase 2: Live Engine Telemetry -->
+                            <StackPanel Orientation="Horizontal" Spacing="16" Margin="8,0,0,0">
+                                <TextBlock Text="|" Foreground="#252526" VerticalAlignment="Center"/>
+                                
+                                <!-- SoulSeek Pulse -->
+                                <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                                    <Ellipse Width="6" Height="6" Fill="{Binding IsSoulseekConnected, Converter={StaticResource BoolToColorConverter}}" VerticalAlignment="Center"/>
+                                    <TextBlock Text="SoulSeek:" FontSize="10" Foreground="#555" VerticalAlignment="Center"/>
+                                    <Panel VerticalAlignment="Center">
+                                        <TextBlock Text="CONNECTED" FontSize="10" FontWeight="Black" Foreground="#4CAF50" IsVisible="{Binding IsSoulseekConnected}"/>
+                                        <TextBlock Text="OFFLINE" FontSize="10" FontWeight="Black" Foreground="#FF5252" IsVisible="{Binding !IsSoulseekConnected}"/>
+                                    </Panel>
+                                    
+                                    <!-- Backoff Countdown -->
+                                    <Border Background="#3D2600" CornerRadius="4" Padding="6,2" BorderBrush="#664400" BorderThickness="1" IsVisible="{Binding IsBackingOff}">
+                                        <StackPanel Orientation="Horizontal" Spacing="4">
+                                            <TextBlock Text="RETRY IN" FontSize="9" Foreground="#FFA500" VerticalAlignment="Center"/>
+                                            <TextBlock Text="{Binding BackoffSeconds}" FontSize="10" FontWeight="Black" Foreground="#FFA500" VerticalAlignment="Center"/>
+                                            <TextBlock Text="s" FontSize="9" Foreground="#FFA500" VerticalAlignment="Center" Margin="-2,0,0,0"/>
+                                        </StackPanel>
+                                    </Border>
+                                </StackPanel>
+
+                                <TextBlock Text="|" Foreground="#252526" VerticalAlignment="Center"/>
+
+                                <!-- Slot Allocation -->
+                                <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                                    <TextBlock Text="WORKERS:" FontSize="10" Foreground="#555" VerticalAlignment="Center"/>
+                                    <TextBlock Text="{Binding WorkerSlotsDisplay}" FontSize="11" FontWeight="Black" Foreground="White" VerticalAlignment="Center"/>
+                                </StackPanel>
+                            </StackPanel>
                         </StackPanel>
-                        
-                        <StackPanel Orientation="Horizontal" Spacing="32">
+                    
+                    <StackPanel Orientation="Horizontal" Spacing="32">
                             <!-- Global Metrics -->
                             <StackPanel Spacing="4">
                                 <TextBlock Text="THROUGHPUT" FontSize="9" FontWeight="Bold" Foreground="#555"/>
@@ -202,11 +257,11 @@
                                      <TextBlock Text="{Binding SearchingCount}" FontSize="24" FontWeight="Bold" Foreground="#4EC9B0"/>
                                      <PathIcon Data="{StaticResource search_regular}" Width="14" Height="14" Foreground="#4EC9B0" VerticalAlignment="Center" Margin="0,4,0,0" Opacity="0.5"/>
                                 </StackPanel>
-                            </StackPanel>
                         </StackPanel>
                     </StackPanel>
+                </StackPanel>
 
-                    <!-- Control Deck -->
+                <!-- Control Deck -->
                     <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="12">
                         <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Right">
                              <!-- Start/Stop/Pause -->
@@ -228,6 +283,11 @@
                                      Background="#2D2D2D" Foreground="#FF5252" Padding="12,8" CornerRadius="6">
                                  <PathIcon Data="{StaticResource dismiss_regular}" Width="14" Height="14"/>
                              </Button>
+
+                             <ToggleButton IsChecked="{Binding ShowEngineLogs}" 
+                                           Background="#2D2D2D" BorderBrush="#444" BorderThickness="1" Padding="12,8" CornerRadius="6">
+                                 <PathIcon Data="{StaticResource document_text_regular}" Width="14" Height="14" Foreground="#888"/>
+                             </ToggleButton>
                         </StackPanel>
 
                         <StackPanel Orientation="Horizontal" Spacing="12" HorizontalAlignment="Right">
@@ -552,6 +612,50 @@
                 </Grid>
             </TabItem>
         </TabControl>
+
+        <!-- Phase 2: Live Engine Feed (Collapsible Overlay) -->
+        <Border Grid.Row="1" 
+                VerticalAlignment="Bottom" 
+                Background="#161617" 
+                BorderBrush="#2D2D2D" 
+                BorderThickness="0,2,0,0" 
+                Height="220" 
+                IsVisible="{Binding ShowEngineLogs}"
+                BoxShadow="0 -10 20 0 #A0000000">
+            <Grid RowDefinitions="Auto, *">
+                <Border Grid.Row="0" Background="#1E1E1E" Padding="16,8" BorderBrush="#2D2D2D" BorderThickness="0,0,0,1">
+                    <Grid ColumnDefinitions="*, Auto">
+                        <StackPanel Orientation="Horizontal" Spacing="12">
+                            <PathIcon Data="{StaticResource document_text_regular}" Width="14" Height="14" Foreground="#4EC9B0"/>
+                            <TextBlock Text="LIVE ENGINE FEED" FontSize="11" FontWeight="Black" Foreground="#EEE" LetterSpacing="2" VerticalAlignment="Center"/>
+                            <TextBlock Text="•" Foreground="#444" VerticalAlignment="Center"/>
+                            <TextBlock Text="Real-time Search &amp; Forensic Diagnostics" FontSize="11" Foreground="#666" VerticalAlignment="Center"/>
+                        </StackPanel>
+                        
+                        <Button Grid.Column="1" Command="{Binding ToggleLogsCommand}" Background="Transparent" Padding="4">
+                             <PathIcon Data="{StaticResource dismiss_regular}" Width="16" Height="16" Foreground="#666"/>
+                        </Button>
+                    </Grid>
+                </Border>
+
+                <ScrollViewer Grid.Row="1" Padding="16">
+                    <ItemsControl ItemsSource="{Binding EngineLogs}">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <Grid ColumnDefinitions="80, 80, 80, *" Margin="0,0,0,4">
+                                     <TextBlock Grid.Column="0" Text="{Binding Timestamp, StringFormat='{}{0:HH:mm:ss}'}" Foreground="#555" FontSize="11" FontFamily="Consolas"/>
+                                     <Border Grid.Column="1" HorizontalAlignment="Left" Padding="6,1" CornerRadius="3" Background="#222">
+                                         <TextBlock Text="{Binding Level}" Foreground="{Binding Level, Converter={StaticResource LogLevelColorConverter}}" FontSize="10" FontWeight="Bold" FontFamily="Consolas"/>
+                                     </Border>
+                                     <TextBlock Grid.Column="2" Text="{Binding Stage}" Foreground="#666" FontSize="11" Opacity="0.7" FontFamily="Consolas"/>
+                                     <TextBlock Grid.Column="3" Text="{Binding Message}" Foreground="#DCDCDC" FontSize="11" FontFamily="Consolas" TextWrapping="Wrap"/>
+                                </Grid>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </ScrollViewer>
+            </Grid>
+        </Border>
     </Grid>
 </UserControl>
 

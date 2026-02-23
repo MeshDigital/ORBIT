@@ -282,6 +282,21 @@ public class TrackListViewModel : ReactiveObject, IDisposable
         private set => this.RaiseAndSetIfChanged(ref _selectedCountText, value);
     }
     
+    // Phase 22: Search 2.1 - Split Results
+    private ObservableCollection<PlaylistTrackViewModel> _otherPlaylistsMatches = new();
+    public ObservableCollection<PlaylistTrackViewModel> OtherPlaylistsMatches
+    {
+        get => _otherPlaylistsMatches;
+        set => this.RaiseAndSetIfChanged(ref _otherPlaylistsMatches, value);
+    }
+
+    private bool _hasOtherPlaylistsMatches;
+    public bool HasOtherPlaylistsMatches
+    {
+        get => _hasOtherPlaylistsMatches;
+        private set => this.RaiseAndSetIfChanged(ref _hasOtherPlaylistsMatches, value);
+    }
+    
     // ListBox Selection Binding
     private ObservableCollection<PlaylistTrackViewModel> _selectedTracks = new();
     public ObservableCollection<PlaylistTrackViewModel> SelectedTracks 
@@ -397,6 +412,9 @@ public class TrackListViewModel : ReactiveObject, IDisposable
     // Phase 18: Sonic Match - Find Similar Vibe
     public System.Windows.Input.ICommand FindSimilarCommand { get; }
 
+    // Phase 22: Search 2.1 - Split Results
+    public System.Windows.Input.ICommand AddToCurrentPlaylistCommand { get; }
+
     public TrackListViewModel(
         ILogger<TrackListViewModel> logger,
         ILibraryService libraryService,
@@ -483,6 +501,9 @@ public class TrackListViewModel : ReactiveObject, IDisposable
         // Phase 18: Find Similar - triggers sonic match search
         FindSimilarCommand = ReactiveCommand.Create<PlaylistTrackViewModel>(ExecuteFindSimilar);
 
+        // Phase 22: Search 2.1 - Split Results
+        AddToCurrentPlaylistCommand = ReactiveCommand.CreateFromTask<PlaylistTrackViewModel>(ExecuteAddToCurrentPlaylistAsync);
+
         // Selection Change Tracking
         _selectedTracks.CollectionChanged += OnSelectionChanged;
 
@@ -496,6 +517,13 @@ public class TrackListViewModel : ReactiveObject, IDisposable
             .Throttle(TimeSpan.FromMilliseconds(250))
             .ObserveOn(RxApp.MainThreadScheduler)
             .Subscribe(_ => RefreshFilteredTracks())
+            .DisposeWith(_disposables);
+
+        // Phase 22: Search 2.1 - Split Results
+        this.WhenAnyValue(x => x.SearchText)
+            .Throttle(TimeSpan.FromMilliseconds(400))
+            .ObserveOn(RxApp.MainThreadScheduler)
+            .Subscribe(query => _ = PerformCrossPlaylistSearchAsync(query))
             .DisposeWith(_disposables);
 
         // Subscribe to global track updates
@@ -1132,5 +1160,70 @@ public class TrackListViewModel : ReactiveObject, IDisposable
         
         // Use existing Models.FindSimilarRequestEvent with PlaylistTrack and UseAi=true for AI matching
         _eventBus.Publish(new FindSimilarRequestEvent(track.Model, useAi: true));
+    }
+
+    private async Task PerformCrossPlaylistSearchAsync(string query)
+    {
+        if (string.IsNullOrWhiteSpace(query) || query.Length < 2)
+        {
+            await Dispatcher.UIThread.InvokeAsync(() =>
+            {
+                OtherPlaylistsMatches.Clear();
+                HasOtherPlaylistsMatches = false;
+            });
+            return;
+        }
+
+        var currentProjectId = _mainViewModel?.LibraryViewModel?.SelectedProject?.Id ?? Guid.Empty;
+        
+        try
+        {
+            var matches = await _libraryService.SearchAllPlaylists(query, 10);
+            
+            // Filter out tracks already in the current project to reduce duplication
+            var filteredMatches = matches
+                .Where(m => m.PlaylistId != currentProjectId)
+                .GroupBy(m => m.TrackUniqueHash) // Deduplicate by hash
+                .Select(g => g.First())
+                .ToList();
+
+            await Dispatcher.UIThread.InvokeAsync(() =>
+            {
+                OtherPlaylistsMatches.Clear();
+                foreach (var m in filteredMatches)
+                {
+                    var vm = new PlaylistTrackViewModel(m, _eventBus, _libraryService, _artworkCache);
+                    OtherPlaylistsMatches.Add(vm);
+                }
+                HasOtherPlaylistsMatches = OtherPlaylistsMatches.Any();
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Cross-playlist search failed");
+        }
+    }
+
+    private async Task ExecuteAddToCurrentPlaylistAsync(PlaylistTrackViewModel trackVm)
+    {
+        var currentProject = _mainViewModel?.LibraryViewModel?.SelectedProject;
+        if (currentProject == null)
+        {
+             _logger.LogWarning("Cannot add track to current playlist: No project selected");
+             return;
+        }
+
+        try
+        {
+            await _libraryService.AddTracksToProjectAsync(new[] { trackVm.Model }, currentProject.Id);
+            _logger.LogInformation("Added track {Title} to project {Project}", trackVm.Title, currentProject.SourceTitle);
+            
+            // Refresh to show it in the main list
+            _refreshRequestSubject.OnNext(System.Reactive.Unit.Default);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to add track to current playlist");
+        }
     }
 }

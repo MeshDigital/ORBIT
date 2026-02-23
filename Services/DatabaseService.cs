@@ -1486,6 +1486,11 @@ public class DatabaseService
             _logger.LogError(ex, "Failed to create database backup at {Path}", backupPath);
         }
     }
+
+    public async Task<List<PlaylistTrackEntity>> SearchPlaylistTracksAsync(string query, int limit = 50)
+    {
+        return await _trackRepository.SearchPlaylistTracksAsync(query, limit);
+    }
 }
 
 

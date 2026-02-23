@@ -1093,4 +1093,16 @@ public class TrackRepository : ITrackRepository
             _writeSemaphore.Release();
         }
     }
+
+    public async Task<List<PlaylistTrackEntity>> SearchPlaylistTracksAsync(string query, int limit = 50)
+    {
+        using var context = new AppDbContext();
+        var lowerQuery = query.ToLower();
+        return await context.PlaylistTracks
+            .Include(t => t.AudioFeatures)
+            .Where(t => t.Artist.ToLower().Contains(lowerQuery) || t.Title.ToLower().Contains(lowerQuery))
+            .OrderByDescending(t => t.AddedAt)
+            .Take(limit)
+            .ToListAsync();
+    }
 }

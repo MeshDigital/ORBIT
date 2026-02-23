@@ -26,6 +26,7 @@ public class LibraryEnrichmentWorker : IDisposable
     private readonly Configuration.AppConfig _config;
     private CancellationTokenSource? _cts;
     private Task? _workerTask;
+    private readonly SemaphoreSlim _wakeSignal = new(0, 1);
     
     // Configurable settings
     private const int BatchSize = 5;
@@ -58,6 +59,23 @@ public class LibraryEnrichmentWorker : IDisposable
         _cts = new CancellationTokenSource();
         _workerTask = Task.Run(EnrichmentLoopAsync, _cts.Token);
         _logger.LogInformation("LibraryEnrichmentWorker started.");
+    }
+
+    /// <summary>
+    /// Pulses the worker to wake up immediately if it is idling.
+    /// Called when new tracks are added to the system.
+    /// </summary>
+    public void SignalWork()
+    {
+        try
+        {
+            if (_wakeSignal.CurrentCount == 0)
+            {
+                _wakeSignal.Release();
+                _logger.LogDebug("Enrichment Worker signaled to wake up.");
+            }
+        }
+        catch (ObjectDisposedException) { }
     }
 
     public async Task StopAsync()
@@ -99,13 +117,14 @@ public class LibraryEnrichmentWorker : IDisposable
                     
                     if (!workDone)
                     {
-                        // Wait if no work was found
-                        await Task.Delay(TimeSpan.FromMinutes(IdleDelayMinutes), token);
+                        // Wait for signal or timeout
+                        _logger.LogDebug("Enrichment Worker idling for {Minutes}m...", IdleDelayMinutes);
+                        await _wakeSignal.WaitAsync(TimeSpan.FromMinutes(IdleDelayMinutes), token);
                     }
                     else 
                     {
-                         // Brief pause between batches
-                         await Task.Delay(TimeSpan.FromSeconds(5), token);
+                         // Brief pause between batches to respect rate limits
+                         await Task.Delay(TimeSpan.FromSeconds(2), token);
                     }
                 }
                 catch (OperationCanceledException) { break; }

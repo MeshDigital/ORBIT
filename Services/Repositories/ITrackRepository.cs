@@ -54,4 +54,9 @@ public interface ITrackRepository
     /// Global "Like" update: synchronizes status across Library and all Projects.
     /// </summary>
     Task UpdateLikeStatusAsync(string trackHash, bool isLiked);
+
+    /// <summary>
+    /// Searches tracks across all playlists.
+    /// </summary>
+    Task<List<PlaylistTrackEntity>> SearchPlaylistTracksAsync(string query, int limit = 50);
 }

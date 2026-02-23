@@ -1,10 +1,10 @@
 # ORBIT Implementation Plan: Phase 3.0 — Production Hardening & Intelligence
 
 ## 🎯 Current Status
-Phase 3.7 (Operational Hardening & Database Recovery) is complete. The application now handles 250MB+ databases with atomic WAL checkpoints, avoiding startup hangs. Soulseek connectivity is hardened with a state-aware circuit breaker and proactive client cycling. Build status is clean.
+Phase 3.8 (Build Recovery & Cross-Project Synergy) is complete. All XAML and C# compiler errors have been resolved. The Cross-Project Synergy feature ("Synergy Badge") has been implemented in the Failed Downloads UI.
 
-**Last Session**: 2026-02-23 — Operational Hardening & Database Sovereignty  
-**Build Status**: ✅ Clean (Resolved startup hangs & connection race conditions)  
+**Last Session**: 2026-02-23 — Build Recovery & Synergy Badge  
+**Build Status**: ✅ Clean (0 errors, 0 warnings)  
 **Subscription Coverage**: 100% (115/115 tracked)
 
 ---
@@ -73,6 +73,17 @@ Phase 3.7 (Operational Hardening & Database Recovery) is complete. The applicati
 - [x] **Transition Guard**: Proactively cycle and dispose `SoulseekClient` when stuck in transitional states.
 - [x] **Diagnostic Telemetry**: Added microsecond logging to `SchemaMigratorService` for startup stage isolation.
 - [x] **SQLite Resilience**: Standardized 10s BusyTimeout across all DB contexts to prevent lock failures during heavy background analysis.
+
+---
+
+### Phase 3.8: Build Recovery & Cross-Project Synergy ✅ (Feb 23, 2026)
+- [x] **XAML Fix**: Resolved `Avalonia error AVLN1001` by escaping ampersand in `DownloadsPage.axaml` (`&` → `&amp;`).
+- [x] **Synergy Badge**: Added cross-project duplicate indicator to `FailedDownloadItemTemplate` — shows project name and "ADD TO CURRENT" action when a failed track exists in another project (`HasCrossProjectReference`).
+- [x] **LibraryService**: Added `SearchAllPlaylists` and `FindTrackInOtherProjectsAsync` to support synergy lookups across projects.
+- [x] **ILibraryService**: Declared both new synergy methods in the interface contract.
+- [x] **Constructor Recovery**: Restored missing `DownloadCenterViewModel` constructor signature (header was dropped, causing 63 cascading CS errors).
+- [x] **DownloadManager**: Fixed `ctx.SearchLog = null` → `ctx.SearchAttempts.Clear()` for clean retry state reset.
+- [x] **LibraryService**: Fixed `MapToDomain` → `EntityToPlaylistTrack` for correct cross-project result mapping.
 
 ---
 
@@ -173,8 +184,7 @@ Run:   dotnet test --filter "ViewModelDisposalGuard"
 ---
 
 ## 📝 Immediate Tasks (Next Session)
-1. [x] **Virtualization Audit**: Apply `VirtualizingStackPanel` to `DownloadsPage` tabs (Phase 4.4)
-2. [x] **CSV Scanner Card**: Implement drag-and-drop landing zone for CSV imports (Phase 3.6)
-3. [x] **Download Search**: Add filter bar to Completed tab in Download Center
-4. [ ] **Stress Validation**: Run SetlistStressTest with memory profiling
-5. [ ] **Phase 4.0 Transition**: Conduct full build check and performance baseline recording
+1. [ ] **Synergy Feature Testing**: Verify `HasCrossProjectReference` binding and "ADD TO CURRENT" button wire-up in `UnifiedTrackViewModel`
+2. [ ] **Stress Validation**: Run SetlistStressTest with memory profiling
+3. [ ] **Phase 4.0 Transition**: Conduct full build check and performance baseline recording
+4. [ ] **Download Queue Virtualization**: Migrate `DownloadsPage` from `ItemsRepeater` to full `VirtualizingStackPanel` for 1k+ queue stability

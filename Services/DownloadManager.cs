@@ -55,6 +55,7 @@ public class DownloadManager : INotifyPropertyChanged, IDisposable
     private readonly IAudioAnalysisService _audioAnalysisService; // Phase 3: Local Audio Analysis
     private readonly AnalysisQueueService _analysisQueue; // Phase 4: Musical Brain Queue
     private readonly WaveformAnalysisService _waveformService; // Phase 3: Waveform Integration
+    private readonly LibraryEnrichmentWorker _enrichmentWorker; // Phase 1: Engine Overhaul
 
     // Phase 2: Parallel Pre-Search Cache
     private readonly ConcurrentDictionary<string, Task<DownloadDiscoveryService.DiscoveryResult>> _preSearchTasks = new();
@@ -109,6 +110,12 @@ public class DownloadManager : INotifyPropertyChanged, IDisposable
     // Expose download directory from config
     public string? DownloadDirectory => _config.DownloadDirectory;
 
+    public int ActiveWorkerSlots => _maxActiveDownloads - _downloadSemaphore.CurrentCount;
+    public int TotalWorkerSlots => _maxActiveDownloads;
+    public bool SoulseekConnected => _soulseek.IsConnected;
+    public bool IsBackingOff => CurrentBackoffSeconds > 0;
+    public int CurrentBackoffSeconds { get; private set; }
+
     public DownloadManager(
         ILogger<DownloadManager> logger,
         AppConfig config,
@@ -126,7 +133,8 @@ public class DownloadManager : INotifyPropertyChanged, IDisposable
         IEnrichmentTaskRepository enrichmentTaskRepository,
         IAudioAnalysisService audioAnalysisService,
         AnalysisQueueService analysisQueue,
-        WaveformAnalysisService waveformService) // Phase 3: Waveform Integration
+        WaveformAnalysisService waveformService,
+        LibraryEnrichmentWorker enrichmentWorker) // Phase 1: Engine Overhaul
     {
         _logger = logger;
         _config = config;
@@ -145,6 +153,7 @@ public class DownloadManager : INotifyPropertyChanged, IDisposable
         _audioAnalysisService = audioAnalysisService;
         _analysisQueue = analysisQueue;
         _waveformService = waveformService;
+        _enrichmentWorker = enrichmentWorker;
 
         // CONCURRENCY CONTROL ARCHITECTURE:
         // WHY: SemaphoreSlim instead of Task.WhenAll() or Parallel.ForEach():
@@ -607,6 +616,7 @@ public class DownloadManager : INotifyPropertyChanged, IDisposable
         // Trigger generic refill in case we have capacity
         if (queued > 0)
         {
+             _enrichmentWorker.SignalWork(); // Wake up enrichment worker
              _ = RefillQueueAsync();
         }
     }
@@ -1116,6 +1126,28 @@ public class DownloadManager : INotifyPropertyChanged, IDisposable
             _ = Task.Run(() => ProcessTrackAsync(ctx, _globalCts.Token));
         }
     }
+
+    public async Task ForceDownloadIgnoreGuardsAsync(string globalId)
+    {
+        DownloadContext? ctx;
+        lock (_collectionLock) ctx = _downloads.FirstOrDefault(d => d.GlobalId == globalId);
+        
+        if (ctx == null) return;
+
+        _logger.LogInformation("🛡️ Bypassing Guards for {Title}. Force downloading ignoring quality filters.", ctx.Model.Title);
+        
+        ctx.Model.IgnoreSafetyGuards = true;
+        ctx.IsVip = true; 
+        ctx.Model.Priority = 0;
+        
+        await UpdateStateAsync(ctx, PlaylistTrackState.Pending);
+        
+        // Reset failures and logs to give it a fresh start
+        ctx.ErrorMessage = null;
+        ctx.SearchAttempts.Clear();
+        
+        _ = Task.Run(() => ProcessTrackAsync(ctx, _globalCts.Token));
+    }
     
     public async Task UpdateTrackFiltersAsync(string globalId, string formats, int minBitrate)
     {
@@ -1409,6 +1441,9 @@ public class DownloadManager : INotifyPropertyChanged, IDisposable
                     // Exponential Backoff: 2, 4, 8, 16... max 60s
                     int delaySeconds = Math.Min(60, (int)Math.Pow(2, Math.Min(6, disconnectBackoff + 1))); 
                     disconnectBackoff++;
+                    CurrentBackoffSeconds = delaySeconds;
+                    OnPropertyChanged(nameof(CurrentBackoffSeconds));
+                    OnPropertyChanged(nameof(IsBackingOff));
                     
                     if (disconnectBackoff % 5 == 0) // Log occasionally
                     {
@@ -1426,6 +1461,9 @@ public class DownloadManager : INotifyPropertyChanged, IDisposable
                     _logger.LogInformation("✅ Circuit Breaker: Connection restored! Resuming queue processing.");
                     _eventBus.Publish(new GlobalStatusEvent("Connection Restored", false));
                     disconnectBackoff = 0;
+                    CurrentBackoffSeconds = 0;
+                    OnPropertyChanged(nameof(CurrentBackoffSeconds));
+                    OnPropertyChanged(nameof(IsBackingOff));
                     
                     // Transition waiting downloads back to pending
                     lock (_collectionLock)
@@ -1446,7 +1484,7 @@ public class DownloadManager : INotifyPropertyChanged, IDisposable
                     var eligibleTracks = _downloads.Where(t => 
                         t.State == PlaylistTrackState.Pending && 
                         (!t.NextRetryTime.HasValue || t.NextRetryTime.Value <= DateTime.Now) &&
-                        (t.Model.IsEnriched || t.Model.Priority == 0 || (DateTime.Now - t.Model.AddedAt).TotalMinutes > 5))
+                        (t.Model.IsEnriched || t.IsVip || (DateTime.Now - t.Model.AddedAt).TotalSeconds > 20))
                         .ToList();
 
                     if (eligibleTracks.Any())
@@ -1513,6 +1551,8 @@ public class DownloadManager : INotifyPropertyChanged, IDisposable
                     _logger.LogInformation("🚀 VIP Track detected in loop: Bypassing semaphore for '{Title}'", nextContext.Model.Title);
                 }
 
+                OnPropertyChanged(nameof(ActiveWorkerSlots));
+
                 // Phase 3C Hardening: Race Condition Check
                 // After waiting, the world may have changed (e.g., lane filled by stealth/high prio).
                 // We MUST re-confirm this track is still the best choice and valid.
@@ -1561,10 +1601,10 @@ public class DownloadManager : INotifyPropertyChanged, IDisposable
                         // ALWAYS release the semaphore, but ONLY if we actually took a slot (not VIP)
                         if (finalTookSlot)
                         {
-                            _downloadSemaphore.Release();
                             _logger.LogDebug("Released semaphore slot. Available slots: {Available}/4", 
                                 _downloadSemaphore.CurrentCount);
                         }
+                        OnPropertyChanged(nameof(ActiveWorkerSlots));
                     }
                 }, token);
             }

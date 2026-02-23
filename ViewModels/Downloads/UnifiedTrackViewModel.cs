@@ -55,6 +55,18 @@ public class UnifiedTrackViewModel : ReactiveObject, IDisplayableTrack, IDisposa
     }
     
     
+    private string? _crossProjectReference;
+    public string? CrossProjectReference
+    {
+        get => _crossProjectReference;
+        set {
+            this.RaiseAndSetIfChanged(ref _crossProjectReference, value);
+            this.RaisePropertyChanged(nameof(HasCrossProjectReference));
+        }
+    }
+
+    public bool HasCrossProjectReference => !string.IsNullOrEmpty(CrossProjectReference);
+
     // Cues Support
     private List<OrbitCue> _cues = new();
     public IEnumerable<OrbitCue> Cues => _cues;
@@ -108,7 +120,7 @@ public class UnifiedTrackViewModel : ReactiveObject, IDisplayableTrack, IDisposa
         AddToProjectCommand = ReactiveCommand.Create(() => 
         {
             _eventBus.Publish(new AddToProjectRequestEvent(new[] { Model }));
-        }, this.WhenAnyValue(x => x.IsCompleted));
+        }, this.WhenAnyValue(x => x.IsCompleted, x => x.HasCrossProjectReference, (c, s) => c || s));
 
         PauseCommand = ReactiveCommand.CreateFromTask(async () => 
             await _downloadManager.PauseTrackAsync(GlobalId),
@@ -129,6 +141,10 @@ public class UnifiedTrackViewModel : ReactiveObject, IDisplayableTrack, IDisposa
         ForceStartCommand = ReactiveCommand.CreateFromTask(async () => 
             await _downloadManager.ForceStartTrack(GlobalId),
             this.WhenAnyValue(x => x.State, s => s == PlaylistTrackState.Pending || s == PlaylistTrackState.Stalled || s == PlaylistTrackState.Paused));
+            
+        ForceDownloadIgnoreGuardsCommand = ReactiveCommand.CreateFromTask(async () => 
+            await _downloadManager.ForceDownloadIgnoreGuardsAsync(GlobalId),
+            this.WhenAnyValue(x => x.IsFailed));
             
         SearchAgainCommand = ReactiveCommand.Create(() => 
         {
@@ -191,34 +207,51 @@ public class UnifiedTrackViewModel : ReactiveObject, IDisplayableTrack, IDisposa
              _downloadManager.BumpTrackToTop(GlobalId);
          }, this.WhenAnyValue(x => x.State, s => s == PlaylistTrackState.Pending || s == PlaylistTrackState.Paused || s == PlaylistTrackState.Stalled));
 
-         ViewLogCommand = ReactiveCommand.Create(() => 
-         {
-             // Phase 0.8: View Log Logic
-             // For now, we can just show a dialog or dump to debug console.
-             // Ideally this should open a dialog with the rejection details.
-             // For this step, we'll assume a "ViewLogRequest" event or similar.
-             var log = string.Join("\n", RejectionDetails?.Select(r => $"{r.Rank}. [{r.ShortReason}] {r.Filename} ({r.Bitrate}kbps) @{r.Username}") ?? Enumerable.Empty<string>());
-             // _eventBus.Publish(new ShowDialogRequest("Diagnostic Log", log)); // Need a generic dialog mechanism
-             System.Diagnostics.Debug.WriteLine($"[Diagnostic Log] {log}");
-             
-             // Or copy to clipboard as a fallback if no dialog
-             if (Avalonia.Application.Current?.ApplicationLifetime is Avalonia.Controls.ApplicationLifetimes.IClassicDesktopStyleApplicationLifetime desktop)
-             {
-                 desktop.MainWindow?.Clipboard?.SetTextAsync(log);
-             }
-         }, this.WhenAnyValue(x => x.HasRejectionDetails));
+        ViewLogCommand = ReactiveCommand.Create(() => 
+        {
+            // Phase 0.8: View Log Logic
+            var log = string.Join("\n", RejectionDetails?.Select(r => $"{r.Rank}. [{r.ShortReason}] {r.Filename} ({r.Bitrate}kbps) @{r.Username}") ?? Enumerable.Empty<string>());
+            System.Diagnostics.Debug.WriteLine($"[Diagnostic Log] {log}");
+            
+            if (Avalonia.Application.Current?.ApplicationLifetime is Avalonia.Controls.ApplicationLifetimes.IClassicDesktopStyleApplicationLifetime desktop)
+            {
+                desktop.MainWindow?.Clipboard?.SetTextAsync(log);
+            }
+        }, this.WhenAnyValue(x => x.HasRejectionDetails));
 
-         CopyLogCommand = ReactiveCommand.CreateFromTask(async () => 
-         {
-             if (Avalonia.Application.Current?.ApplicationLifetime is Avalonia.Controls.ApplicationLifetimes.IClassicDesktopStyleApplicationLifetime desktop)
-             {
-                 var log = string.Join("\n", RejectionDetails?.Select(r => $"{r.Rank}. [{r.ShortReason}] {r.Filename} ({r.Bitrate}kbps) @{r.Username}") ?? Enumerable.Empty<string>());
-                 if (desktop.MainWindow?.Clipboard != null)
-                 {
-                     await desktop.MainWindow.Clipboard.SetTextAsync(log);
-                 }
-             }
-         }, this.WhenAnyValue(x => x.HasRejectionDetails));
+        CopyLogCommand = ReactiveCommand.CreateFromTask(async () => 
+        {
+            if (Avalonia.Application.Current?.ApplicationLifetime is Avalonia.Controls.ApplicationLifetimes.IClassicDesktopStyleApplicationLifetime desktop)
+            {
+                var log = string.Join("\n", RejectionDetails?.Select(r => $"{r.Rank}. [{r.ShortReason}] {r.Filename} ({r.Bitrate}kbps) @{r.Username}") ?? Enumerable.Empty<string>());
+                if (desktop.MainWindow?.Clipboard != null)
+                {
+                    await desktop.MainWindow.Clipboard.SetTextAsync(log);
+                }
+            }
+        }, this.WhenAnyValue(x => x.HasRejectionDetails));
+
+        CheckSynergyAsync();
+    }
+
+    private async void CheckSynergyAsync()
+    {
+        if (IsCompleted || string.IsNullOrEmpty(ArtistName) || string.IsNullOrEmpty(TrackTitle)) return;
+        
+        try 
+        {
+            var currentProjId = Model?.PlaylistId ?? Guid.Empty;
+            var matches = await _libraryService.FindTrackInOtherProjectsAsync(ArtistName, TrackTitle, currentProjId);
+            if (matches != null && matches.Any())
+            {
+                var others = matches.Select(m => m.SourcePlaylistName).Where(n => !string.IsNullOrEmpty(n)).Distinct().ToList();
+                if (others.Any())
+                {
+                    CrossProjectReference = string.Join(", ", others);
+                }
+            }
+        }
+        catch { /* Ignore synergy errors */ }
     }
     
     private void FindSimilar()
@@ -436,6 +469,21 @@ public class UnifiedTrackViewModel : ReactiveObject, IDisplayableTrack, IDisposa
     // Phase 9: Search Diagnostics
     public int SearchAttemptCount => RejectionDetails?.Count ?? 0;
 
+    public string RejectionSummary
+    {
+        get
+        {
+            if (RejectionDetails == null || !RejectionDetails.Any()) return "No detailed forensic data captured for this failure.";
+            
+            var groups = RejectionDetails
+                .Where(x => !string.IsNullOrEmpty(x.ShortReason))
+                .GroupBy(x => x.ShortReason)
+                .Select(g => $"{g.Count()} {g.Key}");
+            
+            return $"Rejections: {string.Join(", ", groups)}";
+        }
+    }
+
     // Phase 10: Performance Monitoring - Total Download Duration
     public string? DownloadDurationDisplay
     {
@@ -646,6 +694,7 @@ public class UnifiedTrackViewModel : ReactiveObject, IDisplayableTrack, IDisposa
     public ICommand CancelCommand { get; }
     public ICommand RetryCommand { get; }
     public ICommand ForceStartCommand { get; }
+    public ICommand ForceDownloadIgnoreGuardsCommand { get; }
     public ICommand SearchAgainCommand { get; }
     public ICommand CleanCommand { get; }
     public ICommand FilterByVibeCommand { get; }
