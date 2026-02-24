@@ -24,7 +24,7 @@
         
         <!-- Navigation Sidebar Styles -->
         <Style Selector="Border.nav-sidebar">
-            <Setter Property="Width" Value="220"/>
+            <Setter Property="Width" Value="240"/>
             <Setter Property="Transitions">
                 <Transitions>
                     <DoubleTransition Property="Width" Duration="0:0:0.2"/>

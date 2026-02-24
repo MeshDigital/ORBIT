@@ -50,7 +50,7 @@
               Effect="{Binding IsForensicLabVisible, Converter={StaticResource BoolBlurConverter}}">
         
             <!-- LEFT PANEL: Playlist List -->
-            <Border Grid.Column="0" Width="280" Background="#202020" BorderBrush="#3E3E3E" BorderThickness="0,0,1,0" IsVisible="{Binding !IsNavigationCollapsed}">
+            <Border Grid.Column="0" Width="300" Background="#202020" BorderBrush="#3E3E3E" BorderThickness="0,0,1,0" IsVisible="{Binding !IsNavigationCollapsed}">
                 <Grid RowDefinitions="Auto,*,Auto">
                     
                     <!-- Header / Tools -->

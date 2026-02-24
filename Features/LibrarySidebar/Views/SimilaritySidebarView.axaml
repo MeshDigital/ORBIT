@@ -65,13 +65,13 @@
                 </ListBox.Styles>
                 <ListBox.ItemTemplate>
                     <DataTemplate>
-                        <Border Margin="12,4" Padding="4" Background="#1E1E1E" CornerRadius="8" BorderBrush="#333" BorderThickness="1">
+                        <Border Margin="16,8" Padding="8" Background="#1E1E1E" CornerRadius="8" BorderBrush="#333" BorderThickness="1">
                             <StackPanel Spacing="2">
                                 <!-- Standard Playable Row -->
                                 <controls:StandardTrackRow DataContext="{Binding TrackVm}" IsCompact="True"/>
                                 
                                 <!-- Match Transparency & Breakdown -->
-                                <Border Padding="12,2,12,8" Background="Transparent">
+                                <Border Padding="16,4,16,12" Background="Transparent">
                                     <StackPanel Spacing="6">
                                         <Grid ColumnDefinitions="*,Auto">
                                             <WrapPanel Orientation="Horizontal" Margin="0,0,0,4">

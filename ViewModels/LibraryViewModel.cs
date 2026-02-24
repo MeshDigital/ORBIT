@@ -165,7 +165,7 @@ public partial class LibraryViewModel : INotifyPropertyChanged, IDisposable
         set { SetProperty(ref _isForensicLabVisible, value); }
     }
 
-    private double _sidebarWidth = 350;
+    private double _sidebarWidth = 420;
     public double SidebarWidth
     {
         get => _sidebarWidth;
