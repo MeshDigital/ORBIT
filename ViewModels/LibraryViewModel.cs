@@ -49,6 +49,7 @@ public partial class LibraryViewModel : INotifyPropertyChanged, IDisposable
     private readonly IntelligenceCenterViewModel _intelligenceCenter;
     private readonly DownloadManager _downloadManager;
     private readonly Services.Library.ColumnConfigurationService _columnConfigService;
+    private readonly ForensicLibrarianService _forensicLibrarian;
 
     // Infrastructure for Sidebars/Delayed operations
     private System.Threading.Timer? _selectionDebounceTimer;
@@ -143,6 +144,13 @@ public partial class LibraryViewModel : INotifyPropertyChanged, IDisposable
         set { _isActiveDownloadsVisible = value; OnPropertyChanged(); }
     }
 
+    private bool _isNavigationCollapsed;
+    public bool IsNavigationCollapsed
+    {
+        get => _isNavigationCollapsed;
+        set { SetProperty(ref _isNavigationCollapsed, value); }
+    }
+
     private bool _isRemovalHistoryVisible;
     public bool IsRemovalHistoryVisible
     {
@@ -212,7 +220,8 @@ public partial class LibraryViewModel : INotifyPropertyChanged, IDisposable
         SmartCrateService smartCrateService,
         DownloadManager downloadManager,
         Services.Library.ColumnConfigurationService columnConfigService,
-        ContextualSidebarViewModel sidebar)
+        ContextualSidebarViewModel sidebar,
+        ForensicLibrarianService forensicLibrarian)
     {
         _logger = logger;
         _navigationService = navigationService;
@@ -238,6 +247,7 @@ public partial class LibraryViewModel : INotifyPropertyChanged, IDisposable
         _downloadManager = downloadManager;
         _columnConfigService = columnConfigService;
         _sidebar = sidebar;
+        _forensicLibrarian = forensicLibrarian;
         LibrarySourcesViewModel = librarySourcesViewModel;
 
         Projects = projects;

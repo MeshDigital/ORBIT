@@ -78,7 +78,7 @@
         <ScrollViewer Grid.Row="1">
             <StackPanel Spacing="24">
                 <!-- Top Bento Row: Core Metrics -->
-                <Grid ColumnDefinitions="2*,2*,1.5*" RowDefinitions="180">
+                <Grid ColumnDefinitions="*,*,*" RowDefinitions="180">
                     <!-- Library Health Tile -->
                     <Border Grid.Column="0" Classes="glass" Padding="24" Margin="0,0,16,0">
                         <Grid RowDefinitions="Auto,*,Auto">
@@ -88,74 +88,66 @@
                                 <Grid ColumnDefinitions="*,Auto" VerticalAlignment="Bottom">
                                     <StackPanel Orientation="Horizontal" Spacing="4" VerticalAlignment="Bottom">
                                         <TextBlock Text="{Binding PurityPercent, StringFormat='{}{0:F1}'}" FontSize="32" FontWeight="Black" Foreground="White"/>
-                                        <TextBlock Text="%" FontSize="16" Foreground="#1DB954" FontWeight="Bold" Margin="0,0,0,6" VerticalAlignment="Bottom"/>
+                                        <TextBlock Text="%" FontSize="16" Foreground="#00A3FF" FontWeight="Bold" Margin="0,0,0,6" VerticalAlignment="Bottom"/>
                                     </StackPanel>
                                     <TextBlock Grid.Column="1" Text="{Binding PurityStatus}" FontSize="12" Foreground="#808080" VerticalAlignment="Bottom" Margin="0,0,0,6"/>
                                 </Grid>
 
-                                <!-- Segmented Heatmap -->
                                 <Border Height="8" CornerRadius="4" ClipToBounds="True" Background="#2A2A2E">
-                                    <Grid ColumnDefinitions="*,*,*">
-                                        <Border Grid.Column="0" Background="#00A3FF" HorizontalAlignment="Stretch"/>
-                                        <Border Grid.Column="1" Background="#1DB954" HorizontalAlignment="Stretch"/>
-                                        <Border Grid.Column="2" Background="#FF6B6B" HorizontalAlignment="Stretch"/>
-                                    </Grid>
+                                    <ProgressBar Value="{Binding PurityPercent}" Height="8" Foreground="#00A3FF" Background="Transparent" BorderThickness="0"/>
                                 </Border>
                             </StackPanel>
                             
                             <StackPanel Grid.Row="2" Orientation="Horizontal" Spacing="8">
                                 <Button Command="{Binding NavigateLibraryCommand}" Classes="ActionBtnSmall" Padding="8,4">
-                                    <TextBlock Text="{Binding LibraryHealth.GoldCount, StringFormat='{}{0} 🏆'}" FontSize="10" Foreground="#00A3FF" FontWeight="Bold"/>
+                                    <TextBlock Text="{Binding CurrentSnapshot.LibraryHealth.GoldCount, StringFormat='{}{0} 🏆'}" FontSize="10" Foreground="#00A3FF" FontWeight="Bold"/>
                                 </Button>
                                 <Button Command="{Binding NavigateLibraryCommand}" Classes="ActionBtnSmall" Padding="8,4">
-                                    <TextBlock Text="{Binding LibraryHealth.SilverCount, StringFormat='{}{0} 🥈'}" FontSize="10" Foreground="#1DB954" FontWeight="Bold"/>
+                                    <TextBlock Text="{Binding CurrentSnapshot.LibraryHealth.SilverCount, StringFormat='{}{0} 🥈'}" FontSize="10" Foreground="#1DB954" FontWeight="Bold"/>
                                 </Button>
                                 <Button Command="{Binding UpgradeBronzeCommand}" Classes="ActionBtnSmall" Padding="8,4" BorderBrush="#FF6B6B">
-                                    <TextBlock Text="{Binding LibraryHealth.BronzeCount, StringFormat='{}{0} 🥉'}" FontSize="10" Foreground="#FF6B6B" FontWeight="Bold"/>
+                                    <TextBlock Text="{Binding CurrentSnapshot.LibraryHealth.BronzeCount, StringFormat='{}{0} 🥉'}" FontSize="10" Foreground="#FF6B6B" FontWeight="Bold"/>
                                 </Button>
                             </StackPanel>
                         </Grid>
                     </Border>
                     
-                    <!-- Active Missions Widget -->
+                    <!-- Command Missions -->
                     <Border Grid.Column="1" Classes="glass" Padding="20" Margin="0,0,16,0">
-                        <Grid RowDefinitions="Auto,*,Auto">
-                            <Grid Grid.Row="0" ColumnDefinitions="*,Auto">
-                                <TextBlock Text="ACTIVE MISSIONS" FontSize="11" FontWeight="Bold" Foreground="#606060" LetterSpacing="1"/>
-                                <TextBlock Text="{Binding DownloadSpeed, StringFormat='{}⬇ {0}'}" FontSize="11" Foreground="#00D4" FontWeight="Bold" Grid.Column="1"/>
-                            </Grid>
+                        <Grid RowDefinitions="Auto,*">
+                            <TextBlock Grid.Row="0" Text="COMMAND MISSIONS" FontSize="11" FontWeight="Bold" Foreground="#606060" LetterSpacing="1"/>
                             
-                            <StackPanel Grid.Row="1" VerticalAlignment="Center" Spacing="10">
-                                <Grid ColumnDefinitions="Auto,*,Auto" Margin="0,2">
-                                    <TextBlock Text="🚀 Express" FontSize="11" Foreground="#FFCA28" Width="70"/>
-                                    <ProgressBar Grid.Column="1" Value="{Binding ExpressCount}" Maximum="10" Height="3" Background="#222" Foreground="#FFCA28" Margin="0,0,10,0"/>
-                                    <TextBlock Grid.Column="2" Text="{Binding ExpressCount}" FontSize="11" Foreground="White" FontWeight="Bold"/>
-                                </Grid>
-                                <Grid ColumnDefinitions="Auto,*,Auto" Margin="0,2">
-                                    <TextBlock Text="📦 Standard" FontSize="11" Foreground="#2196F3" Width="70"/>
-                                    <ProgressBar Grid.Column="1" Value="{Binding StandardCount}" Maximum="50" Height="3" Background="#222" Foreground="#2196F3" Margin="0,0,10,0"/>
-                                    <TextBlock Grid.Column="2" Text="{Binding StandardCount}" FontSize="11" Foreground="#DDD"/>
-                                </Grid>
-                                <Grid ColumnDefinitions="Auto,*,Auto" Margin="0,2">
-                                    <TextBlock Text="🌙 Background" FontSize="11" Foreground="#AAA" Width="70"/>
-                                    <ProgressBar Grid.Column="1" Value="{Binding BackgroundCount}" Maximum="200" Height="3" Background="#222" Foreground="#666" Margin="0,0,10,0"/>
-                                    <TextBlock Grid.Column="2" Text="{Binding BackgroundCount}" FontSize="11" Foreground="#AAA"/>
-                                </Grid>
-                            </StackPanel>
-                            
-                            <TextBlock Grid.Row="2" Text="Air Traffic Control Active" FontSize="10" Foreground="#555" FontStyle="Italic" HorizontalAlignment="Center"/>
+                            <ItemsControl Grid.Row="1" ItemsSource="{Binding ActiveMissions}" Margin="0,10,0,0">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <Grid ColumnDefinitions="Auto,*,Auto" Margin="0,0,0,8">
+                                            <TextBlock Text="{Binding Icon}" FontSize="16" VerticalAlignment="Center" Margin="0,0,12,0"/>
+                                            <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                                <TextBlock Text="{Binding Name}" FontSize="13" FontWeight="SemiBold" Foreground="White"/>
+                                                <ProgressBar Value="{Binding Progress}" Maximum="1.0" Height="2" Margin="0,4,12,0" Foreground="#00A3FF" IsVisible="{Binding IsRunning}"/>
+                                                <TextBlock Text="{Binding StatusText}" FontSize="10" Foreground="#808080" IsVisible="{Binding IsRunning}"/>
+                                            </StackPanel>
+                                            <Button Grid.Column="2" Command="{Binding ((vm:HomeViewModel)DataContext).RunMissionCommand, RelativeSource={RelativeSource AncestorType=UserControl}}" 
+                                                    CommandParameter="{Binding}" IsVisible="{Binding !IsRunning}"
+                                                    Classes="ActionBtnSmall" Background="#22FFFFFF">
+                                                <TextBlock Text="START" FontSize="9" FontWeight="Black"/>
+                                            </Button>
+                                        </Grid>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
                         </Grid>
                     </Border>
                     
-                    <!-- System Resilience (Predictive Maintenance) -->
+                    <!-- System Resilience -->
                     <Border Grid.Column="2" Classes="glass" Padding="20">
                         <Grid RowDefinitions="Auto,*,Auto">
                             <Grid Grid.Row="0" ColumnDefinitions="*,Auto">
-                                <TextBlock Text="PREDICTIVE MAINTENANCE" FontSize="11" FontWeight="Bold" Foreground="#606060" LetterSpacing="1"/>
-                                <TextBlock Text="SECURE" IsVisible="{Binding !IsLockdownActive}" FontSize="9" FontWeight="SemiBold" Foreground="#1DB954"/>
+                                <TextBlock Text="ENGINE RESILIENCE" FontSize="11" FontWeight="Bold" Foreground="#606060" LetterSpacing="1"/>
+                                <TextBlock Text="OPTIMAL" IsVisible="{Binding !IsLockdownActive}" FontSize="9" FontWeight="SemiBold" Foreground="#1DB954"/>
                             </Grid>
                             
-                            <StackPanel Grid.Row="1" VerticalAlignment="Center" Spacing="12">
+                            <StackPanel Grid.Row="1" VerticalAlignment="Center" Spacing="10">
                                 <Grid ColumnDefinitions="*,Auto">
                                     <StackPanel Spacing="2">
                                         <TextBlock Text="Zombies" FontSize="10" Foreground="#808080"/>
@@ -167,59 +159,37 @@
                                     </StackPanel>
                                 </Grid>
 
-                                <Border Height="1" Background="#2A2A2E" Margin="0,4"/>
-
                                 <Grid ColumnDefinitions="*,Auto">
                                     <StackPanel Spacing="2">
-                                        <TextBlock Text="CPU Topology" FontSize="10" Foreground="#808080"/>
-                                        <TextBlock Text="{Binding CurrentSnapshot.Topology.ShortLabel}" FontSize="13" FontWeight="Bold" Foreground="#00A3FF"/>
+                                        <TextBlock Text="CPU Load" FontSize="10" Foreground="#808080"/>
+                                        <TextBlock Text="{Binding CurrentCpuLoad, StringFormat={}{0:P0}}" FontSize="13" FontWeight="Bold" Foreground="White"/>
                                     </StackPanel>
                                     <StackPanel Grid.Column="1" Spacing="2" HorizontalAlignment="Right">
-                                        <TextBlock Text="CPU Load" FontSize="10" Foreground="#808080" HorizontalAlignment="Right"/>
-                                        <TextBlock Text="{Binding CurrentCpuLoad, StringFormat={}{0:P0}}" FontSize="18" FontWeight="Black" Foreground="White"/>
+                                        <TextBlock Text="Spotify" FontSize="10" Foreground="#808080" HorizontalAlignment="Right"/>
+                                        <TextBlock Text="ACTIVE" IsVisible="{Binding IsSpotifyConnected}" FontSize="13" FontWeight="Bold" Foreground="#1DB954"/>
+                                        <TextBlock Text="OFFLINE" IsVisible="{Binding !IsSpotifyConnected}" FontSize="13" FontWeight="Bold" Foreground="#FF5252"/>
                                     </StackPanel>
                                 </Grid>
 
-                                <Border Height="1" Background="#2A2A2E" Margin="0,4"/>
-
                                 <Button Command="{Binding ClearDeadLettersCommand}" 
                                         HorizontalAlignment="Stretch" HorizontalContentAlignment="Center"
-                                        Background="#1AFF5252" BorderBrush="#FF5252" BorderThickness="1" Padding="6" CornerRadius="6">
-                                    <StackPanel Orientation="Horizontal" Spacing="8">
-                                        <TextBlock Text="🛠️" FontSize="12" VerticalAlignment="Center"/>
-                                        <TextBlock Text="SELF-HEAL ALL" FontSize="11" FontWeight="Bold" Foreground="#FF5252" VerticalAlignment="Center"/>
-                                    </StackPanel>
+                                        Background="#1AFF5252" BorderBrush="#FF5252" BorderThickness="1" Padding="4" CornerRadius="6">
+                                    <TextBlock Text="SELF-HEAL ENGINE" FontSize="9" FontWeight="Black" Foreground="#FF5252"/>
                                 </Button>
                             </StackPanel>
                             
-                            <TextBlock Grid.Row="2" Text="Zero-Downtime Engine Active" FontSize="10" Foreground="#555" FontStyle="Italic" HorizontalAlignment="Center"/>
+                            <TextBlock Grid.Row="2" Text="Bridge Operations Active" FontSize="10" Foreground="#555" FontStyle="Italic" HorizontalAlignment="Center"/>
                         </Grid>
                     </Border>
                 </Grid>
 
-                <!-- Genre Galaxy (Phase 12.8) -->
-                <Border Classes="glass" Padding="24" Height="160" Margin="0,0,0,8">
+                <!-- Genre Galaxy (Phase 12.8 -> SkiaSharp Upgrade) -->
+                <Border Classes="glass" Padding="24" Height="220" Margin="0,0,0,8" ClipToBounds="True">
                     <Grid RowDefinitions="Auto,*">
+                        <!-- SkiaSharp Animated Canvas -->
+                        <controls:GenreGalaxyCanvas Grid.Row="0" Grid.RowSpan="2" Genres="{Binding TopGenres}" HorizontalAlignment="Stretch" VerticalAlignment="Stretch" Margin="-24"/>
+                        
                         <TextBlock Grid.Row="0" Text="GENRE GALAXY" FontSize="11" FontWeight="Bold" Foreground="#606060" LetterSpacing="1" Margin="0,0,0,16"/>
-                        <ItemsControl Grid.Row="1" ItemsSource="{Binding TopGenres}">
-                            <ItemsControl.ItemsPanel>
-                                <ItemsPanelTemplate>
-                                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Spacing="32"/>
-                                </ItemsPanelTemplate>
-                            </ItemsControl.ItemsPanel>
-                            <ItemsControl.ItemTemplate>
-                                <DataTemplate>
-                                    <StackPanel Spacing="8" VerticalAlignment="Center">
-                                        <Border Width="{Binding Size}" Height="{Binding Size}" CornerRadius="100" 
-                                                Background="#22FFFFFF" BorderBrush="{Binding Color}" BorderThickness="2"
-                                                BoxShadow="0 0 20 2 #4D00A3FF">
-                                            <TextBlock Text="{Binding Count}" FontSize="12" FontWeight="Black" Foreground="White" HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                                        </Border>
-                                        <TextBlock Text="{Binding Name}" FontSize="12" FontWeight="SemiBold" Foreground="#A0A0A0" HorizontalAlignment="Center"/>
-                                    </StackPanel>
-                                </DataTemplate>
-                            </ItemsControl.ItemTemplate>
-                        </ItemsControl>
                     </Grid>
                 </Border>
 

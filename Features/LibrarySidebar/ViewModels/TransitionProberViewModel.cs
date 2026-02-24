@@ -29,7 +29,7 @@ public class TransitionProberViewModel : ReactiveObject, ISidebarContent
         return Task.CompletedTask;
     }
 
-    public void SetSecondaryTrack(PlaylistTrackViewModel track)
+    public void SetSecondaryTrack(PlaylistTrackViewModel? track)
     {
         SecondaryTrack = track;
     }

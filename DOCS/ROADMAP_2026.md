@@ -16,19 +16,26 @@
 *   [ ] **Interactive Waveform**: Seek, Zoom, Scrub.
 
 ### Phase 2: Analysis & "Smart" Cues (Comparable to Mixed In Key)
-*   [ ] **Analysis Service 2.0**: Run Essentia to get Beats, Keys, Key Changes.
+*   [x] **Analysis Service 2.0**: Run Essentia to get Beats, Keys, Key Changes.
 *   [ ] **Smart Markers**: Auto-generate Cue Points at "Drop" and "Breakdown".
 *   [ ] **Key Overlay**: Show color-coded regions on the waveform where key modulation occurs.
+*   [ ] **Drop Detection Engine**: Implement full climax-detection algorithm from Phase 4.2.
+*   [ ] **Rekordbox Phrase Parsing**: Extract binary phrase markers (Chorus/Build) from USB drives.
+*   [ ] **Semantic Waveform Zones**: Color-block the waveform by musical phrases (Intro/Build/Drop/Outro) with magnetic, AI-generated cue sliders.
 
 ### Phase 3: The Editor
-*   [ ] **Timeline View (Phase 4)**: Basic Zoomable/Scrollable Multi-track canvas. [x]
+*   [x] **Timeline View (Phase 4)**: Basic Zoomable/Scrollable Multi-track canvas.
 *   [ ] **Slicing**: Allow user to split Stem waveform objects.
 *   [ ] **Warping**: Elastic Audio (Time stretching) to align tracks to a master BPM.
+*   [ ] **Surgical Processing**: Enable FFmpeg-based direct track editing (trimming/fading) from the UI.
+*   [ ] **Set Intelligence**: Automated Flow-Builder using HarmonicMatchService and Energy curves.
 
 ### Phase 4: Mashup Lab & Flow Builder (The "MIK Killer")
-*   [ ] **Mashup Lab**: Dual-slot "A/B" environment with real-time key shifting and auto-stem routing.
-*   [ ] **Flow Builder**: List-driven set curation with "Predicted Transition" points.
+*   [ ] **Mashup Lab Sandbox**: Dual-slot "A/B" environment with real-time key-shifting and demucs-powered Stem-Swap sliders to instantly preview mashups.
+*   [ ] **Flow Builder Timeline**: Horizontal playlist curation with colored "Bridges" between tracks showing Harmonic/Energy compatibility.
 *   [ ] **Forensic Matching**: Visual proof/alignment logs for every suggested transition.
+*   [ ] **X-Ray Sparklines**: Render miniature "Energy Contour" sparkline graphs directly inside the Library List view for instant track shape recognition.
+*   [ ] **Automated Native Export**: A single "Sync to USB" button that writes perfect Rekordbox XML and Serato GEOB tags, fully preparing USB sticks without external software.
 
 ---
 

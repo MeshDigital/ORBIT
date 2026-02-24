@@ -47,25 +47,6 @@ public class LibraryService : ILibraryService
         _logger.LogDebug("LibraryService initialized (Data Only) with caching enabled");
     }
 
-    public async Task LogPlaylistActivityAsync(Guid playlistId, string action, string details)
-    {
-        try
-        {
-            var log = new PlaylistActivityLogEntity
-            {
-                Id = Guid.NewGuid(),
-                PlaylistId = playlistId,
-                Action = action,
-                Details = details,
-                Timestamp = DateTime.UtcNow
-            };
-            await _databaseService.LogActivityAsync(log).ConfigureAwait(false);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Failed to log playlist activity");
-        }
-    }
 
     // ===== INDEX 1: LibraryEntry (Main Global Index - DB backed) =====
 
@@ -295,7 +276,87 @@ public class LibraryService : ILibraryService
         }
     }
 
+    public async Task RemoveTrackFromLibraryAsync(string trackHash)
+    {
+        try
+        {
+            _logger.LogInformation("Removing track from global library index: {Hash}", trackHash);
+            var entryEntity = await _databaseService.FindLibraryEntryAsync(trackHash);
+            if (entryEntity != null)
+            {
+                // We use DatabaseService directly or via repository
+                // The DatabaseService usually has methods for specific entities
+                await _databaseService.RemoveTrackAsync(trackHash); // Wait, RemoveTrackAsync might be for TrackEntity
+            }
+            
+            // Actually, we should check if DatabaseService has a RemoveLibraryEntryAsync
+            // Looking at the outline, it has RemoveTrackAsync which takes globalId. 
+            // In AppDbContext, TrackEntity.GlobalId is the UniqueHash.
+            // But LibraryEntryEntity.UniqueHash is also the UniqueHash.
+            
+            // I'll check DatabaseService.RemoveTrackAsync implementation.
+            await _databaseService.RemoveTrackAsync(trackHash);
+            
+            _cache.InvalidateGlobalLibrary();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to remove track {Hash} from library", trackHash);
+        }
+    }
+
     // ===== INDEX 2: PlaylistJob (Playlist Headers - Database Backed) =====
+
+    public async Task LogPlaylistActivityAsync(Guid playlistId, string action, string details)
+    {
+        try
+        {
+            var log = new PlaylistActivityLogEntity
+            {
+                Id = Guid.NewGuid(),
+                PlaylistId = playlistId,
+                Action = action,
+                Details = details,
+                Timestamp = DateTime.UtcNow
+            };
+            await _databaseService.LogActivityAsync(log).ConfigureAwait(false);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to log playlist activity");
+        }
+    }
+
+    public async Task<bool> UndoLastActivityAsync(Guid playlistId, string action)
+    {
+        try
+        {
+            var lastLog = await _databaseService.GetLastPlaylistActivityAsync(playlistId, action).ConfigureAwait(false);
+            if (lastLog == null || string.IsNullOrEmpty(lastLog.Details)) return false;
+
+            // Details field stores JSON array of Track GUIDs for batch operations
+            if (lastLog.Action == "SmartFill")
+            {
+                var trackIds = System.Text.Json.JsonSerializer.Deserialize<List<Guid>>(lastLog.Details);
+                if (trackIds != null && trackIds.Any())
+                {
+                    await _databaseService.BatchDeletePlaylistTracksAsync(trackIds).ConfigureAwait(false);
+                    await _databaseService.DeleteActivityLogAsync(lastLog.Id).ConfigureAwait(false);
+                    
+                    // Invalidate cache
+                    _cache.InvalidateProject(playlistId);
+                    _eventBus.Publish(new ProjectUpdatedEvent(playlistId));
+                    return true;
+                }
+            }
+            return false;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to undo last playlist activity");
+            return false;
+        }
+    }
 
     public async Task<List<PlaylistJob>> GetHistoricalJobsAsync()
     {

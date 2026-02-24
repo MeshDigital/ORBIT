@@ -33,7 +33,7 @@ namespace SLSKDONET.Tests.Services
                 new AudioFeaturesEntity 
                 { 
                     TrackUniqueHash = "track_identical", 
-                    AiEmbeddingJson = jsonVector,
+                    VectorEmbedding = vector,
                     EmbeddingMagnitude = 1.0f,
                     Bpm = 120 // Within BPM range
                 }
@@ -61,7 +61,7 @@ namespace SLSKDONET.Tests.Services
                 new AudioFeaturesEntity 
                 { 
                     TrackUniqueHash = "track_orthogonal", 
-                    AiEmbeddingJson = JsonSerializer.Serialize(target),
+                    VectorEmbedding = target,
                     Bpm = 120
                 }
             };
@@ -86,7 +86,7 @@ namespace SLSKDONET.Tests.Services
                 new AudioFeaturesEntity 
                 { 
                     TrackUniqueHash = "track_opposite", 
-                    AiEmbeddingJson = JsonSerializer.Serialize(target),
+                    VectorEmbedding = target,
                     Bpm = 120
                 }
             };
@@ -149,8 +149,8 @@ namespace SLSKDONET.Tests.Services
 
             var candidates = new List<AudioFeaturesEntity>
             {
-                new AudioFeaturesEntity { TrackUniqueHash = "high_sim", AiEmbeddingJson = JsonSerializer.Serialize(vecHigh), Bpm = 120 },
-                new AudioFeaturesEntity { TrackUniqueHash = "low_sim", AiEmbeddingJson = JsonSerializer.Serialize(vecLow), Bpm = 120 }
+                new AudioFeaturesEntity { TrackUniqueHash = "high_sim", VectorEmbedding = vecHigh, Bpm = 120 },
+                new AudioFeaturesEntity { TrackUniqueHash = "low_sim", VectorEmbedding = vecLow, Bpm = 120 }
             };
 
             // Act
@@ -173,8 +173,8 @@ namespace SLSKDONET.Tests.Services
 
             var candidates = new List<AudioFeaturesEntity>
             {
-                new AudioFeaturesEntity { TrackUniqueHash = "track_85", AiEmbeddingJson = JsonSerializer.Serialize(vec85pct), Bpm = 120 },
-                new AudioFeaturesEntity { TrackUniqueHash = "track_90", AiEmbeddingJson = JsonSerializer.Serialize(vec90pct), Bpm = 120 }
+                new AudioFeaturesEntity { TrackUniqueHash = "track_85", VectorEmbedding = vec85pct, Bpm = 120 },
+                new AudioFeaturesEntity { TrackUniqueHash = "track_90", VectorEmbedding = vec90pct, Bpm = 120 }
             };
 
             // Act
@@ -186,12 +186,12 @@ namespace SLSKDONET.Tests.Services
         }
 
         /// <summary>
-        /// Creates a 128-element unit vector with specified first 2 components.
+        /// Creates a unit vector with specified first 2 components.
         /// Normalizes to unit length for proper Cosine Similarity testing.
         /// </summary>
-        private float[] CreateUnitVector(float x, float y)
+        private float[] CreateUnitVector(float x, float y, int length = 512)
         {
-            float[] vec = new float[128];
+            float[] vec = new float[length];
             vec[0] = x;
             vec[1] = y;
             

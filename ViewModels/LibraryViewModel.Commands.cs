@@ -27,6 +27,7 @@ public partial class LibraryViewModel
     public ICommand OpenSourcesCommand { get; set; } = null!;
     public ICommand ToggleEditModeCommand { get; set; } = null!;
     public ICommand ToggleActiveDownloadsCommand { get; set; } = null!;
+    public ICommand ToggleNavigationCommand { get; set; } = null!;
     
     public ICommand PlayTrackCommand { get; set; } = null!;
     public ICommand RefreshLibraryCommand { get; set; } = null!;
@@ -63,6 +64,7 @@ public partial class LibraryViewModel
     public ICommand ToggleUpgradeScoutCommand { get; set; } = null!;
     public ICommand ToggleColumnCommand { get; set; } = null!;
     public ICommand ResetViewCommand { get; set; } = null!;
+    public ICommand RunForensicScanCommand { get; set; } = null!;
 
 
     // Export Specific Properties
@@ -111,6 +113,7 @@ public partial class LibraryViewModel
         });
         ToggleEditModeCommand = new RelayCommand(() => IsEditMode = !IsEditMode);
         ToggleActiveDownloadsCommand = new RelayCommand(() => IsActiveDownloadsVisible = !IsActiveDownloadsVisible);
+        ToggleNavigationCommand = new RelayCommand(() => IsNavigationCollapsed = !IsNavigationCollapsed);
         
         PlayTrackCommand = new AsyncRelayCommand<object>(ExecutePlayTrackAsync);
         RefreshLibraryCommand = new AsyncRelayCommand(ExecuteRefreshLibraryAsync);
@@ -205,6 +208,7 @@ public partial class LibraryViewModel
         ToggleColumnCommand = new RelayCommand<ColumnDefinition>(ExecuteToggleColumn);
         ResetViewCommand = new AsyncRelayCommand(ExecuteResetViewAsync);
         AddToTimelineCommand = new RelayCommand<object>(ExecuteAddToTimeline);
+        RunForensicScanCommand = new AsyncRelayCommand(ExecuteRunForensicScanAsync);
     }
 
     public ICommand SetViewModeCommand { get; set; } = null!;
@@ -734,6 +738,41 @@ public partial class LibraryViewModel
                 _eventBus.Publish(new AddToTimelineRequestEvent(trackList.Select(t => t.Model)));
                 _notificationService.Show("Added to Timeline", $"{trackList.Count} tracks added.", NotificationType.Information);
             }
+        }
+    }
+
+    private async Task ExecuteRunForensicScanAsync()
+    {
+        try
+        {
+            _notificationService.Show("Forensic Librarian", "Starting global library integrity scan...", NotificationType.Information);
+            IsLoading = true;
+
+            var frauds = await _forensicLibrarian.ScanLibraryForFraudsAsync();
+
+            if (frauds.Any())
+            {
+                _notificationService.Show("Scan Complete", 
+                    $"Detected {frauds.Count} potential fraudulent tracks. Open the Forensic Sidebar to review.", 
+                    NotificationType.Warning);
+                
+                // Switch to Forensic Sidebar if not visible
+                // This assumes Sidebar can be commanded to switch
+                // Sidebar.SelectedContent = Sidebar.Contents.OfType<ForensicSidebarViewModel>().FirstOrDefault();
+            }
+            else
+            {
+                _notificationService.Show("Scan Complete", "No fraudulent tracks detected. Your library is clean.", NotificationType.Success);
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Forensic scan failed");
+            _notificationService.Show("Scan Failed", ex.Message, NotificationType.Error);
+        }
+        finally
+        {
+            IsLoading = false;
         }
     }
 }

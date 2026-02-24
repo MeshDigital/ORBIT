@@ -27,7 +27,7 @@ public class PersonalClassifierService
 
     public class VibeInput
     {
-        [VectorType(128)]
+        [VectorType(512)]
         public float[] Embedding { get; set; } = Array.Empty<float>();
         
         [LoadColumn(1)]
@@ -58,7 +58,9 @@ public class PersonalClassifierService
                     var label = kvp.Key;
                     foreach (var embedding in kvp.Value)
                     {
-                        if (embedding.Length != 128) continue; // Safety check for dimension mismatch
+                        // Safety check for dimension mismatch - must match VibeInput's VectorType(512)
+                        // In future, we could making this dynamic or pad vectors.
+                        if (embedding.Length != 512) continue; 
                         dataPoints.Add(new VibeInput { Embedding = embedding, Label = label });
                     }
                 }
@@ -137,8 +139,8 @@ public class PersonalClassifierService
     /// </summary>
     public virtual (string Vibe, float Confidence) Predict(float[] embedding)
     {
-        if (_predictionEngine == null || embedding == null || embedding.Length != 128)
-            return ("Unknown (No Model)", 0f);
+        if (_predictionEngine == null || embedding == null || embedding.Length != 512)
+            return ("Unknown (No Model or Dim Mismatch)", 0f);
 
         var prediction = _predictionEngine.Predict(new VibeInput { Embedding = embedding });
 
@@ -170,20 +172,16 @@ public class PersonalClassifierService
         if (features == null || string.IsNullOrEmpty(features.AiEmbeddingJson))
             return ("Unknown", 0f);
         
-        // 2. Deserialize embedding
-        try 
-        {
-            var embedding = System.Text.Json.JsonSerializer.Deserialize<float[]>(features.AiEmbeddingJson);
-            if (embedding == null || embedding.Length != 128)
-                return ("Unknown", 0f);
+        // 1. Get raw embedding from BLOB
+        var embedding = features.VectorEmbedding;
+        if (embedding == null || (embedding.Length != 128 && embedding.Length != 512))
+            return ("Unknown", 0f);
 
-            // 3. Use existing Predict method
+        // 3. Use existing Predict method (only if 512D)
+        if (embedding.Length == 512)
             return Predict(embedding);
-        }
-        catch
-        {
-            return ("Error", 0f);
-        }
+
+        return ("Legacy (Analyze to Upgrade)", 0f);
     }
 
     /// <summary>
@@ -200,7 +198,9 @@ public class PersonalClassifierService
         List<AudioFeaturesEntity> candidates, 
         int limit = 50)
     {
-        if (targetVector == null || targetVector.Length != 128) return new();
+        if (targetVector == null || targetVector.Length == 0) return new();
+
+        int dims = targetVector.Length;
 
         var matches = new List<(string, float)>();
         float targetMag = (float)Math.Sqrt(targetVector.Sum(x => x * x));
@@ -211,42 +211,33 @@ public class PersonalClassifierService
         Parallel.ForEach(candidates, candidate =>
         {
             // 1. Pre-Filter: BPM & Existence
-            // Skip if BPM is too far off (+/- 30% range for wide vibe match, or tighter for mixing)
-            // Let's use a loose +/- 20 BPM filter to keep it "Vibe" focused, not just "Mix" focused
-            if (candidate.Bpm > 0 && Math.Abs(candidate.Bpm - targetBpm) > 30) // e.g. 174 vs 140 is allowed, 174 vs 120 is not
-            {
-                 return;
-            }
+            if (candidate.Bpm > 0 && Math.Abs(candidate.Bpm - targetBpm) > 30) return;
 
-            if (string.IsNullOrEmpty(candidate.AiEmbeddingJson)) return;
+            var candidateVector = candidate.VectorEmbedding;
+            if (candidateVector == null || candidateVector.Length != dims) return;
 
-            // 2. Deserialize Vector
-            // TODO: In future, cache these in memory to avoid deserialize overhead
-            float[]? candidateVector = null;
-            try
-            {
-                 candidateVector = System.Text.Json.JsonSerializer.Deserialize<float[]>(candidate.AiEmbeddingJson);
-            }
-            catch { return; }
-
-            if (candidateVector == null || candidateVector.Length != 128) return;
-
-            // 3. Cosine Similarity
-            // Sim = DotProduct(A, B) / (MagA * MagB)
+            // 2. Optimized Similarity
             float dotProduct = 0f;
-            for (int i = 0; i < 128; i++)
+            for (int i = 0; i < dims; i++)
             {
                 dotProduct += targetVector[i] * candidateVector[i];
             }
 
-            // Use cached magnitude if available, else calc
-            float candMag = candidate.EmbeddingMagnitude > 0 
-                ? candidate.EmbeddingMagnitude 
-                : (float)Math.Sqrt(candidateVector.Sum(x => x * x));
+            // Since new 512D embeddings are L2-normalized during analysis, sim is simply the dot product.
+            // For legacy 128D, we still use the full formula just in case.
+            float similarity;
+            if (dims == 512)
+            {
+                similarity = dotProduct;
+            }
+            else
+            {
+                float candMag = candidate.EmbeddingMagnitude > 0 
+                    ? candidate.EmbeddingMagnitude 
+                    : (float)Math.Sqrt(candidateVector.Sum(x => (double)x * x));
 
-            if (targetMag * candMag == 0) return;
-
-            float similarity = dotProduct / (targetMag * candMag);
+                similarity = (targetMag * candMag == 0) ? 0 : dotProduct / (targetMag * candMag);
+            }
 
             if (similarity > 0.8f) // Filter low relevance
             {

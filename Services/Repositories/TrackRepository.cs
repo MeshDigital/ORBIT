@@ -1010,6 +1010,13 @@ public class TrackRepository : ITrackRepository
         // Reflection-based helper or manual mapping for shared properties
         if (entity is LibraryEntryEntity le)
         {
+            // Sync human-readable names if they are currently "Unknown" or filenames
+            if (!string.IsNullOrEmpty(result.OfficialArtist) && (le.Artist == "Unknown Artist" || string.IsNullOrWhiteSpace(le.Artist)))
+                le.Artist = result.OfficialArtist;
+            
+            if (!string.IsNullOrEmpty(result.OfficialTitle) && (le.Title == Path.GetFileNameWithoutExtension(le.FilePath) || string.IsNullOrWhiteSpace(le.Title)))
+                le.Title = result.OfficialTitle;
+
             if (!string.IsNullOrEmpty(result.SpotifyId)) le.SpotifyTrackId = result.SpotifyId;
             if (!string.IsNullOrEmpty(result.SpotifyAlbumId)) le.SpotifyAlbumId = result.SpotifyAlbumId;
             if (!string.IsNullOrEmpty(result.SpotifyArtistId)) le.SpotifyArtistId = result.SpotifyArtistId;
@@ -1028,6 +1035,13 @@ public class TrackRepository : ITrackRepository
         }
         else if (entity is PlaylistTrackEntity pt)
         {
+            // Sync human-readable names
+            if (!string.IsNullOrEmpty(result.OfficialArtist) && (pt.Artist == "Unknown Artist" || string.IsNullOrWhiteSpace(pt.Artist)))
+                pt.Artist = result.OfficialArtist;
+
+            if (!string.IsNullOrEmpty(result.OfficialTitle) && string.IsNullOrWhiteSpace(pt.Title))
+                pt.Title = result.OfficialTitle;
+
             if (!string.IsNullOrEmpty(result.SpotifyId)) pt.SpotifyTrackId = result.SpotifyId;
             if (!string.IsNullOrEmpty(result.SpotifyAlbumId)) pt.SpotifyAlbumId = result.SpotifyAlbumId;
             if (!string.IsNullOrEmpty(result.SpotifyArtistId)) pt.SpotifyArtistId = result.SpotifyArtistId;
@@ -1045,6 +1059,13 @@ public class TrackRepository : ITrackRepository
         }
         else if (entity is TrackEntity tr)
         {
+            // Sync human-readable names
+            if (!string.IsNullOrEmpty(result.OfficialArtist) && (tr.Artist == "Unknown Artist" || string.IsNullOrWhiteSpace(tr.Artist)))
+                tr.Artist = result.OfficialArtist;
+
+            if (!string.IsNullOrEmpty(result.OfficialTitle) && (tr.Title == tr.Filename || string.IsNullOrWhiteSpace(tr.Title)))
+                tr.Title = result.OfficialTitle;
+
             if (!string.IsNullOrEmpty(result.SpotifyId)) tr.SpotifyTrackId = result.SpotifyId;
             if (!string.IsNullOrEmpty(result.SpotifyAlbumId)) tr.SpotifyAlbumId = result.SpotifyAlbumId;
             if (!string.IsNullOrEmpty(result.SpotifyArtistId)) tr.SpotifyArtistId = result.SpotifyArtistId;

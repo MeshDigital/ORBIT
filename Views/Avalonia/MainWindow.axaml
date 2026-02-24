@@ -21,6 +21,30 @@
 
     <Window.Styles>
         <StyleInclude Source="/Themes/AvaloniaTheme.axaml"/>
+        
+        <!-- Navigation Sidebar Styles -->
+        <Style Selector="Border.nav-sidebar">
+            <Setter Property="Width" Value="220"/>
+            <Setter Property="Transitions">
+                <Transitions>
+                    <DoubleTransition Property="Width" Duration="0:0:0.2"/>
+                </Transitions>
+            </Setter>
+        </Style>
+        <Style Selector="Border.nav-sidebar.mini">
+            <Setter Property="Width" Value="60"/>
+        </Style>
+        <Style Selector="Border.nav-sidebar.mini TextBlock:nth-child(2)">
+            <Setter Property="IsVisible" Value="False"/>
+        </Style>
+        <Style Selector="Border.nav-sidebar.mini Border.GroupHeader">
+            <Setter Property="IsVisible" Value="False"/>
+        </Style>
+        <Style Selector="Border.nav-sidebar.mini Button.nav StackPanel">
+            <Setter Property="HorizontalAlignment" Value="Center"/>
+            <Setter Property="Spacing" Value="0"/>
+            <Setter Property="Margin" Value="0"/>
+        </Style>
     </Window.Styles>
     
     <!-- Keyboard Shortcuts -->
@@ -186,8 +210,9 @@
                     Background="#252526" 
                     BorderBrush="#3E3E3E" 
                     BorderThickness="0,0,1,0"
-                    Width="220"
-                    IsVisible="{Binding !IsNavigationCollapsed}">
+                    IsVisible="{Binding !IsNavigationCollapsed}"
+                    Classes="nav-sidebar"
+                    Classes.mini="{Binding IsNavigationMini}">
                 <ScrollViewer>
                     <StackPanel Margin="0,16,0,0" Spacing="8">
                         
@@ -198,6 +223,7 @@
                         
                         <StackPanel Spacing="2">
                             <Button Classes="nav" Command="{Binding NavigateSearchCommand}"
+                                    ToolTip.Tip="Search"
                                     Classes.selected="{Binding CurrentPageType, Converter={StaticResource EqualityConverter}, ConverterParameter={x:Static models:PageType.Search}}">
                                 <StackPanel Orientation="Horizontal" Spacing="12" Margin="16,0">
                                     <TextBlock Text="🔍" FontSize="16"/>
@@ -206,6 +232,7 @@
                             </Button>
 
                             <Button Classes="nav" Command="{Binding NavigateDiscoveryHubCommand}"
+                                    ToolTip.Tip="Discovery Hub"
                                     Classes.selected="{Binding CurrentPageType, Converter={StaticResource EqualityConverter}, ConverterParameter={x:Static models:PageType.DiscoveryHub}}">
                                 <StackPanel Orientation="Horizontal" Spacing="12" Margin="16,0">
                                     <TextBlock Text="🛸" FontSize="16"/>
@@ -214,6 +241,7 @@
                             </Button>
 
                             <Button Classes="nav" Command="{Binding NavigateProjectsCommand}"
+                                    ToolTip.Tip="Inbox"
                                     Classes.selected="{Binding CurrentPageType, Converter={StaticResource EqualityConverter}, ConverterParameter={x:Static models:PageType.Projects}}">
                                 <StackPanel Orientation="Horizontal" Spacing="12" Margin="16,0">
                                     <TextBlock Text="📥" FontSize="16"/>
@@ -222,6 +250,7 @@
                             </Button>
 
                             <Button Classes="nav" Command="{Binding NavigateImportCommand}"
+                                    ToolTip.Tip="Import"
                                     Classes.selected="{Binding CurrentPageType, Converter={StaticResource EqualityConverter}, ConverterParameter={x:Static models:PageType.Import}}">
                                 <StackPanel Orientation="Horizontal" Spacing="12" Margin="16,0">
                                     <TextBlock Text="🔗" FontSize="16"/>
@@ -237,6 +266,7 @@
 
                         <StackPanel Spacing="2">
                             <Button Classes="nav" Command="{Binding NavigateInspectorCommand}"
+                                    ToolTip.Tip="The Processor"
                                     Classes.selected="{Binding CurrentPageType, Converter={StaticResource EqualityConverter}, ConverterParameter={x:Static models:PageType.AnalysisQueue}}">
                                 <StackPanel Orientation="Horizontal" Spacing="12" Margin="16,0">
                                     <TextBlock Text="🧠" FontSize="16"/>
@@ -245,6 +275,7 @@
                             </Button>
 
                             <Button Classes="nav" Command="{Binding NavigateStyleLabCommand}"
+                                    ToolTip.Tip="Style Lab"
                                     Classes.selected="{Binding CurrentPageType, Converter={StaticResource EqualityConverter}, ConverterParameter={x:Static models:PageType.StyleLab}}">
                                 <StackPanel Orientation="Horizontal" Spacing="12" Margin="16,0">
                                     <TextBlock Text="🧪" FontSize="16"/>
@@ -253,6 +284,7 @@
                             </Button>
 
                             <Button Classes="nav" Command="{Binding ToggleStemWorkspaceCommand}"
+                                    ToolTip.Tip="Stems"
                                     Classes.selected="{Binding StemWorkspaceViewModel.IsVisible}">
                                 <StackPanel Orientation="Horizontal" Spacing="12" Margin="16,0">
                                     <TextBlock Text="🧬" FontSize="16"/>
@@ -268,6 +300,7 @@
 
                         <StackPanel Spacing="2">
                             <Button Classes="nav" Command="{Binding NavigateDJCompanionCommand}"
+                                    ToolTip.Tip="DJ Companion"
                                     Classes.selected="{Binding CurrentPageType, Converter={StaticResource EqualityConverter}, ConverterParameter={x:Static models:PageType.DJCompanion}}">
                                 <StackPanel Orientation="Horizontal" Spacing="12" Margin="16,0">
                                     <TextBlock Text="🎧" FontSize="16"/>
@@ -276,6 +309,7 @@
                             </Button>
 
                             <Button Classes="nav" Command="{Binding NavigateFlowBuilderCommand}"
+                                    ToolTip.Tip="Flow Builder"
                                     Classes.selected="{Binding CurrentPageType, Converter={StaticResource EqualityConverter}, ConverterParameter={x:Static models:PageType.FlowBuilder}}">
                                 <StackPanel Orientation="Horizontal" Spacing="12" Margin="16,0">
                                     <TextBlock Text="🌊" FontSize="16"/>
@@ -284,6 +318,7 @@
                             </Button>
 
                             <Button Classes="nav" Command="{Binding NavigateDawCommand}"
+                                    ToolTip.Tip="Timeline"
                                     Classes.selected="{Binding CurrentPageType, Converter={StaticResource EqualityConverter}, ConverterParameter={x:Static models:PageType.DawTimeline}}">
                                 <StackPanel Orientation="Horizontal" Spacing="12" Margin="16,0">
                                     <TextBlock Text="⏱️" FontSize="16"/>
@@ -299,6 +334,7 @@
 
                         <StackPanel Spacing="2">
                             <Button Classes="nav" Command="{Binding NavigateExportCommand}"
+                                    ToolTip.Tip="Export Manager"
                                     Classes.selected="{Binding CurrentPageType, Converter={StaticResource EqualityConverter}, ConverterParameter={x:Static models:PageType.Export}}">
                                 <StackPanel Orientation="Horizontal" Spacing="12" Margin="16,0">
                                     <TextBlock Text="🚀" FontSize="16"/>
@@ -316,6 +352,7 @@
 
                         <StackPanel Spacing="2">
                              <Button Classes="nav" Command="{Binding NavigateHomeCommand}"
+                                    ToolTip.Tip="Dashboard"
                                     Classes.selected="{Binding CurrentPageType, Converter={StaticResource EqualityConverter}, ConverterParameter={x:Static models:PageType.Home}}">
                                 <StackPanel Orientation="Horizontal" Spacing="12" Margin="16,0">
                                     <TextBlock Text="🏠" FontSize="16"/>
@@ -324,6 +361,7 @@
                             </Button>
 
                             <Button Classes="nav" Command="{Binding NavigateLibraryCommand}"
+                                    ToolTip.Tip="Library"
                                     Classes.selected="{Binding CurrentPageType, Converter={StaticResource EqualityConverter}, ConverterParameter={x:Static models:PageType.Library}}">
                                 <StackPanel Orientation="Horizontal" Spacing="12" Margin="16,0">
                                     <TextBlock Text="📚" FontSize="16"/>
@@ -332,6 +370,7 @@
                             </Button>
 
                             <Button Classes="nav" Command="{Binding NavigateUpgradeScoutCommand}"
+                                    ToolTip.Tip="Upgrades"
                                     Classes.selected="{Binding CurrentPageType, Converter={StaticResource EqualityConverter}, ConverterParameter={x:Static models:PageType.UpgradeScout}}">
                                 <StackPanel Orientation="Horizontal" Spacing="12" Margin="16,0">
                                     <TextBlock Text="💎" FontSize="16"/>
@@ -340,6 +379,7 @@
                             </Button>
 
                             <Button Classes="nav" Command="{Binding NavigateSettingsCommand}"
+                                    ToolTip.Tip="Settings"
                                     Classes.selected="{Binding CurrentPageType, Converter={StaticResource EqualityConverter}, ConverterParameter={x:Static models:PageType.Settings}}">
                                 <StackPanel Orientation="Horizontal" Spacing="12" Margin="16,0">
                                     <TextBlock Text="⚙️" FontSize="16"/>
@@ -353,7 +393,7 @@
 
             <!-- Center Content Area with Global Contextual Sidebar -->
             <SplitView Grid.Column="1"
-                       IsPaneOpen="{Binding Sidebar.IsSidebarOpen}"
+                       IsPaneOpen="{Binding IsGlobalSidebarOpen}"
                        DisplayMode="Overlay"
                        PanePlacement="Right"
                        OpenPaneLength="350">

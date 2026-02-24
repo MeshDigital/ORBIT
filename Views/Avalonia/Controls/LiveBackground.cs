@@ -108,7 +108,7 @@ namespace SLSKDONET.Views.Avalonia.Controls
                     int sw = 300;
                     int sh = 300;
                     var scaled = new SKBitmap(sw, sh);
-                    original.ScalePixels(scaled, SKSamplingOptions.Default);
+                    original.ScalePixels(scaled, SKFilterQuality.Medium);
 
                     var blurred = new SKBitmap(sw, sh);
                     using (var canvas = new SKCanvas(blurred))
@@ -203,7 +203,7 @@ namespace SLSKDONET.Views.Avalonia.Controls
                     Color = new SKColor(255, 255, 255, (byte)(230 + (Math.Sin(_animation) * 25 * _energy)))
                 };
                 
-                canvas.DrawImage(_image, new SKRect(0, 0, _image.Width, _image.Height), SKSamplingOptions.Default, paint);
+                canvas.DrawImage(_image, new SKRect(0, 0, _image.Width, _image.Height), paint);
 
                 // Add dark vignette/overlay
                 using var overlay = new SKPaint

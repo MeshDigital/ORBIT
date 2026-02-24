@@ -985,7 +985,40 @@ public class DatabaseService
         await context.SaveChangesAsync();
     }
 
-    // ===== Queue Persistence Methods (Phase 0) =====
+    public async Task<PlaylistActivityLogEntity?> GetLastPlaylistActivityAsync(Guid playlistId, string action)
+    {
+        using var context = new AppDbContext();
+        return await context.ActivityLogs
+            .Where(l => l.PlaylistId == playlistId && l.Action == action)
+            .OrderByDescending(l => l.Timestamp)
+            .FirstOrDefaultAsync();
+    }
+
+    public async Task DeleteActivityLogAsync(Guid logId)
+    {
+        using var context = new AppDbContext();
+        var log = await context.ActivityLogs.FindAsync(logId);
+        if (log != null)
+        {
+            context.ActivityLogs.Remove(log);
+            await context.SaveChangesAsync();
+        }
+    }
+
+    public async Task BatchDeletePlaylistTracksAsync(List<Guid> trackIds)
+    {
+        using var context = new AppDbContext();
+        var tracks = await context.PlaylistTracks
+            .Where(t => trackIds.Contains(t.Id))
+            .ToListAsync();
+        
+        if (tracks.Any())
+        {
+            context.PlaylistTracks.RemoveRange(tracks);
+            await context.SaveChangesAsync();
+        }
+    }
+
 
     /// <summary>
     /// Saves the current playback queue to the database.

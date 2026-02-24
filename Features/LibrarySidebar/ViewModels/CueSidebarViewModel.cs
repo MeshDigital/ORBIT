@@ -14,6 +14,7 @@ using SLSKDONET.Data.Entities;
 using SLSKDONET.Data.Essentia;
 using SLSKDONET.Models;
 using SLSKDONET.Services;
+using SLSKDONET.Services.Audio;
 using SLSKDONET.ViewModels;
 
 namespace SLSKDONET.Features.LibrarySidebar.ViewModels;
@@ -25,7 +26,7 @@ namespace SLSKDONET.Features.LibrarySidebar.ViewModels;
 public class CueSidebarViewModel : ReactiveObject, ISidebarContent, IDisposable
 {
     private readonly ILibraryService _libraryService;
-    private readonly PhraseDetectionService _phraseDetectionService;
+    private readonly SLSKDONET.Services.Audio.PhraseDetectionService _phraseDetectionService;
     private readonly IAudioPlayerService _playerService;
     private readonly IEventBus _eventBus;
     private readonly CompositeDisposable _disposables = new();
@@ -61,7 +62,7 @@ public class CueSidebarViewModel : ReactiveObject, ISidebarContent, IDisposable
 
     public CueSidebarViewModel(
         ILibraryService libraryService,
-        PhraseDetectionService phraseDetectionService,
+        SLSKDONET.Services.Audio.PhraseDetectionService phraseDetectionService,
         IAudioPlayerService playerService,
         IEventBus eventBus)
     {
@@ -187,16 +188,11 @@ public class CueSidebarViewModel : ReactiveObject, ISidebarContent, IDisposable
             if (entry != null && entry.WaveformData != null && _currentBpm > 0)
             {
                 // Run localized phrase detection using existing waveform peaks
-                var detected = await _phraseDetectionService.DetectPhrasesAsync(
-                    _currentTrack.GlobalId,
-                    entry.WaveformData,
-                    entry.RmsData ?? Array.Empty<byte>(),
-                    (float)(entry.DurationSeconds ?? 0),
-                    _currentBpm);
+                bool success = await _phraseDetectionService.DetectPhrasesAsync(_currentTrack.GlobalId);
 
-                if (detected != null && detected.Any())
+                if (success)
                 {
-                    await _libraryService.SavePhrasesAsync(detected);
+                    // The service already saves to DB, we just need to re-hydrate the UI
                     await HydrateAsync(_currentTrack);
                 }
             }

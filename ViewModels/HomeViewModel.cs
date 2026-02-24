@@ -15,6 +15,7 @@ using Avalonia.Threading;
 using SLSKDONET.Views;
 using System.Reactive.Linq;
 using System.Collections.Generic;
+using SLSKDONET.Services.Missions;
 
 namespace SLSKDONET.ViewModels;
 
@@ -73,6 +74,7 @@ public class HomeViewModel : INotifyPropertyChanged, IDisposable
 
     public ObservableCollection<PlaylistCardViewModel> RecentPlaylists { get; } = new();
     public ObservableCollection<SpotifyTrackViewModel> SpotifyRecommendations { get; } = new();
+    public ObservableCollection<IMission> ActiveMissions { get; } = new();
 
     private bool _isLoadingHealth = true;
     public bool IsLoadingHealth
@@ -80,48 +82,25 @@ public class HomeViewModel : INotifyPropertyChanged, IDisposable
         get => _isLoadingHealth;
         set => SetProperty(ref _isLoadingHealth, value);
     }
-
-    private bool _isLoadingRecent = true;
-    public bool IsLoadingRecent
-    {
-        get => _isLoadingRecent;
-        set => SetProperty(ref _isLoadingRecent, value);
-    }
-
-    private bool _isLoadingSpotify = true;
-    public bool IsLoadingSpotify
-    {
-        get => _isLoadingSpotify;
-        set => SetProperty(ref _isLoadingSpotify, value);
-    }
-
-    // Session Status delegation
-    public string SessionStatus => _connectionViewModel.StatusText;
-    public bool IsSoulseekConnected => _connectionViewModel.IsConnected;
-    // public string DownloadSpeed => _downloadManager.CurrentSpeedText; // Property doesn't exist
-
-    // Mission Control Stats
-    public int ExpressCount => _downloadCenter?.ExpressItems.Count ?? 0;
-    public int StandardCount => _downloadCenter?.StandardItems.Count ?? 0;
-    public int BackgroundCount => _downloadCenter?.BackgroundItems.Count ?? 0;
-    public string DownloadSpeed => _downloadCenter?.GlobalSpeedDisplay ?? "0 KB/s"; // Already defined/mocked below, removing duplicate
-
+    
     // Commands
     public ICommand RefreshDashboardCommand { get; }
     public ICommand NavigateToSearchCommand { get; }
     public ICommand QuickSearchCommand { get; }
-    public ICommand ClearDeadLettersCommand { get; } // Phase 3B
+    public ICommand ClearDeadLettersCommand { get; }
     public ICommand NavigateLibraryCommand { get; }
     public ICommand ViewPlaylistCommand { get; }
     public ICommand UpgradeBronzeCommand { get; }
     public ICommand ViewBronzeCommand { get; }
     public ICommand ExecuteVibeSearchCommand { get; }
+    public ICommand RunMissionCommand { get; }
+
     public ObservableCollection<GenrePlanetViewModel> TopGenres { get; } = new();
 
     private readonly MissionControlService _missionControl;
+    private readonly SonicAuditMission _sonicAudit;
     private DashboardSnapshot _currentSnapshot = new();
 
-    // UI Properties from Snapshot
     public DashboardSnapshot CurrentSnapshot
     {
         get => _currentSnapshot;
@@ -138,18 +117,19 @@ public class HomeViewModel : INotifyPropertyChanged, IDisposable
         set => SetProperty(ref _vibeSearchText, value);
     }
 
-    public string HealthColor => CurrentSnapshot.SystemHealth switch
+    private bool _isLoadingRecent;
+    public bool IsLoadingRecent
     {
-        SystemHealth.Excellent => "#00FF00", // Bright Green
-        SystemHealth.Good => "#4CAF50",      // Standard Green
-        SystemHealth.Warning => "#FFCA28",   // Amber/Yellow
-        SystemHealth.Critical => "#FF5252",  // Red
-        _ => "#808080"
-    };
+        get => _isLoadingRecent;
+        set => SetProperty(ref _isLoadingRecent, value);
+    }
 
-    public bool IsLockdownActive => CurrentSnapshot.IsForensicLockdownActive;
-    public double CurrentCpuLoad => CurrentSnapshot.CurrentCpuLoad;
-    public string LockdownStatusText => IsLockdownActive ? "🛡️ ACTIVE" : "✅ NOMINAL";
+    private bool _isLoadingSpotify;
+    public bool IsLoadingSpotify
+    {
+        get => _isLoadingSpotify;
+        set => SetProperty(ref _isLoadingSpotify, value);
+    }
 
     public HomeViewModel(
         ILogger<HomeViewModel> logger,
@@ -165,6 +145,7 @@ public class HomeViewModel : INotifyPropertyChanged, IDisposable
         INotificationService notificationService,
         IEventBus eventBus,
         MissionControlService missionControl,
+        SonicAuditMission sonicAudit,
         LibraryViewModel libraryViewModel)
     {
         _logger = logger;
@@ -180,42 +161,52 @@ public class HomeViewModel : INotifyPropertyChanged, IDisposable
         _notificationService = notificationService;
         _eventBus = eventBus;
         _missionControl = missionControl;
+        _sonicAudit = sonicAudit;
         _libraryViewModel = libraryViewModel;
 
-        // Subscribe to Mission Control Updates (Smart Throttled)
+        // Initialize Mission List
+        ActiveMissions.Add(_sonicAudit);
+
+        // Subscribe to Mission Control Updates (Smart Throttled & IEquatable)
         _eventSubscription = _eventBus.GetEvent<DashboardSnapshot>().Subscribe(snapshot =>
         {
-            // Strict UI Thread Marshaling as per user request
+            // The constraint: Use DashboardSnapshot.Equals (from IEquatable)
+            if (snapshot.Equals(CurrentSnapshot)) return;
+
             Dispatcher.UIThread.Post(() =>
             {
                 CurrentSnapshot = snapshot;
                 
-                // Update Observable Collections for UI (reduce GC by reusing)
+                // Update UI Collections
                 UpdateOperationsList(snapshot.ActiveOperations);
                 UpdateResilienceLog(snapshot.ResilienceLog);
                 
-                // Update Health Visuals
-                if (LibraryHealth == null) LibraryHealth = new LibraryHealthEntity();
-                LibraryHealth.HealthStatus = snapshot.SystemHealth.ToString();
-                LibraryHealth.IssuesCount = snapshot.DeadLetterCount;
+                // Update Library Health visuals from Snapshot data
+                if (snapshot.LibraryHealth != null)
+                {
+                    LibraryHealth = snapshot.LibraryHealth;
+                    UpdateTopGenres(snapshot.LibraryHealth.TopGenresJson);
+                }
                 
-                // Trigger visuals
-                OnPropertyChanged(nameof(HealthColor));
-                OnPropertyChanged(nameof(IsLockdownActive));
+                // Refresh dynamic properties
+                OnPropertyChanged(nameof(SessionStatus));
+                OnPropertyChanged(nameof(IsSoulseekConnected));
+                OnPropertyChanged(nameof(PurityPercent));
+                OnPropertyChanged(nameof(PurityStatus));
                 OnPropertyChanged(nameof(CurrentCpuLoad));
+                OnPropertyChanged(nameof(IsLockdownActive));
                 OnPropertyChanged(nameof(LockdownStatusText));
-
-                UpdateTopGenres(LibraryHealth?.TopGenresJson);
             });
         });
 
-        // Initialize other commands
+        // Commands
         RefreshDashboardCommand = new AsyncRelayCommand(RefreshDashboardAsync);
         NavigateToSearchCommand = new RelayCommand(() => _navigationService.NavigateTo("Search"));
         NavigateLibraryCommand = new RelayCommand(() => _navigationService.NavigateTo("Library"));
         ViewPlaylistCommand = new RelayCommand<PlaylistCardViewModel>(ExecuteViewPlaylist);
         QuickSearchCommand = new AsyncRelayCommand<SpotifyTrackViewModel>(ExecuteQuickSearchAsync);
         ClearDeadLettersCommand = new AsyncRelayCommand(ClearDeadLettersAsync);
+        RunMissionCommand = new AsyncRelayCommand<IMission>(ExecuteMissionAsync);
         
         UpgradeBronzeCommand = new RelayCommand(() => 
         {
@@ -226,9 +217,8 @@ public class HomeViewModel : INotifyPropertyChanged, IDisposable
         ViewBronzeCommand = new RelayCommand(() =>
         {
             _navigationService.NavigateTo("Library");
-            // Set filter for Low Quality tracks
             _libraryViewModel.Tracks.IsFilterNeedsReview = true;
-            _libraryViewModel.Tracks.SearchText = ""; // Clear search
+            _libraryViewModel.Tracks.SearchText = ""; 
         });
 
         ExecuteVibeSearchCommand = new RelayCommand(ExecuteVibeSearch);
@@ -244,10 +234,37 @@ public class HomeViewModel : INotifyPropertyChanged, IDisposable
         };
         _connectionViewModel.PropertyChanged += _connectionChangedHandler;
 
-
-        // Trigger initial load
+        // Initial load
         _ = RefreshDashboardAsync();
     }
+
+    private async Task ExecuteMissionAsync(IMission? mission)
+    {
+        if (mission == null) return;
+        _notificationService.Show("Mission Started", $"Initiating {mission.Name}...", NotificationType.Information);
+        await mission.ExecuteAsync();
+    }
+
+    public string SessionStatus => _connectionViewModel.StatusText;
+    public bool IsSoulseekConnected => _connectionViewModel.IsConnected;
+    public string DownloadSpeed => _downloadCenter?.GlobalSpeedDisplay ?? "0 KB/s";
+
+    public string LockdownStatusText => IsLockdownActive ? "🛡️ ACTIVE" : "✅ NOMINAL";
+    public bool IsLockdownActive => CurrentSnapshot.IsForensicLockdownActive;
+    public double CurrentCpuLoad => CurrentSnapshot.CurrentCpuLoad;
+
+    public string HealthColor => CurrentSnapshot.SystemHealth switch
+    {
+        SystemHealth.Excellent => "#00FF00",
+        SystemHealth.Good => "#4CAF50",
+        SystemHealth.Warning => "#FFCA28",
+        SystemHealth.Critical => "#FF5252",
+        _ => "#808080"
+    };
+
+    public int ExpressCount => _downloadCenter?.ExpressItems.Count ?? 0;
+    public int StandardCount => _downloadCenter?.StandardItems.Count ?? 0;
+    public int BackgroundCount => _downloadCenter?.BackgroundItems.Count ?? 0;
 
     private void UpdateOperationsList(List<MissionOperation> newOperations)
     {

@@ -63,6 +63,12 @@ public interface ILibraryService
     /// </summary>
     Task AddTrackToLibraryIndexAsync(PlaylistTrack track, string finalPath);
 
+    /// <summary>
+    /// Removes a track from the global library index.
+    /// Does NOT delete the physical file (handled by caller).
+    /// </summary>
+    Task RemoveTrackFromLibraryAsync(string trackHash);
+
     // ===== INDEX 2: PlaylistJob (Playlist Headers) =====
 
     /// <summary>
@@ -82,6 +88,7 @@ public interface ILibraryService
         
         // Activity Logging
         Task LogPlaylistActivityAsync(Guid playlistId, string action, string details);
+        Task<bool> UndoLastActivityAsync(Guid playlistId, string action);
 
     /// <summary>
     /// Loads a specific playlist job by ID (asynchronous).

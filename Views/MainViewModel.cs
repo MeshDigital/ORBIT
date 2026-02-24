@@ -164,6 +164,13 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
         Sidebar = sidebar;
         CommandPaletteViewModel = new CommandPaletteViewModel(navigationService);
 
+        Sidebar.PropertyChanged += (s, e) => 
+        {
+            if (e.PropertyName == nameof(Sidebar.IsSidebarOpen))
+            {
+                OnPropertyChanged(nameof(IsGlobalSidebarOpen));
+            }
+        };
 
         // Initialize commands
         NavigateHomeCommand = new RelayCommand(NavigateToHome); // Phase 6D
@@ -181,7 +188,24 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
         NavigateFlowBuilderCommand = new RelayCommand(NavigateToFlowBuilder);
         NavigateExportCommand = new RelayCommand(NavigateToExport);
         NavigateDiscoveryHubCommand = new RelayCommand(NavigateToDiscoveryHub);
-        ToggleNavigationCommand = new RelayCommand(() => IsNavigationCollapsed = !IsNavigationCollapsed);
+        ToggleNavigationCommand = new RelayCommand(() => 
+        {
+            if (!IsNavigationMini && !IsNavigationCollapsed)
+            {
+                IsNavigationMini = true;
+                IsNavigationCollapsed = false;
+            }
+            else if (IsNavigationMini)
+            {
+                IsNavigationMini = false;
+                IsNavigationCollapsed = true;
+            }
+            else
+            {
+                IsNavigationMini = false;
+                IsNavigationCollapsed = false;
+            }
+        });
         TogglePlayerCommand = new RelayCommand(() => IsPlayerSidebarVisible = !IsPlayerSidebarVisible);
         TogglePlayerLocationCommand = new RelayCommand(() => IsPlayerAtBottom = !IsPlayerAtBottom);
         ZoomInCommand = new RelayCommand(ZoomIn);
@@ -434,6 +458,13 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
         set => SetProperty(ref _isNavigationCollapsed, value);
     }
 
+    private bool _isNavigationMini;
+    public bool IsNavigationMini
+    {
+        get => _isNavigationMini;
+        set => SetProperty(ref _isNavigationMini, value);
+    }
+
     private bool _isPlayerSidebarVisible = true;
     public bool IsPlayerSidebarVisible
     {
@@ -468,6 +499,18 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
             {
                 OnPropertyChanged(nameof(IsPlayerInSidebar));
                 OnPropertyChanged(nameof(IsPlayerAtBottomVisible));
+            }
+        }
+    }
+
+    public bool IsGlobalSidebarOpen
+    {
+        get => Sidebar.IsSidebarOpen && CurrentPageType != PageType.Library;
+        set
+        {
+            if (CurrentPageType != PageType.Library || !value)
+            {
+                Sidebar.IsSidebarOpen = value;
             }
         }
     }
@@ -729,6 +772,7 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
             // Player visibility is now computed based on CurrentPageType
             OnPropertyChanged(nameof(IsPlayerInSidebar));
             OnPropertyChanged(nameof(IsPlayerAtBottomVisible));
+            OnPropertyChanged(nameof(IsGlobalSidebarOpen));
             
             _logger.LogInformation("Navigation sync: CurrentPage updated to {PageType}", CurrentPageType);
 

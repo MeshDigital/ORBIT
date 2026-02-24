@@ -89,7 +89,7 @@ public partial class LibraryPage : UserControl
 
     private void OnDataGridSelectionChanged(object? sender, SelectionChangedEventArgs e)
     {
-        if (DataContext is LibraryViewModel vm && sender is DataGrid dg)
+        if (DataContext is LibraryViewModel vm && sender is DataGrid dg && dg.IsVisible)
         {
             // Sync DataGrid selection to Tracks.SelectedTracks
             // FilteredTracks are PlaylistTrackViewModels

@@ -121,3 +121,16 @@ public record DiscoverySearchResultDto
     /// <summary>Match reasoning / discovery logic</summary>
     public string? MatchReason { get; init; }
 }
+
+/// <summary>
+/// Represents a track discovered from an external source (Spotify, MusicBrainz).
+/// </summary>
+public record DiscoveryTrack
+{
+    public string Artist { get; init; } = string.Empty;
+    public string Title { get; init; } = string.Empty;
+    public string? SpotifyId { get; init; }
+    public string? MusicBrainzId { get; init; }
+    public string? MatchReason { get; init; }
+    public string? ImageUrl { get; init; }
+}

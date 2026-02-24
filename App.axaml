@@ -65,6 +65,8 @@
         
         <!-- Alias EqualityConverter as StringEqualsConverter for semantic clarity in XAML -->
         <converters:EqualityConverter x:Key="StringEqualsConverter"/>
+        <converters:FraudColorConverter x:Key="FraudColorConverter"/>
+        <converters:StringConcatConverter x:Key="StringConcatConverter"/>
 
 
         <!-- Icons -->

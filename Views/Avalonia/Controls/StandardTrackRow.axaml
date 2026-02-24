@@ -8,7 +8,8 @@
              xmlns:converters="clr-namespace:SLSKDONET.Views.Avalonia.Converters"
              mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="60"
              x:Class="SLSKDONET.Views.Avalonia.Controls.StandardTrackRow"
-             x:DataType="vm:PlaylistTrackViewModel">
+             x:DataType="vm:PlaylistTrackViewModel"
+             x:Name="RootControl">
              
     <UserControl.Styles>
         <Style Selector="Button.ActionBtn">
@@ -134,8 +135,8 @@
                 <ColumnDefinition SharedSizeGroup="TitleCol"/> <!-- Title -->
                 <ColumnDefinition SharedSizeGroup="BpmKeyCol"/> <!-- BPM/Key -->
                 <ColumnDefinition SharedSizeGroup="ForensicCol"/> <!-- Forensics -->
-                <ColumnDefinition Width="*"/>
-                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="*"/> <!-- Badges -->
+                <ColumnDefinition Width="Auto"/> <!-- Actions -->
             </Grid.ColumnDefinitions>
             
             <!-- Column 0: Album Art / Status / Health -->
@@ -253,7 +254,7 @@
             </Border>
 
             <!-- Column 3: BPM & Key (Shared) -->
-            <Border Grid.Column="3" Padding="12,0" VerticalAlignment="Center">
+            <Border Grid.Column="3" Padding="12,0" VerticalAlignment="Center" IsVisible="{Binding !IsCompact, ElementName=RootControl}">
                 <StackPanel Orientation="Horizontal" Spacing="10">
                     <TextBlock Text="{Binding BpmDisplay}" Foreground="#AAA" FontSize="11" Width="32" TextAlignment="Right" VerticalAlignment="Center"/>
                     <Border Background="{Binding ColorBrush}" CornerRadius="4" Padding="4,1" MinWidth="32" VerticalAlignment="Center">
@@ -263,7 +264,7 @@
             </Border>
 
             <!-- Column 4: In-Flight Forensics (Phase 8) -->
-            <Border Grid.Column="4" VerticalAlignment="Center" Margin="12,0" ToolTip.Tip="{Binding ForensicDetails}">
+            <Border Grid.Column="4" VerticalAlignment="Center" Margin="12,0" ToolTip.Tip="{Binding ForensicDetails}" IsVisible="{Binding !IsCompact, ElementName=RootControl}">
                 <StackPanel Orientation="Horizontal" Spacing="8">
                     <StackPanel.Styles>
                         <Style Selector="TextBlock.ActiveLED">
@@ -308,7 +309,7 @@
             </Border>
 
             <!-- Column 5: Badge Tray (Flexible) -->
-            <StackPanel Grid.Column="5" Orientation="Horizontal" VerticalAlignment="Center" Spacing="6" Margin="8,0">
+            <StackPanel Grid.Column="5" Orientation="Horizontal" VerticalAlignment="Center" Spacing="6" Margin="8,0" IsVisible="{Binding !IsCompact, ElementName=RootControl}">
                 <!-- Peer Badge (Phase 7) -->
                 <Border IsVisible="{Binding PeerName, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"
                         Background="#222" BorderBrush="#00BFFF" BorderThickness="1"
@@ -366,11 +367,11 @@
                     <TextBlock Text="✓" FontSize="9" Foreground="#00FF00" FontWeight="Bold"/>
                 </Border>
                 <!-- Stems -->
-                <Border Background="#10E91E63" BorderBrush="#E91E63" BorderThickness="1" CornerRadius="2" Padding="3,0" IsVisible="{Binding HasStems}">
+                <Border Background="#10E91E63" BorderBrush="#E91E63" BorderThickness="1" CornerRadius="2" Padding="3,0" IsVisible="{Binding HasStems}" Margin="0,0,4,0">
                     <TextBlock Text="🎹" FontSize="9"/>
                 </Border>
                 <!-- Vibe (Genre) - Phase 1.0: Skeleton State when not completed -->
-                <Panel>
+                <Panel Margin="0,0,4,0">
                     <!-- Active Vibe (shown when completed + has genre) -->
                     <Border Background="{Binding VibeColor}" CornerRadius="10" Padding="8,1" 
                             ToolTip.Tip="{Binding VibeTooltip}">
@@ -408,7 +409,7 @@
                 
                 <!-- Mood -->
                 <Border Background="#337B68EE" BorderBrush="#7B68EE" BorderThickness="1" CornerRadius="10" Padding="8,1" 
-                        IsVisible="{Binding HasMood}"
+                        IsVisible="{Binding HasMood}" Margin="0,0,4,0"
                         ToolTip.Tip="{Binding MoodTag}">
                     <StackPanel Orientation="Horizontal" Spacing="4">
                         <TextBlock Text="🎭" FontSize="9"/>
@@ -416,7 +417,7 @@
                     </StackPanel>
                 </Border>
                 <!-- Instrumental -->
-                <Border Background="#2000CED1" BorderBrush="#00CED1" BorderThickness="1" CornerRadius="10" Padding="8,1" 
+                <Border Background="#2000CED1" BorderBrush="#00CED1" BorderThickness="1" CornerRadius="10" Padding="8,1" Margin="0,0,4,0"
                         IsVisible="{Binding InstrumentalProbability, Converter={x:Static converters:NumericConverters.GreaterThan}, ConverterParameter=0.8}">
                     <TextBlock Text="INSTR" FontSize="9" Foreground="#00CED1" FontWeight="Bold"/>
                 </Border>

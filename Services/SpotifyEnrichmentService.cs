@@ -223,6 +223,20 @@ public class SpotifyEnrichmentService
     /// </summary>
     public async Task<System.Collections.Generic.List<SpotifyTrackViewModel>> GetRecommendationsAsync(int limit = 10)
     {
+        return await GetRecommendationsForSeedsAsync(null, limit);
+    }
+
+    /// <summary>
+    /// Fetches recommendations using a specific track as a seed.
+    /// </summary>
+    public async Task<System.Collections.Generic.List<SpotifyTrackViewModel>> GetRecommendationsForTrackAsync(string spotifyId, int limit = 20)
+    {
+        if (string.IsNullOrEmpty(spotifyId)) return new();
+        return await GetRecommendationsForSeedsAsync(new System.Collections.Generic.List<string> { spotifyId }, limit);
+    }
+
+    private async Task<System.Collections.Generic.List<SpotifyTrackViewModel>> GetRecommendationsForSeedsAsync(System.Collections.Generic.List<string>? seedIds, int limit = 10)
+    {
         // 1. Circuit Breaker Check
         if (_isServiceDegraded)
         {
@@ -239,39 +253,32 @@ public class SpotifyEnrichmentService
         {
             var client = await _authService.GetAuthenticatedClientAsync();
             
-            // Get user's top tracks to use as seeds
-            System.Collections.Generic.List<string> seedTrackIds;
-            try
+            // If no seeds provided, get user's top tracks
+            System.Collections.Generic.List<string> effectiveSeeds = seedIds ?? new();
+            if (!effectiveSeeds.Any())
             {
-                var topTracks = await client.Personalization.GetTopTracks(new PersonalizationTopRequest { Limit = 5 });
-                seedTrackIds = topTracks.Items?.Select(t => t.Id).Take(5).ToList() ?? new System.Collections.Generic.List<string>();
-            }
-            catch (APIException apiEx)
-            {
-                _logger.LogError(apiEx, "Failed to fetch top tracks for Recommendations. Status: {Status}, Response: {Response}",
-                    apiEx.Response?.StatusCode ?? System.Net.HttpStatusCode.InternalServerError,
-                    apiEx.Response?.Body ?? "No body");
-                return result;
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Unexpected error fetching top tracks");
-                return result;
+                try
+                {
+                    var topTracks = await client.Personalization.GetTopTracks(new PersonalizationTopRequest { Limit = 5 });
+                    effectiveSeeds = topTracks.Items?.Select(t => t.Id).Take(5).ToList() ?? new System.Collections.Generic.List<string>();
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Failed to fetch top tracks for Recommendations seeds");
+                    return result;
+                }
             }
             
-            if (!seedTrackIds.Any())
+            if (!effectiveSeeds.Any())
             {
-                _logger.LogWarning("No top tracks available for Recommendations. This usually means: (1) Missing 'user-top-read' scope - re-login required, or (2) No listening history on Spotify account.");
+                _logger.LogWarning("No seeds available for Spotify Recommendations.");
                 return result;
             }
 
-            _logger.LogDebug("Using {Count} top tracks as seeds for recommendations", seedTrackIds.Count);
+            _logger.LogDebug("Using {Count} seeds for Spotify recommendations", effectiveSeeds.Count);
 
-            // SpotifyAPI.Web v7.2.1: Use Browse.GetRecommendations with proper request object
-            var recommendationsReq = new RecommendationsRequest();
-            recommendationsReq.Limit = limit;
-            // SeedTracks is a List<string>, add items individually
-            foreach (var trackId in seedTrackIds)
+            var recommendationsReq = new RecommendationsRequest { Limit = limit };
+            foreach (var trackId in effectiveSeeds)
             {
                 recommendationsReq.SeedTracks.Add(trackId);
             }
@@ -296,14 +303,8 @@ public class SpotifyEnrichmentService
         }
         catch (APIException apiEx)
         {
-             // 404 NotFound is expected when user has no listening history (no top tracks to use as seeds)
-             if (apiEx.Response?.StatusCode == System.Net.HttpStatusCode.NotFound)
-             {
-                 _logger.LogDebug("Spotify Recommendations unavailable (404 NotFound). User likely has no listening history to generate seeds.");
-                 return result;
-             }
+             if (apiEx.Response?.StatusCode == System.Net.HttpStatusCode.NotFound) return result;
 
-             // 403 Forbidden = scope/permission issue
              if (apiEx.Response?.StatusCode == System.Net.HttpStatusCode.Forbidden)
              {
                  _logger.LogWarning("Spotify API 403 Forbidden in Recommendations. Disabling service.");
@@ -312,10 +313,7 @@ public class SpotifyEnrichmentService
                  return result;
              }
 
-             // Other errors are unexpected - log as error
-             _logger.LogError(apiEx, "Spotify API error in GetRecommendationsAsync. Status: {Status}, Response: {Response}", 
-                 apiEx.Response?.StatusCode ?? System.Net.HttpStatusCode.InternalServerError, 
-                 apiEx.Response?.Body ?? "No body");
+             _logger.LogError(apiEx, "Spotify API error in Recommendations");
         }
         catch (Exception ex)
         {

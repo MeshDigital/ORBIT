@@ -3,20 +3,109 @@
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              xmlns:vm="clr-namespace:SLSKDONET.Features.LibrarySidebar.ViewModels"
+             xmlns:svc="clr-namespace:SLSKDONET.Services"
              mc:Ignorable="d" d:DesignWidth="350" d:DesignHeight="800"
              x:Class="SLSKDONET.Features.LibrarySidebar.Views.ForensicSidebarView"
              x:DataType="vm:ForensicSidebarViewModel">
-    <Grid RowDefinitions="Auto,*">
+    <Grid RowDefinitions="Auto,Auto,*,Auto">
+        <!-- Header -->
         <StackPanel Grid.Row="0" Margin="16" Spacing="8">
-            <TextBlock Text="Forensic Repair" FontSize="18" FontWeight="SemiBold" Foreground="#F59E0B"/>
-            <TextBlock Text="Deep analysis and semi-automated metadata recovery for low-confidence tracks." 
+            <TextBlock Text="Forensic Librarian" FontSize="18" FontWeight="SemiBold" Foreground="#F59E0B"/>
+            <TextBlock Text="Integrity audit and automated remediation for fraudulent track downloads." 
                        TextWrapping="Wrap" FontSize="12" Foreground="#888"/>
         </StackPanel>
-        
-        <Border Grid.Row="1" Margin="16" BorderBrush="#F59E0B" BorderThickness="1,1,1,1" CornerRadius="8" Opacity="0.6">
-            <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center" Spacing="12">
-                <TextBlock Text="🔬" FontSize="32" HorizontalAlignment="Center"/>
-                <TextBlock Text="Forensic toolset loading..." Foreground="#AAA"/>
+
+        <!-- Actions -->
+        <StackPanel Grid.Row="1" Margin="16,0,16,16" Spacing="8">
+            <Button Command="{Binding RunScanCommand}" 
+                    HorizontalAlignment="Stretch" 
+                    Height="36" 
+                    Background="#2D2D2D" 
+                    BorderBrush="#F59E0B"
+                    BorderThickness="1">
+                <Grid ColumnDefinitions="Auto,*">
+                    <TextBlock Text="🔍" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                    <TextBlock Grid.Column="1" 
+                             Text="{Binding IsScanning, ConverterParameter='Scanning Library...', Converter={StaticResource StringConcatConverter}, FallbackValue='Audit Global Library'}" 
+                             VerticalAlignment="Center"/>
+                </Grid>
+            </Button>
+            
+            <ProgressBar IsIndeterminate="True" 
+                         IsVisible="{Binding IsScanning}"
+                         Height="2"
+                         Foreground="#F59E0B"
+                         Background="Transparent"
+                         Margin="0,-2,0,0"/>
+        </StackPanel>
+
+        <!-- Fraud Results -->
+        <ScrollViewer Grid.Row="2">
+            <StackPanel Margin="16,0" Spacing="12">
+                <ItemsControl ItemsSource="{Binding DetectedFrauds}">
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate x:DataType="svc:FraudReport">
+                            <Border Background="#1E1E1E" 
+                                    CornerRadius="6" 
+                                    Padding="12" 
+                                    Margin="0,0,0,8"
+                                    BorderBrush="{Binding IsDurationFraud, Converter={StaticResource FraudColorConverter}}"
+                                    BorderThickness="1,0,0,0">
+                                <Grid RowDefinitions="Auto,Auto,Auto">
+                                    <TextBlock Text="{Binding Title}" FontWeight="Bold" Foreground="White" TextTrimming="CharacterEllipsis"/>
+                                    <TextBlock Grid.Row="1" Text="{Binding Artist}" FontSize="11" Foreground="#888" Margin="0,0,0,8"/>
+                                    
+                                    <StackPanel Grid.Row="2" Spacing="4">
+                                        <StackPanel Orientation="Horizontal" IsVisible="{Binding IsDurationFraud}">
+                                            <TextBlock Text="⚠ Duration Mismatch: " FontSize="10" Foreground="#F87171"/>
+                                            <TextBlock Text="{Binding ActualDuration, StringFormat=\{0:F0\}s}" FontSize="10" Foreground="#F87171" FontWeight="Bold"/>
+                                            <TextBlock Text=" (Expected: " FontSize="10" Foreground="#888"/>
+                                            <TextBlock Text="{Binding ExpectedDuration, StringFormat=\{0:F0\}s}" FontSize="10" Foreground="#888"/>
+                                            <TextBlock Text=")" FontSize="10" Foreground="#888"/>
+                                        </StackPanel>
+                                        
+                                        <StackPanel Orientation="Horizontal" IsVisible="{Binding IsBpmFraud}">
+                                            <TextBlock Text="⚠ BPM Mismatch: " FontSize="10" Foreground="#F87171"/>
+                                            <TextBlock Text="{Binding ActualBpm, StringFormat=\{0:F0\} BPM}" FontSize="10" Foreground="#F87171" FontWeight="Bold"/>
+                                            <TextBlock Text=" (Expected: " FontSize="10" Foreground="#888"/>
+                                            <TextBlock Text="{Binding ExpectedBpm, StringFormat=\{0:F0\}}" FontSize="10" Foreground="#888"/>
+                                            <TextBlock Text=")" FontSize="10" Foreground="#888"/>
+                                        </StackPanel>
+                                    </StackPanel>
+                                </Grid>
+                            </Border>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+
+                <!-- Empty State -->
+                <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center" Spacing="12" 
+                            IsVisible="{Binding !DetectedFrauds.Count}" Margin="0,40,0,0">
+                    <TextBlock Text="🛡" FontSize="48" HorizontalAlignment="Center" Opacity="0.3"/>
+                    <TextBlock Text="No frauds detected" Foreground="#666" HorizontalAlignment="Center"/>
+                    <TextBlock Text="Run an audit to check library integrity." FontSize="11" Foreground="#444" HorizontalAlignment="Center"/>
+                </StackPanel>
+            </StackPanel>
+        </ScrollViewer>
+
+        <!-- Selected Track Remediation -->
+        <Border Grid.Row="3" Background="#252525" BorderBrush="#333" BorderThickness="0,1,0,0" Padding="16"
+                IsVisible="{Binding ActiveFraud, Converter={x:Static ObjectConverters.IsNotNull}}">
+            <StackPanel Spacing="12">
+                <TextBlock Text="REMEDIATION ACTION" FontSize="10" FontWeight="Bold" Foreground="#888"/>
+                <Button Command="{Binding PurgeAndRedownloadCommand}" 
+                        CommandParameter="{Binding ActiveFraud.TrackUniqueHash}"
+                        HorizontalAlignment="Stretch" 
+                        Classes="Danger"
+                        Height="40"
+                        Background="#991B1B">
+                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Spacing="8">
+                        <TextBlock Text="🗑" VerticalAlignment="Center"/>
+                        <TextBlock Text="Hard Delete &amp; Re-download" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                    </StackPanel>
+                </Button>
+                <TextBlock Text="Warning: This will permanently delete the physical file and re-queue the track for discovery." 
+                           FontSize="10" Foreground="#666" TextWrapping="Wrap" TextAlignment="Center"/>
             </StackPanel>
         </Border>
     </Grid>

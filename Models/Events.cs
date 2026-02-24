@@ -12,6 +12,7 @@ namespace SLSKDONET.Models;
 public record TrackUpdatedEvent(PlaylistTrackViewModel Track);
 public record ProjectAddedEvent(Guid ProjectId);
 public record ProjectUpdatedEvent(Guid ProjectId);
+public record ExternalDiscoveryRequestedEvent(string TrackHash);
 public record ProjectDeletedEvent(Guid ProjectId);
 public record DownloadManagerHydratedEvent(int TrackCount);
 

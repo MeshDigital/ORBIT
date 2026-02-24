@@ -427,33 +427,47 @@ public class EssentiaAnalyzerService : IAudioIntelligenceService, IDisposable
                     AnalyzedAt = DateTime.UtcNow
                 };
 
-                // Phase 16.2: Extract & Cache AI Embeddings
+                // Phase 5: "Deep DNA" - Neural Texture Matching
+                // Prioritize high-dimensional embeddings (512D) from the penultimate layer of the discogs-effnet model.
+                // These provide the "Texture" needed to distinguish between subgenres like Liquid vs Neurofunk.
                 if (data.HighLevel?.ExtensionData != null)
                 {
                     foreach (var kvp in data.HighLevel.ExtensionData)
                     {
-                        // Look for the discogs-effnet model output - prioritize the 128D embedding (BS64-1)
+                        // Look for the discogs-effnet model output
                         if (kvp.Key.Contains("discogs", StringComparison.OrdinalIgnoreCase) && 
                             kvp.Key.Contains("effnet", StringComparison.OrdinalIgnoreCase))
                         {
                             var embedding = ExtractEmbeddingFromJson(kvp.Value);
                             if (embedding != null && embedding.Length > 0)
                             {
-                                // Prioritize the 128-dimensional embedding from the bs64-1 model
-                                if (entity.VectorEmbedding == null || embedding.Length == 128)
+                                // Selection Logic:
+                                // 1. If we have nothing, take what we found.
+                                // 2. If we found a 512D vector, it always wins (Deep DNA).
+                                // 3. If we found a 128D vector, only take it if we don't already have a 512D one.
+                                bool isBetter = entity.VectorEmbedding == null || 
+                                                (embedding.Length == 512 && entity.VectorEmbedding.Length != 512) ||
+                                                (embedding.Length > entity.VectorEmbedding.Length && entity.VectorEmbedding.Length != 512);
+
+                                if (isBetter)
                                 {
+                                    // Calculate L2 Norm (Magnitude) for normalization
+                                    double magnitude = Math.Sqrt(embedding.Sum(x => x * (double)x));
+                                    entity.EmbeddingMagnitude = (float)magnitude;
+
+                                    if (magnitude > 0)
+                                    {
+                                        // Normalize the vector in-place for faster similarity search (Cosine Sim becomes Dot Product)
+                                        for (int i = 0; i < embedding.Length; i++)
+                                            embedding[i] = (float)(embedding[i] / magnitude);
+                                    }
+
                                     entity.AiEmbeddingJson = JsonSerializer.Serialize(embedding);
                                     
-                                    // Phase 21: AI Brain Vector Storage
+                                    // Phase 21 / Phase 5: AI Brain Vector Storage (stored as normalized BLOB)
                                     entity.VectorEmbedding = embedding;
-
-                                    // Calculate L2 Norm (Magnitude) for efficient Cosine Similarity
-                                    entity.EmbeddingMagnitude = (float)Math.Sqrt(embedding.Sum(x => x * x));
                                     
-                                    if (embedding.Length == 128)
-                                    {
-                                        _logger.LogDebug("🧠 UNIVERSAL: Extracted 128D AI Embedding from {Key}", kvp.Key);
-                                    }
+                                    _logger.LogInformation("🧠 DEEP DNA: Extracted & Normalized {Size}D Neural Texture from {Key}", embedding.Length, kvp.Key);
                                 }
                             }
                         }

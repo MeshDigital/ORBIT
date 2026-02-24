@@ -50,11 +50,11 @@ public class StyleClassifierTests : IDisposable
     public async Task PredictAsync_ReturnsPrediction_WhenFeaturesAreValid()
     {
         // Arrange
-        var embedding = new float[128];
+        var embedding = new float[512];
         var features = new AudioFeaturesEntity
         {
             TrackUniqueHash = "test_hash",
-            AiEmbeddingJson = System.Text.Json.JsonSerializer.Serialize(embedding)
+            VectorEmbedding = embedding
         };
 
         var styleDef = new StyleDefinitionEntity
@@ -84,11 +84,11 @@ public class StyleClassifierTests : IDisposable
     public async Task PredictAsync_ReturnsDefault_WhenNoStylesDefined()
     {
         // Arrange
-        var embedding = new float[128];
+        var embedding = new float[512];
         var features = new AudioFeaturesEntity
         {
             TrackUniqueHash = "test_hash",
-            AiEmbeddingJson = System.Text.Json.JsonSerializer.Serialize(embedding)
+            VectorEmbedding = embedding
         };
 
         _personalClassifierMock.Setup(pc => pc.Predict(It.IsAny<float[]>()))
@@ -98,6 +98,8 @@ public class StyleClassifierTests : IDisposable
         var result = await _service.PredictAsync(features);
 
         // Assert
+        // Service returns "Unknown (Bad Embedding)" if embedding is null/empty,
+        // but here embedding is valid 512 array, so it gets to P.P. and returns "Unknown"
         Assert.Equal("Unknown", result.StyleName);
         Assert.Equal(0, result.Confidence);
     }

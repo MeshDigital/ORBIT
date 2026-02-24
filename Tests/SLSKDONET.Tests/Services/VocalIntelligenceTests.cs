@@ -54,13 +54,11 @@ namespace SLSKDONET.Tests.Services
         public TransitionAdvisorTests()
         {
             _vocalMock = new Mock<VocalIntelligenceService>();
-            
-            _harmonicMock = new Mock<HarmonicMatchService>();
-            
             _phraseMock = new Mock<IPhraseAlignmentService>();
+            
             _advisor = new TransitionAdvisorService(
                 new Mock<ILogger<TransitionAdvisorService>>().Object,
-                _harmonicMock.Object,
+                null!, // harmonicService - concrete class causing Moq proxy issues, currently unused by advisor
                 _vocalMock.Object,
                 _phraseMock.Object);
         }

@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using Microsoft.Extensions.Logging;
 using System.Text.RegularExpressions;
+using System.IO;
 using SLSKDONET.Configuration;
 using SLSKDONET.Models;
 
@@ -129,7 +130,7 @@ public class SearchResultMatcher
         // Tokenization for Path Analysis
         var artistTokens = Tokenize(NormalizeArtist(model.Artist));
         var titleTokens = Tokenize(model.Title);
-        var allPathText = new List<string> { Path.GetFileName(candidate.Filename ?? "") };
+        var allPathText = new List<string> { System.IO.Path.GetFileName(candidate.Filename ?? "") };
         if (candidate.PathSegments != null) allPathText.AddRange(candidate.PathSegments);
 
         // 2. Artist in Path (30 pts) - Phase 1.1: Uses fuzzy + boundary matching
@@ -555,7 +556,7 @@ public class SearchResultMatcher
             .Replace('”', '\"'); // Smart double quote
 
         // 3. Remove other non-alphanumeric frictional characters (except space, dash, quote)
-        var frictionalNormal = System.Text.RegularExpressions.Regex.Replace(dashNormal, @"[^a-z0-9\s\-\']", "");
+        var frictionalNormal = System.Text.RegularExpressions.Regex.Replace(dashNormal, @"[^a-z0-9\s\-\']", " ");
 
         // 4. Collapse whitespace
         return System.Text.RegularExpressions.Regex.Replace(frictionalNormal, @"\s+", " ").Trim();

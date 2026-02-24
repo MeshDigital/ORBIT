@@ -59,26 +59,15 @@ public class StyleClassifierService : IStyleClassifierService
             
             var features = await context.AudioFeatures
                 .Where(f => style.ReferenceTrackHashes.Contains(f.TrackUniqueHash))
-                .Select(f => f.AiEmbeddingJson)
+                .Select(f => f.VectorEmbedding)
                 .ToListAsync();
 
             var embeddings = new List<float[]>();
-            foreach (var json in features)
+            foreach (var vec in features)
             {
-                if (string.IsNullOrWhiteSpace(json)) continue;
-                try
+                if (vec != null && vec.Length > 0)
                 {
-                    // Assuming raw JSON array: [0.1, 0.2, ...]
-                    // Basic parsing for speed or use JsonSerializer
-                    var vec = System.Text.Json.JsonSerializer.Deserialize<float[]>(json);
-                    if (vec != null && vec.Length == 128)
-                    {
-                        embeddings.Add(vec);
-                    }
-                }
-                catch 
-                { 
-                    // Ignore bad data 
+                    embeddings.Add(vec);
                 }
             }
 
@@ -105,18 +94,9 @@ public class StyleClassifierService : IStyleClassifierService
     /// </summary>
     public async Task<StylePrediction> PredictAsync(AudioFeaturesEntity features)
     {
-        // Must have embedding
-        if (string.IsNullOrEmpty(features.AiEmbeddingJson))
-            return new StylePrediction { StyleName = "Unknown (No Embedding)", Confidence = 0f };
-
-        float[]? embedding = null;
-        try
-        {
-            embedding = System.Text.Json.JsonSerializer.Deserialize<float[]>(features.AiEmbeddingJson);
-        }
-        catch { }
-
-        if (embedding == null || embedding.Length != 128)
+        // 1. Get embedding from BLOB
+        var embedding = features.VectorEmbedding;
+        if (embedding == null || embedding.Length == 0)
             return new StylePrediction { StyleName = "Unknown (Bad Embedding)", Confidence = 0f };
 
         // Use ML.NET Service

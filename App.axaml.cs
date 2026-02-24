@@ -552,6 +552,7 @@ public partial class App : Application
         
         // Phase 1: Library Enrichment
         services.AddSingleton<SpotifyEnrichmentService>();
+        services.AddSingleton<DiscoveryBridgeService>();
         services.AddSingleton<LibraryEnrichmentWorker>();
 
         // Input parsers
@@ -711,6 +712,7 @@ public partial class App : Application
         services.AddSingleton<SonicIntegrityService>();
         services.AddSingleton<SLSKDONET.Services.AI.PersonalClassifierService>();
         services.AddSingleton<SLSKDONET.Services.AI.TensorFlowModelPool>();
+        services.AddSingleton<ForensicLibrarianService>(); // Phase 6: Integrity Enforcement
 
         // Phase 10: Tagging & Mobility
         services.AddSingleton<SLSKDONET.Services.IO.SafeWriteService>();

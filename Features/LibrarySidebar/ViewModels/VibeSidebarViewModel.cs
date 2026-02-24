@@ -24,7 +24,7 @@ public class VibeTrackDto
     public double Arousal { get; set; } // Mapped from Energy (0.0 - 1.0)
 }
 
-public class VibeSidebarViewModel : ReactiveObject, ISidebarContent
+public class VibeSidebarViewModel : ReactiveObject, ISidebarContent, IDisposable
 {
     private readonly DatabaseService _databaseService;
     private readonly ILibraryService _libraryService;
@@ -155,5 +155,11 @@ public class VibeSidebarViewModel : ReactiveObject, ISidebarContent
     public void SetSecondaryTrack(PlaylistTrackViewModel? track)
     {
         SecondaryTrack = track;
+    }
+
+    public void Dispose()
+    {
+        _libraryProjection?.Clear();
+        _nearbyTracks.Clear();
     }
 }

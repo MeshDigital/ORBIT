@@ -33,7 +33,7 @@ namespace SLSKDONET.Services.Musical;
 ///
 /// Uses <see cref="MatchProfile"/> to adjust dimensional weights:
 ///   Mixable   — Harmonic 40% + Rhythm 40% + Vibe 20%
-///   VibeMatch — Vibe 60% + Timbre 30% + Rhythm 10%, Key ignored
+///   VibeMatch — Vibe 30% + Timbre 65% + Rhythm 5%, Key ignored
 ///
 /// Returns <see cref="SonicMatchResult"/> which now carries a full
 /// <see cref="SimilarityBreakdown"/> alongside legacy Score/VibeMatch fields
@@ -86,11 +86,13 @@ public class SonicMatchService
             // Deserialise mood probability vector once for performance
             float[] sourceMoodVec = BuildMoodVector(sourceFeatures);
 
-            // BPM pre-filter: only look at tracks within ±15% BPM or half/double-time
-            // This keeps the candidate pool reasonable for large libraries
+            // BPM pre-filter: relaxed for intelligent matching
+            // Mixable (DJ) still needs a window, but VibeMatch (Playlist) should be very broad
             double srcBpm   = sourceFeatures.Bpm;
-            double minBpm   = srcBpm > 0 ? srcBpm * 0.85 : 0;
-            double maxBpm   = srcBpm > 0 ? srcBpm * 1.15 : double.MaxValue;
+            double bpmWindow = profile == MatchProfile.Mixable ? 0.15 : 0.40; // 15% for DJ, 40% for Vibe
+            
+            double minBpm   = srcBpm > 0 ? srcBpm * (1.0 - bpmWindow) : 0;
+            double maxBpm   = srcBpm > 0 ? srcBpm * (1.0 + bpmWindow) : double.MaxValue;
             double minHalfT = srcBpm > 0 ? srcBpm * 0.45 : 0;
             double maxHalfT = srcBpm > 0 ? srcBpm * 0.55 : 0;
             double minDoubleT = srcBpm > 0 ? srcBpm * 1.90 : 0;
@@ -105,7 +107,7 @@ public class SonicMatchService
             if (srcBpm > 0)
             {
                 query = query.Where(le =>
-                    // ±15% window
+                    // Main window
                     (le.AudioFeatures!.Bpm >= minBpm && le.AudioFeatures.Bpm <= maxBpm) ||
                     // Half-time rescue
                     (le.AudioFeatures!.Bpm >= minHalfT && le.AudioFeatures.Bpm <= maxHalfT) ||
@@ -458,7 +460,8 @@ public class SonicMatchService
 
     private static double ScoreTimbre(AudioFeaturesEntity src, AudioFeaturesEntity cand)
     {
-        // Use 128D embedding cosine similarity when both tracks have been analysed
+        // Use AI embedding cosine similarity when both tracks have been analysed.
+        // Agnostic to dimensionality (supports 128D legacy and 512D Deep DNA).
         if (src.VectorEmbedding != null && cand.VectorEmbedding != null &&
             src.VectorEmbedding.Length > 0 &&
             src.VectorEmbedding.Length == cand.VectorEmbedding.Length)
@@ -485,19 +488,18 @@ public class SonicMatchService
     {
         return profile switch
         {
-            // DJ Mix: tight BPM and Key are non-negotiable
             MatchProfile.Mixable =>
-                (b.HarmonicScore * 0.40) +
-                (b.RhythmScore   * 0.40) +
-                (b.VibeScore     * 0.20),
+                b.HarmonicScore * 0.30 +
+                b.RhythmScore * 0.20 +
+                b.VibeScore * 0.25 +
+                b.TimbreScore * 0.25,
 
-            // Playlist / Discovery: let the mood and timbre lead
             MatchProfile.VibeMatch =>
-                (b.VibeScore     * 0.60) +
-                (b.TimbreScore   * 0.30) +
-                (b.RhythmScore   * 0.10),
+                b.VibeScore * 0.30 +
+                b.TimbreScore * 0.65 +
+                b.RhythmScore * 0.05,
 
-            _ => (b.HarmonicScore + b.RhythmScore + b.VibeScore) / 3.0
+            _ => (b.HarmonicScore + b.RhythmScore + b.VibeScore + b.TimbreScore) / 4.0
         };
     }
 

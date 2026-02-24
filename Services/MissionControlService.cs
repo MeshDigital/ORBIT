@@ -26,6 +26,8 @@ namespace SLSKDONET.Services
         private readonly AnalysisQueueService _analysisQueue;
         private readonly IForensicLockdownService _lockdown;
         private readonly ConfigManager _configManager;
+        private readonly SpotifyAuthService _spotifyAuth;
+        private readonly DashboardService _dashboardService;
         private Task? _monitorTask;
 
         // Caching for expensive stats
@@ -43,6 +45,8 @@ namespace SLSKDONET.Services
             AnalysisQueueService analysisQueue,
             IForensicLockdownService lockdown,
             ConfigManager configManager,
+            SpotifyAuthService spotifyAuth,
+            DashboardService dashboardService,
             ILogger<MissionControlService> logger)
         {
             _eventBus = eventBus;
@@ -54,6 +58,8 @@ namespace SLSKDONET.Services
             _analysisQueue = analysisQueue;
             _lockdown = lockdown;
             _configManager = configManager;
+            _spotifyAuth = spotifyAuth;
+            _dashboardService = dashboardService;
             _logger = logger;
         }
 
@@ -65,11 +71,10 @@ namespace SLSKDONET.Services
 
         private async Task ProcessThrottledUpdatesAsync()
         {
-            // 2 FPS = 500ms (Decreased from 4 FPS to prioritize audio stability)
-            var timer = new PeriodicTimer(TimeSpan.FromMilliseconds(500));
+            // Heartbeat: 500ms (Real-time tier)
+            using var timer = new PeriodicTimer(TimeSpan.FromMilliseconds(500));
             
-            // Initial load of expensive stats
-            await UpdateExpensiveStatsAsync();
+            _logger.LogInformation("Mission Control Heartbeat started (500ms)");
 
             while (await timer.WaitForNextTickAsync(_cts.Token))
             {
@@ -77,54 +82,88 @@ namespace SLSKDONET.Services
                 {
                     _tickCounter++;
                     
-                    // Update expensive stats every 4 ticks (1 second)
-                    if (_tickCounter % 4 == 0)
+                    // Tiered Updates:
+                    // 1. Real-time (Every tick - 500ms): Downloads, Active Operations, CPU
+                    // 2. System (Every 10 ticks - 5s): Storage, Zombie Processes, Spotify Auth
+                    // 3. Library (Every 600 ticks - 5min): Full Library Health Audit
+
+                    bool isSystemTick = _tickCounter % 10 == 0;
+                    bool isLibraryTick = _tickCounter % 600 == 0;
+
+                    if (isSystemTick || _tickCounter == 1)
                     {
-                        await UpdateExpensiveStatsAsync();
+                        await UpdateSystemStatsAsync();
+                    }
+
+                    if (isLibraryTick || _tickCounter == 1)
+                    {
+                        await UpdateLibraryStatsAsync();
                     }
 
                     var snapshot = await GetCurrentStateAsync();
-                    var currentHash = snapshot.GetHashCode();
-
-                    if (currentHash != _lastHash)
+                    
+                    // The "GetHashCode" Trick: Only publish if state actually changed
+                    if (snapshot != _lastSnapshot)
                     {
-                        _lastHash = currentHash;
+                        _lastSnapshot = snapshot;
                         _eventBus.Publish(snapshot);
                     }
                 }
                 catch (OperationCanceledException) { break; }
                 catch (Exception ex)
                 {
-                    _logger.LogError(ex, "Error in Mission Control monitoring loop");
+                    _logger.LogError(ex, "Error in Mission Control heartbeat loop");
                 }
             }
         }
 
-        private async Task UpdateExpensiveStatsAsync()
+        private DashboardSnapshot? _lastSnapshot;
+
+        private async Task UpdateSystemStatsAsync()
         {
             try
             {
                 _cachedHealth = await _crashJournal.GetSystemHealthAsync();
                 _cachedZombieCount = GetZombieProcessCount();
+                
+                // Get Storage Info
+                var storage = _dashboardService.GetStorageInsight();
+                _cachedFreeSpace = storage.FreeBytes;
+                
+                _logger.LogDebug("Mission Control: System stats updated");
             }
             catch (Exception ex)
             {
-                _logger.LogWarning(ex, "Failed to update expensive stats");
+                _logger.LogWarning(ex, "Failed to update system stats");
             }
         }
 
+        private async Task UpdateLibraryStatsAsync()
+        {
+            try
+            {
+                _logger.LogInformation("Mission Control: Performing scheduled library health audit...");
+                await _dashboardService.RecalculateLibraryHealthAsync();
+                _cachedLibraryHealth = await _dashboardService.GetLibraryHealthAsync();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Failed to update library stats");
+            }
+        }
+
+        private LibraryHealthEntity? _cachedLibraryHealth;
+        private long _cachedFreeSpace;
+
         public async Task<DashboardSnapshot> GetCurrentStateAsync()
         {
-            // Fast Path: Use cached expensive stats + real-time cheap stats
-            var healthStats = _cachedHealth;
-            var zombieCount = _cachedZombieCount;
-            
+            // Real-time Cheap Stats
             var activeDownloads = _downloadManager.ActiveDownloads.ToList(); 
             var downloadCount = activeDownloads.Count;
             
-            // Calculate overall health
+            // Calculate overall health (Real-time logic)
             var health = SystemHealth.Excellent;
-            if (healthStats.DeadLetterCount > 0 || zombieCount > 2)
+            if ((_cachedHealth.DeadLetterCount) > 0 || _cachedZombieCount > 2)
             {
                 health = SystemHealth.Warning;
             }
@@ -133,9 +172,9 @@ namespace SLSKDONET.Services
                 health = SystemHealth.Warning;
             }
 
-            // Build Active Operations List (Cheap memory scan)
+            // Build Active Operations List
             var operations = new List<MissionOperation>();
-            foreach (var dl in activeDownloads.Take(10)) 
+            foreach (var dl in activeDownloads.Take(5)) 
             {
                 operations.Add(new MissionOperation 
                 {
@@ -143,25 +182,26 @@ namespace SLSKDONET.Services
                     Type = SLSKDONET.Models.OperationType.Download,
                     Title = $"{dl.Model.Artist} - {dl.Model.Title}",
                     Subtitle = dl.State.ToString(),
-                    Progress = dl.Progress / 100.0, // DownloadContext progress is 0-100
-                    StatusText = $"{dl.Progress:F0}% Complete",
+                    Progress = dl.Progress / 100.0,
+                    StatusText = $"{dl.Progress:F0}%",
                     CanCancel = dl.IsActive
                 });
             }
+
             if (_searchOrchestrator.GetActiveSearchCount() > 0)
             {
                 operations.Add(new MissionOperation
                 {
                     Type = SLSKDONET.Models.OperationType.Search,
-                    Title = "Active Search Queries",
-                    Subtitle = $"{_searchOrchestrator.GetActiveSearchCount()} queries in progress",
-                    Progress = 0.5, // Indeterminate or mockup
-                    StatusText = "Searching..."
+                    Title = "P2P Radar",
+                    Subtitle = $"{_searchOrchestrator.GetActiveSearchCount()} active queries",
+                    Progress = 0.5,
+                    StatusText = "Broadcasting..."
                 });
             }
             
             // Add Analysis Operations
-            foreach (var thread in _analysisQueue.ActiveThreads.Where(t => t.Status != "Idle"))
+            foreach (var thread in _analysisQueue.ActiveThreads.Where(t => t.Status != "Idle").Take(3))
             {
                 operations.Add(new MissionOperation
                 {
@@ -170,20 +210,20 @@ namespace SLSKDONET.Services
                     Title = thread.CurrentTrack,
                     Subtitle = thread.Status,
                     Progress = thread.Progress / 100.0,
-                    StatusText = $"{thread.Progress:F0}% analyzed",
-                    Track = thread // Link to full telemetry
+                    StatusText = $"{thread.Progress:F0}%",
+                    Track = thread
                 });
             }
 
             // Resilience Log
             var resilienceLog = new List<string>();
-            if (healthStats.RecoveredCount > 0)
+            if ((_cachedHealth.RecoveredCount) > 0)
             {
-                resilienceLog.Add($"✅ Recovered {healthStats.RecoveredCount} files from previous session");
+                resilienceLog.Add($"✅ Recovered {_cachedHealth.RecoveredCount} files");
             }
-            if (zombieCount > 0)
+            if (_cachedZombieCount > 0)
             {
-                resilienceLog.Add($"🧟 Detected {zombieCount} potential zombie processes");
+                resilienceLog.Add($"🧟 {_cachedZombieCount} zombie processes detected");
             }
 
             return new DashboardSnapshot
@@ -191,14 +231,17 @@ namespace SLSKDONET.Services
                 CapturedAt = DateTime.UtcNow,
                 SystemHealth = health,
                 ActiveDownloads = downloadCount,
-                DeadLetterCount = healthStats.DeadLetterCount,
-                RecoveredFileCount = healthStats.RecoveredCount,
-                ZombieProcessCount = zombieCount,
+                DeadLetterCount = _cachedHealth.DeadLetterCount,
+                RecoveredFileCount = _cachedHealth.RecoveredCount,
+                ZombieProcessCount = _cachedZombieCount,
                 ActiveOperations = operations,
                 ResilienceLog = resilienceLog,
                 IsForensicLockdownActive = _lockdown.IsLockdownActive,
                 CurrentCpuLoad = _lockdown.CurrentCpuLoad,
-                Topology = SystemInfoHelper.Topology
+                Topology = SystemInfoHelper.Topology,
+                LibraryHealth = _cachedLibraryHealth,
+                AvailableFreeSpaceBytes = _cachedFreeSpace,
+                IsSpotifyAuthenticated = _spotifyAuth.IsAuthenticated
             };
         }
 
@@ -207,7 +250,6 @@ namespace SLSKDONET.Services
             try
             {
                 var ffmpegs = Process.GetProcessesByName("ffmpeg");
-                // Note: GetProcessesByName is relatively expensive (2-5ms), so caching it is good.
                 var activeConversions = _downloadManager.ActiveDownloads.Count(d => d.State == PlaylistTrackState.Downloading);
                 
                 if (ffmpegs.Length > activeConversions)

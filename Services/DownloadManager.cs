@@ -745,6 +745,55 @@ public class DownloadManager : INotifyPropertyChanged, IDisposable
             _eventBus.Publish(new TrackRemovedEvent(globalId));
         }
     }
+
+    /// <summary>
+    /// Phase 6: Reset a track for re-download. 
+    /// Deletes local files and sets status back to Missing across all playlists.
+    /// </summary>
+    public async Task ResetTrackToPendingAsync(string globalId)
+    {
+        DownloadContext? ctx;
+        lock(_collectionLock) ctx = _downloads.FirstOrDefault(d => d.GlobalId == globalId);
+        
+        using (LogContext.PushProperty("TrackHash", globalId))
+        {
+            _logger.LogInformation("Resetting track for re-download: {Hash}", globalId);
+
+            // 1. Cancel active download if any
+            if (ctx != null)
+            {
+                ctx.CancellationTokenSource?.Cancel();
+                lock (_collectionLock) _downloads.Remove(ctx);
+            }
+
+            // 2. Delete Physical Files from Library Entry
+            var entry = await _libraryService.FindLibraryEntryAsync(globalId);
+            if (entry != null && !string.IsNullOrEmpty(entry.FilePath))
+            {
+                DeleteLocalFiles(entry.FilePath);
+                // Also remove from library index entirely
+                await _libraryService.RemoveTrackFromLibraryAsync(globalId);
+            }
+
+            // 3. Reset references in Playlists to Missing
+            await _databaseService.UpdatePlaylistTrackStatusAndRecalculateJobsAsync(globalId, TrackStatus.Missing, string.Empty);
+            
+            // 4. Reset global track queue state
+            var track = await _databaseService.FindTrackAsync(globalId);
+            if (track != null)
+            {
+                track.State = "Pending";
+                track.Filename = string.Empty;
+                track.StalledReason = null;
+                await _databaseService.SaveTrackAsync(track);
+            }
+
+            // 5. Notify UI
+            _eventBus.Publish(new TrackStateChangedEvent(globalId, Guid.Empty, PlaylistTrackState.Pending, DownloadFailureReason.None, "Fraud Purge / Reset"));
+            
+            _logger.LogInformation("Track {Hash} reset to Pending state. Ready for Discovery.", globalId);
+        }
+    }
     
     private void DeleteLocalFiles(string? path)
     {

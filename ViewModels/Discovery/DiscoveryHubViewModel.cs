@@ -32,6 +32,9 @@ public class DiscoveryHubViewModel : ReactiveObject, IDisposable
     private readonly INavigationService _navigationService;
     private readonly ImportOrchestrator _importOrchestrator;
     private readonly SpotifyImportProvider _spotifyImportProvider;
+    private readonly DiscoveryBridgeService _discoveryBridge;
+    private readonly DatabaseService _databaseService;
+    private readonly IEventBus _eventBus;
     private readonly CompositeDisposable _disposables = new();
 
     private bool _isLoadingStore;
@@ -92,6 +95,7 @@ public class DiscoveryHubViewModel : ReactiveObject, IDisposable
     public ICommand ClearWorkbenchCommand { get; }
     public ICommand DownloadTrackCommand { get; }
     public ICommand SearchSavedTrackCommand { get; }
+    public ICommand DiscoverFromLocalTrackCommand { get; }
 
     public DiscoveryHubViewModel(
         ILogger<DiscoveryHubViewModel> logger,
@@ -101,7 +105,10 @@ public class DiscoveryHubViewModel : ReactiveObject, IDisposable
         IDialogService dialogService,
         INavigationService navigationService,
         ImportOrchestrator importOrchestrator,
-        SpotifyImportProvider spotifyImportProvider)
+        SpotifyImportProvider spotifyImportProvider,
+        DiscoveryBridgeService discoveryBridge,
+        DatabaseService databaseService,
+        IEventBus eventBus)
     {
         _logger = logger;
         _spotifyEnrichment = spotifyEnrichment;
@@ -111,6 +118,15 @@ public class DiscoveryHubViewModel : ReactiveObject, IDisposable
         _navigationService = navigationService;
         _importOrchestrator = importOrchestrator;
         _spotifyImportProvider = spotifyImportProvider;
+        _discoveryBridge = discoveryBridge;
+        _databaseService = databaseService;
+        _eventBus = eventBus;
+        
+        _disposables.Add(_eventBus.GetEvent<ExternalDiscoveryRequestedEvent>()
+            .Subscribe(async e => 
+            {
+                await DiscoverFromLocalTrackAsync(e.TrackHash);
+            }));
 
         RefreshSpotifyCommand = ReactiveCommand.CreateFromTask(RefreshSpotifyLibraryAsync);
         SearchCommand = ReactiveCommand.CreateFromTask(ExecuteSmartSearchAsync);
@@ -120,6 +136,7 @@ public class DiscoveryHubViewModel : ReactiveObject, IDisposable
         ClearWorkbenchCommand = ReactiveCommand.Create(ClearWorkbench);
         DownloadTrackCommand = ReactiveCommand.CreateFromTask<DiscoverySearchResultDto>(DownloadTrackAsync);
         SearchSavedTrackCommand = ReactiveCommand.CreateFromTask<SpotifySavedTrackDto>(SearchSavedTrack);
+        DiscoverFromLocalTrackCommand = ReactiveCommand.CreateFromTask<string>(DiscoverFromLocalTrackAsync);
 
         // Auto-refresh on load
         Task.Run(RefreshSpotifyLibraryAsync);
@@ -460,6 +477,70 @@ public class DiscoveryHubViewModel : ReactiveObject, IDisposable
             // Trigger the command execution manually as setting property might not suffice if we want immediate action
              await ExecuteCascadeSearchAsync();
         }
+    }
+
+    public async Task DiscoverFromLocalTrackAsync(string trackHash)
+    {
+        if (string.IsNullOrEmpty(trackHash)) return;
+
+        IsSearching = true;
+        try
+        {
+            var entry = await _databaseService.GetLibraryEntryAsync(trackHash);
+            if (entry == null) return;
+
+            _logger.LogInformation("Discovery Bridge: Initiating external discovery for {Artist} - {Title}", entry.Artist, entry.Title);
+
+            var spotifyId = entry.SpotifyTrackId;
+            var mbid = entry.MusicBrainzId;
+
+            var discoveredTracks = await _discoveryBridge.DiscoverRelatedTracksAsync(
+                entry.Artist ?? "", 
+                entry.Title ?? "", 
+                spotifyId, 
+                mbid);
+
+            if (discoveredTracks.Any())
+            {
+                await BridgeToWorkbenchAsync(discoveredTracks);
+            }
+            else if (string.IsNullOrEmpty(spotifyId))
+            {
+                // If no results and no ID, try to search for the track itself as a fallback
+                SearchQuery = $"{entry.Artist} - {entry.Title}";
+                CurrentViewMode = DiscoveryViewMode.Search;
+                await ExecuteCascadeSearchAsync();
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to discover from local track");
+        }
+        finally
+        {
+            IsSearching = false;
+        }
+    }
+
+    public async Task BridgeToWorkbenchAsync(System.Collections.Generic.List<DiscoveryTrack> tracks)
+    {
+        if (tracks == null || !tracks.Any()) return;
+
+        await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() =>
+        {
+            CurrentViewMode = DiscoveryViewMode.Workbench;
+            WorkbenchTracks.Clear();
+            foreach (var t in tracks)
+            {
+                WorkbenchTracks.Add(new BatchTrackItem
+                {
+                    Artist = t.Artist,
+                    Title = t.Title,
+                    OriginalLine = $"{t.Artist} - {t.Title} ({t.MatchReason})",
+                    IsSearched = false
+                });
+            }
+        });
     }
 
     private async Task DownloadTrackAsync(DiscoverySearchResultDto? dto)
