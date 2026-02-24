@@ -1,9 +1,9 @@
 # ORBIT Implementation Plan: Phase 3.0 — Production Hardening & Intelligence
 
 ## 🎯 Current Status
-Phase 4.0 (Resilience & Integrity Overhaul) is complete. All four audit priorities from the Phase 4 plan have been fully implemented: enrichment loop termination, orphaned file cleanup, DB context concurrency guard, and ViewModel synergy optimization.
+Phase 4.1 (Download Queue Virtualization) is complete. Both `ItemsRepeater` controls in the Active Downloads tab have been replaced with virtualizing `ListBox` controls, eliminating the O(n) item materialization cost during heavy queue loads.
 
-**Last Session**: 2026-02-24 — Phase 4.0 Resilience & Integrity Overhaul  
+**Last Session**: 2026-02-24 — Phase 4.1 Download Queue Virtualization  
 **Build Status**: ✅ Clean (0 errors, 0 warnings)  
 **Subscription Coverage**: 100% (115/115 tracked)
 
@@ -117,6 +117,17 @@ Phase 4.0 (Resilience & Integrity Overhaul) is complete. All four audit prioriti
 
 **Goal**: Handle 50k+ library tracks smoothly with zero UI freeze.
 
+---
+
+### Phase 4.1: Download Queue Virtualization ✅ (Feb 24, 2026)
+- [x] **`ActiveTracks` list** (MOVING NOW section): Replaced `ItemsRepeater` with `ListBox`. Avalonia `ListBox` uses `VirtualizingStackPanel` internally — only items in the viewport are materialized.
+- [x] **`ActiveGroups` list** (ON DECK section): Same replacement for the grouped queue (`DownloadGroupRow` templates preserved verbatim).
+- [x] **Style parity**: Both lists use the same `ListBoxItem` style override (zero padding/margin, transparent background/selection) as the existing Completed and Failed tabs — visual appearance unchanged.
+- [x] **Outcome**: A queue of 500+ pending tracks no longer instantiates all `DownloadGroupRow` controls at once. Scroll is now O(visible) instead of O(n).
+
+---
+
+
 ### 4.1: Virtualization 2.0
 - [ ] **Hierarchical Virtualization**: Group by Album/Artist without losing scroll performance
 - [ ] **Shimmer Placeholders**: Loading indicators for pending data in virtualized lists
@@ -135,8 +146,8 @@ Phase 4.0 (Resilience & Integrity Overhaul) is complete. All four audit prioriti
 ### 4.4: List & Queue Optimization
 - [x] Debug Download Engine: Resolved "Awaiting Signal" stuck state by enabling .part file probing (Phase 4.1)
 - [x] Fix Database Integrity: Resolved SQLite NOT NULL constraint failures in AnalysisQueueService by switching from Remove/Add to Update/SetValues.
+- [x] **Download Queue Virtualization**: Migrated `DownloadsPage` Active tab from `ItemsRepeater` to `ListBox` for 1k+ queue stability ✅
 - [ ] Phase 4.0: Transition to Preview Engine (Initial integration)
-- [ ] **Download Queue Virtualization**: Migrate `DownloadsPage` from `ItemsRepeater` to full `VirtualizingStackPanel` for 1k+ queue stability
 - [ ] **Smooth Scrolling**: Enable `CanContentScroll="True"` and optimize layout cycles in heavy lists
 
 ---
@@ -211,8 +222,8 @@ Run:   dotnet test --filter "ViewModelDisposalGuard"
 ---
 
 ## 📝 Immediate Tasks (Next Session)
-1. [x] ~~**Synergy Feature Testing**: Verify `HasCrossProjectReference` binding and "ADD TO CURRENT" button wire-up~~ — Completed & hardened in Phase 4.0 Task 4
-2. [ ] **Stress Validation**: Run SetlistStressTest with 100+ track import while Enrichment Worker is active; confirm no `Database is locked` errors
-3. [ ] **Phase 4.1 Virtualization**: Migrate `DownloadsPage` from `ItemsRepeater` to full `VirtualizingStackPanel` for 1k+ queue stability
-4. [ ] **Download Queue Smooth Scrolling**: Enable `CanContentScroll="True"` and optimize layout cycles in heavy lists
+1. [x] ~~**Synergy Feature Testing**~~ — Completed in Phase 4.0 Task 4
+2. [x] ~~**Download Queue Virtualization**~~ — Completed in Phase 4.1
+3. [ ] **Stress Validation**: Run SetlistStressTest with 100+ track import while Enrichment Worker is active; confirm no `Database is locked` errors
+4. [ ] **Smooth Scrolling Audit**: Profile layout cycles in `DownloadGroupRow` during rapid queue churn; apply `CanContentScroll`, measure frame times
 5. [ ] **Phase 5.0 Transition**: Preview Engine initial integration
