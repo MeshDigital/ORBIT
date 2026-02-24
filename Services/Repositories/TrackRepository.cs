@@ -225,8 +225,10 @@ public class TrackRepository : ITrackRepository
         var cooldownDate = DateTime.UtcNow.AddHours(-4).ToString("O");
         
         return await context.LibraryEntries
-            .Where(e => !e.IsEnriched && e.SpotifyTrackId == null && 
-                       (e.LastEnrichmentAttempt == null || e.LastEnrichmentAttempt.CompareTo(cooldownDate) < 0))
+            .Where(e => !e.IsEnriched 
+                       && (e.SpotifyTrackId == null || e.SpotifyTrackId == "")
+                       && e.SpotifyTrackId != "FAILED"
+                       && (e.LastEnrichmentAttempt == null || e.LastEnrichmentAttempt.CompareTo(cooldownDate) < 0))
             .OrderByDescending(e => e.AddedAt)
             .Take(limit)
             .ToListAsync();
@@ -313,8 +315,10 @@ public class TrackRepository : ITrackRepository
         var cooldownDate = DateTime.UtcNow.AddHours(-4).ToString("O");
 
         return await context.PlaylistTracks
-            .Where(e => !e.IsEnriched && e.SpotifyTrackId == null &&
-                       (e.LastEnrichmentAttempt == null || e.LastEnrichmentAttempt.CompareTo(cooldownDate) < 0))
+            .Where(e => !e.IsEnriched
+                       && (e.SpotifyTrackId == null || e.SpotifyTrackId == "")
+                       && e.SpotifyTrackId != "FAILED"
+                       && (e.LastEnrichmentAttempt == null || e.LastEnrichmentAttempt.CompareTo(cooldownDate) < 0))
             .OrderByDescending(e => e.AddedAt)
             .Take(limit)
             .ToListAsync();
@@ -1103,6 +1107,24 @@ public class TrackRepository : ITrackRepository
             .Where(t => t.Artist.ToLower().Contains(lowerQuery) || t.Title.ToLower().Contains(lowerQuery))
             .OrderByDescending(t => t.AddedAt)
             .Take(limit)
+            .ToListAsync();
+    }
+
+    public async Task<List<PlaylistTrackEntity>> FindTracksInOtherProjectsAsync(
+        string artist, string title, Guid excludeProjectId)
+    {
+        // Read-only hot path: no write semaphore needed.
+        // AsNoTracking avoids EF change-tracker overhead.
+        using var context = new AppDbContext();
+        var artistLower = artist.ToLowerInvariant();
+        var titleLower  = title.ToLowerInvariant();
+
+        return await context.PlaylistTracks
+            .AsNoTracking()
+            .Where(t => t.PlaylistId != excludeProjectId
+                     && t.Artist.ToLower() == artistLower
+                     && t.Title.ToLower()  == titleLower
+                     && t.Status == TrackStatus.Downloaded)
             .ToListAsync();
     }
 }

@@ -1491,6 +1491,12 @@ public class DatabaseService
     {
         return await _trackRepository.SearchPlaylistTracksAsync(query, limit);
     }
+
+    public async Task<List<PlaylistTrackEntity>> FindTracksInOtherProjectsAsync(
+        string artist, string title, Guid excludeProjectId)
+    {
+        return await _trackRepository.FindTracksInOtherProjectsAsync(artist, title, excludeProjectId);
+    }
 }
 
 

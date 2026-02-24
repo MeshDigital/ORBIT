@@ -1392,23 +1392,18 @@ public class LibraryService : ILibraryService
 
     public async Task<List<PlaylistTrack>> FindTrackInOtherProjectsAsync(string artist, string title, Guid currentProjectId)
     {
-        try 
+        try
         {
-            using var context = new Data.AppDbContext();
-            var matches = await context.PlaylistTracks
-                .AsNoTracking()
-                .Where(t => t.PlaylistId != currentProjectId && 
-                            t.Artist.ToLower() == artist.ToLower() && 
-                            t.Title.ToLower() == title.ToLower() &&
-                            t.Status == TrackStatus.Downloaded)
-                .ToListAsync();
-            
-            return matches.Select(m => EntityToPlaylistTrack(m)).ToList();
+            var entities = await _databaseService
+                .FindTracksInOtherProjectsAsync(artist, title, currentProjectId)
+                .ConfigureAwait(false);
+
+            return entities.Select(m => EntityToPlaylistTrack(m)).ToList();
         }
         catch (Exception ex)
         {
-             _logger.LogError(ex, "Error finding cross-references for {Artist} - {Title}", artist, title);
-             return new List<PlaylistTrack>();
+            _logger.LogError(ex, "Error finding cross-references for {Artist} - {Title}", artist, title);
+            return new List<PlaylistTrack>();
         }
     }
 }

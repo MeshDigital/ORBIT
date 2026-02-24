@@ -1060,8 +1060,33 @@ public class DownloadManager : INotifyPropertyChanged, IDisposable
         ctx.CancellationTokenSource = new CancellationTokenSource(); // Reset
         
         _ = UpdateStateAsync(ctx, PlaylistTrackState.Cancelled);
+
+        // Delete the final file + its .part sibling (handles the case where ResolvedFilePath is set)
         DeleteLocalFiles(ctx.Model.ResolvedFilePath);
+
+        // Also delete the .part file at the download staging path, which is where the
+        // download loop writes bytes BEFORE the atomic rename to the final path.
+        // This path may be set even when ResolvedFilePath is still null (mid-download cancellation).
+        try
+        {
+            var stagingPartPath = _pathProvider.GetTrackPath(
+                ctx.Model.Artist,
+                ctx.Model.Album ?? "Unknown",
+                ctx.Model.Title,
+                ctx.Model.Format ?? "mp3") + ".part";
+
+            if (File.Exists(stagingPartPath))
+            {
+                File.Delete(stagingPartPath);
+                _logger.LogInformation("Deleted staging .part file on cancel: {Path}", stagingPartPath);
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Failed to delete staging .part file for cancelled track {Title}", ctx.Model.Title);
+        }
     }
+
 
     /// <summary>
     /// Phase 3B: Health Monitor Intervention

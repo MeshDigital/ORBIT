@@ -59,4 +59,10 @@ public interface ITrackRepository
     /// Searches tracks across all playlists.
     /// </summary>
     Task<List<PlaylistTrackEntity>> SearchPlaylistTracksAsync(string query, int limit = 50);
+
+    /// <summary>
+    /// Finds downloaded copies of a track in projects other than the specified one.
+    /// Used by the Cross-Project Synergy feature.
+    /// </summary>
+    Task<List<PlaylistTrackEntity>> FindTracksInOtherProjectsAsync(string artist, string title, Guid excludeProjectId);
 }

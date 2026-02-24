@@ -56,6 +56,8 @@ public class UnifiedTrackViewModel : ReactiveObject, IDisplayableTrack, IDisposa
     
     
     private string? _crossProjectReference;
+    private bool _synergyLoaded;  // Guard: ensures at most one DB lookup per ViewModel lifetime
+
     public string? CrossProjectReference
     {
         get => _crossProjectReference;
@@ -119,6 +121,9 @@ public class UnifiedTrackViewModel : ReactiveObject, IDisplayableTrack, IDisposa
 
         AddToProjectCommand = ReactiveCommand.Create(() => 
         {
+            // Optimistic UI: immediately collapse the synergy badge so the user sees instant
+            // "success" feedback. The actual library addition happens via the event handler.
+            CrossProjectReference = null;
             _eventBus.Publish(new AddToProjectRequestEvent(new[] { Model }));
         }, this.WhenAnyValue(x => x.IsCompleted, x => x.HasCrossProjectReference, (c, s) => c || s));
 
@@ -231,27 +236,43 @@ public class UnifiedTrackViewModel : ReactiveObject, IDisplayableTrack, IDisposa
             }
         }, this.WhenAnyValue(x => x.HasRejectionDetails));
 
-        CheckSynergyAsync();
+        // Only run synergy check immediately if this track is already in a terminal failed state.
+        // For Pending/Downloading tracks the check fires lazily via the State setter when
+        // they first transition to Failed — avoiding a DB flood during bulk list hydration.
+        if (IsFailed) CheckSynergyAsync();
     }
 
     private async void CheckSynergyAsync()
     {
-        if (IsCompleted || string.IsNullOrEmpty(ArtistName) || string.IsNullOrEmpty(TrackTitle)) return;
-        
-        try 
+        // Guard: only one lookup per ViewModel lifetime, and only for non-completed tracks.
+        if (_synergyLoaded || IsCompleted) return;
+        if (string.IsNullOrEmpty(ArtistName) || string.IsNullOrEmpty(TrackTitle)) return;
+
+        _synergyLoaded = true; // Set before await so concurrent state changes can't double-fire
+
+        try
         {
             var currentProjId = Model?.PlaylistId ?? Guid.Empty;
             var matches = await _libraryService.FindTrackInOtherProjectsAsync(ArtistName, TrackTitle, currentProjId);
             if (matches != null && matches.Any())
             {
-                var others = matches.Select(m => m.SourcePlaylistName).Where(n => !string.IsNullOrEmpty(n)).Distinct().ToList();
+                var others = matches
+                    .Select(m => m.SourcePlaylistName)
+                    .Where(n => !string.IsNullOrEmpty(n))
+                    .Distinct()
+                    .ToList();
+
                 if (others.Any())
                 {
-                    CrossProjectReference = string.Join(", ", others);
+                    // Marshal to UI thread — CheckSynergyAsync runs on a thread-pool thread
+                    await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() =>
+                    {
+                        CrossProjectReference = string.Join(", ", others);
+                    });
                 }
             }
         }
-        catch { /* Ignore synergy errors */ }
+        catch { /* Synergy is non-critical; swallow errors silently */ }
     }
     
     private void FindSimilar()
@@ -290,8 +311,8 @@ public class UnifiedTrackViewModel : ReactiveObject, IDisplayableTrack, IDisposa
             {
                 this.RaiseAndSetIfChanged(ref _state, value);
                 this.RaisePropertyChanged(nameof(StatusText));
-                this.RaisePropertyChanged(nameof(StatusColor)); // Added
-                this.RaisePropertyChanged(nameof(DetailedStatusText)); // Added
+                this.RaisePropertyChanged(nameof(StatusColor));
+                this.RaisePropertyChanged(nameof(DetailedStatusText));
                 this.RaisePropertyChanged(nameof(IsIndeterminate));
                 this.RaisePropertyChanged(nameof(IsFailed));
                 this.RaisePropertyChanged(nameof(IsActive));
@@ -312,6 +333,10 @@ public class UnifiedTrackViewModel : ReactiveObject, IDisplayableTrack, IDisposa
                 this.RaisePropertyChanged(nameof(CanResume));
                 this.RaisePropertyChanged(nameof(CanBumpToTop));
                 this.RaisePropertyChanged(nameof(CanForceStart));
+
+                // Lazy synergy check: fire once when track first reaches a failed/cancelled
+                // terminal state. This avoids the constructor-time DB flood during bulk hydration.
+                if (IsFailed && !_synergyLoaded) CheckSynergyAsync();
             }
         }
     }
