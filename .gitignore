@@ -52,29 +52,17 @@ obj/
 **/bin/
 **/obj/
 
-# Log files (all patterns)
+# Logs and Local Testing
+Buildlogs/
+logs/
 *.log
-*.log.*
-*_log.txt
-*_errors.txt
-*_output.txt
-build*.log
-build*.txt
-run*.log
-run*.txt
-test*.log
-test*.txt
-error*.log
-error*.txt
-startup*.log
-msbuild*.log
-
-# Allow build debugging logs
-!BuildLogs/
-!BuildLogs/*.txt
-!BuildLogs/*.log
-!build.log
-!build_err*.txt
+*.err
+*.errors
+*.txt
+*.json
+!appsettings.json
+!appsettings.Development.json
+!dotnet-tools.json
 
 # Dev/Debug data
 crash_*.json
@@ -104,20 +92,3 @@ RATING_LIKES_PLAN.md
 SEARCH_RANKING_OPTIMIZATION.md
 SLSKDONET_LEARNINGS.md
 SPOTIFY_PKCE_FLOW_ANALYSIS.md
-COPY_TO_FOLDER_METHOD.txt
-
-obj/
-bin/
-logs/
-*.txt
-*.json
-stderr.txt
-stdout.txt
-logs/
-obj/
-bin/
-stderr.txt
-stdout.txt
-logs/
-obj/
-bin/
