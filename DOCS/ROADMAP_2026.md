@@ -43,6 +43,7 @@
 *Focus: Finishing valid features from 2025.*
 
 ### 🎨 Library & UX
+- [x] **Layout & Proportion Scale-up**: Increased Sidebar (420px) and List widths to reduce cramped layout constraints. Responsive radar containers.
 - [ ] **Rating & Likes System**:
     - [x] Backend Schema (Rating, IsLiked).
     - [x] UI Control (`StarRatingControl`).
