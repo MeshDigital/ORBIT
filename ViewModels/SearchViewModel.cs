@@ -695,7 +695,7 @@ public partial class SearchViewModel : ReactiveObject, IDisposable
                         {
                             Artist = m.Artist,
                             Title = m.Title,
-                            MatchReason = m.MatchReason,
+                            MatchReason = m.ConfidenceLabel,
                             // Populate audio features for visualization
                             Energy = m.Arousal,
                             Valence = m.Valence,

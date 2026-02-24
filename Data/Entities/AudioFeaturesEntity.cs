@@ -429,12 +429,26 @@ public class AudioFeaturesEntity
     // ============================================
 
     /// <summary>
-    /// Classification of vocal content (Instrumental, Sparse, Hook, Full Lyrics).
+    /// Classification of vocal content (Instrumental, VocalChops, LeadVocal, etc.).
+    /// Derived from VocalDensity during analysis and stored for fast retrieval.
+    /// Defaults to Instrumental (migration-safe: 0 = no vocals assumed).
     /// </summary>
     public VocalType DetectedVocalType { get; set; } = VocalType.Instrumental;
 
     /// <summary>
+    /// Phase 5.0: Vocal Density Ratio (0.0 – 1.0).
+    /// Ratio of 3-second Essentia patches where voice_probability > 0.6 to total patches.
+    ///   &lt; 0.05  → Instrumental
+    ///   0.05–0.35 → VocalChops
+    ///   ≥ 0.35  → LeadVocal
+    /// Defaults to 0.0 (Instrumental) for backwards compatibility with unanalysed tracks.
+    /// </summary>
+    public float VocalDensity { get; set; } = 0.0f;
+
+    /// <summary>
     /// Overall intensity of vocal presence (0.0 - 1.0).
+    /// Legacy: use VocalDensity for density-based logic; VocalIntensity retains
+    /// the older single-point measurement for backwards compat.
     /// </summary>
     public float VocalIntensity { get; set; }
 
@@ -447,6 +461,7 @@ public class AudioFeaturesEntity
     /// Timestamp of the last significant vocal activity.
     /// </summary>
     public float? VocalEndSeconds { get; set; }
+
 
     /// <summary>
     /// Phase 17: Persisted DJ Cue Points (JSON blob).

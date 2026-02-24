@@ -868,6 +868,14 @@ public class SchemaMigratorService
                 await command.ExecuteNonQueryAsync();
             }
 
+            // Phase 5: VocalDensity for advanced matching transparency
+            if (!ColumnExists("audio_features", "VocalDensity"))
+            {
+                _logger.LogInformation("Patching Schema: Adding VocalDensity to audio_features...");
+                command.CommandText = @"ALTER TABLE ""audio_features"" ADD COLUMN ""VocalDensity"" REAL NOT NULL DEFAULT 0.0;";
+                await command.ExecuteNonQueryAsync();
+            }
+
             // Phase 6: EnergyScore for DJ-style 1-10 energy rating
             if (!ColumnExists("audio_features", "EnergyScore"))
             {

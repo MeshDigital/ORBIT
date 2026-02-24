@@ -1,9 +1,11 @@
 using System;
-using System.Collections.ObjectModel;
 using System.Collections.Generic;
+using System.Collections.ObjectModel;
 using System.Linq;
 using System.Threading.Tasks;
 using ReactiveUI;
+using SLSKDONET.Models;
+using SLSKDONET.Models.Musical;
 using SLSKDONET.ViewModels;
 using SLSKDONET.Services.Musical;
 using SLSKDONET.Services;
@@ -99,13 +101,44 @@ public class SonicMatchResultViewModel : ReactiveObject
     public string Key { get; }
     public string Bpm { get; }
 
+    // Phase 5.0: Transparent breakdown fields
+    /// <summary>Human-readable tags explaining why this track matched (ready for ListBox binding).</summary>
+    public IReadOnlyList<string> MatchTags { get; }
+    /// <summary>Percentage string for display (e.g. "87%").</summary>
+    public string ConfidenceLabel { get; }
+    /// <summary>Colour hex string for the confidence badge.</summary>
+    public string BadgeColor { get; }
+    public double HarmonicScore { get; }
+    public double RhythmScore   { get; }
+    public double VibeScore     { get; }
+    public string VocalLabel    { get; }
+
     public SonicMatchResultViewModel(SonicMatchResult result)
     {
-        Artist = result.Track.Artist;
-        Title = result.Track.Title;
-        Score = result.Score;
+        Artist    = result.Track.Artist;
+        Title     = result.Track.Title;
+        Score     = result.Score;
         VibeMatch = result.VibeMatch;
-        Key = result.Track.AudioFeatures?.Key ?? "—";
-        Bpm = result.Track.AudioFeatures?.Bpm.ToString("F0") ?? "—";
+        Key       = result.Track.AudioFeatures?.CamelotKey ?? result.Track.AudioFeatures?.Key ?? "—";
+        Bpm       = result.Track.AudioFeatures?.Bpm.ToString("F0") ?? "—";
+
+        var bd = result.Breakdown;
+        if (bd != null)
+        {
+            MatchTags     = bd.MatchTags;
+            HarmonicScore = bd.HarmonicScore;
+            RhythmScore   = bd.RhythmScore;
+            VibeScore     = bd.VibeScore;
+            VocalLabel    = result.Track.AudioFeatures?.DetectedVocalType.ToDisplayLabel() ?? "—";
+        }
+        else
+        {
+            MatchTags  = new List<string>();
+            VocalLabel = "—";
+        }
+
+        double conf = Score / 100.0;
+        ConfidenceLabel = $"{Score:F0}%";
+        BadgeColor = conf >= 0.90 ? "#00FF99" : conf >= 0.75 ? "#FFAA00" : "#888888";
     }
 }

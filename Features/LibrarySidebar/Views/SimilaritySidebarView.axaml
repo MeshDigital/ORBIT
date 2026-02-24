@@ -18,28 +18,42 @@
                 <ItemsControl.ItemTemplate>
                     <DataTemplate>
                         <Border Margin="12,4" Padding="12" Background="#1E1E1E" CornerRadius="8">
-                            <Grid ColumnDefinitions="*,Auto">
-                                <StackPanel Spacing="2">
-                                    <TextBlock Text="{Binding Title}" FontSize="14" FontWeight="SemiBold" Foreground="White" TextTrimming="CharacterEllipsis"/>
-                                    <TextBlock Text="{Binding Artist}" FontSize="12" Foreground="#888" TextTrimming="CharacterEllipsis"/>
-                                    <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,4,0,0">
-                                        <Border Background="#2D2D2D" CornerRadius="4" Padding="6,2">
-                                            <TextBlock Text="{Binding Key}" FontSize="10" Foreground="#4EC9B0"/>
-                                        </Border>
-                                        <Border Background="#2D2D2D" CornerRadius="4" Padding="6,2">
-                                            <TextBlock Text="{Binding Bpm, StringFormat={}{0} BPM}" FontSize="10" Foreground="#DCDCAA"/>
-                                        </Border>
-                                        <TextBlock Text="✨ Vibe Match" IsVisible="{Binding VibeMatch}" FontSize="10" Foreground="#CE9178" VerticalAlignment="Center"/>
+                            <StackPanel Spacing="6">
+                                <Grid ColumnDefinitions="*,Auto">
+                                    <StackPanel Spacing="2">
+                                        <TextBlock Text="{Binding Title}" FontSize="14" FontWeight="SemiBold" Foreground="White" TextTrimming="CharacterEllipsis"/>
+                                        <TextBlock Text="{Binding Artist}" FontSize="11" Foreground="#888" TextTrimming="CharacterEllipsis"/>
                                     </StackPanel>
+                                    
+                                    <Border Grid.Column="1" Background="{Binding BadgeColor}" CornerRadius="6" Padding="8,4" VerticalAlignment="Top">
+                                        <TextBlock Text="{Binding ConfidenceLabel}" 
+                                                   FontSize="14" FontWeight="Bold" 
+                                                   Foreground="Black"/>
+                                    </Border>
+                                </Grid>
+
+                                <!-- Markers Row -->
+                                <StackPanel Orientation="Horizontal" Spacing="8">
+                                    <Border Background="#2D2D2D" CornerRadius="4" Padding="6,2">
+                                        <TextBlock Text="{Binding Key}" FontSize="10" Foreground="#4EC9B0"/>
+                                    </Border>
+                                    <Border Background="#2D2D2D" CornerRadius="4" Padding="6,2">
+                                        <TextBlock Text="{Binding Bpm, StringFormat={}{0} BPM}" FontSize="10" Foreground="#DCDCAA"/>
+                                    </Border>
+                                    <Border IsVisible="{Binding VibeMatch}" Background="#CE9178" CornerRadius="4" Padding="6,2">
+                                        <TextBlock Text="✨ Vibe Match" FontSize="10" Foreground="Black"/>
+                                    </Border>
                                 </StackPanel>
-                                
-                                <StackPanel Grid.Column="1" VerticalAlignment="Center" HorizontalAlignment="Right" Spacing="2">
-                                    <TextBlock Text="{Binding Score, StringFormat={}{0:0}%}" 
-                                               FontSize="16" FontWeight="Bold" 
-                                               Foreground="#1DB954" HorizontalAlignment="Right"/>
-                                    <TextBlock Text="MATCH" FontSize="8" Foreground="#555" HorizontalAlignment="Right"/>
-                                </StackPanel>
-                            </Grid>
+
+                                <!-- Match Tags (Transparency) -->
+                                <ItemsControl ItemsSource="{Binding MatchTags}">
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate>
+                                            <TextBlock Text="{Binding}" FontSize="10" Foreground="#66D9EF" Opacity="0.8" Margin="0,1"/>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                            </StackPanel>
                         </Border>
                     </DataTemplate>
                 </ItemsControl.ItemTemplate>

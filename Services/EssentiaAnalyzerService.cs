@@ -8,6 +8,7 @@ using Microsoft.Extensions.Logging;
 using SLSKDONET.Data.Entities;
 using SLSKDONET.Data.Essentia;
 using SLSKDONET.Services.Musical;
+using SLSKDONET.Models;
 
 namespace SLSKDONET.Services;
 
@@ -342,11 +343,16 @@ public class EssentiaAnalyzerService : IAudioIntelligenceService, IDisposable
                 }
 
                 // Tier 1 Models (discogs-effnet) often land in ExtensionData
-                float danceProb = GetProb(data.HighLevel?.Danceability, "danceability-discogs-effnet-1", "danceable");
-                float voiceProb = GetProb(data.HighLevel?.VoiceInstrumental, "voice_instrumental-msd-musicnn-1", "voice");
-                float happyProb = GetProb(data.HighLevel?.MoodHappy, "mood_happy-discogs-effnet-1", "happy"); // EffNet often uses "happy"/"not_happy" or similar? Need to verify class naming for "mood_happy" model. 
-                // Metadata for mood_happy-discogs-effnet-1.json likely says "happy", "not_happy"
-                float aggressiveProb = GetProb(data.HighLevel?.MoodAggressive, "mood_aggressive-discogs-effnet-1", "aggressive");
+                float danceProb      = GetProb(data.HighLevel?.Danceability,       "danceability-discogs-effnet-1",        "danceable");
+                float voiceProb      = GetProb(data.HighLevel?.VoiceInstrumental,   "voice_instrumental-msd-musicnn-1",     "voice");
+                float happyProb      = GetProb(data.HighLevel?.MoodHappy,           "mood_happy-discogs-effnet-1",          "happy");
+                float aggressiveProb = GetProb(data.HighLevel?.MoodAggressive,      "mood_aggressive-discogs-effnet-1",     "aggressive");
+
+                // Phase 5.0: Vocal Density — windowed patch analysis
+                // Derives VocalDensity (0‒1 ratio of patches > 0.6 voice prob) and classification.
+                // Runs from ExtensionData frame array when available, or from globalVoiceProb otherwise.
+                (float vocalDensity, VocalType vocalType) = CalculateVocalDensity(
+                    voiceProb, data.HighLevel?.ExtensionData);
 
                 // DEBUG: Log extracted data to verify what Essentia produced
                 _logger.LogInformation("🎵 ESSENTIA EXTRACTION SUCCESS for {File}:", Path.GetFileName(filePath));
@@ -397,13 +403,17 @@ public class EssentiaAnalyzerService : IAudioIntelligenceService, IDisposable
                         data.LowLevel?.AverageLoudness ?? 0),
 
                     // Phase 13C: AI Layer (Vocals & Mood)
-                    // Phase 13C: AI Layer (Vocals & Mood)
                     // Fix: Use heuristic if voice model returned 0 (likely missing)
-                    InstrumentalProbability = voiceProb > 0 
+                    InstrumentalProbability = voiceProb > 0
                         ? 1.0f - voiceProb
                         : EstimateInstrumentalProbability(data.LowLevel, data.Rhythm),
-                    MoodTag = DetermineMoodTag(data.HighLevel),
+                    MoodTag        = DetermineMoodTag(data.HighLevel),
                     MoodConfidence = CalculateMoodConfidence(data.HighLevel),
+
+                    // Phase 5.0: Vocal Density (calculated above from windowed patches)
+                    VocalDensity      = vocalDensity,
+                    DetectedVocalType = vocalType,
+                    VocalIntensity    = voiceProb,   // legacy single-point measurement kept
                     
                     // Phase 21: AI Brain
                     Sadness = data.HighLevel?.MoodSad?.All?.Sad, // Directly capture Sad probability
@@ -609,6 +619,81 @@ public class EssentiaAnalyzerService : IAudioIntelligenceService, IDisposable
                 catch { /* Ignore cleanup errors */ }
             }
         }
+    }
+
+    // ============================================
+    // Phase 5.0: Vocal Density — Windowed Patch Analysis
+    // ============================================
+
+    /// <summary>
+    /// Calculates VocalDensity from Essentia's per-patch voice probability array.
+    /// When only a global scalar is available (older profiles), derives an approximation.
+    ///
+    /// Algorithm:
+    ///   ActiveVocalFrames = count(patchProbability > 0.6)
+    ///   VocalDensity      = ActiveVocalFrames / TotalFrames
+    ///
+    /// Classification gating:
+    ///   density &lt; 0.05  → Instrumental
+    ///   density 0.05–0.35 → VocalChops
+    ///   density ≥ 0.35  → LeadVocal
+    /// </summary>
+    private static (float density, VocalType type) CalculateVocalDensity(
+        float globalVoiceProb,
+        Dictionary<string, System.Text.Json.JsonElement>? extensionData)
+    {
+        if (extensionData != null)
+        {
+            foreach (var kvp in extensionData)
+            {
+                if (!kvp.Key.Contains("voice_instrumental", StringComparison.OrdinalIgnoreCase)) continue;
+
+                try
+                {
+                    // Try { "all": { "voice": [ ... ] } }
+                    if (kvp.Value.TryGetProperty("all", out var allProp))
+                    {
+                        if (allProp.TryGetProperty("voice", out var vocArr) &&
+                            vocArr.ValueKind == System.Text.Json.JsonValueKind.Array)
+                        {
+                            var patches = vocArr.EnumerateArray().Select(x => x.GetSingle()).ToArray();
+                            if (patches.Length > 0)
+                            {
+                                float d = (float)patches.Count(p => p > 0.6f) / patches.Length;
+                                return (d, ClassifyVocalDensity(d));
+                            }
+                        }
+
+                        // Fallback: flat array of scalars (some Essentia versions)
+                        if (allProp.ValueKind == System.Text.Json.JsonValueKind.Array)
+                        {
+                            var patches = allProp.EnumerateArray()
+                                .Where(x => x.ValueKind == System.Text.Json.JsonValueKind.Number)
+                                .Select(x => x.GetSingle()).ToArray();
+                            if (patches.Length > 0)
+                            {
+                                float d = (float)patches.Count(p => p > 0.6f) / patches.Length;
+                                return (d, ClassifyVocalDensity(d));
+                            }
+                        }
+                    }
+                }
+                catch { /* fall through to scalar approximation */ }
+            }
+        }
+
+        // Scalar fallback: conservatively map global probability to approximate density.
+        // A voice_prob of 1.0 doesn't guarantee dense sustained vocals — cap at 0.60
+        // to avoid falsely labelling ambiguous tracks as LeadVocal.
+        float approxDensity = globalVoiceProb * 0.60f;
+        return (approxDensity, ClassifyVocalDensity(approxDensity));
+    }
+
+    private static VocalType ClassifyVocalDensity(float density)
+    {
+        if (density < 0.05f) return VocalType.Instrumental;
+        if (density < 0.35f) return VocalType.VocalChops;
+        return VocalType.LeadVocal;
     }
 
     // ============================================

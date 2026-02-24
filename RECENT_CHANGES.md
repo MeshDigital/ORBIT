@@ -1,5 +1,33 @@
 # Recent Changes
 
+## [0.1.0-alpha.9.12] - Transparent Sonic Match Engine & Vocal Clash Avoidance (Feb 24, 2026)
+
+### New Features
+*   **Multi-Dimensional Scoring Pipeline**: Completely refactored the matching logic to use specialized mathematics for different audio features:
+    *   **Harmonic (Camelot Wheel)**: Implemented specialized distance logic for harmonic compatibility (Perfect, Harmonic, Relative Major/Minor).
+    *   **Rhythm (BPM Bell-Curve)**: Gaussian bell curve centered on 6% tolerance with half/double-time rescue.
+    *   **Vibe (Mood Vector Similarity)**: Cosine similarity on 7D mood vectors combined with intensity-weighted energy.
+    *   **Timbre (AI Embeddings)**: SIMD-accelerated 128D cosine similarity for textural matching.
+*   **Vocal Clash Avoidance (VCA)**:
+    *   Introduced **Vocal Density** calculation (ratio of active vocals in 3s patches).
+    *   Implemented penalties for mixing two "Lead Vocal" tracks simultaneously (-15% confidence).
+    *   Boosted matches between "Lead Vocal" and "Instrumental" or "Vocal Chops" tracks.
+*   **Match Profiles**: Added `Mixable` (DJ-focused) and `VibeMatch` (crossover/playlist) profiles with distinct weighting schemes.
+*   **Match Transparency (MatchTags)**: Match results now include human-readable tags (e.g., "🔮 Sonic Twin", "✨ Perfect Harmonic Match") to explain *why* tracks matched.
+
+### Fixes & Stability
+*   **Unified AI Service**: Refactored `Services/AI/SonicMatchService.cs` to wrap the high-fidelity `Services/Musical/SonicMatchService.cs`, ensuring one source of truth across the app.
+*   **UI Hardening**: Updated the Similarity Sidebar with vibrant confidence badges, a reworked layout, and support for MatchTag items control.
+*   **Database Schema (Phase 5)**: Added `VocalDensity` persistence to `audio_features` via `SchemaMigratorService`.
+*   **Compilation**: Fixed type mismatches and missing using directives in `SearchViewModel` and `EssentiaAnalyzerService`.
+
+### Files Modified
+*   **Models**: `VocalType.cs`, `SimilarityBreakdown.cs` (Created), `Track.cs`
+*   **Services**: `Musical/SonicMatchService.cs`, `AI/SonicMatchService.cs`, `EssentiaAnalyzerService.cs`, `Data/SchemaMigratorService.cs`
+*   **UI**: `SimilaritySidebarViewModel.cs`, `SimilaritySidebarView.axaml`, `SearchViewModel.cs`
+*   **Data**: `AudioFeaturesEntity.cs`
+
+
 ## [0.1.0-alpha.9.11] - Operational Hardening & Database Sovereignty (Feb 23, 2026)
 
 ### New Features
