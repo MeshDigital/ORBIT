@@ -1406,4 +1406,14 @@ public class LibraryService : ILibraryService
             return new List<PlaylistTrack>();
         }
     }
+
+    public async Task<List<TrackPhraseEntity>> GetPhrasesByHashAsync(string trackHash)
+    {
+        return await _databaseService.GetPhrasesByHashAsync(trackHash);
+    }
+
+    public async Task SavePhrasesAsync(List<TrackPhraseEntity> phrases)
+    {
+        await _databaseService.SavePhrasesAsync(phrases);
+    }
 }

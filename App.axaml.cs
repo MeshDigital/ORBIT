@@ -773,6 +773,10 @@ public partial class App : Application
         services.AddSingleton<Features.LibrarySidebar.ViewModels.BulkActionSidebarViewModel>();
         services.AddSingleton<Features.LibrarySidebar.ViewModels.SimilaritySidebarViewModel>();
         services.AddSingleton<Features.LibrarySidebar.ViewModels.ForensicSidebarViewModel>();
+        services.AddSingleton<Features.LibrarySidebar.ViewModels.CueSidebarViewModel>();
+        services.AddSingleton<Features.LibrarySidebar.ViewModels.StemSidebarViewModel>();
+        services.AddSingleton<Features.LibrarySidebar.ViewModels.VibeSidebarViewModel>();
+        services.AddSingleton<Features.LibrarySidebar.ViewModels.TransitionProberViewModel>();
         services.AddSingleton<Features.LibrarySidebar.ViewModels.ContextualSidebarViewModel>();
 
         services.AddSingleton<LibraryViewModel>();

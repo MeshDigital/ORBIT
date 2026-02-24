@@ -62,6 +62,8 @@ public partial class LibraryViewModel : INotifyPropertyChanged, IDisposable
     public System.Collections.ObjectModel.ObservableCollection<ColumnDefinition> AvailableColumns { get; } = new();
     public LibrarySourcesViewModel LibrarySourcesViewModel { get; }
     public ForensicLabViewModel ForensicLab => _forensicLab;
+    private readonly ContextualSidebarViewModel _sidebar;
+    public ContextualSidebarViewModel Sidebar => _sidebar;
 
     private Views.MainViewModel? _mainViewModel;
     public Views.MainViewModel? MainViewModel
@@ -155,6 +157,13 @@ public partial class LibraryViewModel : INotifyPropertyChanged, IDisposable
         set { SetProperty(ref _isForensicLabVisible, value); }
     }
 
+    private double _sidebarWidth = 350;
+    public double SidebarWidth
+    {
+        get => _sidebarWidth;
+        set { SetProperty(ref _sidebarWidth, value); }
+    }
+
     private readonly PlayerViewModel _playerViewModel;
     public PlayerViewModel PlayerViewModel => _playerViewModel;
     
@@ -228,6 +237,7 @@ public partial class LibraryViewModel : INotifyPropertyChanged, IDisposable
         _smartCrateService = smartCrateService;
         _downloadManager = downloadManager;
         _columnConfigService = columnConfigService;
+        _sidebar = sidebar;
         LibrarySourcesViewModel = librarySourcesViewModel;
 
         Projects = projects;

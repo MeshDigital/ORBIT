@@ -1,0 +1,28 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:vm="clr-namespace:SLSKDONET.Features.LibrarySidebar.ViewModels"
+             mc:Ignorable="d" d:DesignWidth="400" d:DesignHeight="800"
+             x:Class="SLSKDONET.Features.LibrarySidebar.Views.TransitionProberView"
+             x:DataType="vm:TransitionProberViewModel">
+    <Grid RowDefinitions="Auto,*,Auto,*">
+        <TextBlock Text="Transition Prober" FontSize="24" FontWeight="Bold" Margin="20"/>
+        
+        <Border Grid.Row="1" Background="#1AFFFFFF" Margin="12" CornerRadius="8">
+            <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
+                <TextBlock Text="Track A (Primary)" Opacity="0.5" HorizontalAlignment="Center"/>
+                <TextBlock Text="{Binding PrimaryTrack.Title}" FontWeight="Bold" HorizontalAlignment="Center"/>
+            </StackPanel>
+        </Border>
+
+        <TextBlock Grid.Row="2" Text="🔄 Blend Analysis" HorizontalAlignment="Center" Opacity="0.8"/>
+
+        <Border Grid.Row="3" Background="#1AFFFFFF" Margin="12" CornerRadius="8">
+            <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
+                <TextBlock Text="Track B (Candidate)" Opacity="0.5" HorizontalAlignment="Center"/>
+                <TextBlock Text="{Binding SecondaryTrack.Title}" FontWeight="Bold" HorizontalAlignment="Center"/>
+            </StackPanel>
+        </Border>
+    </Grid>
+</UserControl>

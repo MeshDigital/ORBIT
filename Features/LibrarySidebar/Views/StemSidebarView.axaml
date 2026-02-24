@@ -1,0 +1,201 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:vm="clr-namespace:SLSKDONET.Features.LibrarySidebar.ViewModels"
+             xmlns:conv="clr-namespace:SLSKDONET.Converters"
+             mc:Ignorable="d" d:DesignWidth="300" d:DesignHeight="600"
+             x:Class="SLSKDONET.Features.LibrarySidebar.Views.StemSidebarView"
+             x:DataType="vm:StemSidebarViewModel">
+
+    <UserControl.Resources>
+        <conv:StringToBrushConverter x:Key="StringToBrushConverter"/>
+        <conv:MathMultiplyConverter x:Key="MathMultiplyConverter"/>
+        <conv:ParameterizedBooleanConverter x:Key="ParameterizedBooleanConverter"/>
+    </UserControl.Resources>
+
+    <UserControl.Styles>
+        <!-- DJ Fader Slider Style -->
+        <Style Selector="Slider.djFader">
+            <Setter Property="MinWidth" Value="40"/>
+            <Setter Property="Orientation" Value="Vertical"/>
+            <Setter Property="Template">
+                <ControlTemplate>
+                    <Border Background="Transparent">
+                        <Grid x:Name="SliderContainer">
+                            <!-- Track Background -->
+                            <Border Width="2" Background="#33FFFFFF" 
+                                    HorizontalAlignment="Center" 
+                                    VerticalAlignment="Stretch"
+                                    CornerRadius="1"/>
+                            
+                            <Track Name="PART_Track" 
+                                   Orientation="Vertical">
+                                <Track.Thumb>
+                                    <Thumb Height="40" Width="30">
+                                        <Thumb.Template>
+                                            <ControlTemplate>
+                                                <Grid>
+                                                    <!-- Fader Knob -->
+                                                    <Border Background="#444" 
+                                                            BorderBrush="#888" 
+                                                            BorderThickness="1" 
+                                                            CornerRadius="2"
+                                                            BoxShadow="0 4 8 0 #80000000">
+                                                        <Border Width="20" Height="2" 
+                                                                Background="White" 
+                                                                VerticalAlignment="Center" 
+                                                                Opacity="0.5"/>
+                                                    </Border>
+                                                </Grid>
+                                            </ControlTemplate>
+                                        </Thumb.Template>
+                                    </Thumb>
+                                </Track.Thumb>
+                            </Track>
+                        </Grid>
+                    </Border>
+                </ControlTemplate>
+            </Setter>
+        </Style>
+
+        <!-- Mixer Button Styles -->
+        <Style Selector="ToggleButton.mixerBtn">
+            <Setter Property="Width" Value="28"/>
+            <Setter Property="Height" Value="28"/>
+            <Setter Property="Padding" Value="0"/>
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="FontWeight" Value="Bold"/>
+            <Setter Property="CornerRadius" Value="4"/>
+            <Setter Property="Background" Value="#1AFFFFFF"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="BorderBrush" Value="#33FFFFFF"/>
+        </Style>
+
+        <!-- Mute Glow -->
+        <Style Selector="ToggleButton.muteBtn:checked /template/ ContentPresenter">
+            <Setter Property="Background" Value="#CCFF0000"/>
+            <Setter Property="BorderBrush" Value="#FFFF0000"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="BoxShadow" Value="0 0 10 0 #40FF0000"/>
+        </Style>
+
+        <!-- Solo Glow -->
+        <Style Selector="ToggleButton.soloBtn:checked /template/ ContentPresenter">
+            <Setter Property="Background" Value="#CCFFD700"/>
+            <Setter Property="BorderBrush" Value="#FFFFD700"/>
+            <Setter Property="Foreground" Value="Black"/>
+            <Setter Property="BoxShadow" Value="0 0 10 0 #40FFD700"/>
+        </Style>
+    </UserControl.Styles>
+
+    <Grid RowDefinitions="Auto,*">
+        <!-- Header -->
+        <Border Grid.Row="0" Background="#1E1E1E" BorderBrush="#333" BorderThickness="0,0,0,1" Padding="16,12">
+            <StackPanel Orientation="Horizontal" Spacing="12">
+                <PathIcon Data="{StaticResource mixer_regular}" Width="16" Height="16" Foreground="#AAA"/>
+                <TextBlock Text="STEM MIXER" FontSize="11" FontWeight="Bold" Foreground="#888" VerticalAlignment="Center"/>
+            </StackPanel>
+        </Border>
+
+        <!-- Content Area -->
+        <Grid Grid.Row="1">
+            <!-- 1. Ready State: The Mixer -->
+            <Grid IsVisible="{Binding State, Converter={StaticResource ParameterizedBooleanConverter}, ConverterParameter={x:Static vm:StemSidebarState.Ready}}">
+                <Grid RowDefinitions="*,Auto">
+                    <!-- 4-Channel Mixer Strips -->
+                    <UniformGrid Grid.Row="0" Columns="4" Margin="8,20">
+                        <ItemsControl ItemsSource="{Binding Stems}">
+                            <ItemsControl.ItemsPanel>
+                                <ItemsPanelTemplate>
+                                    <UniformGrid Columns="4"/>
+                                </ItemsPanelTemplate>
+                            </ItemsControl.ItemsPanel>
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate x:DataType="vm:StemChannelViewModel">
+                                    <Grid RowDefinitions="Auto,*,Auto" Margin="4,0">
+                                        <!-- Channel Label -->
+                                        <TextBlock Grid.Row="0" Text="{Binding Name}" 
+                                                   HorizontalAlignment="Center" 
+                                                   FontSize="9" FontWeight="Bold" 
+                                                   Foreground="{Binding Color, Converter={StaticResource StringToBrushConverter}}"
+                                                   Margin="0,0,0,12"/>
+
+                                        <!-- The Fader -->
+                                        <Slider Grid.Row="1" Classes="djFader" 
+                                                Value="{Binding Volume}" 
+                                                Minimum="0" Maximum="1" 
+                                                Height="250"/>
+
+                                        <!-- M & S Buttons -->
+                                        <StackPanel Grid.Row="2" Spacing="8" Margin="0,16,0,0">
+                                            <ToggleButton Classes="mixerBtn muteBtn" 
+                                                          HorizontalAlignment="Center"
+                                                          IsChecked="{Binding IsMuted}" 
+                                                          Content="M" ToolTip.Tip="Mute"/>
+                                            <ToggleButton Classes="mixerBtn soloBtn" 
+                                                          HorizontalAlignment="Center"
+                                                          IsChecked="{Binding IsSoloed}" 
+                                                          Content="S" ToolTip.Tip="Solo"/>
+                                        </StackPanel>
+                                    </Grid>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </UniformGrid>
+
+                    <!-- Export Action -->
+                    <Border Grid.Row="1" Padding="16" Background="#14FFFFFF" BorderBrush="#222" BorderThickness="0,1,0,0">
+                        <Button Classes="primary" HorizontalAlignment="Stretch" Padding="0,12">
+                            <StackPanel Orientation="Horizontal" Spacing="10" HorizontalAlignment="Center">
+                                <PathIcon Data="{StaticResource cloud_arrow_up_regular}" Width="16" Height="16"/>
+                                <TextBlock Text="EXPORT STEM FILES" FontWeight="Bold" FontSize="12"/>
+                            </StackPanel>
+                        </Button>
+                    </Border>
+                </Grid>
+            </Grid>
+
+            <!-- 2. Unprocessed State: Call to Action -->
+            <Border IsVisible="{Binding State, Converter={StaticResource ParameterizedBooleanConverter}, ConverterParameter={x:Static vm:StemSidebarState.Unprocessed}}"
+                    Background="#CC000000">
+                <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center" Spacing="24" Margin="20">
+                    <Border Width="80" Height="80" CornerRadius="40" Background="#1AFFFFFF">
+                        <PathIcon Data="{StaticResource brain_circuit_regular}" Width="40" Height="40" Foreground="#AAA"/>
+                    </Border>
+                    
+                    <StackPanel Spacing="8">
+                        <TextBlock Text="Stems Not Detected" FontSize="18" FontWeight="SemiBold" HorizontalAlignment="Center"/>
+                        <TextBlock Text="Separate track into Vocals, Drums, Bass, and Melody for real-time manipulation." 
+                                   Foreground="#888" TextAlignment="Center" TextWrapping="Wrap" FontSize="13"/>
+                    </StackPanel>
+
+                    <Button Command="{Binding GenerateStemsCommand}" 
+                            HorizontalAlignment="Stretch"
+                            Classes="primary" Padding="20,16">
+                        <StackPanel Orientation="Horizontal" Spacing="12" HorizontalAlignment="Center">
+                            <PathIcon Data="{StaticResource rocket_regular}" Width="20" Height="20"/>
+                            <TextBlock Text="GENERATE STEMS (CPU HEAVY)" FontWeight="Bold"/>
+                        </StackPanel>
+                    </Button>
+                </StackPanel>
+            </Border>
+
+            <!-- 3. Processing State: Loader -->
+            <Border IsVisible="{Binding State, Converter={StaticResource ParameterizedBooleanConverter}, ConverterParameter={x:Static vm:StemSidebarState.Processing}}"
+                    Background="#E61E1E1E">
+                <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center" Spacing="24">
+                    <ProgressBar Classes="pulse_amber" 
+                                 Width="200" Height="4" 
+                                 IsIndeterminate="True" 
+                                 Foreground="#FF9800"/>
+                    
+                    <StackPanel Spacing="8">
+                        <TextBlock Text="Running ONNX Models..." FontSize="16" FontWeight="SemiBold" HorizontalAlignment="Center"/>
+                        <TextBlock Text="This may take 1-2 minutes depending on CPU." Foreground="#888" HorizontalAlignment="Center"/>
+                    </StackPanel>
+                </StackPanel>
+            </Border>
+        </Grid>
+    </Grid>
+</UserControl>

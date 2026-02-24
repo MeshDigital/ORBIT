@@ -21,8 +21,13 @@ namespace SLSKDONET.ViewModels
     using System.ComponentModel;
     using System.Runtime.CompilerServices;
 
-    public partial class PlayerViewModel : INotifyPropertyChanged, IDisposable
+    public partial class PlayerViewModel : INotifyPropertyChanged, IDisposable, SLSKDONET.Features.LibrarySidebar.ISidebarContent
     {
+        // Sidebar Interface Implementation
+        public System.Threading.Tasks.Task ActivateAsync(PlaylistTrackViewModel track) => System.Threading.Tasks.Task.CompletedTask;
+        public System.Threading.Tasks.Task ActivateBulkAsync(IReadOnlyList<PlaylistTrackViewModel> tracks) => System.Threading.Tasks.Task.CompletedTask;
+        public void Deactivate() { }
+
         private readonly System.Reactive.Disposables.CompositeDisposable _disposables = new();
         private bool _isDisposed;
 

@@ -18,6 +18,9 @@ public class SimilaritySidebarViewModel : ReactiveObject, ISidebarContent
     private PlaylistTrackViewModel? _activeTrack;
     private readonly SonicMatchService _sonicMatchService;
     private readonly DatabaseService _databaseService;
+    private readonly IEventBus _eventBus;
+    private readonly ILibraryService _libraryService;
+    private readonly ArtworkCacheService _artworkCacheService;
 
     public ObservableCollection<SonicMatchResultViewModel> Matches { get; } = new();
 
@@ -28,10 +31,25 @@ public class SimilaritySidebarViewModel : ReactiveObject, ISidebarContent
         set => this.RaiseAndSetIfChanged(ref _isLoading, value);
     }
 
-    public SimilaritySidebarViewModel(SonicMatchService sonicMatchService, DatabaseService databaseService)
+    private SonicMatchResultViewModel? _selectedMatch;
+    public SonicMatchResultViewModel? SelectedMatch
+    {
+        get => _selectedMatch;
+        set => this.RaiseAndSetIfChanged(ref _selectedMatch, value);
+    }
+
+    public SimilaritySidebarViewModel(
+        SonicMatchService sonicMatchService, 
+        DatabaseService databaseService,
+        IEventBus eventBus,
+        ILibraryService libraryService,
+        ArtworkCacheService artworkCacheService)
     {
         _sonicMatchService = sonicMatchService;
         _databaseService = databaseService;
+        _eventBus = eventBus;
+        _libraryService = libraryService;
+        _artworkCacheService = artworkCacheService;
     }
 
     public async Task ActivateAsync(PlaylistTrackViewModel track)
@@ -65,7 +83,7 @@ public class SimilaritySidebarViewModel : ReactiveObject, ISidebarContent
             {
                 foreach (var match in matches)
                 {
-                    Matches.Add(new SonicMatchResultViewModel(match));
+                    Matches.Add(new SonicMatchResultViewModel(match, _eventBus, _libraryService, _artworkCacheService));
                 }
                 IsLoading = false;
             }, RxApp.MainThreadScheduler);
@@ -113,7 +131,13 @@ public class SonicMatchResultViewModel : ReactiveObject
     public double VibeScore     { get; }
     public string VocalLabel    { get; }
 
-    public SonicMatchResultViewModel(SonicMatchResult result)
+    public PlaylistTrackViewModel TrackVm { get; }
+
+    public SonicMatchResultViewModel(
+        SonicMatchResult result, 
+        IEventBus? eventBus = null, 
+        ILibraryService? libraryService = null, 
+        ArtworkCacheService? artworkCacheService = null)
     {
         Artist    = result.Track.Artist;
         Title     = result.Track.Title;
@@ -121,6 +145,19 @@ public class SonicMatchResultViewModel : ReactiveObject
         VibeMatch = result.VibeMatch;
         Key       = result.Track.AudioFeatures?.CamelotKey ?? result.Track.AudioFeatures?.Key ?? "—";
         Bpm       = result.Track.AudioFeatures?.Bpm.ToString("F0") ?? "—";
+
+        // Create the playable ViewModel wrapper
+        var pt = new PlaylistTrack
+        {
+            Artist = Artist,
+            Title = Title,
+            TrackUniqueHash = result.Track.UniqueHash,
+            ResolvedFilePath = result.Track.FilePath,
+            Status = TrackStatus.Downloaded, // Matches from library are downloaded
+            BPM = result.Track.AudioFeatures?.Bpm,
+            MusicalKey = result.Track.AudioFeatures?.CamelotKey ?? result.Track.AudioFeatures?.Key
+        };
+        TrackVm = new PlaylistTrackViewModel(pt, eventBus, libraryService, artworkCacheService);
 
         var bd = result.Breakdown;
         if (bd != null)

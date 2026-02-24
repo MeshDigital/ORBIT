@@ -240,4 +240,14 @@ public interface ILibraryService
     /// Phase 2: Synergy - Finds if a track exists in other projects.
     /// </summary>
     Task<List<PlaylistTrack>> FindTrackInOtherProjectsAsync(string artist, string title, Guid currentProjectId);
+
+    /// <summary>
+    /// Phase 2: Structural - Loads all detected phrases for a track.
+    /// </summary>
+    Task<List<TrackPhraseEntity>> GetPhrasesByHashAsync(string trackHash);
+
+    /// <summary>
+    /// Phase 2: Structural - Persists detected structural segments.
+    /// </summary>
+    Task SavePhrasesAsync(List<TrackPhraseEntity> phrases);
 }

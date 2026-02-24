@@ -152,17 +152,20 @@ Phase 4.1 (Download Queue Virtualization) is complete. Both `ItemsRepeater` cont
 
 ---
 
-## 🧠 Phase 5: AI Forensic Lab & Visual Science
+### 5.1: Docked Workspace Expansion (Next Session)
+- [ ] **Sidebar Protocol v2**: Extend `LibrarySidebarMode` with `Cues` and `Stems`.
+- [ ] **Multi-Mode Navigation**: Add a vertical icon-strip to the sidebar for manual mode switching (Discovery, Forensics, Cues, Stems, Metadata).
+- [ ] **Cue & Phrase Panel**: Vertical macro-waveform with color-coded phrase segments (Intro/Drop/Break).
+- [ ] **STEMS Panel**: Real-time level/solo controls for separated stems using `StemSeparationService`.
+
+---
+
+## 🔬 Phase 5.2: Visual Intelligence & Forensic Lab
 **Goal**: Expose deep musical intelligence to the user.
 
-### 5.1: Visual Intelligence
-- [ ] **Vibe Radar**: Interactive 2D scatter plot (Arousal vs Valence) in the Forensic Lab
-- [ ] **Subgenre Badge Engine**: UI wiring for electronic subgenres with confidence LEDs
-- [ ] **Macro-Waveform (Segmented)**: Color-coded phrase regions (Intro, Drop, Outro)
-
-### 5.2: Mission Control Modernization
-- [ ] **Glass Console Dashboard**: Acrylic styling with real-time workload heatmap
-- [ ] **Analysis Pipeline Visibility**: Live progress for queued/active/completed analysis tasks
+- [ ] **Vibe Radar**: Interactive 2D scatter plot (Arousal vs Valence) in the Forensic Lab.
+- [ ] **Subgenre Badge Engine**: UI wiring for electronic subgenres with confidence LEDs.
+- [ ] **Waveform Micro-Analysis**: High-fidelity segment visualization in the sidebar.
 
 ---
 
@@ -222,8 +225,7 @@ Run:   dotnet test --filter "ViewModelDisposalGuard"
 ---
 
 ## 📝 Immediate Tasks (Next Session)
-1. [x] ~~**Synergy Feature Testing**~~ — Completed in Phase 4.0 Task 4
-2. [x] ~~**Download Queue Virtualization**~~ — Completed in Phase 4.1
-3. [ ] **Stress Validation**: Run SetlistStressTest with 100+ track import while Enrichment Worker is active; confirm no `Database is locked` errors
-4. [ ] **Smooth Scrolling Audit**: Profile layout cycles in `DownloadGroupRow` during rapid queue churn; apply `CanContentScroll`, measure frame times
-5. [ ] **Phase 5.0 Transition**: Preview Engine initial integration
+1. [ ] **Sidebar Mode Extension**: Update `LibrarySidebarMode` and `ContextualSidebarViewModel`.
+2. [ ] **Sidebar Navigation UI**: Implement the IconStrip navigation in `LibraryPage.axaml` (right side of docked panel).
+3. [ ] **CueSidebar Skeleton**: Create `CueSidebarViewModel` and basic view structure.
+4. [ ] **Stress Validation**: Run SetlistStressTest with 100+ track import; confirm zero `Database is locked` errors.

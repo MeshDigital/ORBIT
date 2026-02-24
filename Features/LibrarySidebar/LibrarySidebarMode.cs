@@ -7,5 +7,9 @@ public enum LibrarySidebarMode
     BulkActions,
     Forensic,
     Metadata,
-    Player
+    Player,
+    Cues,
+    Stems,
+    VibeLab,
+    TransitionProber
 }

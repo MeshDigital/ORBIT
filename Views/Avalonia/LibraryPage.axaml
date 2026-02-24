@@ -11,6 +11,7 @@
              xmlns:conv="clr-namespace:SLSKDONET.Views.Avalonia.Converters"
              xmlns:dg="clr-namespace:Avalonia.Controls;assembly=Avalonia.Controls.DataGrid"
              xmlns:rootConv="clr-namespace:SLSKDONET.Converters"
+             xmlns:libSidebar="clr-namespace:SLSKDONET.Features.LibrarySidebar"
              xmlns:models="clr-namespace:SLSKDONET.Models"
              xmlns:helpers="clr-namespace:SLSKDONET.Helpers"
              xmlns:interactivity="clr-namespace:Avalonia.Xaml.Interactivity;assembly=Avalonia.Xaml.Interactivity"
@@ -43,7 +44,7 @@
 
     <Grid>
         <!-- CONTENT LAYER (Blurred when Overlay is active) -->
-        <Grid ColumnDefinitions="280,Auto,*"
+        <Grid ColumnDefinitions="280,Auto,*,Auto,Auto,48"
               Effect="{Binding IsForensicLabVisible, Converter={StaticResource BoolBlurConverter}}">
         
             <!-- LEFT PANEL: Playlist List -->
@@ -568,6 +569,147 @@
                     </Grid>
                 </Grid>
             </Grid>
+
+            <!-- Sidebar Splitter (Right) -->
+            <GridSplitter Grid.Column="3" Width="4" Background="Transparent" 
+                          IsVisible="{Binding Sidebar.IsSidebarOpen}">
+                <GridSplitter.Styles>
+                    <Style Selector="GridSplitter:pointerover">
+                        <Setter Property="Background" Value="#334EC9B0"/>
+                    </Style>
+                </GridSplitter.Styles>
+            </GridSplitter>
+
+            <!-- RIGHT DOCKED SIDEBAR -->
+            <Border Grid.Column="4" 
+                    Width="{Binding SidebarWidth, Mode=TwoWay}" 
+                    IsVisible="{Binding Sidebar.IsSidebarOpen}"
+                    Background="#252526" 
+                    BorderBrush="#3E3E3E" 
+                    BorderThickness="1,0,0,0">
+                <Grid RowDefinitions="Auto,*">
+                    <!-- Sidebar Header -->
+                    <Border Grid.Row="0" Padding="12" Background="#1E1E1E" BorderBrush="#3E3E3E" BorderThickness="0,0,0,1">
+                        <Grid ColumnDefinitions="Auto,*,Auto">
+                            <TextBlock Text="{Binding Sidebar.ModeIcon}" FontSize="16" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                            <TextBlock Grid.Column="1" Text="{Binding Sidebar.ModeLabel}" FontWeight="Bold" VerticalAlignment="Center" Foreground="#DDD"/>
+                            <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="4">
+                                <Button Classes="tool" Command="{Binding Sidebar.ShowPlayerCommand}" ToolTip.Tip="Show Player">
+                                    <TextBlock Text="🎵" FontSize="12"/>
+                                </Button>
+                                <Button Classes="tool" Command="{Binding Sidebar.HideCommand}" Content="✖" Foreground="#888"/>
+                            </StackPanel>
+                        </Grid>
+                    </Border>
+                    
+                    <!-- Sidebar Content -->
+                    <ContentControl Grid.Row="1" Content="{Binding Sidebar.CurrentContent}">
+                        <ContentControl.DataTemplates>
+                            <DataTemplate DataType="vmSidebar:SimilaritySidebarViewModel">
+                                <sidebar:SimilaritySidebarView/>
+                            </DataTemplate>
+                            <DataTemplate DataType="vmSidebar:BulkActionSidebarViewModel">
+                                <sidebar:BulkActionSidebarView/>
+                            </DataTemplate>
+                            <DataTemplate DataType="vmSidebar:ForensicSidebarViewModel">
+                                <sidebar:ForensicSidebarView/>
+                            </DataTemplate>
+                            <DataTemplate DataType="vmSidebar:MetadataSidebarViewModel">
+                                <sidebar:MetadataSidebarView/>
+                            </DataTemplate>
+                            <DataTemplate DataType="vmSidebar:CueSidebarViewModel">
+                                <sidebar:CueSidebarView/>
+                            </DataTemplate>
+                            <DataTemplate DataType="vmSidebar:StemSidebarViewModel">
+                                <sidebar:StemSidebarView/>
+                            </DataTemplate>
+                            <DataTemplate DataType="vmSidebar:VibeSidebarViewModel">
+                                <sidebar:VibeSidebarView/>
+                            </DataTemplate>
+                            <DataTemplate DataType="vmSidebar:TransitionProberViewModel">
+                                <sidebar:TransitionProberView/>
+                            </DataTemplate>
+                            <DataTemplate DataType="vm:PlayerViewModel">
+                                <views:PlayerControl/>
+                            </DataTemplate>
+                        </ContentControl.DataTemplates>
+                    </ContentControl>
+                </Grid>
+            </Border>
+
+            <!-- SIDEBAR NAVIGATION STRIP (Rightmost) -->
+            <Border Grid.Column="5" Background="#1E1E1E" BorderBrush="#3E3E3E" BorderThickness="1,0,0,0">
+                <StackPanel Spacing="4" VerticalAlignment="Top" Margin="0,4">
+                    <StackPanel.Styles>
+                        <Style Selector="ToggleButton">
+                            <Setter Property="Width" Value="40"/>
+                            <Setter Property="Height" Value="40"/>
+                            <Setter Property="Padding" Value="0"/>
+                            <Setter Property="Margin" Value="4,0"/>
+                            <Setter Property="Background" Value="Transparent"/>
+                            <Setter Property="BorderThickness" Value="0"/>
+                            <Setter Property="HorizontalContentAlignment" Value="Center"/>
+                            <Setter Property="VerticalContentAlignment" Value="Center"/>
+                        </Style>
+                        <Style Selector="ToggleButton:checked">
+                            <Setter Property="Background" Value="#3E3E3E"/>
+                        </Style>
+                        <Style Selector="ToggleButton:checked PathIcon">
+                            <Setter Property="Foreground" Value="#4EC9B0"/>
+                        </Style>
+                    </StackPanel.Styles>
+
+                    <!-- Discovery / Similarity -->
+                    <ToggleButton ToolTip.Tip="Sonic Similarity" 
+                                  IsChecked="{Binding Sidebar.ActiveMode, Converter={StaticResource EnumToBoolConverter}, ConverterParameter={x:Static libSidebar:LibrarySidebarMode.Similarity}}">
+                         <PathIcon Data="{StaticResource brain_circuit_regular}" Width="20" Height="20"/>
+                    </ToggleButton>
+                    
+                    <!-- Vibe Lab (NEW) -->
+                    <ToggleButton ToolTip.Tip="Vibe Lab &amp; Radar" 
+                                  IsChecked="{Binding Sidebar.ActiveMode, Converter={StaticResource EnumToBoolConverter}, ConverterParameter={x:Static libSidebar:LibrarySidebarMode.VibeLab}}">
+                         <PathIcon Data="{StaticResource movies_and_tv_regular}" Width="20" Height="20"/>
+                    </ToggleButton>
+
+                    <!-- Transition Prober (NEW) -->
+                    <ToggleButton ToolTip.Tip="Transition Prober" 
+                                  IsChecked="{Binding Sidebar.ActiveMode, Converter={StaticResource EnumToBoolConverter}, ConverterParameter={x:Static libSidebar:LibrarySidebarMode.TransitionProber}}">
+                         <PathIcon Data="{StaticResource arrow_sync_regular}" Width="20" Height="20"/>
+                    </ToggleButton>
+
+                    <!-- Metadata -->
+                    <ToggleButton ToolTip.Tip="Metadata Inspector" 
+                                  IsChecked="{Binding Sidebar.ActiveMode, Converter={StaticResource EnumToBoolConverter}, ConverterParameter={x:Static libSidebar:LibrarySidebarMode.Metadata}}">
+                         <PathIcon Data="{StaticResource icons_library}" Width="20" Height="20"/>
+                    </ToggleButton>
+                    
+                    <!-- Cues -->
+                    <ToggleButton ToolTip.Tip="Cue &amp; Phrase Inspector" 
+                                  IsChecked="{Binding Sidebar.ActiveMode, Converter={StaticResource EnumToBoolConverter}, ConverterParameter={x:Static libSidebar:LibrarySidebarMode.Cues}}">
+                         <PathIcon Data="{StaticResource location_pin_regular}" Width="20" Height="20"/>
+                    </ToggleButton>
+                    
+                    <!-- Stems -->
+                    <ToggleButton ToolTip.Tip="STEMS Sidebar" 
+                                  IsChecked="{Binding Sidebar.ActiveMode, Converter={StaticResource EnumToBoolConverter}, ConverterParameter={x:Static libSidebar:LibrarySidebarMode.Stems}}">
+                         <PathIcon Data="{StaticResource mixer_regular}" Width="20" Height="20"/>
+                    </ToggleButton>
+                    
+                    <!-- Forensic -->
+                    <ToggleButton ToolTip.Tip="Forensic Lab" 
+                                  IsChecked="{Binding Sidebar.ActiveMode, Converter={StaticResource EnumToBoolConverter}, ConverterParameter={x:Static libSidebar:LibrarySidebarMode.Forensic}}">
+                         <PathIcon Data="{StaticResource radar_regular}" Width="20" Height="20"/>
+                    </ToggleButton>
+
+                    <Separator Height="1" Background="#3E3E3E" Margin="8,4"/>
+
+                    <!-- Player -->
+                    <ToggleButton ToolTip.Tip="Now Playing" 
+                                  IsChecked="{Binding Sidebar.ActiveMode, Converter={StaticResource EnumToBoolConverter}, ConverterParameter={x:Static libSidebar:LibrarySidebarMode.Player}}">
+                         <PathIcon Data="{StaticResource music_regular}" Width="20" Height="20"/>
+                    </ToggleButton>
+                </StackPanel>
+            </Border>
         </Grid>
 
         <!-- OVERLAYS (Outside the main layout grids) -->

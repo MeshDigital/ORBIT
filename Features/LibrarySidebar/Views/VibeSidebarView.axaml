@@ -1,0 +1,71 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2000/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:skia="clr-namespace:Avalonia.Controls.Skia;assembly=Avalonia.Controls.Skia"
+             xmlns:vm="clr-namespace:SLSKDONET.Features.LibrarySidebar.ViewModels"
+             mc:Ignorable="d" d:DesignWidth="350" d:DesignHeight="600"
+             x:Class="SLSKDONET.Features.LibrarySidebar.Views.VibeSidebarView"
+             x:DataType="vm:VibeSidebarViewModel">
+
+    <Grid RowDefinitions="Auto, *">
+        <!-- Section 1: The Vibe Radar -->
+        <Border Grid.Row="0" Margin="10" Background="#1E1E1E" CornerRadius="8" BorderBrush="#3E3E3E" BorderThickness="1" ClipToBounds="True">
+            <Grid Width="300" Height="300">
+                <!-- Quadrant Background (Avalonia Layer) -->
+                <Grid RowDefinitions="*, *" ColumnDefinitions="*, *">
+                    <!-- Top Left: Aggressive -->
+                    <Border Grid.Row="0" Grid.Column="0" Background="#1A1E2929">
+                        <TextBlock Text="Aggressive" VerticalAlignment="Top" HorizontalAlignment="Left" Margin="8" FontSize="10" Foreground="#66FFFFFF" FontWeight="Light"/>
+                    </Border>
+                    <!-- Top Right: Euphoric -->
+                    <Border Grid.Row="0" Grid.Column="1" Background="#1A29291E">
+                        <TextBlock Text="Euphoric" VerticalAlignment="Top" HorizontalAlignment="Right" Margin="8" FontSize="10" Foreground="#66FFFFFF" FontWeight="Light"/>
+                    </Border>
+                    <!-- Bottom Left: Dark -->
+                    <Border Grid.Row="1" Grid.Column="0" Background="#1A1E1E29">
+                        <TextBlock Text="Dark" VerticalAlignment="Bottom" HorizontalAlignment="Left" Margin="8" FontSize="10" Foreground="#66FFFFFF" FontWeight="Light"/>
+                    </Border>
+                    <!-- Bottom Right: Chill -->
+                    <Border Grid.Row="1" Grid.Column="1" Background="#1A1E291E">
+                        <TextBlock Text="Chill" VerticalAlignment="Bottom" HorizontalAlignment="Right" Margin="8" FontSize="10" Foreground="#66FFFFFF" FontWeight="Light"/>
+                    </Border>
+
+                    <!-- Crosshair lines -->
+                    <Rectangle Grid.Row="0" Grid.ColumnSpan="2" Height="1" Fill="#22FFFFFF" VerticalAlignment="Bottom"/>
+                    <Rectangle Grid.Column="0" Grid.RowSpan="2" Width="1" Fill="#22FFFFFF" HorizontalAlignment="Right"/>
+                </Grid>
+
+                <!-- Skia Radar Canvas (Overlay) -->
+                <skia:SKCanvasView Name="RadarCanvas" 
+                                   PointerPressed="OnRadarPointerPressed"
+                                   Background="Transparent"/>
+            </Grid>
+        </Border>
+
+        <!-- Section 2: Spatial Discovery Results -->
+        <Grid Grid.Row="1" Margin="10,0,10,10" RowDefinitions="Auto, *">
+            <TextBlock Grid.Row="0" Text="SIMILAR VIBES" FontSize="12" FontWeight="Bold" Foreground="#4EC9B0" Margin="0,0,0,8"/>
+            
+            <ListBox Grid.Row="1" ItemsSource="{Binding NearbyTracks}" Background="Transparent" BorderThickness="0">
+                <ListBox.ItemTemplate>
+                    <DataTemplate>
+                        <Grid ColumnDefinitions="32, *" Margin="0,2">
+                            <Panel Grid.Column="0" Width="24" Height="24" VerticalAlignment="Center">
+                                <Border CornerRadius="4" ClipToBounds="True">
+                                    <Image Source="{Binding Artwork.Image}" />
+                                </Border>
+                            </Panel>
+                            <StackPanel Grid.Column="1" Margin="8,0,0,0" VerticalAlignment="Center">
+                                <TextBlock Text="{Binding Title}" FontSize="12" TextTrimming="CharacterEllipsis"/>
+                                <TextBlock Text="{Binding Artist}" FontSize="10" Foreground="#88FFFFFF" TextTrimming="CharacterEllipsis"/>
+                            </StackPanel>
+                        </Grid>
+                    </DataTemplate>
+                </ListBox.ItemTemplate>
+            </ListBox>
+
+            <ProgressBar Grid.Row="1" VerticalAlignment="Center" Margin="20" IsVisible="{Binding IsLoading}" IsIndeterminate="True"/>
+        </Grid>
+    </Grid>
+</UserControl>

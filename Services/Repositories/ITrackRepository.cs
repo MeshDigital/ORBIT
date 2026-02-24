@@ -65,4 +65,14 @@ public interface ITrackRepository
     /// Used by the Cross-Project Synergy feature.
     /// </summary>
     Task<List<PlaylistTrackEntity>> FindTracksInOtherProjectsAsync(string artist, string title, Guid excludeProjectId);
+
+    /// <summary>
+    /// Retrieves all detected phrases for a specific track.
+    /// </summary>
+    Task<List<TrackPhraseEntity>> GetPhrasesByHashAsync(string trackHash);
+
+    /// <summary>
+    /// Persists a collection of detected musical phrases, replacing any existing ones for the track.
+    /// </summary>
+    Task SavePhrasesAsync(List<TrackPhraseEntity> phrases);
 }

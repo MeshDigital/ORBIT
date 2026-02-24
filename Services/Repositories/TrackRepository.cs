@@ -1127,4 +1127,37 @@ public class TrackRepository : ITrackRepository
                      && t.Status == TrackStatus.Downloaded)
             .ToListAsync();
     }
+
+    public async Task<List<TrackPhraseEntity>> GetPhrasesByHashAsync(string trackHash)
+    {
+        using var context = new AppDbContext();
+        return await context.TrackPhrases
+            .AsNoTracking()
+            .Where(p => p.TrackUniqueHash == trackHash)
+            .OrderBy(p => p.OrderIndex)
+            .ToListAsync();
+    }
+
+    public async Task SavePhrasesAsync(List<TrackPhraseEntity> phrases)
+    {
+        if (phrases == null || !phrases.Any()) return;
+
+        await _writeSemaphore.WaitAsync();
+        try
+        {
+            using var context = new AppDbContext();
+            var hash = phrases.First().TrackUniqueHash;
+
+            // Atomic Refresh: Clear existing segments before adding new detection results
+            var existing = await context.TrackPhrases.Where(p => p.TrackUniqueHash == hash).ToListAsync();
+            context.TrackPhrases.RemoveRange(existing);
+
+            await context.TrackPhrases.AddRangeAsync(phrases);
+            await context.SaveChangesAsync();
+        }
+        finally
+        {
+            _writeSemaphore.Release();
+        }
+    }
 }

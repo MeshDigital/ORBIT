@@ -10,6 +10,7 @@ using Avalonia.VisualTree;
 using SLSKDONET.Models;
 using SLSKDONET.Services;
 using SLSKDONET.ViewModels;
+using SLSKDONET.Features.LibrarySidebar;
 using SLSKDONET.ViewModels.Library;
 using Microsoft.Extensions.Logging;
 
@@ -44,6 +45,15 @@ public partial class LibraryPage : UserControl
             
             // Context menu for headers
             SetupColumnContextMenu(dataGrid);
+        }
+
+        // Sidebar Navigation Drag-Drop
+        var navListBox = this.FindControl<ListBox>("SidebarNavListBox");
+        if (navListBox != null)
+        {
+            DragDrop.SetAllowDrop(navListBox, true);
+            navListBox.AddHandler(DragDrop.DragOverEvent, OnSidebarNavDragOver);
+            navListBox.AddHandler(DragDrop.DropEvent, OnSidebarNavDrop);
         }
     }
 
@@ -253,6 +263,43 @@ public partial class LibraryPage : UserControl
         {
             // Use existing AddToPlaylist method (includes deduplication)
             libraryViewModel.AddToPlaylist(targetPlaylist, sourceTrack);
+        }
+    }
+
+    private void OnSidebarNavDragOver(object? sender, DragEventArgs e)
+    {
+        if (e.Data.Contains(DragContext.LibraryTrackFormat) || e.Data.Contains(DragContext.QueueTrackFormat))
+        {
+            var listBoxItem = (e.Source as Control)?.FindAncestorOfType<ListBoxItem>();
+            if (listBoxItem != null)
+            {
+                e.DragEffects = DragDropEffects.Link;
+            }
+            else
+            {
+                e.DragEffects = DragDropEffects.None;
+            }
+        }
+    }
+
+    private void OnSidebarNavDrop(object? sender, DragEventArgs e)
+    {
+        var listBoxItem = (e.Source as Control)?.FindAncestorOfType<ListBoxItem>();
+        if (listBoxItem != null && listBoxItem.Tag is LibrarySidebarMode mode)
+        {
+            string? trackGlobalId = e.Data.Get(DragContext.LibraryTrackFormat) as string ?? 
+                                    e.Data.Get(DragContext.QueueTrackFormat) as string;
+
+            if (!string.IsNullOrEmpty(trackGlobalId) && DataContext is LibraryViewModel vm)
+            {
+                var track = vm.CurrentProjectTracks.FirstOrDefault(t => t.GlobalId == trackGlobalId) ??
+                            vm.PlayerViewModel?.Queue.FirstOrDefault(t => t.GlobalId == trackGlobalId);
+
+                if (track != null)
+                {
+                    _ = vm.Sidebar.SwitchToModeAsync(mode, track);
+                }
+            }
         }
     }
     
