@@ -663,6 +663,7 @@ public partial class App : Application
 
         // Mission Control
         services.AddSingleton<MissionControlService>();
+        services.AddTransient<SLSKDONET.Services.Missions.SonicAuditMission>();
 
         // ViewModels
         services.AddSingleton<MainViewModel>();
