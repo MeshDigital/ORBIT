@@ -55,6 +55,26 @@ public class PlaylistJob : INotifyPropertyChanged
     public string? AlbumArtUrl { get; set; }
 
     /// <summary>
+    /// Resolves the art to display, falling back to the first track's art if the playlist art is missing.
+    /// </summary>
+    public string? DisplayArtUrl => !string.IsNullOrEmpty(AlbumArtUrl) 
+        ? AlbumArtUrl 
+        : PlaylistTracks?.FirstOrDefault(t => !string.IsNullOrEmpty(t.AlbumArtUrl))?.AlbumArtUrl;
+
+    /// <summary>
+    /// Returns an emoji icon based on the source type.
+    /// </summary>
+    public string SourceIcon => SourceType switch
+    {
+        "Spotify" => "🎧",
+        "YouTube" => "🎬",
+        "CSV" => "📄",
+        "Local" => "📁",
+        "User" => "👤",
+        _ => "🎵"
+    };
+
+    /// <summary>
     /// Source URL for duplicate detection (e.g. Spotify URI/URL).
     /// </summary>
     public string? SourceUrl { get; set; }

@@ -1651,6 +1651,25 @@ public class DownloadManager : INotifyPropertyChanged, IDisposable
                     continue;
                 }
 
+                // Race Condition Safety Checks
+                if (!tookSemaphoreSlot && !confirmedContext.IsVip)
+                {
+                    // We bypassed the semaphore wait because initial track was VIP, 
+                    // but the confirmed track is a normal track. We must acquire a slot, 
+                    // but doing so safely requires yielding the loop to re-evaluate state.
+                    _logger.LogDebug("Race Condition: Need a slot for confirmed non-VIP track but didn't wait. Yielding loop.");
+                    continue; 
+                }
+
+                if (tookSemaphoreSlot && confirmedContext.IsVip)
+                {
+                    // We acquired a slot for a normal track, but selected a VIP track. 
+                    // Release the slot immediately so another track can use it.
+                    _logger.LogDebug("Race Condition: Got a slot for a normal track, but selected a VIP track. Releasing slot.");
+                    _downloadSemaphore.Release();
+                    tookSemaphoreSlot = false; // Important: Prevents finally block from double-releasing!
+                }
+
                 // If we switched tracks (e.g. a higher priority one came in), use the new one.
                 // If confirmedContext matches nextContext, great. If not, confirmedContext is better.
                 nextContext = confirmedContext;
@@ -1671,6 +1690,7 @@ public class DownloadManager : INotifyPropertyChanged, IDisposable
                         // ALWAYS release the semaphore, but ONLY if we actually took a slot (not VIP)
                         if (finalTookSlot)
                         {
+                            _downloadSemaphore.Release();
                             _logger.LogDebug("Released semaphore slot. Available slots: {Available}/4", 
                                 _downloadSemaphore.CurrentCount);
                         }

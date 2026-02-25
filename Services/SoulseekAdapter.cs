@@ -32,6 +32,8 @@ public class SoulseekAdapter : ISoulseekAdapter, IDisposable
     private static readonly SemaphoreSlim _rateLimitLock = new(1, 1);
     private DateTime _lastSearchTime = DateTime.MinValue;
 
+    private readonly ConcurrentDictionary<string, byte> _excludedPhrases = new();
+
     public SoulseekAdapter(ILogger<SoulseekAdapter> logger, AppConfig config, IEventBus eventBus)
     {
         _logger = logger;
@@ -57,7 +59,7 @@ public class SoulseekAdapter : ISoulseekAdapter, IDisposable
                 try { _client.Disconnect(); _client.Dispose(); } catch { }
             }
 
-            _client = new SoulseekClient();
+            _client = new SoulseekClient(minorVersion: _config.SoulseekMinorVersion);
             
             // Subscribe to state changes BEFORE connecting to catch early login states
             _client.StateChanged += (sender, args) =>
@@ -68,6 +70,21 @@ public class SoulseekAdapter : ISoulseekAdapter, IDisposable
                 _eventBus.Publish(new SoulseekStateChangedEvent(
                     args.State.ToString(), 
                     args.State.HasFlag(SoulseekClientStates.Connected) && !args.State.HasFlag(SoulseekClientStates.Disconnecting)));
+            };
+
+            // Phase 5/10: Adhere to new global exclusions from Soulseek Server
+            _client.ExcludedSearchPhrasesReceived += (sender, phrases) =>
+            {
+                int added = 0;
+                foreach (var phrase in phrases)
+                {
+                    if (_excludedPhrases.TryAdd(phrase.ToLowerInvariant(), 0))
+                        added++;
+                }
+                if (added > 0)
+                {
+                    _logger.LogInformation("Added {Added} new excluded search phrases. Total known exclusions: {Total}", added, _excludedPhrases.Count);
+                }
             };
 
             _logger.LogInformation("Connecting to Soulseek as {Username} on {Server}:{Port}...", 
@@ -235,6 +252,25 @@ public class SoulseekAdapter : ISoulseekAdapter, IDisposable
                                     _logger.LogInformation("[FILTER] Rejected by format: {File} (extension: {Ext}, allowed: {Formats})", file.Filename, extension, string.Join(", ", formatSet));
                                 }
                                 continue;
+                            }
+
+                            // Soulseek Network Adherence: Filter out excluded phrases
+                            if (_excludedPhrases.Count > 0)
+                            {
+                                bool isExcluded = false;
+                                var lowerPath = file.Filename.ToLowerInvariant();
+                                foreach (var phrase in _excludedPhrases.Keys)
+                                {
+                                    if (lowerPath.Contains(phrase))
+                                    {
+                                        isExcluded = true;
+                                        break;
+                                    }
+                                }
+                                if (isExcluded)
+                                {
+                                    continue;
+                                }
                             }
 
                             // Use the helper method to parse metadata correctly

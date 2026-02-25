@@ -228,6 +228,8 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
             CommandPaletteViewModel.IsVisible = !CommandPaletteViewModel.IsVisible;
             if (CommandPaletteViewModel.IsVisible) CommandPaletteViewModel.SearchText = "";
         });
+        ToggleZenModeCommand = new RelayCommand(ToggleZenMode);
+        ToggleTopBarCommand = new RelayCommand(() => IsTopCommandBarVisible = !IsTopCommandBarVisible);
 
 
         // Spotify Hub Initialization (TODO: Phase 7 - Implement when needed)
@@ -463,6 +465,72 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
     {
         get => _isNavigationMini;
         set => SetProperty(ref _isNavigationMini, value);
+    }
+
+    private bool _isZenMode;
+    public bool IsZenMode
+    {
+        get => _isZenMode;
+        set
+        {
+            if (SetProperty(ref _isZenMode, value))
+            {
+                if (value)
+                {
+                    IsNavigationCollapsed = true;
+                    IsTopCommandBarVisible = false;
+                    IsPlayerSidebarVisible = false;
+                }
+                else
+                {
+                    IsNavigationCollapsed = false;
+                    IsTopCommandBarVisible = true;
+                    IsPlayerSidebarVisible = true;
+                }
+            }
+        }
+    }
+
+    private bool _isTopCommandBarVisible = true;
+    public bool IsTopCommandBarVisible
+    {
+        get => _isTopCommandBarVisible;
+        set => SetProperty(ref _isTopCommandBarVisible, value);
+    }
+
+    private bool _isAcquireVisible = true;
+    public bool IsAcquireVisible
+    {
+        get => _isAcquireVisible;
+        set => SetProperty(ref _isAcquireVisible, value);
+    }
+
+    private bool _isEnrichVisible = true;
+    public bool IsEnrichVisible
+    {
+        get => _isEnrichVisible;
+        set => SetProperty(ref _isEnrichVisible, value);
+    }
+
+    private bool _isCurateVisible = true;
+    public bool IsCurateVisible
+    {
+        get => _isCurateVisible;
+        set => SetProperty(ref _isCurateVisible, value);
+    }
+
+    private bool _isDeliverVisible = true;
+    public bool IsDeliverVisible
+    {
+        get => _isDeliverVisible;
+        set => SetProperty(ref _isDeliverVisible, value);
+    }
+
+    private bool _isSystemVisible = true;
+    public bool IsSystemVisible
+    {
+        get => _isSystemVisible;
+        set => SetProperty(ref _isSystemVisible, value);
     }
 
     private bool _isPlayerSidebarVisible = true;
@@ -719,6 +787,8 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
     public ICommand ToggleIntelligenceCommand { get; }
     public ICommand CloseIntelligenceCommand { get; }
     public ICommand ToggleCommandPaletteCommand { get; }
+    public ICommand ToggleZenModeCommand { get; }
+    public ICommand ToggleTopBarCommand { get; }
 
     
     // Downloads Page Commands
@@ -798,6 +868,11 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
     private void NavigateToSearch()
     {
         _navigationService.NavigateTo("Search");
+    }
+
+    private void ToggleZenMode()
+    {
+        IsZenMode = !IsZenMode;
     }
 
     private void NavigateToLibrary()

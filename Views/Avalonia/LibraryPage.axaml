@@ -150,12 +150,34 @@
                                 </Grid>
                             </Border>
                             
-                            <ListBox ItemsSource="{Binding Projects.FilteredProjects}" SelectedItem="{Binding Projects.SelectedProject, Mode=TwoWay}" Background="Transparent" BorderThickness="0" Padding="0">
+                            <ListBox ItemsSource="{Binding Projects.FilteredProjects}" 
+                                     SelectedItem="{Binding Projects.SelectedProject, Mode=TwoWay}" 
+                                     Background="Transparent" BorderThickness="0" Padding="0,4">
                                 <ListBox.Styles>
                                     <Style Selector="ListBoxItem">
-                                        <Setter Property="Padding" Value="0"/>
+                                        <Setter Property="Padding" Value="4"/>
                                         <Setter Property="Margin" Value="8,2"/>
-                                        <Setter Property="CornerRadius" Value="6"/>
+                                        <Setter Property="CornerRadius" Value="8"/>
+                                        <Setter Property="Background" Value="Transparent"/>
+                                        <Setter Property="BorderBrush" Value="Transparent"/>
+                                        <Setter Property="BorderThickness" Value="2,0,0,0"/>
+                                        <Setter Property="Transitions">
+                                            <Transitions>
+                                                <BrushTransition Property="Background" Duration="0:0:0.2"/>
+                                                <BrushTransition Property="BorderBrush" Duration="0:0:0.2"/>
+                                            </Transitions>
+                                        </Setter>
+                                    </Style>
+                                    <Style Selector="ListBoxItem:pointerover">
+                                        <Setter Property="Background" Value="{StaticResource GlassBrush}"/>
+                                        <Setter Property="BorderBrush" Value="{StaticResource GlassHeavyBrush}"/>
+                                    </Style>
+                                    <Style Selector="ListBoxItem:selected">
+                                        <Setter Property="Background" Value="{StaticResource AccentGlowBrush}"/>
+                                        <Setter Property="BorderBrush" Value="{StaticResource AccentBrush}"/>
+                                    </Style>
+                                    <Style Selector="ListBoxItem:selected /template/ ContentPresenter">
+                                        <Setter Property="Background" Value="{Binding $parent[ListBoxItem].Background}"/>
                                     </Style>
                                 </ListBox.Styles>
                                 <ListBox.ItemTemplate>
@@ -514,12 +536,19 @@
                             </dg:DataGrid.KeyBindings>
                             <dg:DataGrid.Styles>
                                 <Style Selector="dg|DataGridColumnHeader">
-                                    <Setter Property="Background" Value="#252526"/>
-                                    <Setter Property="Foreground" Value="#888"/>
+                                    <Setter Property="Background" Value="{StaticResource Surface2Brush}"/>
+                                    <Setter Property="Foreground" Value="{DynamicResource TextSecondaryBrush}"/>
                                     <Setter Property="FontSize" Value="11"/>
-                                    <Setter Property="Padding" Value="12,8"/>
-                                    <Setter Property="BorderThickness" Value="0,0,0,1"/>
-                                    <Setter Property="BorderBrush" Value="#3E3E3E"/>
+                                    <Setter Property="FontWeight" Value="SemiBold"/>
+                                    <Setter Property="Padding" Value="12,10"/>
+                                    <Setter Property="BorderThickness" Value="0,0,1,1"/>
+                                    <Setter Property="BorderBrush" Value="{StaticResource GlassBrush}"/>
+                                </Style>
+                                <Style Selector="dg|DataGridRow:selected /template/ Rectangle#BackgroundRectangle">
+                                    <Setter Property="Fill" Value="{StaticResource GlassHeavyBrush}"/>
+                                </Style>
+                                <Style Selector="dg|DataGridRow:selected">
+                                    <Setter Property="Foreground" Value="{StaticResource AccentBrush}"/>
                                 </Style>
                             </dg:DataGrid.Styles>
                             <dg:DataGrid.Columns>

@@ -1,5 +1,24 @@
 # Recent Changes
 
+## [0.1.0-alpha.10] - Download Resilience & Soulseek v9 Compliance (Feb 25, 2026)
+
+### Fixes & Stability
+* **Critical Download Lock-up Fix**: Resolved a semaphore leak in `DownloadManager.cs` where slots were not being released correctly, leading to permanent download stalls.
+* **Race Condition Guard**: Implemented protective checks in the download queue loop to ensure semaphore integrity when VIP/Concurrent limit settings change.
+
+### Soulseek.NET Compliance (v9+)
+* **Library Modernization**: Replaced the outdated `Soulseek.NET` NuGet package with a local project reference to the latest v9+ source code.
+* **Network Identity**: Implemented the mandatory `minorVersion` constructor parameter for `SoulseekClient` to ensure reliable server connectivity.
+* **Global Search Exclusions**: 
+    - Added a real-time handler for `ExcludedSearchPhrasesReceived` from the Soulseek server.
+    - Implemented a thread-safe, dynamic blocklist in `SoulseekAdapter` that filters search results against server-mandated exclusions.
+* **Configuration**: Added `SoulseekMinorVersion` (Default 2026) to `AppConfig.cs` and JSON settings for easy environment management.
+
+### Files Modified
+* **Services**: `DownloadManager.cs`, `SoulseekAdapter.cs`
+* **Configuration**: `AppConfig.cs`, `appsettings.json`, `appsettings.Development.json`
+* **Infrastructure**: `SLSKDONET.csproj`
+
 ## [0.1.0-alpha.9.12] - Transparent Sonic Match Engine & Vocal Clash Avoidance (Feb 24, 2026)
 
 ### New Features

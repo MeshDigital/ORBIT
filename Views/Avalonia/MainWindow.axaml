@@ -24,26 +24,36 @@
         
         <!-- Navigation Sidebar Styles -->
         <Style Selector="Border.nav-sidebar">
-            <Setter Property="Width" Value="240"/>
+            <Setter Property="Width" Value="220"/>
+            <Setter Property="Background" Value="{StaticResource DeepBackgroundBrush}"/>
             <Setter Property="Transitions">
                 <Transitions>
-                    <DoubleTransition Property="Width" Duration="0:0:0.2"/>
+                    <DoubleTransition Property="Width" Duration="0:0:0.25" Easing="QuarticEaseOut"/>
+                    <DoubleTransition Property="Opacity" Duration="0:0:0.2"/>
                 </Transitions>
             </Setter>
         </Style>
         <Style Selector="Border.nav-sidebar.mini">
-            <Setter Property="Width" Value="60"/>
+            <Setter Property="Width" Value="56"/>
         </Style>
         <Style Selector="Border.nav-sidebar.mini TextBlock:nth-child(2)">
+            <Setter Property="Opacity" Value="0"/>
             <Setter Property="IsVisible" Value="False"/>
         </Style>
         <Style Selector="Border.nav-sidebar.mini Border.GroupHeader">
+            <Setter Property="Opacity" Value="0"/>
             <Setter Property="IsVisible" Value="False"/>
         </Style>
         <Style Selector="Border.nav-sidebar.mini Button.nav StackPanel">
             <Setter Property="HorizontalAlignment" Value="Center"/>
             <Setter Property="Spacing" Value="0"/>
             <Setter Property="Margin" Value="0"/>
+        </Style>
+        <Style Selector="Border.nav-sidebar.mini Button.nav">
+            <Setter Property="Width" Value="40"/>
+            <Setter Property="Height" Value="40"/>
+            <Setter Property="Padding" Value="0"/>
+            <Setter Property="HorizontalAlignment" Value="Center"/>
         </Style>
     </Window.Styles>
     
@@ -72,11 +82,22 @@
 
         <!-- Ctrl+K: Command Palette -->
         <KeyBinding Gesture="Ctrl+K" Command="{Binding ToggleCommandPaletteCommand}"/>
+
+        <!-- F10: Zen Mode -->
+        <KeyBinding Gesture="F10" Command="{Binding ToggleZenModeCommand}"/>
+        
+        <!-- F11: Toggle Top Bar -->
+        <KeyBinding Gesture="F11" Command="{Binding ToggleTopBarCommand}"/>
     </Window.KeyBindings>
     
     <Grid RowDefinitions="Auto,*,Auto">
         <!-- Unified Top Command Bar -->
-        <Border Grid.Row="0" Background="#1E1E1E" Padding="12,10" BorderBrush="#000" BorderThickness="0,0,0,1">
+        <Border Grid.Row="0" 
+                Background="#1E1E1E" 
+                Padding="12,10" 
+                BorderBrush="#000" 
+                BorderThickness="0,0,0,1"
+                IsVisible="{Binding IsTopCommandBarVisible}">
             <Grid ColumnDefinitions="Auto,*,Auto">
                 <!-- Left: Navigation & Connection -->
                 <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center" Spacing="16">
@@ -207,185 +228,204 @@
             
             <!-- Left Navigation Sidebar -->
             <Border Grid.Column="0" 
-                    Background="#252526" 
-                    BorderBrush="#3E3E3E" 
-                    BorderThickness="0,0,1,0"
-                    IsVisible="{Binding !IsNavigationCollapsed}"
+                    Background="{StaticResource DeepBackgroundBrush}" 
+                    BorderBrush="{StaticResource BorderBrush}" 
                     Classes="nav-sidebar"
                     Classes.mini="{Binding IsNavigationMini}">
+                <Border.ContextMenu>
+                    <ContextMenu>
+                        <MenuItem Header="Show ACQUIRE" IsChecked="{Binding IsAcquireVisible}" ToggleType="CheckBox"/>
+                        <MenuItem Header="Show ENRICH" IsChecked="{Binding IsEnrichVisible}" ToggleType="CheckBox"/>
+                        <MenuItem Header="Show CURATE" IsChecked="{Binding IsCurateVisible}" ToggleType="CheckBox"/>
+                        <MenuItem Header="Show DELIVER" IsChecked="{Binding IsDeliverVisible}" ToggleType="CheckBox"/>
+                        <MenuItem Header="Show SYSTEM" IsChecked="{Binding IsSystemVisible}" ToggleType="CheckBox"/>
+                        <Separator/>
+                        <MenuItem Header="Zen Mode (F10)" IsChecked="{Binding IsZenMode}" ToggleType="CheckBox"/>
+                    </ContextMenu>
+                </Border.ContextMenu>
                 <ScrollViewer>
                     <StackPanel Margin="0,16,0,0" Spacing="8">
                         
                         <!-- ACQUIRE -->
-                        <Border Classes="GroupHeader" Padding="16,8,0,4">
-                            <TextBlock Text="ACQUIRE" Classes="GroupTitle" FontSize="11" FontWeight="Bold" Foreground="#666" LetterSpacing="1"/>
-                        </Border>
-                        
-                        <StackPanel Spacing="2">
-                            <Button Classes="nav" Command="{Binding NavigateSearchCommand}"
-                                    ToolTip.Tip="Search"
-                                    Classes.selected="{Binding CurrentPageType, Converter={StaticResource EqualityConverter}, ConverterParameter={x:Static models:PageType.Search}}">
-                                <StackPanel Orientation="Horizontal" Spacing="12" Margin="16,0">
-                                    <TextBlock Text="🔍" FontSize="16"/>
-                                    <TextBlock Text="Search" FontSize="14"/>
-                                </StackPanel>
-                            </Button>
+                        <StackPanel IsVisible="{Binding IsAcquireVisible}">
+                            <Border Classes="GroupHeader" Padding="16,8,0,4">
+                                <TextBlock Text="ACQUIRE" Classes="GroupTitle" FontSize="11" FontWeight="Bold" Foreground="#666" LetterSpacing="1"/>
+                            </Border>
+                            
+                            <StackPanel Spacing="2">
+                                <Button Classes="nav" Command="{Binding NavigateSearchCommand}"
+                                        ToolTip.Tip="Search"
+                                        Classes.selected="{Binding CurrentPageType, Converter={StaticResource EqualityConverter}, ConverterParameter={x:Static models:PageType.Search}}">
+                                    <StackPanel Orientation="Horizontal" Spacing="12" Margin="16,0">
+                                        <TextBlock Text="🔍" FontSize="16"/>
+                                        <TextBlock Text="Search" FontSize="14"/>
+                                    </StackPanel>
+                                </Button>
 
-                            <Button Classes="nav" Command="{Binding NavigateDiscoveryHubCommand}"
-                                    ToolTip.Tip="Discovery Hub"
-                                    Classes.selected="{Binding CurrentPageType, Converter={StaticResource EqualityConverter}, ConverterParameter={x:Static models:PageType.DiscoveryHub}}">
-                                <StackPanel Orientation="Horizontal" Spacing="12" Margin="16,0">
-                                    <TextBlock Text="🛸" FontSize="16"/>
-                                    <TextBlock Text="Discovery Hub" FontSize="14"/>
-                                </StackPanel>
-                            </Button>
+                                <Button Classes="nav" Command="{Binding NavigateDiscoveryHubCommand}"
+                                        ToolTip.Tip="Discovery Hub"
+                                        Classes.selected="{Binding CurrentPageType, Converter={StaticResource EqualityConverter}, ConverterParameter={x:Static models:PageType.DiscoveryHub}}">
+                                    <StackPanel Orientation="Horizontal" Spacing="12" Margin="16,0">
+                                        <TextBlock Text="🛸" FontSize="16"/>
+                                        <TextBlock Text="Discovery Hub" FontSize="14"/>
+                                    </StackPanel>
+                                </Button>
 
-                            <Button Classes="nav" Command="{Binding NavigateProjectsCommand}"
-                                    ToolTip.Tip="Inbox"
-                                    Classes.selected="{Binding CurrentPageType, Converter={StaticResource EqualityConverter}, ConverterParameter={x:Static models:PageType.Projects}}">
-                                <StackPanel Orientation="Horizontal" Spacing="12" Margin="16,0">
-                                    <TextBlock Text="📥" FontSize="16"/>
-                                    <TextBlock Text="Inbox" FontSize="14"/>
-                                </StackPanel>
-                            </Button>
+                                <Button Classes="nav" Command="{Binding NavigateProjectsCommand}"
+                                        ToolTip.Tip="Inbox"
+                                        Classes.selected="{Binding CurrentPageType, Converter={StaticResource EqualityConverter}, ConverterParameter={x:Static models:PageType.Projects}}">
+                                    <StackPanel Orientation="Horizontal" Spacing="12" Margin="16,0">
+                                        <TextBlock Text="📥" FontSize="16"/>
+                                        <TextBlock Text="Inbox" FontSize="14"/>
+                                    </StackPanel>
+                                </Button>
 
-                            <Button Classes="nav" Command="{Binding NavigateImportCommand}"
-                                    ToolTip.Tip="Import"
-                                    Classes.selected="{Binding CurrentPageType, Converter={StaticResource EqualityConverter}, ConverterParameter={x:Static models:PageType.Import}}">
-                                <StackPanel Orientation="Horizontal" Spacing="12" Margin="16,0">
-                                    <TextBlock Text="🔗" FontSize="16"/>
-                                    <TextBlock Text="Import" FontSize="14"/>
-                                </StackPanel>
-                            </Button>
+                                <Button Classes="nav" Command="{Binding NavigateImportCommand}"
+                                        ToolTip.Tip="Import"
+                                        Classes.selected="{Binding CurrentPageType, Converter={StaticResource EqualityConverter}, ConverterParameter={x:Static models:PageType.Import}}">
+                                    <StackPanel Orientation="Horizontal" Spacing="12" Margin="16,0">
+                                        <TextBlock Text="🔗" FontSize="16"/>
+                                        <TextBlock Text="Import" FontSize="14"/>
+                                    </StackPanel>
+                                </Button>
+                            </StackPanel>
                         </StackPanel>
 
                         <!-- ENRICH -->
-                        <Border Classes="GroupHeader" Padding="16,8,0,4">
-                            <TextBlock Text="ENRICH" Classes="GroupTitle" FontSize="11" FontWeight="Bold" Foreground="#666" LetterSpacing="1"/>
-                        </Border>
+                        <StackPanel IsVisible="{Binding IsEnrichVisible}">
+                            <Border Classes="GroupHeader" Padding="16,8,0,4">
+                                <TextBlock Text="ENRICH" Classes="GroupTitle" FontSize="11" FontWeight="Bold" Foreground="#666" LetterSpacing="1"/>
+                            </Border>
 
-                        <StackPanel Spacing="2">
-                            <Button Classes="nav" Command="{Binding NavigateInspectorCommand}"
-                                    ToolTip.Tip="The Processor"
-                                    Classes.selected="{Binding CurrentPageType, Converter={StaticResource EqualityConverter}, ConverterParameter={x:Static models:PageType.AnalysisQueue}}">
-                                <StackPanel Orientation="Horizontal" Spacing="12" Margin="16,0">
-                                    <TextBlock Text="🧠" FontSize="16"/>
-                                    <TextBlock Text="The Processor" FontSize="14"/>
-                                </StackPanel>
-                            </Button>
+                            <StackPanel Spacing="2">
+                                <Button Classes="nav" Command="{Binding NavigateInspectorCommand}"
+                                        ToolTip.Tip="The Processor"
+                                        Classes.selected="{Binding CurrentPageType, Converter={StaticResource EqualityConverter}, ConverterParameter={x:Static models:PageType.AnalysisQueue}}">
+                                    <StackPanel Orientation="Horizontal" Spacing="12" Margin="16,0">
+                                        <TextBlock Text="🧠" FontSize="16"/>
+                                        <TextBlock Text="The Processor" FontSize="14"/>
+                                    </StackPanel>
+                                </Button>
 
-                            <Button Classes="nav" Command="{Binding NavigateStyleLabCommand}"
-                                    ToolTip.Tip="Style Lab"
-                                    Classes.selected="{Binding CurrentPageType, Converter={StaticResource EqualityConverter}, ConverterParameter={x:Static models:PageType.StyleLab}}">
-                                <StackPanel Orientation="Horizontal" Spacing="12" Margin="16,0">
-                                    <TextBlock Text="🧪" FontSize="16"/>
-                                    <TextBlock Text="Style Lab" FontSize="14"/>
-                                </StackPanel>
-                            </Button>
+                                <Button Classes="nav" Command="{Binding NavigateStyleLabCommand}"
+                                        ToolTip.Tip="Style Lab"
+                                        Classes.selected="{Binding CurrentPageType, Converter={StaticResource EqualityConverter}, ConverterParameter={x:Static models:PageType.StyleLab}}">
+                                    <StackPanel Orientation="Horizontal" Spacing="12" Margin="16,0">
+                                        <TextBlock Text="🧪" FontSize="16"/>
+                                        <TextBlock Text="Style Lab" FontSize="14"/>
+                                    </StackPanel>
+                                </Button>
 
-                            <Button Classes="nav" Command="{Binding ToggleStemWorkspaceCommand}"
-                                    ToolTip.Tip="Stems"
-                                    Classes.selected="{Binding StemWorkspaceViewModel.IsVisible}">
-                                <StackPanel Orientation="Horizontal" Spacing="12" Margin="16,0">
-                                    <TextBlock Text="🧬" FontSize="16"/>
-                                    <TextBlock Text="Stems" FontSize="14"/>
-                                </StackPanel>
-                            </Button>
+                                <Button Classes="nav" Command="{Binding ToggleStemWorkspaceCommand}"
+                                        ToolTip.Tip="Stems"
+                                        Classes.selected="{Binding StemWorkspaceViewModel.IsVisible}">
+                                    <StackPanel Orientation="Horizontal" Spacing="12" Margin="16,0">
+                                        <TextBlock Text="🧬" FontSize="16"/>
+                                        <TextBlock Text="Stems" FontSize="14"/>
+                                    </StackPanel>
+                                </Button>
+                            </StackPanel>
                         </StackPanel>
 
                         <!-- CURATE -->
-                        <Border Classes="GroupHeader" Padding="16,8,0,4">
-                            <TextBlock Text="CURATE" Classes="GroupTitle" FontSize="11" FontWeight="Bold" Foreground="#666" LetterSpacing="1"/>
-                        </Border>
+                        <StackPanel IsVisible="{Binding IsCurateVisible}">
+                            <Border Classes="GroupHeader" Padding="16,8,0,4">
+                                <TextBlock Text="CURATE" Classes="GroupTitle" FontSize="11" FontWeight="Bold" Foreground="#666" LetterSpacing="1"/>
+                            </Border>
 
-                        <StackPanel Spacing="2">
-                            <Button Classes="nav" Command="{Binding NavigateDJCompanionCommand}"
-                                    ToolTip.Tip="DJ Companion"
-                                    Classes.selected="{Binding CurrentPageType, Converter={StaticResource EqualityConverter}, ConverterParameter={x:Static models:PageType.DJCompanion}}">
-                                <StackPanel Orientation="Horizontal" Spacing="12" Margin="16,0">
-                                    <TextBlock Text="🎧" FontSize="16"/>
-                                    <TextBlock Text="DJ Companion" FontSize="14"/>
-                                </StackPanel>
-                            </Button>
+                            <StackPanel Spacing="2">
+                                <Button Classes="nav" Command="{Binding NavigateDJCompanionCommand}"
+                                        ToolTip.Tip="DJ Companion"
+                                        Classes.selected="{Binding CurrentPageType, Converter={StaticResource EqualityConverter}, ConverterParameter={x:Static models:PageType.DJCompanion}}">
+                                    <StackPanel Orientation="Horizontal" Spacing="12" Margin="16,0">
+                                        <TextBlock Text="🎧" FontSize="16"/>
+                                        <TextBlock Text="DJ Companion" FontSize="14"/>
+                                    </StackPanel>
+                                </Button>
 
-                            <Button Classes="nav" Command="{Binding NavigateFlowBuilderCommand}"
-                                    ToolTip.Tip="Flow Builder"
-                                    Classes.selected="{Binding CurrentPageType, Converter={StaticResource EqualityConverter}, ConverterParameter={x:Static models:PageType.FlowBuilder}}">
-                                <StackPanel Orientation="Horizontal" Spacing="12" Margin="16,0">
-                                    <TextBlock Text="🌊" FontSize="16"/>
-                                    <TextBlock Text="Flow Builder" FontSize="14"/>
-                                </StackPanel>
-                            </Button>
+                                <Button Classes="nav" Command="{Binding NavigateFlowBuilderCommand}"
+                                        ToolTip.Tip="Flow Builder"
+                                        Classes.selected="{Binding CurrentPageType, Converter={StaticResource EqualityConverter}, ConverterParameter={x:Static models:PageType.FlowBuilder}}">
+                                    <StackPanel Orientation="Horizontal" Spacing="12" Margin="16,0">
+                                        <TextBlock Text="🌊" FontSize="16"/>
+                                        <TextBlock Text="Flow Builder" FontSize="14"/>
+                                    </StackPanel>
+                                </Button>
 
-                            <Button Classes="nav" Command="{Binding NavigateDawCommand}"
-                                    ToolTip.Tip="Timeline"
-                                    Classes.selected="{Binding CurrentPageType, Converter={StaticResource EqualityConverter}, ConverterParameter={x:Static models:PageType.DawTimeline}}">
-                                <StackPanel Orientation="Horizontal" Spacing="12" Margin="16,0">
-                                    <TextBlock Text="⏱️" FontSize="16"/>
-                                    <TextBlock Text="Timeline" FontSize="14"/>
-                                </StackPanel>
-                            </Button>
+                                <Button Classes="nav" Command="{Binding NavigateDawCommand}"
+                                        ToolTip.Tip="Timeline"
+                                        Classes.selected="{Binding CurrentPageType, Converter={StaticResource EqualityConverter}, ConverterParameter={x:Static models:PageType.DawTimeline}}">
+                                    <StackPanel Orientation="Horizontal" Spacing="12" Margin="16,0">
+                                        <TextBlock Text="⏱️" FontSize="16"/>
+                                        <TextBlock Text="Timeline" FontSize="14"/>
+                                    </StackPanel>
+                                </Button>
+                            </StackPanel>
                         </StackPanel>
 
                         <!-- DELIVER -->
-                        <Border Classes="GroupHeader" Padding="16,8,0,4">
-                            <TextBlock Text="DELIVER" Classes="GroupTitle" FontSize="11" FontWeight="Bold" Foreground="#666" LetterSpacing="1"/>
-                        </Border>
+                        <StackPanel IsVisible="{Binding IsDeliverVisible}">
+                            <Border Classes="GroupHeader" Padding="16,8,0,4">
+                                <TextBlock Text="DELIVER" Classes="GroupTitle" FontSize="11" FontWeight="Bold" Foreground="#666" LetterSpacing="1"/>
+                            </Border>
 
-                        <StackPanel Spacing="2">
-                            <Button Classes="nav" Command="{Binding NavigateExportCommand}"
-                                    ToolTip.Tip="Export Manager"
-                                    Classes.selected="{Binding CurrentPageType, Converter={StaticResource EqualityConverter}, ConverterParameter={x:Static models:PageType.Export}}">
-                                <StackPanel Orientation="Horizontal" Spacing="12" Margin="16,0">
-                                    <TextBlock Text="🚀" FontSize="16"/>
-                                    <TextBlock Text="Export Manager" FontSize="14"/>
-                                </StackPanel>
-                            </Button>
+                            <StackPanel Spacing="2">
+                                <Button Classes="nav" Command="{Binding NavigateExportCommand}"
+                                        ToolTip.Tip="Export Manager"
+                                        Classes.selected="{Binding CurrentPageType, Converter={StaticResource EqualityConverter}, ConverterParameter={x:Static models:PageType.Export}}">
+                                    <StackPanel Orientation="Horizontal" Spacing="12" Margin="16,0">
+                                        <TextBlock Text="🚀" FontSize="16"/>
+                                        <TextBlock Text="Export Manager" FontSize="14"/>
+                                    </StackPanel>
+                                </Button>
+                            </StackPanel>
                         </StackPanel>
 
                         <Border Height="1" Background="#333" Margin="12,12"/>
 
                         <!-- SYSTEM UTILITIES -->
-                        <Border Classes="GroupHeader" Padding="16,8,0,4">
-                            <TextBlock Text="SYSTEM" Classes="GroupTitle" FontSize="11" FontWeight="Bold" Foreground="#666" LetterSpacing="1"/>
-                        </Border>
+                        <StackPanel IsVisible="{Binding IsSystemVisible}">
+                            <Border Classes="GroupHeader" Padding="16,8,0,4">
+                                <TextBlock Text="SYSTEM" Classes="GroupTitle" FontSize="11" FontWeight="Bold" Foreground="#666" LetterSpacing="1"/>
+                            </Border>
 
-                        <StackPanel Spacing="2">
-                             <Button Classes="nav" Command="{Binding NavigateHomeCommand}"
-                                    ToolTip.Tip="Dashboard"
-                                    Classes.selected="{Binding CurrentPageType, Converter={StaticResource EqualityConverter}, ConverterParameter={x:Static models:PageType.Home}}">
-                                <StackPanel Orientation="Horizontal" Spacing="12" Margin="16,0">
-                                    <TextBlock Text="🏠" FontSize="16"/>
-                                    <TextBlock Text="Dashboard" FontSize="14"/>
-                                </StackPanel>
-                            </Button>
+                            <StackPanel Spacing="2">
+                                 <Button Classes="nav" Command="{Binding NavigateHomeCommand}"
+                                        ToolTip.Tip="Dashboard"
+                                        Classes.selected="{Binding CurrentPageType, Converter={StaticResource EqualityConverter}, ConverterParameter={x:Static models:PageType.Home}}">
+                                    <StackPanel Orientation="Horizontal" Spacing="12" Margin="16,0">
+                                        <TextBlock Text="🏠" FontSize="16"/>
+                                        <TextBlock Text="Dashboard" FontSize="14"/>
+                                    </StackPanel>
+                                </Button>
 
-                            <Button Classes="nav" Command="{Binding NavigateLibraryCommand}"
-                                    ToolTip.Tip="Library"
-                                    Classes.selected="{Binding CurrentPageType, Converter={StaticResource EqualityConverter}, ConverterParameter={x:Static models:PageType.Library}}">
-                                <StackPanel Orientation="Horizontal" Spacing="12" Margin="16,0">
-                                    <TextBlock Text="📚" FontSize="16"/>
-                                    <TextBlock Text="Library" FontSize="14"/>
-                                </StackPanel>
-                            </Button>
+                                <Button Classes="nav" Command="{Binding NavigateLibraryCommand}"
+                                        ToolTip.Tip="Library"
+                                        Classes.selected="{Binding CurrentPageType, Converter={StaticResource EqualityConverter}, ConverterParameter={x:Static models:PageType.Library}}">
+                                    <StackPanel Orientation="Horizontal" Spacing="12" Margin="16,0">
+                                        <TextBlock Text="📚" FontSize="16"/>
+                                        <TextBlock Text="Library" FontSize="14"/>
+                                    </StackPanel>
+                                </Button>
 
-                            <Button Classes="nav" Command="{Binding NavigateUpgradeScoutCommand}"
-                                    ToolTip.Tip="Upgrades"
-                                    Classes.selected="{Binding CurrentPageType, Converter={StaticResource EqualityConverter}, ConverterParameter={x:Static models:PageType.UpgradeScout}}">
-                                <StackPanel Orientation="Horizontal" Spacing="12" Margin="16,0">
-                                    <TextBlock Text="💎" FontSize="16"/>
-                                    <TextBlock Text="Upgrades" FontSize="14"/>
-                                </StackPanel>
-                            </Button>
+                                <Button Classes="nav" Command="{Binding NavigateUpgradeScoutCommand}"
+                                        ToolTip.Tip="Upgrades"
+                                        Classes.selected="{Binding CurrentPageType, Converter={StaticResource EqualityConverter}, ConverterParameter={x:Static models:PageType.UpgradeScout}}">
+                                    <StackPanel Orientation="Horizontal" Spacing="12" Margin="16,0">
+                                        <TextBlock Text="💎" FontSize="16"/>
+                                        <TextBlock Text="Upgrades" FontSize="14"/>
+                                    </StackPanel>
+                                </Button>
 
-                            <Button Classes="nav" Command="{Binding NavigateSettingsCommand}"
-                                    ToolTip.Tip="Settings"
-                                    Classes.selected="{Binding CurrentPageType, Converter={StaticResource EqualityConverter}, ConverterParameter={x:Static models:PageType.Settings}}">
-                                <StackPanel Orientation="Horizontal" Spacing="12" Margin="16,0">
-                                    <TextBlock Text="⚙️" FontSize="16"/>
-                                    <TextBlock Text="Settings" FontSize="14"/>
-                                </StackPanel>
-                            </Button>
+                                <Button Classes="nav" Command="{Binding NavigateSettingsCommand}"
+                                        ToolTip.Tip="Settings"
+                                        Classes.selected="{Binding CurrentPageType, Converter={StaticResource EqualityConverter}, ConverterParameter={x:Static models:PageType.Settings}}">
+                                    <StackPanel Orientation="Horizontal" Spacing="12" Margin="16,0">
+                                        <TextBlock Text="⚙️" FontSize="16"/>
+                                        <TextBlock Text="Settings" FontSize="14"/>
+                                    </StackPanel>
+                                </Button>
+                            </StackPanel>
                         </StackPanel>
                     </StackPanel>
                 </ScrollViewer>

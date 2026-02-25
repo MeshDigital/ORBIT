@@ -26,6 +26,7 @@ public class AppConfig
     // Soulseek Network Settings (matches Soulseek.NET library defaults)
     public string SoulseekServer { get; set; } = "server.slsknet.org"; 
     public int SoulseekPort { get; set; } = 2242;
+    public int SoulseekMinorVersion { get; set; } = 2026;
     
     // File preference conditions
     public List<string>? PreferredFormats { get; set; } = new() { "mp3", "flac" };

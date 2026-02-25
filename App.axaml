@@ -35,6 +35,10 @@
         <conv_root:BoolToStringConverter x:Key="BoolToStringConverter"/>
         <converters:BoolToAngleConverter x:Key="BoolToAngleConverter"/>
         <converters:BoolToTextConverter x:Key="BoolToTextConverter"/>
+        <converters:BoolToOrangeConverter x:Key="BoolToOrangeConverter"/>
+        <converters:BooleanToRedBrushConverter x:Key="BooleanToRedBrushConverter"/>
+        <converters:UpgradeStatusToVisibleConverter x:Key="UpgradeStatusToVisibleConverter"/>
+        <converters:BoolBlurConverter x:Key="BoolBlurConverter"/>
 
         
         <!-- Utility Converters -->
