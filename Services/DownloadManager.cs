@@ -369,24 +369,6 @@ public class DownloadManager : INotifyPropertyChanged, IDisposable
             // The ProcessQueueLoop will call RefillQueueAsync when needed
             await RefillQueueAsync();
 
-
-            
-            // Phase 2.5: Crash Recovery - Detect orphaned downloads and resume with .part files
-            await HydrateFromCrashAsync();
-            
-            // Phase 2.5: Zombie Cleanup - Delete orphaned .part files older than 24 hours
-            // Pro-tip from user: Use case-insensitive HashSet for Windows paths
-            var activePartPaths = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-            lock (_collectionLock)
-            {
-                foreach (var ctx in _downloads.Where(t => t.State == PlaylistTrackState.Pending || t.State == PlaylistTrackState.Downloading))
-                {
-                    var partPath = _pathProvider.GetTrackPath(ctx.Model.Artist, ctx.Model.Album ?? "Unknown", ctx.Model.Title, "mp3") + ".part";
-                    activePartPaths.Add(partPath);
-                }
-            }
-            await _pathProvider.CleanupOrphanedPartFilesAsync(activePartPaths);
-            
             // Start the Enrichment Orchestrator
             _enrichmentOrchestrator.Start();
 
@@ -645,7 +627,8 @@ public class DownloadManager : INotifyPropertyChanged, IDisposable
                     Priority = t.Priority,
                     AddedAt = t.AddedAt,
                     CompletedAt = t.CompletedAt,
-                    IsUserPaused = t.IsUserPaused
+                    IsUserPaused = t.IsUserPaused,
+                    SourcePlaylistName = t.SourcePlaylistName
                 };
                 
                 // Map status to download state
@@ -1289,10 +1272,23 @@ public class DownloadManager : INotifyPropertyChanged, IDisposable
             try 
             {
                 await HydrateFromCrashAsync();
+
+                // Phase 2.5: Zombie Cleanup - Delete orphaned .part files older than 24 hours
+                // Moved from InitAsync to prevent blocking Engine startup over slow directories
+                var activePartPaths = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                lock (_collectionLock)
+                {
+                    foreach (var ctx in _downloads.Where(t => t.State == PlaylistTrackState.Pending || t.State == PlaylistTrackState.Downloading))
+                    {
+                        var partPath = _pathProvider.GetTrackPath(ctx.Model.Artist, ctx.Model.Album ?? "Unknown", ctx.Model.Title, "mp3") + ".part";
+                        activePartPaths.Add(partPath);
+                    }
+                }
+                await _pathProvider.CleanupOrphanedPartFilesAsync(activePartPaths);
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Failed to recover journaled downloads");
+                _logger.LogError(ex, "Failed to recover journaled downloads or cleanup orphaned files");
             }
         }, ct);
 
@@ -1557,8 +1553,8 @@ public class DownloadManager : INotifyPropertyChanged, IDisposable
                     // Weighted selection algorithm with slot allocation
                     var eligibleTracks = _downloads.Where(t => 
                         t.State == PlaylistTrackState.Pending && 
-                        (!t.NextRetryTime.HasValue || t.NextRetryTime.Value <= DateTime.Now) &&
-                        (t.Model.IsEnriched || t.IsVip || (DateTime.Now - t.Model.AddedAt).TotalSeconds > 20))
+                        (!t.NextRetryTime.HasValue || t.NextRetryTime.Value <= DateTime.UtcNow) &&
+                        (t.Model.IsEnriched || t.IsVip || (DateTime.UtcNow - t.Model.AddedAt).TotalSeconds > 20))
                         .ToList();
 
                     if (eligibleTracks.Any())
@@ -1640,7 +1636,7 @@ public class DownloadManager : INotifyPropertyChanged, IDisposable
                     // Or simply re-run selection to be safe
                     var eligibleTracks = _downloads.Where(t => 
                         t.State == PlaylistTrackState.Pending && 
-                        (!t.NextRetryTime.HasValue || t.NextRetryTime.Value <= DateTime.Now))
+                        (!t.NextRetryTime.HasValue || t.NextRetryTime.Value <= DateTime.UtcNow))
                         .ToList();
 
                     confirmedContext = SelectNextTrackWithLaneAllocation(eligibleTracks, activeByPriority);

@@ -310,28 +310,31 @@ public class DownloadCenterViewModel : ReactiveObject, IDisposable
         // Sync manager state
         _downloadManager.PropertyChanged += (s, e) => 
         {
-             if (e.PropertyName == nameof(DownloadManager.IsRunning) || e.PropertyName == nameof(DownloadManager.IsPaused))
+             Avalonia.Threading.Dispatcher.UIThread.Post(() => 
              {
-                 this.RaisePropertyChanged(nameof(IsEngineRunning));
-                 this.RaisePropertyChanged(nameof(IsEnginePaused));
-                 this.RaisePropertyChanged(nameof(EngineStatusText));
-                 this.RaisePropertyChanged(nameof(EngineStatusColor));
-                 this.RaisePropertyChanged(nameof(EngineStatusIcon));
-             }
-             else if (e.PropertyName == nameof(DownloadManager.ActiveWorkerSlots))
-             {
-                 this.RaisePropertyChanged(nameof(ActiveWorkerSlots));
-                 this.RaisePropertyChanged(nameof(WorkerSlotsDisplay));
-             }
-             else if (e.PropertyName == nameof(DownloadManager.SoulseekConnected))
-             {
-                 this.RaisePropertyChanged(nameof(IsSoulseekConnected));
-             }
-             else if (e.PropertyName == nameof(DownloadManager.IsBackingOff) || e.PropertyName == nameof(DownloadManager.CurrentBackoffSeconds))
-             {
-                 this.RaisePropertyChanged(nameof(IsBackingOff));
-                 this.RaisePropertyChanged(nameof(BackoffSeconds));
-             }
+                 if (e.PropertyName == nameof(DownloadManager.IsRunning) || e.PropertyName == nameof(DownloadManager.IsPaused))
+                 {
+                     this.RaisePropertyChanged(nameof(IsEngineRunning));
+                     this.RaisePropertyChanged(nameof(IsEnginePaused));
+                     this.RaisePropertyChanged(nameof(EngineStatusText));
+                     this.RaisePropertyChanged(nameof(EngineStatusColor));
+                     this.RaisePropertyChanged(nameof(EngineStatusIcon));
+                 }
+                 else if (e.PropertyName == nameof(DownloadManager.ActiveWorkerSlots))
+                 {
+                     this.RaisePropertyChanged(nameof(ActiveWorkerSlots));
+                     this.RaisePropertyChanged(nameof(WorkerSlotsDisplay));
+                 }
+                 else if (e.PropertyName == nameof(DownloadManager.SoulseekConnected))
+                 {
+                     this.RaisePropertyChanged(nameof(IsSoulseekConnected));
+                 }
+                 else if (e.PropertyName == nameof(DownloadManager.IsBackingOff) || e.PropertyName == nameof(DownloadManager.CurrentBackoffSeconds))
+                 {
+                     this.RaisePropertyChanged(nameof(IsBackingOff));
+                     this.RaisePropertyChanged(nameof(BackoffSeconds));
+                 }
+             });
         };
         
         ClearCompletedCommand = ReactiveCommand.Create(() => 

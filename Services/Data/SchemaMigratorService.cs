@@ -150,16 +150,20 @@ public class SchemaMigratorService
         await CheckForForceResetAsync().ConfigureAwait(false); // Step 1: Check if user requested reset
         await PerformBackupAsync().ConfigureAwait(false);      // Step 2: Backup existing or Restore if missing
 
+        // Use a dedicated connection string WITHOUT pooling for the ENTIRE initialization process
+        // This prevents lingering locks from pooled connections between migration steps.
+        var initConnectionString = $"Data Source={dbPath};Default Timeout=30000;Pooling=False";
+
         // Initialize optimizations and WAL mode FIRST
         try
         {
-            using (var conn = new SqliteConnection($"Data Source={dbPath};Default Timeout=10000"))
+            using (var conn = new SqliteConnection(initConnectionString))
             {
-                await conn.OpenAsync();
+                await conn.OpenAsync().ConfigureAwait(false);
                 using (var cmd = conn.CreateCommand())
                 {
-                    cmd.CommandText = "PRAGMA journal_mode=WAL; PRAGMA synchronous=NORMAL; PRAGMA busy_timeout=10000; PRAGMA wal_checkpoint(TRUNCATE);";
-                    await cmd.ExecuteNonQueryAsync();
+                    cmd.CommandText = "PRAGMA journal_mode=WAL; PRAGMA synchronous=NORMAL; PRAGMA busy_timeout=30000; PRAGMA wal_checkpoint(TRUNCATE);";
+                    await cmd.ExecuteNonQueryAsync().ConfigureAwait(false);
                 }
             }
             _logger.LogInformation("[{Ms}ms] Database Init: WAL mode applied and Checkpoint (TRUNCATE) completed.", sw.ElapsedMilliseconds);
@@ -169,20 +173,17 @@ public class SchemaMigratorService
             _logger.LogWarning(ex, "Failed to apply early database optimizations.");
         }
 
-        using var context = new AppDbContext();
-        var db = context.Database;
-
         // Phase 12: Transition to EF Core Migrations
         _logger.LogInformation("[{Ms}ms] Database Init: Checking for legacy database...", sw.ElapsedMilliseconds);
         bool legacyDbExists = false;
         try
         {
-            using (var conn = new SqliteConnection($"Data Source={dbPath};Default Timeout=5000"))
+            using (var conn = new SqliteConnection(initConnectionString))
             {
-                await conn.OpenAsync();
+                await conn.OpenAsync().ConfigureAwait(false);
                 using var cmd = conn.CreateCommand();
                 cmd.CommandText = "SELECT count(*) FROM sqlite_master WHERE type='table' AND name='Tracks';";
-                var result = await cmd.ExecuteScalarAsync();
+                var result = await cmd.ExecuteScalarAsync().ConfigureAwait(false);
                 legacyDbExists = (long)(result ?? 0) > 0;
             }
         }
@@ -197,12 +198,12 @@ public class SchemaMigratorService
                 bool historyExists = false;
                 try
                 {
-                    using (var conn = new SqliteConnection($"Data Source={dbPath};Default Timeout=10000"))
+                    using (var conn = new SqliteConnection(initConnectionString))
                     {
-                        await conn.OpenAsync();
+                        await conn.OpenAsync().ConfigureAwait(false);
                         using var cmd = conn.CreateCommand();
                         cmd.CommandText = "SELECT count(*) FROM sqlite_master WHERE type='table' AND name='__EFMigrationsHistory';";
-                        var result = await cmd.ExecuteScalarAsync();
+                        var result = await cmd.ExecuteScalarAsync().ConfigureAwait(false);
                         historyExists = (long)(result ?? 0) > 0;
                     }
                 }
@@ -215,9 +216,9 @@ public class SchemaMigratorService
             {
                 _logger.LogWarning("Legacy manually-patched database detected. Bootstrapping EF migrations history.");
 
-                using (var conn = new SqliteConnection($"Data Source={dbPath};Default Timeout=10000"))
+                using (var conn = new SqliteConnection(initConnectionString))
                 {
-                    await conn.OpenAsync();
+                    await conn.OpenAsync().ConfigureAwait(false);
                     using var cmd = conn.CreateCommand();
                     cmd.CommandText = @"
                         CREATE TABLE IF NOT EXISTS ""LibraryFolders"" (
@@ -234,94 +235,119 @@ public class SchemaMigratorService
                         );
                         INSERT OR IGNORE INTO ""__EFMigrationsHistory"" (""MigrationId"", ""ProductVersion"")
                         VALUES ('20260107122524_InitialStructure', '9.0.0');";
-                    await cmd.ExecuteNonQueryAsync();
+                    await cmd.ExecuteNonQueryAsync().ConfigureAwait(false);
                 }
             }
         }
 
-        // Critical Fix for Schema Drift:
-        // If "IsUserPaused" already exists (via manual patch), marking the migration as applied
-        // to prevent "duplicate column name" crash during MigrateAsync().
+        // Phase 24.5: Clear stale migration locks if they exist
         try
         {
-            _logger.LogInformation("[{Ms}ms] Database Init: Checking for IsUserPaused column drift...", sw.ElapsedMilliseconds);
-            bool columnExists = false;
-            using (var conn = new SqliteConnection($"Data Source={dbPath};Default Timeout=10000"))
+            using (var conn = new SqliteConnection(initConnectionString))
             {
-                await conn.OpenAsync();
+                await conn.OpenAsync().ConfigureAwait(false);
                 using var cmd = conn.CreateCommand();
+                cmd.CommandText = "SELECT name FROM sqlite_master WHERE type='table' AND name='__EFMigrationsLock';";
+                var lockTableExists = await cmd.ExecuteScalarAsync().ConfigureAwait(false) != null;
+                if (lockTableExists)
+                {
+                    cmd.CommandText = "DELETE FROM __EFMigrationsLock;";
+                    await cmd.ExecuteNonQueryAsync().ConfigureAwait(false);
+                    _logger.LogInformation("[{Ms}ms] Stale migration lock cleared from '__EFMigrationsLock'.", sw.ElapsedMilliseconds);
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Failed to clear migration locks (non-fatal).");
+        }
+
+        // Critical Fix for Schema Drift:
+        // Consolidating checks for columns that might have been added manually or via failed migrations
+        try
+        {
+            using (var conn = new SqliteConnection(initConnectionString))
+            {
+                await conn.OpenAsync().ConfigureAwait(false);
+                using var cmd = conn.CreateCommand();
+                
+                // 1. Check for IsUserPaused migration drift
                 cmd.CommandText = "SELECT COUNT(*) FROM pragma_table_info('PlaylistTracks') WHERE name='IsUserPaused'";
-                var result = await cmd.ExecuteScalarAsync();
-                columnExists = (long)(result ?? 0) > 0;
-            }
-            
-            if (columnExists)
-            {
-                 // Manually insert the migration record so EF skips it
-                 using (var conn = new SqliteConnection($"Data Source={dbPath};Default Timeout=10000"))
-                 {
-                     await conn.OpenAsync();
-                     using var cmd = conn.CreateCommand();
-                     cmd.CommandText = @"
-                        INSERT OR IGNORE INTO ""__EFMigrationsHistory"" (""MigrationId"", ""ProductVersion"")
-                        VALUES ('20260212000254_AddIsUserPausedToPlaylistTrack', '9.0.0');";
-                     await cmd.ExecuteNonQueryAsync();
-                 }
-                 _logger.LogInformation("[{Ms}ms] Schema fix: 'IsUserPaused' column detected, migration record forced.", sw.ElapsedMilliseconds);
+                bool isUserPausedExists = (long)(await cmd.ExecuteScalarAsync().ConfigureAwait(false) ?? 0) > 0;
+                if (isUserPausedExists)
+                {
+                     cmd.CommandText = @"INSERT OR IGNORE INTO ""__EFMigrationsHistory"" (""MigrationId"", ""ProductVersion"")
+                                        VALUES ('20260212000254_AddIsUserPausedToPlaylistTrack', '9.0.0');";
+                     await cmd.ExecuteNonQueryAsync().ConfigureAwait(false);
+                     _logger.LogInformation("[{Ms}ms] Schema fix: 'IsUserPaused' detected, migration record forced.", sw.ElapsedMilliseconds);
+                }
+
+                // 2. Check for VocalDensity migration drift (the current hang suspect)
+                cmd.CommandText = "SELECT COUNT(*) FROM pragma_table_info('audio_features') WHERE name='VocalDensity'";
+                bool vocalDensityExists = (long)(await cmd.ExecuteScalarAsync().ConfigureAwait(false) ?? 0) > 0;
+                if (vocalDensityExists)
+                {
+                     cmd.CommandText = @"INSERT OR IGNORE INTO ""__EFMigrationsHistory"" (""MigrationId"", ""ProductVersion"")
+                                        VALUES ('20260224160926_AddVocalDensityToAudioFeatures', '9.0.0');";
+                     await cmd.ExecuteNonQueryAsync().ConfigureAwait(false);
+                     _logger.LogInformation("[{Ms}ms] Schema fix: 'VocalDensity' detected, migration record forced.", sw.ElapsedMilliseconds);
+                }
             }
         }
         catch (Exception ex)
         {
-            _logger.LogWarning(ex, "Failed to check/patch migration history for IsUserPaused.");
+            _logger.LogWarning(ex, "Failed to check/patch migration history drift.");
         }
 
-        // Diagnostic: List pending migrations
-        try
+        // Phase 12: Transition to EF Core Migrations
+        var migrationOptions = new DbContextOptionsBuilder<AppDbContext>()
+            .UseSqlite(initConnectionString)
+            .Options;
+
+        List<string> pending;
+        using (var context = new AppDbContext(migrationOptions))
         {
-            var pending = (await context.Database.GetPendingMigrationsAsync()).ToList();
-            if (pending.Any())
-            {
-                _logger.LogInformation("[{Ms}ms] Pending migrations: {Migrations}", sw.ElapsedMilliseconds, string.Join(", ", pending));
-            }
-            else
-            {
-                _logger.LogInformation("[{Ms}ms] No pending EF migrations found.", sw.ElapsedMilliseconds);
-            }
-        }
-        catch (Exception ex)
-        {
-            _logger.LogWarning(ex, "Failed to retrieve pending migrations list.");
+            pending = (await context.Database.GetPendingMigrationsAsync().ConfigureAwait(false)).ToList();
         }
 
-        // Apply EF Migrations
-        _logger.LogInformation("[{Ms}ms] Database Init: Calling MigrateAsync() on {DbPath}...", sw.ElapsedMilliseconds, dbPath);
-        
-        try
+        if (pending.Any())
         {
-            var migrateTask = context.Database.MigrateAsync();
-            var timeoutLimit = 600; // Increased to 10 minutes for large/slow databases
-            var timeoutTask = Task.Delay(TimeSpan.FromSeconds(timeoutLimit));
+            _logger.LogInformation("[{Ms}ms] Pending migrations: {Migrations}", sw.ElapsedMilliseconds, string.Join(", ", pending));
+            _logger.LogInformation("[{Ms}ms] Database Init: Calling MigrateAsync() on {DbPath}...", sw.ElapsedMilliseconds, dbPath);
             
-            if (await Task.WhenAny(migrateTask, timeoutTask) == timeoutTask)
+            // Clear all connection pools just in case anything else touched the DB
+            SqliteConnection.ClearAllPools();
+            
+            using (var context = new AppDbContext(migrationOptions))
             {
-                _logger.LogError("CRITICAL: Database Migration TIMEOUT ({Timeout}s). The database file at {DbPath} (Size: {Size}MB) is taking too long to respond. This usually means another program is locking the file.", timeoutLimit, dbPath, new FileInfo(dbPath).Length / 1024 / 1024);
+                var migrateTask = context.Database.MigrateAsync();
+                var timeoutLimit = 600; 
+                var timeoutTask = Task.Delay(TimeSpan.FromSeconds(timeoutLimit));
+                
+                if (await Task.WhenAny(migrateTask, timeoutTask) == timeoutTask)
+                {
+                    _logger.LogError("CRITICAL: Database Migration TIMEOUT ({Timeout}s).", timeoutLimit);
+                }
+                
+                await migrateTask.ConfigureAwait(false);
             }
-            
-            await migrateTask.ConfigureAwait(false);
             _logger.LogInformation("[{Ms}ms] Database Init: EF Migrations applied successfully", sw.ElapsedMilliseconds);
         }
-        catch (Exception ex)
+        else
         {
-            _logger.LogError(ex, "CRITICAL: MigrateAsync failed. If 'Database is locked', please check for zombie processes.");
-            throw; // Re-throw to show in UI background task
+            _logger.LogInformation("[{Ms}ms] Database Init: No pending migrations.", sw.ElapsedMilliseconds);
         }
 
-        // SQLite Optimizations (WAL mode etc)
-        var connection = db.GetDbConnection();
-        if (connection != null)
+        // Re-open for post-migration optimizations
+        using (var context = new AppDbContext(migrationOptions))
         {
-            context.ConfigureSqliteOptimizations(connection);
-            await ApplySchemaPatchesAsync(context, connection);
+            var db = context.Database;
+            var connection = db.GetDbConnection();
+            if (connection != null)
+            {
+                context.ConfigureSqliteOptimizations(connection);
+                await ApplySchemaPatchesAsync(context, connection);
+            }
         }
 
         // Index Audit (DEBUG builds only)

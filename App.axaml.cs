@@ -222,121 +222,75 @@ public partial class App : Application
 
                 // Phase 8: Validate FFmpeg availability - Moved to background task
 
-                // Create main window and show it immediately
-                MainViewModel mainVm;
-                try 
-                {
-                    mainVm = Services.GetRequiredService<MainViewModel>();
-                }
-                catch (Exception diEx)
-                {
-                    Serilog.Log.Fatal(diEx, "DI RESOLUTION ERROR: {Message}", diEx.GetBaseException().Message);
-                    throw;
-                }
-                mainVm.StatusText = "Initializing application...";
-                mainVm.IsInitializing = true;
+                // Show Splash Screen first
+                var splashScreen = new SLSKDONET.Views.Avalonia.SplashScreen();
                 
-                var mainWindow = new Views.Avalonia.MainWindow
-                {
-                    DataContext = mainVm
-                };
-
-                desktop.MainWindow = mainWindow;
-                mainWindow.Show(); // Explicitly show window after async initialization
+                // Set as main window temporarily so it shows up as the app window
+                desktop.MainWindow = splashScreen;
+                splashScreen.Show();
+                splashScreen.UpdateStatus("Initializing Database...");
                 
-                // Start background initialization (non-blocking)
+                // Yield to let the UI thread render the splash screen
+                await Task.Delay(50);
+                
+                // CRITICAL FIX: Initialize Database BEFORE creating the UI to prevent SQLite locks
                 _ = Task.Run(async () =>
                 {
+                    MainViewModel? mainVm = null;
+                    var initCts = new CancellationTokenSource(TimeSpan.FromMinutes(2)); 
+                    
                     try
                     {
-                        // 1. Initialize Database (now in background)
-                        mainVm.StatusText = "Initializing Database...";
                         var databaseService = Services.GetRequiredService<DatabaseService>();
-                        await databaseService.InitAsync();
-                        Serilog.Log.Information("✅ Database initialization completed in background");
+                        
+                        await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() => splashScreen.UpdateStatus("Optimizing Database..."));
+                        await databaseService.InitAsync().WaitAsync(initCts.Token);
+                        
+                        Serilog.Log.Information("✅ Database initialization completed successfully");
+                        
+                        await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() => splashScreen.UpdateStatus("Starting UI..."));
+                        await Task.Delay(50);
 
-                        // 2. Run other initialization tasks...
-                        // CRITICAL FIX: Proactively verify Spotify connection on startup
-                        // This prevents the "zombie token" bug where tokens are invalid but UI shows "Connected"
-                        try
+                        // Create main window and show it immediately on the UI thread
+                        // We resolve MainViewModel on the UI thread because it creates UI-bound components (like TreeDataGridSource)
+                        await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() =>
                         {
-                            // var spotifyAuthService = Services.GetRequiredService<SpotifyAuthService>();
-                            // await spotifyAuthService.VerifyConnectionAsync();
-                        }
-                        catch (Exception spotifyEx)
-                        {
-                            Serilog.Log.Warning(spotifyEx, "Spotify connection verification failed (non-critical)");
-                        }
-
-                        // Phase 3: Startup Health Check (Professionalization)
-                        // Validates FFmpeg and other dependencies, shows dialog if missing
-                        try 
-                        {
-                            var healthCheck = Services.GetRequiredService<StartupHealthCheckService>();
-                            await healthCheck.RunHealthCheckAsync();
-
-                            // Verification Step - COMPLETED 2026-01-03
-                            // var verifier = Services.GetRequiredService<StyleLabPersistenceVerifier>();
-                            // await verifier.VerifyPersistenceAsync();
-                        }
-                        catch (Exception healthEx)
-                        {
-                            Serilog.Log.Error(healthEx, "Startup health check failed");
-                        }
-
-                        // Phase 10.5: Native Dependency Health Check
-                        try
-                        {
-                            var depHealth = Services.GetRequiredService<NativeDependencyHealthService>();
-                            await depHealth.CheckHealthAsync();
+                            mainVm = Services.GetRequiredService<MainViewModel>();
+                            mainVm.StatusText = "Finalizing UI...";
+                            mainVm.IsInitializing = true;
                             
-                            if (!depHealth.IsHealthy)
+                            var mainWindow = new Views.Avalonia.MainWindow
                             {
-                                Serilog.Log.Warning("⚠️ NATIVE DEPENDENCIES MISSING: FFmpeg={Ffmpeg}, Essentia={Essentia}", 
-                                    depHealth.FfmpegStatus?.IsAvailable ?? false, 
-                                    depHealth.EssentiaStatus?.IsAvailable ?? false);
-                            }
-                        }
-                        catch (Exception ex)
-                        {
-                            Serilog.Log.Warning(ex, "Native dependency health check failed");
-                        }
+                                DataContext = mainVm
+                            };
 
-                        // Phase 8.1: Verify Spotify connection on startup
-                        // This prevents the "zombie token" bug where tokens are invalid but UI shows "Connected"
-                        try
-                        {
-                            var spotifyAuthService = Services.GetRequiredService<SpotifyAuthService>();
-                            await spotifyAuthService.VerifyConnectionAsync();
-                        }
-                        catch (Exception spotifyEx)
-                        {
-                            Serilog.Log.Warning(spotifyEx, "Spotify connection verification failed (non-critical)");
-                        }
+                            desktop.MainWindow = mainWindow;
+                            mainWindow.Show(); 
+                            splashScreen.Close();
+                        });
 
-                        // Phase 8: Start all Hosted Services (including AnalysisWorker)
-                        // Since we are not using the Generic Host fully, we must manually start them
-                        var hostedServices = Services.GetServices<IHostedService>();
-                        foreach (var hostedService in hostedServices)
-                        {
-                            _ = hostedService.StartAsync(CancellationToken.None);
-                            Serilog.Log.Information("🚀 Started Hosted Service: {Service}", hostedService.GetType().Name);
-                        }
+                        // --- THE BARRIER: WE ARE NOW DATA-SAFE ---
+                        // All subsequent background services that hit the DB can now start.
+                        
+                        // Initialize and Start DownloadManager Orchestrator
+                        var downloadManager = Services.GetRequiredService<DownloadManager>();
+                        _ = downloadManager.StartAsync(); // Auto-start engine on launch
 
-                        // Phase 8: Validate FFmpeg availability (Moved from startup)
-                        try
-                        {
-                            var sonicService = Services.GetRequiredService<SonicIntegrityService>();
-                            var ffmpegAvailable = await sonicService.ValidateFfmpegAsync();
-                            if (!ffmpegAvailable)
-                                Serilog.Log.Warning("FFmpeg not found in PATH. Sonic Integrity features will be disabled.");
-                            else
-                                Serilog.Log.Information("FFmpeg validation successful - Phase 8 features enabled");
-                        }
-                        catch (Exception ffmpegEx)
-                        {
-                            Serilog.Log.Warning(ffmpegEx, "FFmpeg validation failed (non-critical)");
-                        }
+                        // Start Library Enrichment Worker (Phase 1)
+                        var enrichmentWorker = Services.GetRequiredService<LibraryEnrichmentWorker>();
+                        enrichmentWorker.Start();
+
+                        // Phase 9: Start Metadata Orchestrator
+                        var orchestrator = Services.GetRequiredService<MetadataEnrichmentOrchestrator>();
+                        orchestrator.Start();
+
+                        // Start Mission Control (Phase 0A)
+                        var missionControl = Services.GetRequiredService<MissionControlService>();
+                        missionControl.Start();
+
+                        // Start Forensic Lockdown Watchdog (Phase 12.7)
+                        var lockdownService = Services.GetRequiredService<IForensicLockdownService>();
+                        _ = Task.Run(() => lockdownService.MonitorSystemHealthAsync());
 
                         // Phase 2A: Initialize Crash Recovery Journal
                         try
@@ -344,45 +298,16 @@ public partial class App : Application
                             var crashJournal = Services.GetRequiredService<CrashRecoveryJournal>();
                             await crashJournal.InitAsync();
                             Serilog.Log.Information("✅ Crash Recovery Journal initialized");
-
-                            // Phase 2A: Run crash recovery with delay for UI breathing room
-                            _ = Task.Run(async () =>
-                            {
-                                await Task.Delay(3000); // Wait 3s ensures UI & EventBus are fully engaged
-                                try
-                                {
-                                    var crashRecovery = Services.GetRequiredService<CrashRecoveryService>();
-                                    await crashRecovery.RecoverAsync();
-                                }
-                                catch (Exception recoveryEx)
-                                {
-                                    Serilog.Log.Error(recoveryEx, "Crash recovery failed (non-critical)");
-                                }
-                            });
+                            
+                            var crashRecovery = Services.GetRequiredService<CrashRecoveryService>();
+                            await crashRecovery.RecoverAsync();
                         }
                         catch (Exception journalEx)
                         {
-                            Serilog.Log.Warning(journalEx, "Crash recovery journal initialization failed (non-critical)");
+                            Serilog.Log.Warning(journalEx, "Crash recovery failed (non-critical)");
                         }
 
-                        // Initialize and Start DownloadManager Orchestrator
-                        var downloadManager = Services.GetRequiredService<DownloadManager>();
-                        _ = downloadManager.StartAsync(); // Auto-start engine on launch
-
-                        // Phase 3B: Start Health Monitor
-                        var healthMonitor = Services.GetRequiredService<DownloadHealthMonitor>();
-                        healthMonitor.StartMonitoring();
-
-                        // Start Library Enrichment Worker (Phase 1)
-                        var enrichmentWorker = Services.GetRequiredService<LibraryEnrichmentWorker>();
-                        enrichmentWorker.Start();
-
-                        // Phase 9: Start Metadata Orchestrator (with 15s delay)
-                        // Must run to catch "Pending Orchestrations" from previous session
-                        var orchestrator = Services.GetRequiredService<MetadataEnrichmentOrchestrator>();
-                        orchestrator.Start();
-
-                        // Start Library Sync (Phase 13: "All Tracks" persistence)
+                        // Start Library Sync
                         try
                         {
                             var libraryService = Services.GetRequiredService<ILibraryService>();
@@ -394,20 +319,7 @@ public partial class App : Application
                             Serilog.Log.Error(syncEx, "Start-up Library sync failed");
                         }
                         
-                        // Start Mission Control (Phase 0A)
-                        var missionControl = Services.GetRequiredService<MissionControlService>();
-                        missionControl.Start();
-
-                        // Start Forensic Lockdown Watchdog (Phase 12.7)
-                        var lockdownService = Services.GetRequiredService<IForensicLockdownService>();
-                        _ = Task.Run(() => lockdownService.MonitorSystemHealthAsync());
-                        
-                        // AnalysisWorker auto-starts as a hosted service (registered in DI)
-                        //  No manual startup required - it begins processing automatically
-                        
-                        // Load projects into the LibraryViewModel that's bound to UI
-                        // CRITICAL: Use mainVm.LibraryViewModel (the one shown in UI)
-                        // not a new instance from DI
+                        // Load projects into the LibraryViewModel
                         await mainVm.LibraryViewModel.LoadProjectsAsync();
                         
                         // Update UI on completion
@@ -418,17 +330,21 @@ public partial class App : Application
                             Serilog.Log.Information("Background initialization completed");
 
                             // Start maintenance tasks AFTER initialization is confirmed complete
-                            // This prevents VACUUM from locking the database during EF Migrations
                             _ = RunMaintenanceTasksAsync();
+                        });
+                    }
+                    catch (OperationCanceledException)
+                    {
+                        Serilog.Log.Fatal("CRITICAL: Application initialization TIMED OUT after 2 minutes.");
+                        await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() => {
+                           splashScreen.UpdateStatus("Initialization Timeout. Please restart.");
                         });
                     }
                     catch (Exception ex)
                     {
                         Serilog.Log.Error(ex, "Background initialization failed");
-                        await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() =>
-                        {
-                            mainVm.StatusText = "Initialization failed - check logs";
-                            mainVm.IsInitializing = false;
+                        await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() => {
+                            splashScreen.UpdateStatus($"Error: {ex.Message}");
                         });
                     }
                 });
