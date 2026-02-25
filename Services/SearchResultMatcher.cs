@@ -107,90 +107,25 @@ public class SearchResultMatcher
 
     public MatchResult CalculateMatchResult(PlaylistTrack model, Track candidate)
     {
-        int score = 0;
-        var breakdown = new List<string>();
-
-        // 1. Duration (40 pts)
-        var expectedDuration = model.CanonicalDuration.HasValue ? model.CanonicalDuration.Value / 1000 : 0;
-        if (expectedDuration > 0)
-        {
-            var diff = Math.Abs(expectedDuration - (candidate.Length ?? 0));
-            int durationPts = diff switch
-            {
-                <= 2 => 40,
-                <= 5 => 20,
-                <= 10 => 5,
-                _ => 0
-            };
-            score += durationPts;
-            if (durationPts > 0) breakdown.Add($"Duration: +{durationPts} ({candidate.Length}s vs {expectedDuration}s)");
-            else breakdown.Add($"Duration: 0 (Mismatch: {candidate.Length}s vs {expectedDuration}s)");
-        }
-
-        // Tokenization for Path Analysis
-        var artistTokens = Tokenize(NormalizeArtist(model.Artist));
-        var titleTokens = Tokenize(model.Title);
-        var allPathText = new List<string> { System.IO.Path.GetFileName(candidate.Filename ?? "") };
-        if (candidate.PathSegments != null) allPathText.AddRange(candidate.PathSegments);
-
-        // 2. Artist in Path (30 pts) - Phase 1.1: Uses fuzzy + boundary matching
-        double artistMatchRatio = CalculateTokenMatchRatio(artistTokens, allPathText);
-        int artistPts = (int)(30 * artistMatchRatio);
-        score += artistPts;
-        if (artistPts > 0) breakdown.Add($"Artist: +{artistPts} ({artistMatchRatio:P0} token match)");
-        else breakdown.Add($"Artist: 0 (No token match for [{string.Join(",", artistTokens)}])");
-
-        // 3. Title in Path (20 pts)
-        double titleMatchRatio = CalculateTokenMatchRatio(titleTokens, allPathText);
-        int titlePts = (int)(20 * titleMatchRatio);
-        score += titlePts;
-        if (titlePts > 0) breakdown.Add($"Title: +{titlePts}");
-        else breakdown.Add($"Title: 0 (No token match for [{string.Join(",", titleTokens)}])");
-
-        // 4. Bitrate (10 pts)
-        int bitratePts = 0;
-        if (candidate.Bitrate >= 320 || candidate.Format?.ToUpper() == "FLAC") bitratePts = 10;
-        else if (candidate.Bitrate >= 192) bitratePts = 5;
-        score += bitratePts;
-        if (bitratePts > 0) breakdown.Add($"Bitrate: +{bitratePts} ({candidate.Bitrate}kbps)");
-
-        // BPM Bonus (Extra)
-        if (model.BPM.HasValue && model.BPM > 0)
-        {
-            var candidateBpm = ParseBpm(candidate.Filename);
-            if (candidateBpm.HasValue && Math.Abs(candidateBpm.Value - model.BPM.Value) < 3)
-            {
-                score += 5;
-                breakdown.Add("BPM Bonus: +5");
-            }
-        }
-
-        // 5. Availability Bonus (Phase 2)
-        if (candidate.HasFreeUploadSlot)
-        {
-            score += 5;
-            breakdown.Add("Free Slot: +5");
-        }
+        var policy = _config.SearchPolicy ?? SearchPolicy.QualityFirst();
+        var searchTrack = new Track 
+        { 
+            Artist = model.Artist, 
+            Title = model.Title, 
+            Length = model.CanonicalDuration.HasValue ? model.CanonicalDuration.Value / 1000 : null,
+            BPM = model.Bpm,
+            MusicalKey = model.MusicalKey,
+            Energy = model.Energy
+        };
         
-        // 6. Speed Bonus (> 1MB/s = +3, > 500KB/s = +1)
-        if (candidate.UploadSpeed > 1000000)
-        {
-             score += 3;
-             breakdown.Add("High Speed: +3");
-        }
-        else if (candidate.UploadSpeed > 500000) 
-        {
-            score += 1;
-            breakdown.Add("Med Speed: +1");
-        }
+        var comparer = new TieredTrackComparer(policy, searchTrack);
+        double score = comparer.CalculateRankScore(candidate) * 100; // Map 0-1 to 0-100
+        string breakdown = comparer.GenerateBreakdown(candidate);
 
-        var finalScore = Math.Min(100, score);
-        var breakdownStr = string.Join(" | ", breakdown);
-        
         string? rejection = null;
-        if (finalScore < 70) rejection = $"Low confidence score: {finalScore}/100. Breakdown: {breakdownStr}";
+        if (score < 40) rejection = $"Tiered Ranking identified as Low Quality/Trash. Breakdown: {breakdown}";
 
-        return new MatchResult(finalScore, breakdownStr, rejection, finalScore < 70 ? "Low Score" : null);
+        return new MatchResult(score, breakdown, rejection, score < 40 ? "Low Score" : null);
     }
 
     private List<string> Tokenize(string? input)

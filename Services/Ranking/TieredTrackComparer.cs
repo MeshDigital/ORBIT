@@ -116,16 +116,24 @@ public class TieredTrackComparer : IComparer<Track>
                  return TrackTier.Bronze; 
         }
 
-        bool bpmMatches = !_searchTrack.BPM.HasValue || (track.BPM.HasValue && Math.Abs(_searchTrack.BPM.Value - track.BPM.Value) < 3);
+        // Phase 9: Harmonic & Energy Intelligence
+        // Leniency Principle: Search results (candidates) usually lack sonic data until downloaded.
+        // We only penalize if the data is PRESENT and WRONG. If MISSING, we assume compatibility.
+        bool bpmMatches = !_searchTrack.BPM.HasValue || !track.BPM.HasValue || Math.Abs(_searchTrack.BPM.Value - track.BPM.Value) < 3;
+        bool keyMatches = string.IsNullOrEmpty(_searchTrack.MusicalKey) || string.IsNullOrEmpty(track.MusicalKey) || (_searchTrack.MusicalKey == track.MusicalKey);
+        
+        // Energy matching: Higher is better if target energy is high, or absolute distance if specifically requested
+        bool energyCompatible = !_searchTrack.Energy.HasValue || !track.Energy.HasValue || Math.Abs(_searchTrack.Energy.Value - track.Energy.Value) < 0.2;
 
         if (_policy.Priority == SearchPriority.DjReady)
         {
-            // Diamond strictly requires a free slot for "Immediate" feedback
-            if (hasBpm && bpmMatches && isHighRes && track.HasFreeUploadSlot == true) return TrackTier.Diamond;
+            // Diamond strictly requires a free slot + BPM + Key/Energy compatibility
+            bool satisfiesDjDiamond = bpmMatches && isHighRes && track.HasFreeUploadSlot == true;
+            if (satisfiesDjDiamond && keyMatches && energyCompatible) return TrackTier.Diamond;
             
-            // Gold can be high-res without slot or mid-res with slot
-            if ((hasBpm || hasKey) && bpmMatches && isHighRes) return TrackTier.Gold;
-            if ((hasBpm || hasKey) && bpmMatches && isMidRes && track.HasFreeUploadSlot == true) return TrackTier.Gold;
+            // Gold can be high-res without slot or mid-res with slot, plus basic tempo sync
+            if (bpmMatches && isHighRes) return TrackTier.Gold;
+            if (bpmMatches && isMidRes && track.HasFreeUploadSlot == true) return TrackTier.Gold;
             
             if (isMidRes) return TrackTier.Silver;
             return TrackTier.Bronze;
@@ -134,7 +142,7 @@ public class TieredTrackComparer : IComparer<Track>
         {
             // Quality First Policy
             bool perfectFormat = isLossless || track.Bitrate == 320;
-            if (perfectFormat && track.HasFreeUploadSlot == true) return TrackTier.Diamond;
+            if (perfectFormat && track.HasFreeUploadSlot == true && keyMatches) return TrackTier.Diamond;
             
             if (isHighRes) return TrackTier.Gold;
             if (isMidRes) return TrackTier.Silver;

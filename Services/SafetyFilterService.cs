@@ -71,18 +71,15 @@ public class SafetyFilterService : ISafetyFilterService
             return new SafetyCheckResult(false, "Banned Extension", $"Extension '{ext}' is not allowed.");
         }
 
-        // 2. The Accountant: Bitrate vs Size Math
+        // 2. The Accountant: Bitrate vs Size Math (Delegated to Forensic Core)
         // A 320kbps MP3 MUST be approx 2.4MB per minute. 
-        // If it's 1MB per minute, it's a 128k transcode lying about its header.
         if (candidate.Bitrate > 0 && candidate.Length > 0 && candidate.Size.HasValue)
         {
-            double expectedBytes = (candidate.Bitrate * 1000.0 / 8.0) * candidate.Length.Value;
-            double threshold = expectedBytes * 0.65; // Allow 35% variance for VBR and headers
-            
-            if (candidate.Size.Value < threshold)
+            if (MetadataForensicService.IsFake(candidate))
             {
-                _logger.LogWarning("Fake Bitrate detected for {Track}: Size {Size} < Threshold {Threshold}", candidate.Title, candidate.Size.Value, threshold);
-                return new SafetyCheckResult(false, "Fake Bitrate (Size Mismatch)", $"Expected ~{expectedBytes / 1024 / 1024:F1}MB, got {candidate.Size.Value / 1024 / 1024:F1}MB");
+                var trust = MetadataForensicService.CalculateTrustScore(candidate);
+                _logger.LogWarning("Forensic Core detected Fake/Low-Integrity file for {Track}: Trust Score {Score}", candidate.Title, trust);
+                return new SafetyCheckResult(false, "Forensic Integrity Failure", $"Metadata/Size trust score ({trust}%) is below safety threshold.");
             }
         }
 

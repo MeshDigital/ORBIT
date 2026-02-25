@@ -6,6 +6,14 @@
 * **Critical Download Lock-up Fix**: Resolved a semaphore leak in `DownloadManager.cs` where slots were not being released correctly, leading to permanent download stalls.
 * **Race Condition Guard**: Implemented protective checks in the download queue loop to ensure semaphore integrity when VIP/Concurrent limit settings change.
 
+### Features & Improvements
+- **Soulseek v9+ Compliance**: Upgraded core library to `Soulseek.NET` v9+; implemented `minorVersion` identity and global search exclusion processing.
+- **Unified Download Brain**: Merged points-based and tiered ranking into a single, policy-driven architecture.
+    - **Sonic Matching**: Automated choice now considers **Musical Key**, **Energy**, and **BPM**.
+    - **Harmonized Forensics**: Centralized fake bitrate and upscaling detection.
+    - **Policy Awareness**: Auto-discovery now respects "Quality First" vs "DJ Mode" global settings.
+- **Improved Connection Stability**: Enhanced retry logic and semaphore-gated search requests.
+
 ### Soulseek.NET Compliance (v9+)
 * **Library Modernization**: Replaced the outdated `Soulseek.NET` NuGet package with a local project reference to the latest v9+ source code.
 * **Network Identity**: Implemented the mandatory `minorVersion` constructor parameter for `SoulseekClient` to ensure reliable server connectivity.
@@ -64,7 +72,14 @@
 * **Format Stability**: Corrected SQLite connection string formatting issues when initializing with raw paths.
 
 ### Files Modified
-* **Services**: `SoulseekAdapter.cs`, `DownloadManager.cs`, `DatabaseService.cs`, `Data/SchemaMigratorService.cs`
+- `Services/DownloadDiscoveryService.cs`
+- `Services/SearchResultMatcher.cs`
+- `Services/SafetyFilterService.cs`
+- `Services/Ranking/TieredTrackComparer.cs`
+- `Services/SoulseekAdapter.cs`
+- `Services/DownloadManager.cs`
+- `External/Soulseek.NET` (Submodule)
+- `RECENT_CHANGES.md`
 * **Data**: `AppDbContext.cs`
 * **App**: `App.axaml.cs`
 

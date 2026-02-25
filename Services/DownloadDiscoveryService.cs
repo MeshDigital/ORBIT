@@ -246,22 +246,30 @@ public class DownloadDiscoveryService
                 return new DiscoveryResult(null, log);
             }
 
-            // 3. Select Best Match with "The Brain" (Metadata Matching)
-            // Use SearchResultMatcher which checks Duration, BPM, Artist/Title similarity
-            var diagResult = _matcher.FindBestMatchWithDiagnostics(track, allTracks);
-            var bestMatch = diagResult.BestMatch;
-            
-            // Merge diagnostics: use the comprehensive log from Matcher but keep our discovery counts
-            diagResult.Log.ResultsCount = log.ResultsCount;
-            diagResult.Log.RejectedByBlacklist = log.RejectedByBlacklist;
-            diagResult.Log.RejectedByForensics = log.RejectedByForensics;
-            log = diagResult.Log;
+            // 3. Select Best Match with "The Brain" (Tiered Policy Ranking)
+            // Use TieredTrackComparer which respects user's SearchPolicy (Quality vs DJ Ready)
+            var policy = _config.SearchPolicy ?? SearchPolicy.QualityFirst();
+            var comparer = new TieredTrackComparer(policy, new Track 
+            { 
+                Artist = track.Artist, 
+                Title = track.Title, 
+                Length = track.CanonicalDuration.HasValue ? track.CanonicalDuration.Value / 1000 : null,
+                BPM = track.Bpm, // [NEW] Pass BPM for DJ-ready matching
+                MusicalKey = track.MusicalKey, // [NEW] Pass Key
+                Energy = track.Energy // [NEW] Pass Energy
+            });
 
+            var bestMatch = allTracks.OrderBy(t => t, comparer).FirstOrDefault();
+            
             if (bestMatch != null)
             {
-                _logger.LogInformation("🧠 BRAIN: Matcher selected: {Filename} (Score > 0.7)", bestMatch.Filename);
+                var tier = MetadataForensicService.CalculateTier(bestMatch);
+                _logger.LogInformation("🧠 BRAIN: Unified Matcher selected: {Filename} (Tier: {Tier})", bestMatch.Filename, tier);
                 _forensicLogger.Info(track.TrackUniqueHash, Data.Entities.ForensicStage.Matching, 
-                    $"Brain Selected: Approved {bestMatch.Username}'s file (Score: {log.SearchScore:P0}). File: {bestMatch.Filename}");
+                    $"Brain Selected: Approved {bestMatch.Username}'s file. Tier: {tier}. File: {bestMatch.Filename}");
+                
+                // Update log for diagnostics persistence
+                log.SearchScore = bestMatch.CurrentRank; 
                 return new DiscoveryResult(bestMatch, log);
             }
 
