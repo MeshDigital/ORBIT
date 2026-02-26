@@ -6,6 +6,7 @@ using System.Text.RegularExpressions;
 using System.IO;
 using SLSKDONET.Configuration;
 using SLSKDONET.Models;
+using SLSKDONET.Services.Ranking;
 
 namespace SLSKDONET.Services;
 
@@ -113,7 +114,7 @@ public class SearchResultMatcher
             Artist = model.Artist, 
             Title = model.Title, 
             Length = model.CanonicalDuration.HasValue ? model.CanonicalDuration.Value / 1000 : null,
-            BPM = model.Bpm,
+            BPM = model.BPM,
             MusicalKey = model.MusicalKey,
             Energy = model.Energy
         };

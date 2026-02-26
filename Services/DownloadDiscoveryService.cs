@@ -6,6 +6,7 @@ using Microsoft.Extensions.Logging;
 using SLSKDONET.Configuration;
 using SLSKDONET.Models;
 using SLSKDONET.ViewModels;
+using SLSKDONET.Services.Ranking;
 
 namespace SLSKDONET.Services;
 
@@ -254,7 +255,7 @@ public class DownloadDiscoveryService
                 Artist = track.Artist, 
                 Title = track.Title, 
                 Length = track.CanonicalDuration.HasValue ? track.CanonicalDuration.Value / 1000 : null,
-                BPM = track.Bpm, // [NEW] Pass BPM for DJ-ready matching
+                BPM = track.BPM, // [NEW] Pass BPM for DJ-ready matching
                 MusicalKey = track.MusicalKey, // [NEW] Pass Key
                 Energy = track.Energy // [NEW] Pass Energy
             });

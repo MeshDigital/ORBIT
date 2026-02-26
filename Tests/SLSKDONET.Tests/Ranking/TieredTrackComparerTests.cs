@@ -116,6 +116,70 @@ public class TieredTrackComparerTests
     }
 
     [Fact]
+    public void DjMode_ShouldPrioritize_KeyMatch()
+    {
+        // Arrange
+        var policy = SearchPolicy.DjReady();
+        var searchWithKey = new Track { Artist = "A", Title = "T", BPM = 120, MusicalKey = "8A", Energy = 0.5 };
+        var comparer = new TieredTrackComparer(policy, searchWithKey);
+
+        var keyMatch = new Track { Bitrate = 320, BPM = 120, MusicalKey = "8A", Energy = 0.5, HasFreeUploadSlot = true };
+        var keyMismatch = new Track { Bitrate = 320, BPM = 120, MusicalKey = "1A", Energy = 0.5, HasFreeUploadSlot = true };
+
+        // Act
+        int result = comparer.Compare(keyMatch, keyMismatch);
+
+        // Assert
+        Assert.True(result < 0, "Key match should be ranked higher than mismatch in DJ Mode");
+        Assert.Equal(TrackTier.Diamond, (TrackTier)typeof(TieredTrackComparer).GetMethod("CalculateTier", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance).Invoke(comparer, new object[] { keyMatch }));
+    }
+
+    [Fact]
+    public void DjMode_ShouldPrioritize_EnergyMatch()
+    {
+        // Arrange
+        var policy = SearchPolicy.DjReady();
+        var searchWithEnergy = new Track { Artist = "A", Title = "T", BPM = 120, Energy = 0.8 };
+        var comparer = new TieredTrackComparer(policy, searchWithEnergy);
+
+        var energyMatch = new Track { Bitrate = 320, BPM = 120, Energy = 0.8, HasFreeUploadSlot = true };
+        var energyMismatch = new Track { Bitrate = 320, BPM = 120, Energy = 0.2, HasFreeUploadSlot = true };
+
+        // Act
+        int result = comparer.Compare(energyMatch, energyMismatch);
+
+        // Assert
+        Assert.True(result < 0, "Energy match should be ranked higher than mismatch in DJ Mode");
+    }
+
+    [Fact]
+    public void Leniency_MissingCandidateMetadata_ShouldNotBeTrash()
+    {
+        // Arrange
+        var policy = SearchPolicy.DjReady();
+        var searchTrack = new Track { Artist = "A", Title = "T", BPM = 120, MusicalKey = "8A", Energy = 0.8 };
+        var comparer = new TieredTrackComparer(policy, searchTrack);
+
+        // Candidate has NO sonic metadata (common for search results)
+        var bareCandidate = new Track 
+        { 
+            Bitrate = 320, 
+            Length = 300, 
+            HasFreeUploadSlot = true,
+            BPM = null,
+            MusicalKey = null,
+            Energy = null
+        };
+
+        // Act
+        var score = comparer.CalculateRankScore(bareCandidate);
+
+        // Assert
+        // Should be at least Gold or Silver, definitely NOT Trash (0.1)
+        Assert.True(score >= 0.6, "Bare candidates should be treated leniently and not dumped to Trash");
+    }
+
+    [Fact]
     public void Integrity_SuspiciousFile_ShouldBeDemoted()
     {
         // Arrange
