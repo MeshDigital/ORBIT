@@ -170,7 +170,10 @@ public class ImportOrchestrator
                         Popularity = t.Popularity,
                         CanonicalDuration = t.CanonicalDuration,
                         ReleaseDate = t.ReleaseDate,
+                        SourcePlaylistId = newJobId,
+                        SourcePlaylistName = sourceTitle,
                         Status = TrackStatus.Missing,
+
                         AddedAt = DateTime.UtcNow
                     }).ToList();
 

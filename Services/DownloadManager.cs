@@ -452,6 +452,8 @@ public class DownloadManager : INotifyPropertyChanged, IDisposable
                         AddedAt = DateTime.UtcNow,
                         Priority = 10, // Default: Bulk lane. Express (0) = VIP only, Standard (1-9) = user bumps
                         // Map Metadata if available from import
+                        SourcePlaylistId = job.Id,
+                        SourcePlaylistName = job.SourceTitle,
                         SpotifyTrackId = track.SpotifyTrackId,
                         SpotifyAlbumId = track.SpotifyAlbumId,
                         SpotifyArtistId = track.SpotifyArtistId,
@@ -461,6 +463,7 @@ public class DownloadManager : INotifyPropertyChanged, IDisposable
                         Popularity = track.Popularity,
                         CanonicalDuration = track.CanonicalDuration,
                         ReleaseDate = track.ReleaseDate
+
                     });
                 }
                 job.PlaylistTracks = playlistTracks;
