@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using System.Threading.Tasks;
 using SLSKDONET.Models;
 
@@ -17,6 +18,13 @@ public interface ITaggerService
     /// <param name="filePath">Path to the audio file to tag</param>
     /// <returns>True if tagging succeeded, false if file not found or tagging failed</returns>
     Task<bool> TagFileAsync(Track track, string filePath);
+
+    /// <summary>
+    /// Reads metadata tags from an audio file.
+    /// </summary>
+    /// <param name="filePath">Path to the audio file</param>
+    /// <returns>A Track model populated with the file's tags, or null if reading fails</returns>
+    Task<Track?> ReadTagsAsync(string filePath);
 
     /// <summary>
     /// Tags multiple audio files asynchronously.

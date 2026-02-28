@@ -17,6 +17,9 @@ namespace SLSKDONET.Models
         public double? MinBPM { get; set; }
         public double? MaxBPM { get; set; }
 
+        public int? MinRating { get; set; }
+        public bool? IsLiked { get; set; }
+
         // Text Filters
         public string? Genre { get; set; } // Contains match
         public string? YearRange { get; set; } // e.g. "1990-2000"

@@ -80,4 +80,34 @@
         </Setter>
     </Style>
 
+    <!-- Sandbox Audition Toggle Style -->
+    <Style Selector="ToggleButton.SandboxToggle">
+        <Setter Property="Background" Value="#22FFFFFF"/>
+        <Setter Property="Foreground" Value="#AAA"/>
+        <Setter Property="Padding" Value="12,8"/>
+        <Setter Property="CornerRadius" Value="20"/>
+        <Setter Property="BorderThickness" Value="1"/>
+        <Setter Property="BorderBrush" Value="#44FFFFFF"/>
+        <Setter Property="Transitions">
+            <Transitions>
+                <BrushTransition Property="Background" Duration="0:0:0.2"/>
+                <BrushTransition Property="Foreground" Duration="0:0:0.2"/>
+            </Transitions>
+        </Setter>
+    </Style>
+    <Style Selector="ToggleButton.SandboxToggle:checked">
+        <Setter Property="Background" Value="#FF4081"/>
+        <Setter Property="Foreground" Value="White"/>
+        <Setter Property="BorderBrush" Value="#FFFF80AB"/>
+        <Setter Property="Effect">
+            <DropShadowEffect BlurRadius="15" Color="#FF4081" Opacity="0.6"/>
+        </Setter>
+    </Style>
+    <Style Selector="ToggleButton.SandboxToggle:pointerover /template/ ContentPresenter">
+        <Setter Property="Background" Value="#44FFFFFF"/>
+    </Style>
+    <Style Selector="ToggleButton.SandboxToggle:checked:pointerover /template/ ContentPresenter">
+        <Setter Property="Background" Value="#FF80AB"/>
+    </Style>
+
 </Styles>

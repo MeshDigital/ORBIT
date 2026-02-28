@@ -161,11 +161,19 @@
                             <PathIcon Data="{StaticResource add_circle_regular}"/>
                         </Button>
                         
+                        <!-- Like Toggle -->
+                        <Button Classes="ActionBtn" Command="{Binding ToggleLikeCommand}" ToolTip.Tip="Toggle Favorite">
+                            <PathIcon Data="{StaticResource heart_regular}" Foreground="{Binding IsLiked, Converter={StaticResource BoolToHeartColorConverter}}"/>
+                        </Button>
+                        
                         <!-- Actions for Active/Failed -->
                         <Button Classes="ActionBtn" Command="{Binding PauseCommand}" IsVisible="{Binding IsActive}" ToolTip.Tip="Pause">
                             <PathIcon Data="{StaticResource pause_regular}"/>
                         </Button>
-                         <Button Classes="ActionBtn" Command="{Binding RetryCommand}" IsVisible="{Binding IsFailed}" ToolTip.Tip="Retry">
+                         <Button Classes="ActionBtn" Command="{Binding $parent[UserControl].DataContext.InitiateMp3SearchCommand}" CommandParameter="{Binding}" IsVisible="{Binding IsOnHold}" ToolTip.Tip="Manual MP3 Search (On Hold)">
+                            <PathIcon Data="{StaticResource music_regular}" Foreground="#818CF8"/>
+                        </Button>
+                        <Button Classes="ActionBtn" Command="{Binding RetryCommand}" IsVisible="{Binding IsFailed}" ToolTip.Tip="Retry">
                             <PathIcon Data="{StaticResource arrow_counterclockwise_regular}"/>
                         </Button>
                     </StackPanel>
@@ -207,10 +215,15 @@
                         <Grid ColumnDefinitions="*, Auto">
                             <TextBlock Grid.Column="0" Text="{Binding ArtistName}" FontSize="12" Foreground="{DynamicResource TextSecondaryBrush}" TextTrimming="CharacterEllipsis"/>
                             <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="6">
-                                <TextBlock Text="❤️" IsVisible="{Binding IsLiked}" FontSize="12"/>
-                                <TextBlock Text="{Binding PlayCount}" FontSize="10" Foreground="{DynamicResource TextTertiaryBrush}" VerticalAlignment="Center"/>
+                                <Button Command="{Binding ToggleLikeCommand}" Background="Transparent" Padding="0" BorderThickness="0" Cursor="Hand">
+                                    <TextBlock Text="{Binding IsLiked, Converter={StaticResource BoolToHeartConverter}}" FontSize="14" Foreground="#E91E63"/>
+                                </Button>
+                                <TextBlock Text="{Binding PlayCount}" FontSize="10" Foreground="{DynamicResource TextTertiaryBrush}" VerticalAlignment="Center" Margin="4,0,0,0"/>
                             </StackPanel>
                         </Grid>
+
+                        <!-- Rating Control -->
+                        <controls:StarRatingControl Rating="{Binding Rating, Mode=TwoWay}" StarSize="14" HorizontalAlignment="Left" Margin="0,-2,0,0"/>
                         
                         <!-- Vibe & Info Pills -->
                         <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled">

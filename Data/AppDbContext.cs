@@ -40,6 +40,7 @@ public class AppDbContext : DbContext
     public DbSet<Entities.SmartCrateDefinitionEntity> SmartCrateDefinitions { get; set; } // Phase 23: Smart Crates
     public DbSet<Entities.SetListEntity> SetLists { get; set; } // Phase 3: Set-Prep Intelligence
     public DbSet<Entities.SetTrackEntity> SetTracks { get; set; } // Phase 3: Set-Prep Intelligence
+    public DbSet<Entities.StemPreferenceEntity> StemPreferences { get; set; } // Phase 5: Engagement
 
     protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
     {
@@ -234,5 +235,13 @@ public class AppDbContext : DbContext
         modelBuilder.Entity<Entities.SetTrackEntity>()
             .Property(e => e.TransitionType)
             .HasConversion<string>();
+
+        // Phase 5: Stem Preferences (1:1 with LibraryEntry)
+        modelBuilder.Entity<Entities.StemPreferenceEntity>()
+            .HasOne(p => p.LibraryEntry)
+            .WithOne()
+            .HasForeignKey<Entities.StemPreferenceEntity>(p => p.TrackUniqueHash)
+            .HasPrincipalKey<LibraryEntryEntity>(e => e.UniqueHash)
+            .OnDelete(DeleteBehavior.Cascade);
     }
 }

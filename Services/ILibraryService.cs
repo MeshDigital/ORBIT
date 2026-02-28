@@ -237,6 +237,7 @@ public interface ILibraryService
     /// Global "Like" update: synchronizes status across Library and all Projects.
     /// </summary>
     Task UpdateLikeStatusAsync(string trackHash, bool isLiked);
+    Task UpdateRatingAsync(string trackHash, int rating);
 
     /// <summary>
     /// Searches tracks across all playlists.

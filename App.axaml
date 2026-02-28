@@ -33,12 +33,16 @@
         <conv_root:BoolOpacityConverter x:Key="BoolToOpacityConverter"/>
         <converters:BoolToWidthConverter x:Key="BoolToWidthConverter"/>
         <conv_root:BoolToStringConverter x:Key="BoolToStringConverter"/>
+        <conv_root:MultiBoolToBlurConverter x:Key="MultiBoolToBlurConverter"/>
         <converters:BoolToAngleConverter x:Key="BoolToAngleConverter"/>
         <converters:BoolToTextConverter x:Key="BoolToTextConverter"/>
         <converters:BoolToOrangeConverter x:Key="BoolToOrangeConverter"/>
         <converters:BooleanToRedBrushConverter x:Key="BooleanToRedBrushConverter"/>
+        <converters:BooleanToBrushConverter x:Key="BooleanToBrushConverter"/>
         <converters:UpgradeStatusToVisibleConverter x:Key="UpgradeStatusToVisibleConverter"/>
         <converters:BoolBlurConverter x:Key="BoolBlurConverter"/>
+        <converters:NumericGreaterThanConverter x:Key="GreaterThanThreshold"/>
+        <converters:NumericIsNotZeroConverter x:Key="GreaterThanZero"/>
 
         
         <!-- Utility Converters -->
@@ -101,6 +105,7 @@
         <StreamGeometry x:Key="search_regular">M15.5,14H14.71L14.43,13.73C15.41,12.59 16,11.11 16,9.5A6.5,6.5 0 0,0 9.5,3A6.5,6.5 0 0,0 3,9.5A6.5,6.5 0 0,0 9.5,16C11.11,16 12.59,15.41 13.73,14.43L14,14.71V15.5L19,20.5L20.5,19L15.5,14M9.5,14C7.01,14 5,11.99 5,9.5C5,7.01 7.01,5 9.5,5C11.99,5 14,7.01 14,9.5C14,11.99 11.99,14 9.5,14Z</StreamGeometry>
         <StreamGeometry x:Key="cloud_arrow_up_regular">M14,13V17H10V13H7L12,8L17,13M19.35,10.03C18.67,6.59 15.64,4 12,4C9.11,4 6.6,5.64 5.35,8.03C2.34,8.36 0,10.9 0,14A6,6 0 0,0 6,20H19A5,5 0 0,0 24,15C24,12.36 21.95,10.22 19.35,10.03Z</StreamGeometry>
         <StreamGeometry x:Key="location_pin_regular">M12,2A7,7 0 0,0 5,9C5,14.25 12,22 12,22C12,22 19,14.25 19,9A7,7 0 0,0 12,2M12,11.5A2.5,2.5 0 1,1 14.5,9A2.5,2.5 0 0,1 12,11.5Z</StreamGeometry>
+        <StreamGeometry x:Key="sparkles_regular">M12,15.39L8.24,17.66L9.23,13.38L5.91,10.5L10.29,10.13L12,6.09L13.71,10.13L18.09,10.5L14.77,13.38L15.76,17.66L12,15.39M22,9.24L14.81,8.62L12,2L9.19,8.62L2,9.24L7.45,14.05L5.82,21L12,17.27L18.18,21L16.55,14.05L22,9.24Z</StreamGeometry>
     </Application.Resources>
     
     <Application.Styles>

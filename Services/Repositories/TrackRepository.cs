@@ -400,7 +400,7 @@ public class TrackRepository : ITrackRepository
         }
     }
 
-    public async Task<List<Guid>> UpdatePlaylistTrackStatusAndRecalculateJobsAsync(string trackUniqueHash, TrackStatus newStatus, string? resolvedPath)
+    public async Task<List<Guid>> UpdatePlaylistTrackStatusAndRecalculateJobsAsync(string trackUniqueHash, TrackStatus newStatus, string? resolvedPath, int searchRetryCount = 0, int notFoundRestartCount = 0)
     {
         await _writeSemaphore.WaitAsync();
         try
@@ -419,10 +419,21 @@ public class TrackRepository : ITrackRepository
             foreach (var pt in playlistTracks)
             {
                 pt.Status = newStatus;
+                pt.SearchRetryCount = searchRetryCount;
+                pt.NotFoundRestartCount = notFoundRestartCount;
+                
                 if (!string.IsNullOrEmpty(resolvedPath))
                 {
                     pt.ResolvedFilePath = resolvedPath;
                 }
+            }
+            
+            // Sync with master Track record if it exists
+            var masterTrack = await context.Tracks.FindAsync(trackUniqueHash);
+            if (masterTrack != null)
+            {
+                masterTrack.SearchRetryCount = searchRetryCount;
+                masterTrack.NotFoundRestartCount = notFoundRestartCount;
             }
             
             // 3. Fetch all affected jobs and all their related tracks
@@ -1004,6 +1015,46 @@ public class TrackRepository : ITrackRepository
             _writeSemaphore.Release();
         }
     }
+
+    public async Task UpdateRatingAsync(string trackHash, int rating)
+    {
+        await _writeSemaphore.WaitAsync();
+        try
+        {
+            using var context = new AppDbContext();
+
+            // 1. Update LibraryEntry
+            var entry = await context.LibraryEntries.FindAsync(trackHash);
+            if (entry != null)
+            {
+                entry.Rating = rating;
+            }
+
+            // 2. Update Master Track record
+            var tr = await context.Tracks.FindAsync(trackHash);
+            if (tr != null)
+            {
+                tr.Rating = rating;
+            }
+
+            // 3. Update all PlaylistTracks
+            var tracks = await context.PlaylistTracks
+                .Where(t => t.TrackUniqueHash == trackHash)
+                .ToListAsync();
+
+            foreach (var t in tracks)
+            {
+                t.Rating = rating;
+            }
+
+            await context.SaveChangesAsync();
+        }
+        finally
+        {
+            _writeSemaphore.Release();
+        }
+    }
+
 
     private void ApplyMetadata(object entity, TrackEnrichmentResult result)
     {

@@ -124,6 +124,21 @@ namespace SLSKDONET.Views.Avalonia.Converters
         }
     }
 
+    public class BooleanToBrushConverter : IValueConverter
+    {
+        public object? Convert(object? value, Type targetType, object? parameter, CultureInfo culture)
+        {
+            if (value is bool b && b)
+            {
+                // Soft blue for modified fields
+                return new SolidColorBrush(Color.FromArgb(40, 59, 130, 246));
+            }
+            return Brushes.Transparent;
+        }
+
+        public object? ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture) => throw new NotImplementedException();
+    }
+
     public class BoolInverseConverter : IValueConverter
     {
         public object? Convert(object? value, Type targetType, object? parameter, CultureInfo culture)

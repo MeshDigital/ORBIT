@@ -19,6 +19,7 @@ public class Track
     public int Bitrate { get; set; } // in kbps
     public List<string>? PathSegments { get; set; } // Phase 1.1: Folder names for context scoring
     public Dictionary<string, object>? Metadata { get; set; }
+    public string? Label { get; set; }
     
     // Spotify Metadata (Phase 0: Metadata Gravity Well)
     public string? SpotifyTrackId { get; set; }

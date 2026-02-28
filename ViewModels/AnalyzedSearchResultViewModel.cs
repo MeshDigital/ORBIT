@@ -19,6 +19,12 @@ namespace SLSKDONET.ViewModels
         // Base Properties
         public string Filename => Path.GetFileName(_result.Filename);
         public string FullPath => _result.Filename;
+
+        // Clean Metadata (Phase 19.5: UI Refinement)
+        public string ArtistName => !string.IsNullOrWhiteSpace(_result.Model.Artist) ? _result.Model.Artist : "Unknown Artist";
+        public string TrackTitle => !string.IsNullOrWhiteSpace(_result.Model.Title) ? _result.Model.Title : Path.GetFileNameWithoutExtension(_result.Filename);
+        public string DisplayName => $"{ArtistName} - {TrackTitle}";
+
         public long Size => _result.Size;
         public int BitRate => _result.Bitrate;
         public int? Length => _result.Length;

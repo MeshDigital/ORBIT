@@ -146,13 +146,14 @@
 
                     <!-- Export Action -->
                     <Border Grid.Row="1" Padding="16" Background="#14FFFFFF" BorderBrush="#222" BorderThickness="0,1,0,0">
-                        <Button Classes="primary" HorizontalAlignment="Stretch" Padding="0,12">
+                        <Button Command="{Binding ExportStemFilesCommand}" Classes="primary" HorizontalAlignment="Stretch" Padding="0,12">
                             <StackPanel Orientation="Horizontal" Spacing="10" HorizontalAlignment="Center">
                                 <PathIcon Data="{StaticResource cloud_arrow_up_regular}" Width="16" Height="16"/>
                                 <TextBlock Text="EXPORT STEM FILES" FontWeight="Bold" FontSize="12"/>
                             </StackPanel>
                         </Button>
                     </Border>
+
                 </Grid>
             </Grid>
 

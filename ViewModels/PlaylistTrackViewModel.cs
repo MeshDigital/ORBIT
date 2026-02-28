@@ -354,6 +354,7 @@ public class PlaylistTrackViewModel : INotifyPropertyChanged, Library.ILibraryNo
     public bool IsCompleted => State == PlaylistTrackState.Completed;
     public bool IsStalled => State == PlaylistTrackState.Stalled;
     public string? StalledReason => Model.StalledReason;
+    public bool IsOnHold => Model.Status == TrackStatus.OnHold;
 
     public string StatusText => State switch
     {
@@ -362,7 +363,7 @@ public class PlaylistTrackViewModel : INotifyPropertyChanged, Library.ILibraryNo
         PlaylistTrackState.Searching => "Searching...",
         PlaylistTrackState.Queued => "Queued",
         PlaylistTrackState.Failed => !string.IsNullOrEmpty(ErrorMessage) ? ErrorMessage : "Failed",
-        PlaylistTrackState.Paused => "Paused",
+        PlaylistTrackState.Paused => Model.Status == TrackStatus.OnHold ? "On Hold (Pending MP3 Search)" : "Paused",
         PlaylistTrackState.Stalled => $"Stalled: {StalledReason ?? "Waiting for data"}",
         _ => State.ToString()
     };
@@ -375,6 +376,7 @@ public class PlaylistTrackViewModel : INotifyPropertyChanged, Library.ILibraryNo
         PlaylistTrackState.Downloading => Avalonia.Media.Brushes.Cyan,
         PlaylistTrackState.Searching => Avalonia.Media.Brushes.Yellow,
         PlaylistTrackState.Stalled => Avalonia.Media.Brushes.Orange,
+        PlaylistTrackState.Paused => Model.Status == TrackStatus.OnHold ? Avalonia.Media.Brushes.MediumSlateBlue : Avalonia.Media.Brushes.LightGray,
         _ => Avalonia.Media.Brushes.LightGray
     };
 
@@ -687,17 +689,21 @@ public class PlaylistTrackViewModel : INotifyPropertyChanged, Library.ILibraryNo
     public System.Threading.CancellationTokenSource? CancellationTokenSource { get; set; }
 
     // User engagement
-    private int _rating;
     public int Rating
     {
-        get => _rating;
+        get => Model.Rating;
         set
         {
-            if (_rating != value)
+            if (Model.Rating != value)
             {
-                _rating = value;
                 Model.Rating = value;
                 OnPropertyChanged();
+                
+                // Persistence
+                if (_libraryService != null)
+                {
+                    _ = _libraryService.UpdateRatingAsync(GlobalId, value);
+                }
             }
         }
     }
@@ -711,6 +717,12 @@ public class PlaylistTrackViewModel : INotifyPropertyChanged, Library.ILibraryNo
             {
                 Model.IsLiked = value;
                 OnPropertyChanged();
+                
+                // Persistence
+                if (_libraryService != null)
+                {
+                    _ = _libraryService.UpdateLikeStatusAsync(GlobalId, value);
+                }
             }
         }
     }
@@ -742,6 +754,7 @@ public class PlaylistTrackViewModel : INotifyPropertyChanged, Library.ILibraryNo
     public ICommand PlayCommand { get; }
     public ICommand RevealFileCommand { get; }
     public ICommand AddToProjectCommand { get; }
+    public ICommand ToggleLikeCommand { get; }
 
     private readonly IEventBus? _eventBus;
     private readonly ILibraryService? _libraryService;
@@ -791,6 +804,7 @@ public class PlaylistTrackViewModel : INotifyPropertyChanged, Library.ILibraryNo
         HardRetryCommand = RetryCommand;
         ForceStartCommand = new RelayCommand(ForceStart, () => CanForceStart);
         BumpToTopCommand = new RelayCommand(BumpToTop, () => CanBumpToTop);
+        ToggleLikeCommand = new RelayCommand(() => IsLiked = !IsLiked);
         
         // REMOVED: 8000+ redundant event listeners eliminated.
         // Centralized dispatch moved to VirtualizedTrackCollection.

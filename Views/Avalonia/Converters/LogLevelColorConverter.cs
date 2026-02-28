@@ -2,7 +2,7 @@ using Avalonia.Data.Converters;
 using Avalonia.Media;
 using System;
 using System.Globalization;
-using SLSKDONET.Data.Entities;
+using SLSKDONET.Models;
 
 namespace SLSKDONET.Views.Avalonia.Converters
 {
@@ -12,7 +12,7 @@ namespace SLSKDONET.Views.Avalonia.Converters
 
         public object? Convert(object? value, Type targetType, object? parameter, CultureInfo culture)
         {
-            if (value is string level)
+            if (value is ForensicLevel level)
             {
                 return level switch
                 {
@@ -20,6 +20,7 @@ namespace SLSKDONET.Views.Avalonia.Converters
                     ForensicLevel.Warning => Brushes.Orange,
                     ForensicLevel.Info => Brushes.LightGray,
                     ForensicLevel.Debug => Brushes.Gray,
+                    ForensicLevel.Success => Brushes.LimeGreen,
                     _ => Brushes.White
                 };
             }

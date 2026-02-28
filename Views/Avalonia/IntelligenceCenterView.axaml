@@ -93,7 +93,7 @@
                                                       Level="{Binding Lab.EnergyScore}"/>
                             </StackPanel>
 
-                            <!-- Confidence Radars (Header Integration) -->
+                            <!-- Confidence Radars & Trajectory Advice -->
                             <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="24" VerticalAlignment="Center" Margin="30,0" IsVisible="{Binding ViewState, Converter={StaticResource EnumToBoolConverter}, ConverterParameter=Console}">
                                 <controls:ConfidenceRadar Width="64" Height="64" 
                                                          Value="{Binding Lab.BpmConfidence}" 
@@ -103,16 +103,20 @@
                                                          Value="{Binding Lab.KeyConfidence}" 
                                                          Label="HARMONICS" 
                                                          Color="#1E88E5"/>
-                                
-                                <!-- ECLIPSE SYNC BADGE (Phase 3) -->
-                                <Border Height="36" Padding="10,0" Background="#1A1E88E5" CornerRadius="18" BorderBrush="#331E88E5" BorderThickness="1" VerticalAlignment="Center" IsVisible="{Binding ShowEclipseBadge}">
-                                     <StackPanel Orientation="Horizontal" Spacing="8">
-                                          <PathIcon Data="{StaticResource sparkles_regular}" Width="14" Height="14" Foreground="#1E88E5"/>
-                                          <StackPanel VerticalAlignment="Center">
-                                               <TextBlock Text="{Binding EclipseKey}" FontSize="12" FontWeight="Black" Foreground="White" HorizontalAlignment="Center"/>
-                                               <TextBlock Text="ECLIPSE MATCH" FontSize="7" Foreground="#888" FontWeight="Black"/>
-                                          </StackPanel>
-                                     </StackPanel>
+
+                                <!-- Trajectory Advice (Console Only) -->
+                                <Border VerticalAlignment="Center" Margin="10,0" 
+                                        Background="#111" CornerRadius="4" Padding="12,8" BorderBrush="#333" BorderThickness="1">
+                                    <StackPanel Spacing="4">
+                                        <TextBlock Text="MENTOR TRAJECTORY" FontSize="9" FontWeight="Black" Foreground="#666" LetterSpacing="1"/>
+                                        <ItemsControl ItemsSource="{Binding TrajectoryAdvice}">
+                                            <ItemsControl.ItemTemplate>
+                                                <DataTemplate>
+                                                    <TextBlock Text="{Binding}" FontSize="10" Foreground="#4EC9B0" FontFamily="{StaticResource CodeFont}"/>
+                                                </DataTemplate>
+                                            </ItemsControl.ItemTemplate>
+                                        </ItemsControl>
+                                    </StackPanel>
                                 </Border>
                             </StackPanel>
 
@@ -260,7 +264,15 @@
                                                          <PathIcon Data="{StaticResource mic_regular}" Foreground="#CE9178" Width="20" Height="20"/>
                                                     </Border>
                                                     <TextBlock Grid.Column="1" Text="VOCAL PRESENCE" FontSize="9" Foreground="#666"/>
-                                                    <TextBlock Grid.Row="1" Grid.Column="1" Text="{Binding Lab.VocalPresenceLabel}" Foreground="White" FontWeight="Bold" FontSize="14"/>
+                                                    <StackPanel Grid.Row="1" Grid.Column="1" Orientation="Horizontal" Spacing="10">
+                                                        <TextBlock Text="{Binding Lab.VocalPresenceLabel}" Foreground="White" FontWeight="Bold" FontSize="14"/>
+                                                        <Border Background="#CC1E88E5" CornerRadius="4" Padding="6,2" VerticalAlignment="Center" IsVisible="{Binding ShowEclipseBadge}">
+                                                             <StackPanel Orientation="Horizontal" Spacing="4">
+                                                                 <PathIcon Data="{StaticResource sparkles_regular}" Width="10" Height="10" Foreground="White"/>
+                                                                 <TextBlock Text="{Binding EclipseKey}" FontSize="10" FontWeight="Black" Foreground="White"/>
+                                                             </StackPanel>
+                                                        </Border>
+                                                    </StackPanel>
                                                </Grid>
 
                                                <StackPanel Spacing="8" Margin="0,10,0,0">
@@ -292,7 +304,7 @@
                                             
                                             <!-- Spectral Crosshair / Scanline -->
                                             <Canvas HorizontalAlignment="Stretch" VerticalAlignment="Stretch" IsHitTestVisible="False">
-                                                <Line x:Name="ScanLineLine" StartPoint="0,0" EndPoint="0,800" Stroke="#4EC9B0" StrokeThickness="1" StrokeDashArray="2,2" Opacity="0.5">
+                                                <Line x:Name="ScanLineLine" StartPoint="0,0" EndPoint="0,800" Stroke="#4EC9B0" StrokeThickness="2" Opacity="0.8">
                                                     <Line.RenderTransform>
                                                         <TranslateTransform X="0"/>
                                                     </Line.RenderTransform>

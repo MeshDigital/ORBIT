@@ -14,6 +14,7 @@ using SLSKDONET.Services;
 using SLSKDONET.Views;
 using System.Reactive.Disposables;
 using SLSKDONET.Data.Essentia;
+using SLSKDONET.Services.Audio;
 
 using System.Collections.Specialized;
 
@@ -36,6 +37,7 @@ public class TrackListViewModel : ReactiveObject, IDisposable
     private readonly AppConfig _config;
     private readonly MetadataEnrichmentOrchestrator _enrichmentOrchestrator;
     private readonly IBulkOperationCoordinator _bulkCoordinator;
+    private readonly BatchStemExportService _stemExportService;
 
     public HierarchicalLibraryViewModel Hierarchical { get; }
     
@@ -237,6 +239,35 @@ public class TrackListViewModel : ReactiveObject, IDisposable
         }
     }
 
+    private bool _isFilterLiked;
+    public bool IsFilterLiked
+    {
+        get => _isFilterLiked;
+        set
+        {
+            if (_updatingFilters) return;
+            _updatingFilters = true;
+            try
+            {
+                this.RaiseAndSetIfChanged(ref _isFilterLiked, value);
+                if (value)
+                {
+                    _isFilterAll = false;
+                    this.RaisePropertyChanged(nameof(IsFilterAll));
+                }
+                else if (!IsFilterDownloaded && !IsFilterPending && !IsFilterNeedsReview)
+                {
+                    // If everything is unselected, force All back on
+                    _isFilterAll = true;
+                    this.RaisePropertyChanged(nameof(IsFilterAll));
+                }
+                
+                RefreshFilteredTracks();
+            }
+            finally { _updatingFilters = false; }
+        }
+    }
+
     private bool _hasMultiSelection;
     public bool HasMultiSelection
     {
@@ -408,6 +439,8 @@ public class TrackListViewModel : ReactiveObject, IDisposable
     public System.Windows.Input.ICommand BulkReAnalyzeT2Command { get; }
     public System.Windows.Input.ICommand BulkReAnalyzeT3Command { get; }
     public System.Windows.Input.ICommand SeparateStemsCommand { get; }
+    public System.Windows.Input.ICommand BatchExportAcapellasCommand { get; }
+    public System.Windows.Input.ICommand BatchExportInstrumentalsCommand { get; }
     
     // Phase 18: Sonic Match - Find Similar Vibe
     public System.Windows.Input.ICommand FindSimilarCommand { get; }
@@ -424,7 +457,9 @@ public class TrackListViewModel : ReactiveObject, IDisposable
         AppConfig config,
         MetadataEnrichmentOrchestrator enrichmentOrchestrator,
         AnalysisQueueService analysisQueueService,
-        IBulkOperationCoordinator bulkCoordinator)
+        IBulkOperationCoordinator bulkCoordinator,
+        BatchStemExportService stemExportService,
+        StemSeparationService separationService)
     {
         _logger = logger;
         _libraryService = libraryService;
@@ -434,8 +469,24 @@ public class TrackListViewModel : ReactiveObject, IDisposable
         _enrichmentOrchestrator = enrichmentOrchestrator;
         _config = config;
         _bulkCoordinator = bulkCoordinator;
+        _stemExportService = stemExportService;
 
         Hierarchical = new HierarchicalLibraryViewModel(config, downloadManager, analysisQueueService, artworkCache);
+
+        // Phase 4: Smart Auto-Separation
+        this.WhenAnyValue(x => x.LeadSelectedTrack)
+            .Where(x => x != null && x.IsCompleted)
+            .Throttle(TimeSpan.FromMilliseconds(800))
+            .ObserveOn(RxApp.MainThreadScheduler)
+            .Subscribe(track => 
+            {
+                if (track != null && !separationService.HasStems(track.GlobalId))
+                {
+                    _logger.LogInformation("Auto-Separation: Pre-preparing stems for {Title}", track.Title);
+                    _ = separationService.SeparateTrackAsync(track.Model.ResolvedFilePath, track.GlobalId);
+                }
+            })
+            .DisposeWith(_disposables);
         
         SelectAllTracksCommand = ReactiveCommand.Create(() => 
         {
@@ -492,6 +543,8 @@ public class TrackListViewModel : ReactiveObject, IDisposable
         SeparateStemsCommand = ReactiveCommand.CreateFromTask<PlaylistTrack>(SeparateStemsAsync);
         BulkCancelCommand = ReactiveCommand.CreateFromTask(ExecuteBulkCancelAsync);
         BulkReEnrichCommand = ReactiveCommand.CreateFromTask(ExecuteBulkReEnrichAsync);
+        BatchExportAcapellasCommand = ReactiveCommand.CreateFromTask(() => ExecuteBatchExportAsync(true));
+        BatchExportInstrumentalsCommand = ReactiveCommand.CreateFromTask(() => ExecuteBatchExportAsync(false));
         
         BulkReAnalyzeCommand = ReactiveCommand.CreateFromTask(() => ExecuteBulkReAnalyzeAsync(AnalysisTier.Tier1));
         BulkReAnalyzeT1Command = ReactiveCommand.CreateFromTask(() => ExecuteBulkReAnalyzeAsync(AnalysisTier.Tier1));
@@ -941,6 +994,48 @@ public class TrackListViewModel : ReactiveObject, IDisposable
 
         SelectedTracks.Clear();
 
+    }
+
+    private async Task ExecuteBatchExportAsync(bool acapellaOnly)
+    {
+        try
+        {
+            var selectedTracks = SelectedTracks
+                .Where(t => t.State == PlaylistTrackState.Completed && !string.IsNullOrEmpty(t.Model?.ResolvedFilePath))
+                .ToList();
+
+            if (!selectedTracks.Any())
+            {
+                _logger.LogWarning("No completed tracks selected for extraction");
+                return;
+            }
+
+            // Show folder picker dialog
+            var folderTask = Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(async () =>
+            {
+                var dialog = new Avalonia.Platform.Storage.FolderPickerOpenOptions
+                {
+                    Title = acapellaOnly ? "Select destination for Acapellas" : "Select destination for Instrumentals",
+                    AllowMultiple = false
+                };
+
+                var mainWindow = (Avalonia.Application.Current?.ApplicationLifetime as Avalonia.Controls.ApplicationLifetimes.IClassicDesktopStyleApplicationLifetime)?.MainWindow;
+                if (mainWindow == null) return null;
+
+                var result = await mainWindow.StorageProvider.OpenFolderPickerAsync(dialog);
+                return result?.FirstOrDefault()?.Path.LocalPath;
+            });
+
+            var targetFolder = await folderTask;
+            if (string.IsNullOrEmpty(targetFolder)) return;
+
+            // Run via service
+            await _stemExportService.ExportBatchAsync(selectedTracks, targetFolder, acapellaOnly);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Batch stem export failed");
+        }
     }
 
     private async Task ExecuteCopyToFolderAsync()

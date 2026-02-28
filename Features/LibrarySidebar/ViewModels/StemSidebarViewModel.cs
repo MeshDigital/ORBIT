@@ -13,6 +13,7 @@ using SLSKDONET.Models.Stem;
 using SLSKDONET.Services;
 using SLSKDONET.Services.Audio;
 using SLSKDONET.ViewModels;
+using SLSKDONET.Views;
 
 namespace SLSKDONET.Features.LibrarySidebar.ViewModels;
 
@@ -32,9 +33,12 @@ public class StemSidebarViewModel : ReactiveObject, ISidebarContent, IDisposable
     private readonly StemSeparationService _separationService;
     private readonly RealTimeStemEngine _stemEngine;
     private readonly IAudioPlayerService _playerService;
+    private readonly IDialogService _dialogService;
+    private readonly INotificationService _notificationService;
     private readonly CompositeDisposable _disposables = new();
 
     private PlaylistTrackViewModel? _currentTrack;
+
     private StemSidebarState _state = StemSidebarState.Unprocessed;
     private bool _anySoloActive;
     private double _processingProgress;
@@ -60,19 +64,28 @@ public class StemSidebarViewModel : ReactiveObject, ISidebarContent, IDisposable
     }
 
     public ICommand GenerateStemsCommand { get; }
+    public ICommand ExportStemFilesCommand { get; }
 
     public StemSidebarViewModel(
         StemSeparationService separationService,
         RealTimeStemEngine stemEngine,
-        IAudioPlayerService playerService)
+        IAudioPlayerService playerService,
+        IDialogService dialogService,
+        INotificationService notificationService)
     {
         _separationService = separationService;
         _stemEngine = stemEngine;
         _playerService = playerService;
+        _dialogService = dialogService;
+        _notificationService = notificationService;
 
         GenerateStemsCommand = ReactiveCommand.CreateFromTask(
             GenerateStemsAsync,
             this.WhenAnyValue(x => x.State, s => s == StemSidebarState.Unprocessed));
+
+        ExportStemFilesCommand = ReactiveCommand.CreateFromTask(
+            ExportStemsAsync,
+            this.WhenAnyValue(x => x.State, s => s == StemSidebarState.Ready));
 
         // Initialize 4 DJ channels as per prompt
         Stems.Add(new StemChannelViewModel(this, StemType.Vocals, "Vocals", "#FF4081"));
@@ -173,6 +186,46 @@ public class StemSidebarViewModel : ReactiveObject, ISidebarContent, IDisposable
             }
 
             State = StemSidebarState.Ready;
+        }
+    }
+
+    private async Task ExportStemsAsync()
+    {
+        if (_currentTrack == null) return;
+
+        var stemPaths = _separationService.GetStemPaths(_currentTrack.GlobalId);
+        if (!stemPaths.Any())
+        {
+            _notificationService.Show("Export Failed", "No separated stems found for this track.", SLSKDONET.Views.NotificationType.Error);
+            return;
+        }
+
+        var destinationFolder = await _dialogService.OpenFolderDialogAsync("Select Destination Folder for Stems");
+        if (string.IsNullOrEmpty(destinationFolder)) return;
+
+        try
+        {
+            string baseFileName = $"{_currentTrack.Artist} - {_currentTrack.Title}";
+            // Sanitize filename
+            foreach (char c in Path.GetInvalidFileNameChars()) baseFileName = baseFileName.Replace(c, '_');
+
+            int count = 0;
+            foreach (var kvp in stemPaths)
+            {
+                string stemType = kvp.Key.ToString();
+                string sourcePath = kvp.Value;
+                string extension = Path.GetExtension(sourcePath);
+                string destinationPath = Path.Combine(destinationFolder, $"{baseFileName} ({stemType}){extension}");
+
+                File.Copy(sourcePath, destinationPath, true);
+                count++;
+            }
+
+            _notificationService.Show("Export Successful", $"Exported {count} stem files to {destinationFolder}", SLSKDONET.Views.NotificationType.Success);
+        }
+        catch (Exception ex)
+        {
+            _notificationService.Show("Export Failed", ex.Message, SLSKDONET.Views.NotificationType.Error);
         }
     }
 

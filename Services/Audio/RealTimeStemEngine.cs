@@ -54,8 +54,14 @@ public class RealTimeStemEngine : IDisposable
         };
         _mixer.AddMixerInput(_pianoSynth);
 
+        // Wrap mixer with peak tracking
+        var meteringProvider = new MeteringSampleProvider(_mixer);
+        meteringProvider.StreamVolume += (s, e) => {
+            foreach(var sample in e.MaxSampleValues) OnSampleRead(sample);
+        };
+
         _outputDevice = new WaveOutEvent();
-        _outputDevice.Init(_mixer);
+        _outputDevice.Init(meteringProvider);
     }
 
     public void LoadDeckStems(Deck deck, Dictionary<StemType, string> stemFilePaths)
@@ -75,12 +81,30 @@ public class RealTimeStemEngine : IDisposable
                     processors.Clear();
                 }
 
+                var targetFormat = WaveFormat.CreateIeeeFloatWaveFormat(44100, 2);
+
                 foreach (var input in stemFilePaths)
                 {
                     if (!System.IO.File.Exists(input.Value)) continue;
 
                     var reader = new AudioFileReader(input.Value);
-                    var volumeProvider = new VolumeSampleProvider(reader) { Volume = 1.0f };
+                    
+                    // Phase 3: Resampling Support
+                    ISampleProvider provider = reader;
+                    if (reader.WaveFormat.SampleRate != targetFormat.SampleRate)
+                    {
+                        provider = new WdlResamplingSampleProvider(reader, targetFormat.SampleRate);
+                    }
+
+                    // Enforce Stereo
+                    if (provider.WaveFormat.Channels != targetFormat.Channels)
+                    {
+                        if (provider.WaveFormat.Channels == 1)
+                            provider = new MonoToStereoSampleProvider(provider);
+                        // Add more channel conversion if needed
+                    }
+
+                    var volumeProvider = new VolumeSampleProvider(provider) { Volume = 1.0f };
                     var panProvider = new PanningSampleProvider(volumeProvider) { Pan = 0.0f };
 
                     var chain = new StemProcessingChain(input.Key)
@@ -116,6 +140,36 @@ public class RealTimeStemEngine : IDisposable
             _outputDevice?.Pause();
     }
 
+    /// <summary>
+    /// Synchronizes the playback position of the target deck to the source deck.
+    /// Used for "Proof of Blend" to ensure the mashup is perfectly aligned.
+    /// </summary>
+    public void SeekToSync(Deck source, Deck target)
+    {
+        lock (_lock)
+        {
+            var sourceTime = GetDeckTime(source);
+            Seek(target, sourceTime.TotalSeconds);
+        }
+    }
+
+    private float _maxPeak;
+    public float MasterPeakLevel 
+    {
+        get 
+        {
+            float val = _maxPeak;
+            _maxPeak = 0; // Reset after read for next window
+            return val;
+        }
+    }
+
+    private void OnSampleRead(float sample)
+    {
+        float abs = Math.Abs(sample);
+        if (abs > _maxPeak) _maxPeak = abs;
+    }
+
     // Legacy support - default to Deck A
     public void LoadStems(Dictionary<StemType, string> stemFilePaths) => LoadDeckStems(Deck.A, stemFilePaths);
     public void SetVolume(StemType type, float volume) => SetVolume(Deck.A, type, volume);
@@ -135,6 +189,16 @@ public class RealTimeStemEngine : IDisposable
             }
         }
     }
+
+    public bool IsMuted(Deck deck, StemType type)
+    {
+        lock (_lock)
+        {
+            return _decks[deck].TryGetValue(type, out var chain) && chain.IsMuted;
+        }
+    }
+
+    public bool IsMuted(StemType type) => IsMuted(Deck.A, type);
 
     public void SetSolo(Deck deck, StemType type, bool isSolo)
     {
@@ -191,13 +255,25 @@ public class RealTimeStemEngine : IDisposable
         lock (_lock)
         {
             var time = TimeSpan.FromSeconds(seconds);
-            foreach (var chain in _decks[deck].Values)
+            if (!_decks.TryGetValue(deck, out var processors) || !processors.Any()) return;
+
+            // Get total time safely from any non-null reader
+            var totalTime = GetDeckTotalTime(deck);
+            if (time > totalTime) time = totalTime;
+            if (time < TimeSpan.Zero) time = TimeSpan.Zero;
+
+            foreach (var chain in processors.Values)
             {
                 if (chain.Reader != null)
                 {
-                    if (time > chain.Reader.TotalTime) time = chain.Reader.TotalTime;
-                    if (time < TimeSpan.Zero) time = TimeSpan.Zero;
-                    chain.Reader.CurrentTime = time;
+                    try
+                    {
+                        chain.Reader.CurrentTime = time;
+                    }
+                    catch (Exception ex)
+                    {
+                        Console.WriteLine($"[RealTimeStemEngine] Seek error on {deck} - {chain.Type}: {ex.Message}");
+                    }
                 }
             }
         }

@@ -75,6 +75,8 @@ public class SearchResultMatcher
             {
                 Rank = i + 1,
                 Username = r.Track.Username ?? "Unknown",
+                Artist = r.Track.Artist ?? "Unknown Artist",
+                Title = r.Track.Title ?? "Unknown Title",
                 Bitrate = r.Track.Bitrate,
                 Format = r.Track.Format ?? "Unknown",
                 FileSize = r.Track.Size ?? 0,
@@ -108,25 +110,107 @@ public class SearchResultMatcher
 
     public MatchResult CalculateMatchResult(PlaylistTrack model, Track candidate)
     {
+        double score = 0;
+        var breakdown = new List<string>();
+
+        // 1. Duration Match (Max 40 pts)
+        if (model.CanonicalDuration.HasValue && candidate.Length.HasValue)
+        {
+            var expectedSec = model.CanonicalDuration.Value / 1000;
+            var actualSec = candidate.Length.Value;
+            var diff = Math.Abs(expectedSec - actualSec);
+            
+            if (diff <= 2) 
+            {
+                score += 40;
+                breakdown.Add("Duration: Exact/Close (+40)");
+            }
+            else if (diff <= 5) 
+            {
+                score += 20;
+                breakdown.Add("Duration: Minor Mismatch (+20)");
+            }
+            else if (diff <= 15)
+            {
+                score += 5;
+                breakdown.Add("Duration: Large Mismatch (+5)");
+            }
+            else
+            {
+                breakdown.Add("Duration: Unacceptable (0)");
+            }
+        }
+
+        // 2. Artist Match (Max 30 pts)
+        // Check both filename and path segments for artist tokens
+        bool artistMatched = StrictArtistSatisfies(candidate.Filename ?? "", model.Artist);
+        if (!artistMatched && candidate.PathSegments != null)
+        {
+            foreach (var segment in candidate.PathSegments)
+            {
+                if (StrictArtistSatisfies(segment, model.Artist))
+                {
+                    artistMatched = true;
+                    break;
+                }
+            }
+        }
+
+        if (artistMatched)
+        {
+            score += 30;
+            breakdown.Add("Artist: Matched (+30)");
+        }
+        else
+        {
+            breakdown.Add("Artist: Mismatch (0)");
+        }
+
+        // 3. Title Match (Max 20 pts)
+        bool titleMatched = StrictTitleSatisfies(candidate.Filename ?? "", model.Title);
+        if (!titleMatched && candidate.PathSegments != null)
+        {
+            foreach (var segment in candidate.PathSegments)
+            {
+                if (StrictTitleSatisfies(segment, model.Title))
+                {
+                    titleMatched = true;
+                    break;
+                }
+            }
+        }
+
+        if (titleMatched)
+        {
+            score += 20;
+            breakdown.Add("Title: Matched (+20)");
+        }
+        else
+        {
+            breakdown.Add("Title: Mismatch (0)");
+        }
+
+        // 4. Quality & Forensic Multiplier (Tiered Comparison)
         var policy = _config.SearchPolicy ?? SearchPolicy.QualityFirst();
         var searchTrack = new Track 
         { 
             Artist = model.Artist, 
             Title = model.Title, 
-            Length = model.CanonicalDuration.HasValue ? model.CanonicalDuration.Value / 1000 : null,
-            BPM = model.BPM,
-            MusicalKey = model.MusicalKey,
-            Energy = model.Energy
+            Length = model.CanonicalDuration.HasValue ? model.CanonicalDuration.Value / 1000 : null
         };
-        
         var comparer = new TieredTrackComparer(policy, searchTrack);
-        double score = comparer.CalculateRankScore(candidate) * 100; // Map 0-1 to 0-100
-        string breakdown = comparer.GenerateBreakdown(candidate);
+        var tier = comparer.CalculateRankScore(candidate); // 0.1 to 1.0
+        
+        // Quality bonus (up to 10 points)
+        double qualityBonus = tier * 10;
+        score += qualityBonus;
+        breakdown.Add($"Quality/Forensics: Tier {tier:F1} (Bonus: {qualityBonus:F1})");
 
+        string breakdownStr = string.Join(", ", breakdown);
         string? rejection = null;
-        if (score < 40) rejection = $"Tiered Ranking identified as Low Quality/Trash. Breakdown: {breakdown}";
+        if (score < 40) rejection = $"Low match score ({score:F1}). Breakdown: {breakdownStr}";
 
-        return new MatchResult(score, breakdown, rejection, score < 40 ? "Low Score" : null);
+        return new MatchResult(score, breakdownStr, rejection, score < 40 ? "Low Score" : null);
     }
 
     private List<string> Tokenize(string? input)
@@ -491,8 +575,8 @@ public class SearchResultMatcher
             .Replace('“', '\"') // Smart double quote
             .Replace('”', '\"'); // Smart double quote
 
-        // 3. Remove other non-alphanumeric frictional characters (except space, dash, quote)
-        var frictionalNormal = System.Text.RegularExpressions.Regex.Replace(dashNormal, @"[^a-z0-9\s\-\']", " ");
+        // 3. Remove other non-alphanumeric frictional characters (except space, quote)
+        var frictionalNormal = System.Text.RegularExpressions.Regex.Replace(dashNormal, @"[^a-z0-9\s\']", " ");
 
         // 4. Collapse whitespace
         return System.Text.RegularExpressions.Regex.Replace(frictionalNormal, @"\s+", " ").Trim();

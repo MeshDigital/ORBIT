@@ -1,4 +1,4 @@
-namespace SLSKDONET.Data.Essentia;
+namespace SLSKDONET.Models;
 
 /// <summary>
 /// Defines the level of depth for audio analysis.

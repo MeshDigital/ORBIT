@@ -211,6 +211,10 @@ public class PlaylistTrack
     public double? DropTimestamp { get; set; }
     public int? ManualEnergy { get; set; }
     public string? SourceProvenance { get; set; }
+    
+    // Phase 21: Failure Escalation
+    public int SearchRetryCount { get; set; } = 0;
+    public int NotFoundRestartCount { get; set; } = 0;
 
     public WaveformAnalysisData WaveformDataObj => new WaveformAnalysisData
     {
@@ -221,6 +225,10 @@ public class PlaylistTrack
         HighData = HighData ?? Array.Empty<byte>(),
         DurationSeconds = (CanonicalDuration ?? 0) / 1000.0
     };
+
+    public float[] VocalDensityCurve { get; set; } = Array.Empty<float>();
+
+    public double Duration => (CanonicalDuration ?? 0) / 1000.0;
 }
 
 /// <summary>
@@ -232,7 +240,8 @@ public enum TrackStatus
     Downloaded = 1,   // Track found in library (either just downloaded or previously)
     Failed = 2,       // Download was attempted but failed
     Skipped = 3,      // Track was skipped during import
-    Pending = 4       // Track accepted for download, waiting for queue
+    Pending = 4,      // Track accepted for download, waiting for queue
+    OnHold = 5        // Escalate to manual MP3 search after multiple failures
 }
 
 public enum PlaylistTrackState

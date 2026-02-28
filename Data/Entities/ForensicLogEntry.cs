@@ -1,6 +1,6 @@
 using System;
 using System.ComponentModel.DataAnnotations;
-
+using SLSKDONET.Models;
 namespace SLSKDONET.Data.Entities;
 
 /// <summary>
@@ -34,11 +34,10 @@ public class ForensicLogEntry
     public string Stage { get; set; } = string.Empty;
     
     /// <summary>
-    /// Log level (Debug, Info, Warning, Error)
+    /// Log level (Debug, Info, Warning, Error, Success)
     /// </summary>
     [Required]
-    [MaxLength(20)]
-    public string Level { get; set; } = "Info";
+    public ForensicLevel Level { get; set; } = ForensicLevel.Info;
     
     /// <summary>
     /// The actual log message
@@ -77,13 +76,3 @@ public static class ForensicStage
     public const string AnalysisQueue = "AnalysisQueue"; // New stage for queue orchestration
 }
 
-/// <summary>
-/// Log levels for filtering
-/// </summary>
-public static class ForensicLevel
-{
-    public const string Debug = "Debug";
-    public const string Info = "Info";
-    public const string Warning = "Warning";
-    public const string Error = "Error";
-}

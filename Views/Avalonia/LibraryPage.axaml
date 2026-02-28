@@ -46,11 +46,16 @@
 
     <Grid>
         <!-- CONTENT LAYER (Blurred when Overlay is active) -->
-        <Grid ColumnDefinitions="Auto,Auto,*,Auto,Auto,48"
-              Effect="{Binding IsForensicLabVisible, Converter={StaticResource BoolBlurConverter}}">
+        <Grid ColumnDefinitions="300,Auto,*,Auto,420,48">
+            <Grid.Effect>
+                <MultiBinding Converter="{StaticResource MultiBoolToBlurConverter}">
+                    <Binding Path="IsForensicLabVisible"/>
+                    <Binding Path="IntelligenceCenter.IsVisible"/>
+                </MultiBinding>
+            </Grid.Effect>
         
             <!-- LEFT PANEL: Playlist List -->
-            <Border Grid.Column="0" Width="300" Background="#202020" BorderBrush="#3E3E3E" BorderThickness="0,0,1,0" IsVisible="{Binding !IsNavigationCollapsed}">
+            <Border Grid.Column="0" MinWidth="250" MaxWidth="600" Background="#202020" BorderBrush="#3E3E3E" BorderThickness="0,0,1,0" IsVisible="{Binding !IsNavigationCollapsed}">
                 <Grid RowDefinitions="Auto,*,Auto">
                     
                     <!-- Header / Tools -->
@@ -255,6 +260,13 @@
                                     <TextBlock Text="Analyse Frauds" FontWeight="Bold" VerticalAlignment="Center"/>
                                 </StackPanel>
                             </Button>
+
+                            <Button Command="{Binding InitiateMp3SearchCommand}" Classes="chip primary" ToolTip.Tip="Initiate MP3 search for On-Hold tracks" Padding="10,5" FontSize="11" Background="#6366F1" BorderBrush="#818CF8" BorderThickness="1" CornerRadius="4">
+                                <StackPanel Orientation="Horizontal" Spacing="6">
+                                    <TextBlock Text="🎵" VerticalAlignment="Center"/>
+                                    <TextBlock Text="Search MP3 (On Hold)" FontWeight="Bold" VerticalAlignment="Center"/>
+                                </StackPanel>
+                            </Button>
                             
                             <DropDownButton Content="Bulk Analyze" IsVisible="{Binding Tracks.HasMultiSelection}" Classes="chip danger" CornerRadius="4" Padding="10,5" FontSize="11">
                                 <DropDownButton.Flyout><MenuFlyout><MenuItem Header="T1" Command="{Binding Tracks.BulkReAnalyzeT1Command}"/><MenuItem Header="T2" Command="{Binding Tracks.BulkReAnalyzeT2Command}"/><MenuItem Header="T3" Command="{Binding Tracks.BulkReAnalyzeT3Command}"/></MenuFlyout></DropDownButton.Flyout>
@@ -276,6 +288,7 @@
                                 <ToggleButton Content="Downloaded" IsChecked="{Binding Tracks.IsFilterDownloaded, Mode=TwoWay}" Classes="chip" Padding="10,4" FontSize="11"/>
                                 <ToggleButton Content="Pending" IsChecked="{Binding Tracks.IsFilterPending, Mode=TwoWay}" Classes="chip" Padding="10,4" FontSize="11"/>
                                 <ToggleButton Content="Review" IsChecked="{Binding Tracks.IsFilterNeedsReview, Mode=TwoWay}" Classes="chip danger" Padding="10,4" FontSize="11"/>
+                                <ToggleButton Content="❤️" IsChecked="{Binding Tracks.IsFilterLiked, Mode=TwoWay}" Classes="chip" Padding="10,4" FontSize="11" ToolTip.Tip="Show Liked Tracks Only"/>
                             </StackPanel>
                             
                             <Rectangle Width="1" Height="14" Fill="#444" VerticalAlignment="Center" Margin="4,0"/>
@@ -411,11 +424,34 @@
                                 <Style Selector="ListBoxItem">
                                     <Setter Property="Padding" Value="4"/><Setter Property="MinHeight" Value="72"/><Setter Property="HorizontalContentAlignment" Value="Stretch"/><Setter Property="Background" Value="Transparent"/><Setter Property="BorderThickness" Value="0,0,0,1"/><Setter Property="BorderBrush" Value="#22FFFFFF"/>
                                     <Setter Property="IsSelected" Value="{Binding IsSelected, Mode=TwoWay}"/>
+                                    <Setter Property="Template">
+                                        <ControlTemplate>
+                                            <Border x:Name="PART_RootBorder" 
+                                                    Background="{TemplateBinding Background}"
+                                                    BorderBrush="{TemplateBinding BorderBrush}"
+                                                    BorderThickness="{TemplateBinding BorderThickness}"
+                                                    Padding="{TemplateBinding Padding}"
+                                                    CornerRadius="{TemplateBinding CornerRadius}">
+                                                <interactivity:Interaction.Behaviors>
+                                                    <ia:EventTriggerBehavior EventName="DoubleTapped">
+                                                        <ia:InvokeCommandAction Command="{Binding $parent[UserControl].DataContext.DoubleTrackClickCommand}" 
+                                                                               CommandParameter="{Binding}"/>
+                                                    </ia:EventTriggerBehavior>
+                                                </interactivity:Interaction.Behaviors>
+                                                <ContentPresenter Name="PART_ContentPresenter"
+                                                                  ContentTemplate="{TemplateBinding ContentTemplate}"
+                                                                  Content="{TemplateBinding Content}"
+                                                                  VerticalContentAlignment="{TemplateBinding VerticalContentAlignment}"
+                                                                  HorizontalContentAlignment="{TemplateBinding HorizontalContentAlignment}" />
+                                            </Border>
+                                        </ControlTemplate>
+                                    </Setter>
                                 </Style>
+
                                 <Style Selector="ListBoxItem:selected /template/ ContentPresenter"><Setter Property="Background" Value="#1AFFFFFF"/></Style>
                             </ListBox.Styles>
                             <ListBox.KeyBindings>
-                                <KeyBinding Gesture="Space" Command="{Binding QuickLookCommand}"/>
+                                <KeyBinding Gesture="I" Command="{Binding QuickLookCommand}"/>
                                 <KeyBinding Gesture="P" Command="{Binding Operations.PlayTrackCommand}" CommandParameter="{Binding Tracks.LeadSelectedTrack}"/>
                                 <KeyBinding Gesture="L" Command="{Binding Operations.OpenFolderCommand}" CommandParameter="{Binding Tracks.LeadSelectedTrack}"/>
                                 <KeyBinding Gesture="A" Command="{Binding AnalyzeTrackCommand}" CommandParameter="{Binding Tracks.LeadSelectedTrack}"/>
@@ -428,6 +464,11 @@
                                                 <MenuItem Header="Play" Command="{Binding $parent[UserControl].DataContext.Operations.PlayTrackCommand}" CommandParameter="{Binding}"><MenuItem.Icon><TextBlock Text="▶️"/></MenuItem.Icon></MenuItem>
                                                 <MenuItem Header="Separate Stems" Command="{Binding SeparateStemsCommand}" IsVisible="{Binding IsCompleted}">
                                                     <MenuItem.Icon><TextBlock Text="🎹"/></MenuItem.Icon>
+                                                </MenuItem>
+                                                <MenuItem Header="Extract &amp; Export Stems" IsVisible="{Binding IsCompleted}">
+                                                    <MenuItem.Icon><TextBlock Text="📤"/></MenuItem.Icon>
+                                                    <MenuItem Header="Acapellas (Vocals Only)" Command="{Binding $parent[UserControl].DataContext.Tracks.BatchExportAcapellasCommand}" />
+                                                    <MenuItem Header="Instrumentals (Non-Vocals)" Command="{Binding $parent[UserControl].DataContext.Tracks.BatchExportInstrumentalsCommand}" />
                                                 </MenuItem>
                                                 <MenuItem Header="Analyze Track" IsVisible="{Binding !$parent[UserControl].DataContext.Tracks.HasMultiSelection}">
                                                     <MenuItem.Icon><TextBlock Text="🔬"/></MenuItem.Icon>
@@ -460,6 +501,9 @@
                                                 <MenuItem Header="Create Independent Physical Copy" Command="{Binding $parent[UserControl].DataContext.Operations.CloneTrackCommand}" CommandParameter="{Binding}" ToolTip.Tip="Create a physical copy of this file with independent cues"><MenuItem.Icon><TextBlock Text="📄"/></MenuItem.Icon></MenuItem>
                                                 <Separator/>
                                                 <MenuItem Header="Retry Download" Command="{Binding $parent[UserControl].DataContext.Operations.HardRetryCommand}" CommandParameter="{Binding}" IsVisible="{Binding CanHardRetry}"><MenuItem.Icon><TextBlock Text="🔄"/></MenuItem.Icon></MenuItem>
+                                                <MenuItem Header="Manual MP3 Search (On Hold)" Command="{Binding $parent[UserControl].DataContext.InitiateMp3SearchCommand}" CommandParameter="{Binding}" IsVisible="{Binding Model.Status, Converter={StaticResource EnumToBoolConverter}, ConverterParameter={x:Static models:TrackStatus.OnHold}}">
+                                                    <MenuItem.Icon><TextBlock Text="🎵"/></MenuItem.Icon>
+                                                </MenuItem>
                                                 <MenuItem Header="Cancel" Command="{Binding CancelCommand}" IsVisible="{Binding CanCancel}"><MenuItem.Icon><TextBlock Text="✖"/></MenuItem.Icon></MenuItem>
                                                 <Separator/>
                                                 <MenuItem Header="Remove from Library" Command="{Binding $parent[UserControl].DataContext.Operations.RemoveTrackCommand}" CommandParameter="{Binding}" InputGesture="Delete"><MenuItem.Icon><TextBlock Text="🗑️"/></MenuItem.Icon></MenuItem>
@@ -489,8 +533,31 @@
                                     <Setter Property="IsSelected" Value="{Binding IsSelected, Mode=TwoWay}"/>
                                     <Setter Property="Padding" Value="0"/>
                                     <Setter Property="Background" Value="Transparent"/>
+                                    <Setter Property="Template">
+                                        <ControlTemplate>
+                                            <Border x:Name="PART_RootBorder" 
+                                                    Background="{TemplateBinding Background}"
+                                                    BorderBrush="{TemplateBinding BorderBrush}"
+                                                    BorderThickness="{TemplateBinding BorderThickness}"
+                                                    Padding="{TemplateBinding Padding}"
+                                                    CornerRadius="{TemplateBinding CornerRadius}">
+                                                <interactivity:Interaction.Behaviors>
+                                                    <ia:EventTriggerBehavior EventName="DoubleTapped">
+                                                        <ia:InvokeCommandAction Command="{Binding $parent[UserControl].DataContext.DoubleTrackClickCommand}" 
+                                                                               CommandParameter="{Binding}"/>
+                                                    </ia:EventTriggerBehavior>
+                                                </interactivity:Interaction.Behaviors>
+                                                <ContentPresenter Name="PART_ContentPresenter"
+                                                                  ContentTemplate="{TemplateBinding ContentTemplate}"
+                                                                  Content="{TemplateBinding Content}"
+                                                                  VerticalContentAlignment="{TemplateBinding VerticalContentAlignment}"
+                                                                  HorizontalContentAlignment="{TemplateBinding HorizontalContentAlignment}" />
+                                            </Border>
+                                        </ControlTemplate>
+                                    </Setter>
                                 </Style>
                              </ListBox.Styles>
+
                              <ListBox.ItemsPanel>
                                 <ItemsPanelTemplate>
                                     <!-- Note: WrapPanel is not virtualized, but okay for small pages -->
@@ -498,7 +565,7 @@
                                 </ItemsPanelTemplate>
                             </ListBox.ItemsPanel>
                             <ListBox.KeyBindings>
-                                <KeyBinding Gesture="Space" Command="{Binding QuickLookCommand}"/>
+                                <KeyBinding Gesture="I" Command="{Binding QuickLookCommand}"/>
                                 <KeyBinding Gesture="P" Command="{Binding Operations.PlayTrackCommand}" CommandParameter="{Binding Tracks.LeadSelectedTrack}"/>
                                 <KeyBinding Gesture="L" Command="{Binding Operations.OpenFolderCommand}" CommandParameter="{Binding Tracks.LeadSelectedTrack}"/>
                                 <KeyBinding Gesture="A" Command="{Binding AnalyzeTrackCommand}" CommandParameter="{Binding Tracks.LeadSelectedTrack}"/>
@@ -529,7 +596,7 @@
                                 </MultiBinding>
                             </dg:DataGrid.ItemsSource>
                             <dg:DataGrid.KeyBindings>
-                                <KeyBinding Gesture="Space" Command="{Binding QuickLookCommand}"/>
+                                <KeyBinding Gesture="I" Command="{Binding QuickLookCommand}"/>
                                 <KeyBinding Gesture="P" Command="{Binding Operations.PlayTrackCommand}" CommandParameter="{Binding Tracks.LeadSelectedTrack}"/>
                                 <KeyBinding Gesture="L" Command="{Binding Operations.OpenFolderCommand}" CommandParameter="{Binding Tracks.LeadSelectedTrack}"/>
                                 <KeyBinding Gesture="A" Command="{Binding AnalyzeTrackCommand}" CommandParameter="{Binding Tracks.LeadSelectedTrack}"/>
@@ -547,9 +614,22 @@
                                 <Style Selector="dg|DataGridRow:selected /template/ Rectangle#BackgroundRectangle">
                                     <Setter Property="Fill" Value="{StaticResource GlassHeavyBrush}"/>
                                 </Style>
+                                <Style Selector="dg|DataGridRow">
+                                    <Setter Property="interactivity:Interaction.Behaviors">
+                                        <Setter.Value>
+                                            <interactivity:BehaviorCollection>
+                                                <ia:EventTriggerBehavior EventName="DoubleTapped">
+                                                    <ia:InvokeCommandAction Command="{Binding $parent[UserControl].DataContext.DoubleTrackClickCommand}" 
+                                                                           CommandParameter="{Binding}"/>
+                                                </ia:EventTriggerBehavior>
+                                            </interactivity:BehaviorCollection>
+                                        </Setter.Value>
+                                    </Setter>
+                                </Style>
                                 <Style Selector="dg|DataGridRow:selected">
                                     <Setter Property="Foreground" Value="{StaticResource AccentBrush}"/>
                                 </Style>
+
                             </dg:DataGrid.Styles>
                             <dg:DataGrid.Columns>
                                 <dg:DataGridTemplateColumn Header="Art" Width="50">
@@ -731,24 +811,18 @@
                          <PathIcon Data="{StaticResource arrow_sync_regular}" Width="20" Height="20"/>
                     </ToggleButton>
 
-                    <!-- Metadata -->
-                    <ToggleButton ToolTip.Tip="Metadata Inspector" 
-                                  IsChecked="{Binding Sidebar.ActiveMode, Converter={StaticResource EnumToBoolConverter}, ConverterParameter={x:Static libSidebar:LibrarySidebarMode.Metadata}}">
-                         <PathIcon Data="{StaticResource icons_library}" Width="20" Height="20"/>
-                    </ToggleButton>
-                    
-                    <!-- Cues -->
-                    <ToggleButton ToolTip.Tip="Cue &amp; Phrase Inspector" 
-                                  IsChecked="{Binding Sidebar.ActiveMode, Converter={StaticResource EnumToBoolConverter}, ConverterParameter={x:Static libSidebar:LibrarySidebarMode.Cues}}">
-                         <PathIcon Data="{StaticResource location_pin_regular}" Width="20" Height="20"/>
-                    </ToggleButton>
-                    
                     <!-- Stems -->
                     <ToggleButton ToolTip.Tip="STEMS Sidebar" 
                                   IsChecked="{Binding Sidebar.ActiveMode, Converter={StaticResource EnumToBoolConverter}, ConverterParameter={x:Static libSidebar:LibrarySidebarMode.Stems}}">
                          <PathIcon Data="{StaticResource mixer_regular}" Width="20" Height="20"/>
                     </ToggleButton>
                     
+                    <!-- Metadata Alignment (NEW) -->
+                    <ToggleButton ToolTip.Tip="Metadata Alignment" 
+                                  IsChecked="{Binding Sidebar.ActiveMode, Converter={StaticResource EnumToBoolConverter}, ConverterParameter={x:Static libSidebar:LibrarySidebarMode.Metadata}}">
+                         <TextBlock Text="🏷️" FontSize="18"/>
+                    </ToggleButton>
+
                     <!-- Forensic -->
                     <ToggleButton ToolTip.Tip="Forensic Lab" 
                                   IsChecked="{Binding Sidebar.ActiveMode, Converter={StaticResource EnumToBoolConverter}, ConverterParameter={x:Static libSidebar:LibrarySidebarMode.Forensic}}">
@@ -865,13 +939,7 @@
                     Command="{Binding OpenSourcesCommand}" CommandParameter="Close"/>
         </Grid>
 
-        <!-- FORENSIC LAB OVERLAY (Restored) -->
-        <Border Grid.Row="1" Grid.Column="1" Grid.ColumnSpan="2"
-                IsVisible="{Binding IsForensicLabVisible}"
-                Background="Transparent"
-                ZIndex="50">
-            <controls:ForensicLabDashboard DataContext="{Binding ForensicLab}"/>
-        </Border>
+        <!-- OPERATION GLASS CONSOLE: Handled globally in MainWindow.axaml -->
 
         <!-- UPGRADE SCOUT OVERLAY -->
         <Grid IsVisible="{Binding IsUpgradeScoutVisible}" ZIndex="500">

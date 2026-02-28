@@ -13,6 +13,7 @@ using SLSKDONET.Data;
 using SLSKDONET.Data.Entities;
 using SLSKDONET.Data.Essentia;
 using SLSKDONET.Views;
+using SLSKDONET.Features.LibrarySidebar;
 using System.Text.Json;
 using Avalonia;
 using Avalonia.Controls.ApplicationLifetimes;
@@ -43,6 +44,7 @@ public partial class LibraryViewModel
     public ICommand AnalyzeAlbumCommand { get; set; } = null!;
     public ICommand HardwareExportCommand { get; set; } = null!;
     public ICommand RenameProjectCommand { get; set; } = null!;
+    public ICommand InitiateMp3SearchCommand { get; set; } = null!;
 
     public ICommand AnalyzeTrackCommand { get; set; } = null!;
     public ICommand AnalyzeTrackT1Command { get; set; } = null!;
@@ -59,6 +61,7 @@ public partial class LibraryViewModel
 
     public ICommand SwitchWorkspaceCommand { get; set; } = null!;
     public ICommand QuickLookCommand { get; set; } = null!;
+    public ICommand DoubleTrackClickCommand { get; set; } = null!;
     public ICommand AddToTimelineCommand { get; set; } = null!;
     public ICommand SmartEscapeCommand { get; set; } = null!;
     public ICommand ToggleUpgradeScoutCommand { get; set; } = null!;
@@ -186,8 +189,23 @@ public partial class LibraryViewModel
         {
             if (Tracks.LeadSelectedTrack is { } selectedTrack)
             {
-                // Operation Glass Console: Switch to unified intelligence hub
-                _ = _intelligenceCenter.OpenAsync(selectedTrack.GlobalId, IntelligenceViewState.Console);
+                // Operation Glass Console: Toggle unified intelligence hub
+                if (_intelligenceCenter.IsVisible && _intelligenceCenter.SelectedTrackHash == selectedTrack.GlobalId)
+                {
+                    _intelligenceCenter.Close();
+                }
+                else
+                {
+                    _ = _intelligenceCenter.OpenAsync(selectedTrack.GlobalId, IntelligenceViewState.Console);
+                }
+            }
+        });
+
+        DoubleTrackClickCommand = new RelayCommand<PlaylistTrackViewModel>(track =>
+        {
+            if (track != null)
+            {
+                _ = _intelligenceCenter.OpenAsync(track.GlobalId, IntelligenceViewState.Console);
             }
         });
         SmartEscapeCommand = new RelayCommand(ExecuteSmartEscape);
@@ -209,6 +227,7 @@ public partial class LibraryViewModel
         ResetViewCommand = new AsyncRelayCommand(ExecuteResetViewAsync);
         AddToTimelineCommand = new RelayCommand<object>(ExecuteAddToTimeline);
         RunForensicScanCommand = new AsyncRelayCommand(ExecuteRunForensicScanAsync);
+        InitiateMp3SearchCommand = new AsyncRelayCommand<object>(ExecuteInitiateMp3SearchAsync);
     }
 
     public ICommand SetViewModeCommand { get; set; } = null!;
@@ -589,6 +608,7 @@ public partial class LibraryViewModel
         {
             _intelligenceCenter.Close();
             IsMixHelperVisible = false;
+            IsForensicLabVisible = false;
         }
         else
         {
@@ -756,13 +776,14 @@ public partial class LibraryViewModel
                     $"Detected {frauds.Count} potential fraudulent tracks. Open the Forensic Sidebar to review.", 
                     NotificationType.Warning);
                 
-                // Switch to Forensic Sidebar if not visible
-                // This assumes Sidebar can be commanded to switch
-                // Sidebar.SelectedContent = Sidebar.Contents.OfType<ForensicSidebarViewModel>().FirstOrDefault();
+                // [NEW] Populate Sidebar and Switch Mode
+                Sidebar.ForensicVm.SetDetectedFrauds(frauds);
+                Sidebar.ActiveMode = LibrarySidebarMode.Forensic;
             }
             else
             {
                 _notificationService.Show("Scan Complete", "No fraudulent tracks detected. Your library is clean.", NotificationType.Success);
+                Sidebar.ForensicVm.SetDetectedFrauds(Enumerable.Empty<FraudReport>());
             }
         }
         catch (Exception ex)
@@ -773,6 +794,50 @@ public partial class LibraryViewModel
         finally
         {
             IsLoading = false;
+        }
+    }
+
+    private async Task ExecuteInitiateMp3SearchAsync(object? param)
+    {
+        var tracksToSearch = new List<PlaylistTrackViewModel>();
+
+        if (param is PlaylistTrackViewModel trackVM)
+        {
+            tracksToSearch.Add(trackVM);
+        }
+        else if (param is System.Collections.IEnumerable enumerable)
+        {
+            tracksToSearch.AddRange(enumerable.Cast<PlaylistTrackViewModel>());
+        }
+        else
+        {
+            // Default to selection
+            tracksToSearch.AddRange(Tracks.SelectedTracks);
+        }
+
+        var onHoldTracks = tracksToSearch.Where(t => t.Model.Status == TrackStatus.OnHold).ToList();
+
+        if (!onHoldTracks.Any())
+        {
+            _notificationService.Show("MP3 Search", "No 'On Hold' tracks selected. Manual MP3 search is only for tracks that failed all FLAC attempts.", NotificationType.Information);
+            return;
+        }
+
+        bool confirm = await _dialogService.ConfirmAsync(
+            "Initiate MP3 Search",
+            $"Are you sure you want to search for MP3 versions of {onHoldTracks.Count} track(s)? This will unpause them and prioritize MP3 in the search results.");
+
+        if (confirm)
+        {
+            foreach (var track in onHoldTracks)
+            {
+                // Unpause and let DownloadManager pick it up. 
+                // DownloadDiscoveryService will see Status == OnHold and filter for MP3.
+                track.Model.IsUserPaused = false;
+            }
+
+            _downloadManager.QueueTracks(onHoldTracks.Select(t => t.Model).ToList());
+            _notificationService.Show("MP3 Search Initiated", $"Queueing {onHoldTracks.Count} tracks for MP3 search.", NotificationType.Success);
         }
     }
 }

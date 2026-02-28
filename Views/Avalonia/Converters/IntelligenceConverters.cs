@@ -59,14 +59,32 @@ public class ForensicLevelToColorConverter : IValueConverter
 {
     public object Convert(object? value, Type targetType, object? parameter, CultureInfo culture)
     {
-        string level = value?.ToString() ?? "Info";
-        return level switch
+        if (value is Models.ForensicLevel level)
         {
-            "Error" => new SolidColorBrush(Color.Parse("#FF5252")),  // Fire Red
-            "Warning" => new SolidColorBrush(Color.Parse("#FFD700")), // Amber
-            "Debug" => Brushes.DimGray,
-            _ => new SolidColorBrush(Color.Parse("#4EC9B0"))         // Mint Green
-        };
+            return level switch
+            {
+                Models.ForensicLevel.Error => new SolidColorBrush(Color.Parse("#FF5252")),   // Fire Red
+                Models.ForensicLevel.Warning => new SolidColorBrush(Color.Parse("#FFD700")), // Amber
+                Models.ForensicLevel.Debug => Brushes.DimGray,
+                Models.ForensicLevel.Success => Brushes.LimeGreen,
+                _ => new SolidColorBrush(Color.Parse("#4EC9B0"))          // Mint Green
+            };
+        }
+        return new SolidColorBrush(Color.Parse("#4EC9B0"));
+    }
+
+    public object ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture)
+    {
+        throw new NotImplementedException();
+    }
+}
+
+public class SyncColorConverter : IValueConverter
+{
+    public object Convert(object? value, Type targetType, object? parameter, CultureInfo culture)
+    {
+        bool isSyncing = value is bool b && b;
+        return isSyncing ? new SolidColorBrush(Color.Parse("#F59E0B")) : new SolidColorBrush(Color.Parse("#4EC9B0"));
     }
 
     public object ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture)

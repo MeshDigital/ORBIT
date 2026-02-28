@@ -167,6 +167,7 @@ namespace SLSKDONET.Views.Avalonia.Controls
 #if DEBUG
                 System.Diagnostics.Debug.WriteLine($"[VibeVisualizer] Render Exception: {ex.Message}");
 #endif
+                _ = ex;
             }
         }
 

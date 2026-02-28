@@ -1,6 +1,7 @@
 using System;
 using System.ComponentModel;
 using SLSKDONET.Models;
+using SLSKDONET.Views;
 
 namespace SLSKDONET.ViewModels;
 
@@ -103,10 +104,12 @@ public partial class LibraryViewModel
             case ActiveWorkspace.Selector:
                 IsMixHelperVisible = false;
                 IsDiscoveryLaneVisible = false;
+                IsForensicLabVisible = false;
                 break;
             case ActiveWorkspace.Analyst:
                 IsMixHelperVisible = false;
                 IsDiscoveryLaneVisible = true; // Enabled for Analyst too
+                IsForensicLabVisible = false;
                 break;
             case ActiveWorkspace.Preparer:
                 IsMixHelperVisible = true;
@@ -116,17 +119,23 @@ public partial class LibraryViewModel
             case ActiveWorkspace.Forensic:
                 IsMixHelperVisible = false;
                 IsDiscoveryLaneVisible = false;
-                IsForensicLabVisible = true;
                 
                 // [Operation Glass Console] Opening Forensic workspace now summons the global console
                 if (Tracks.SelectedTracks.FirstOrDefault() is { } selectedTrack)
                 {
+                    IsForensicLabVisible = true;
                     _ = _intelligenceCenter.OpenAsync(selectedTrack.GlobalId, IntelligenceViewState.Console);
+                }
+                else
+                {
+                    IsForensicLabVisible = false;
+                    _notificationService.Show("Forensic Lab", "Select a track to enter forensic mode", NotificationType.Warning);
                 }
                 break;
             case ActiveWorkspace.Industrial:
                 IsMixHelperVisible = false;
                 IsDiscoveryLaneVisible = false;
+                IsForensicLabVisible = false;
                 break;
         }
 

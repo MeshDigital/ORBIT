@@ -27,6 +27,9 @@ public class ContextualSidebarViewModel : ReactiveObject, IDisposable
     private readonly TransitionProberViewModel _transitionVm;
     private readonly CompositeDisposable _disposables = new();
 
+    public ForensicSidebarViewModel ForensicVm => _forensicVm;
+    public MetadataSidebarViewModel MetadataVm => _metadataVm;
+
     private LibrarySidebarMode _activeMode = LibrarySidebarMode.None;
     public LibrarySidebarMode ActiveMode
     {

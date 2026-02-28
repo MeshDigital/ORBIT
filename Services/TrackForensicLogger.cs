@@ -5,6 +5,7 @@ using System.Threading.Channels;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using SLSKDONET.Data.Entities;
+using SLSKDONET.Models;
 
 namespace SLSKDONET.Services;
 
@@ -72,7 +73,7 @@ public class TrackForensicLogger : IForensicLogger, IDisposable
     public void LogRejection(string trackId, string filename, string reason, string details)
     {
         var data = new { Filename = filename, Reason = reason, TechnicalDetails = details };
-        LogInternal(trackId, "Discovery", "Warning", $"Rejected candidate: {reason}", trackId, data);
+        LogInternal(trackId, "Discovery", ForensicLevel.Warning, $"Rejected candidate: {reason}", trackId, data);
     }
     
     /// <summary>
@@ -83,7 +84,7 @@ public class TrackForensicLogger : IForensicLogger, IDisposable
         return new TimedLogScope(this, correlationId, stage, operation, trackId);
     }
     
-    private void LogInternal(string correlationId, string stage, string level, string message, string? trackId, object? data)
+    private void LogInternal(string correlationId, string stage, ForensicLevel level, string message, string? trackId, object? data)
     {
         // Standard console log with correlation prefix
         var enrichedMessage = $"[CID: {correlationId[..8]}] [{stage}] {(trackId != null ? $"[T: {trackId[..6]}] " : "")}{message}";
@@ -123,7 +124,29 @@ public class TrackForensicLogger : IForensicLogger, IDisposable
     }
     
     /// <summary>
+    /// Logs a decision matrix of search candidates to explain why a specific one was chosen.
+    /// </summary>
+    public void LogSelectionDecision(string correlationId, string trackId, string decision, object candidates)
+    {
+        LogInternal(correlationId, ForensicStage.Matching, ForensicLevel.Info, $"Selection: {decision}", trackId, candidates);
+    }
+
+    public void Log(string trackId, string stage, string message, ForensicLevel level)
+    {
+        LogInternal(trackId, stage, level, message, trackId, null);
+    }
+
+    /// <summary>
+    /// Logs a summary of search attempt statistics.
+    /// </summary>
+    public void LogSearchSummary(string correlationId, string trackId, string summary, object stats)
+    {
+        LogInternal(correlationId, ForensicStage.Discovery, ForensicLevel.Info, summary, trackId, stats);
+    }
+
+    /// <summary>
     /// Event fired when a new log entry is generated. Safe for UI subscription (but marshaling required).
+
     /// </summary>
     public event EventHandler<ForensicLogEntry>? LogGenerated;
     

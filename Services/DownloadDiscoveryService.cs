@@ -85,7 +85,8 @@ public class DownloadDiscoveryService
             _logger.LogInformation("Discovery Tier {Tier} started for: {Query} (GlobalId: {Id})", tierNames[i], query, track.TrackUniqueHash);
             _forensicLogger.Info(track.TrackUniqueHash, Data.Entities.ForensicStage.Discovery, $"Tier {tierNames[i]} Search Query: \"{query}\"");
 
-            var result = await PerformSearchTierAsync(track, query, ct, blacklistedUsers, log);
+            var result = await PerformSearchTierAsync(track, query, tierNames[i], ct, blacklistedUsers, log);
+
             
             if (result.BestMatch != null)
             {
@@ -100,7 +101,19 @@ public class DownloadDiscoveryService
 
             if (ct.IsCancellationRequested) break;
             
+            _forensicLogger.LogSearchSummary(track.TrackUniqueHash, track.TrackUniqueHash, 
+                $"Tier {tierNames[i]} Summary: {log.GetSummary()}", 
+                new { 
+                    Tier = tierNames[i], 
+                    Results = log.ResultsCount, 
+                    RejectedForensics = log.RejectedByForensics,
+                    RejectedQuality = log.RejectedByQuality,
+                    RejectedFormat = log.RejectedByFormat,
+                    RejectedBlacklist = log.RejectedByBlacklist
+                });
+
             // If we found NO results in Dirty, we move to Smart immediately.
+
             // If we found results but NO match, we might wait a bit or just move on.
             _logger.LogInformation("Tier {Tier} yielded no suitable matches. Moving to next tier...", tierNames[i]);
         }
@@ -108,7 +121,8 @@ public class DownloadDiscoveryService
         return new DiscoveryResult(null, log);
     }
 
-    private async Task<DiscoveryResult> PerformSearchTierAsync(PlaylistTrack track, string query, CancellationToken ct, HashSet<string>? blacklistedUsers, SearchAttemptLog log)
+    private async Task<DiscoveryResult> PerformSearchTierAsync(PlaylistTrack track, string query, string tierName, CancellationToken ct, HashSet<string>? blacklistedUsers, SearchAttemptLog log)
+
     {
         try
         {
@@ -118,11 +132,42 @@ public class DownloadDiscoveryService
                 if (!await WaitForConnectionAsync(ct)) return new DiscoveryResult(null, log);
             }
             // 1. Configure preferences (Respect per-track overrides)
-            var formatsList = !string.IsNullOrEmpty(track.PreferredFormats)
-                ? track.PreferredFormats.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).ToList()
-                : _config.PreferredFormats ?? new System.Collections.Generic.List<string> { "mp3" };
+            // Phase 21: FLAC-First Policy. If OnHold, we ONLY want MP3.
+            List<string> formatsList;
+            if (track.Status == TrackStatus.OnHold)
+            {
+                formatsList = new List<string> { "mp3" };
+                _logger.LogInformation("🛠️ OnHold Status: Searching strictly for MP3 fallback for {Title}", track.Title);
+            }
+            else
+            {
+                // Strict Gold Standard: NO MP3 until OnHold
+                formatsList = !string.IsNullOrEmpty(track.PreferredFormats)
+                    ? track.PreferredFormats.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).ToList()
+                    : _config.PreferredFormats ?? new List<string> { "flac" };
+                
+                // If it's not OnHold, we strictly want FLAC or other lossless formats.
+                // We remove MP3 to prevent early fallback.
+                if (formatsList.Contains("mp3"))
+                {
+                    _logger.LogInformation("🧠 BRAIN: Removing MP3 from search tiers to enforce Gold Standard (FLAC) for {Title}.", track.Title);
+                    formatsList.Remove("mp3");
+                }
+                
+                // Ensure flac is first if not specified otherwise
+                if (!formatsList.Contains("flac"))
+                {
+                    formatsList.Insert(0, "flac");
+                }
+                
+                // Check if any formats remain. If not, default to flac.
+                if (!formatsList.Any())
+                {
+                    formatsList.Add("flac");
+                }
+            }
             
-            var preferredFormats = string.Join(",", formatsList);
+            var preferredFormats = string.Join(",", formatsList.Distinct());
             var minBitrate = track.MinBitrateOverride ?? _config.PreferredMinBitrate;
             
             // Cap at reasonable high unless strictly set, but for discovery we want quality
@@ -262,21 +307,55 @@ public class DownloadDiscoveryService
 
             var bestMatch = allTracks.OrderBy(t => t, comparer).FirstOrDefault();
             
+            // Phase 14: Decision Matrix Logging (Full Transparency)
+            if (allTracks.Any())
+            {
+                var candidateSummary = allTracks
+                    .OrderBy(t => t, comparer)
+                    .Take(10) // Log top 10 candidates for matrix transparency
+                    .Select(t => new { 
+                        t.Username, 
+                        t.Bitrate, 
+                        t.Size, 
+                        t.QueueLength, 
+                        t.HasFreeUploadSlot,
+                        Tier = MetadataForensicService.CalculateTier(t).ToString(),
+                        Score = t.CurrentRank,
+                        t.Filename
+                    }).ToList();
+
+                _forensicLogger.LogSelectionDecision(
+                    track.TrackUniqueHash, 
+                    track.TrackUniqueHash, 
+                    bestMatch != null ? $"Selected {bestMatch.Username}'s file" : "No suitable match found", 
+                    new { 
+                        Tier = tierName, 
+                        Query = query, 
+                        CandidatesCount = allTracks.Count, 
+                        TopCandidates = candidateSummary 
+                    });
+
+            }
+
             if (bestMatch != null)
             {
                 var tier = MetadataForensicService.CalculateTier(bestMatch);
                 _logger.LogInformation("🧠 BRAIN: Unified Matcher selected: {Filename} (Tier: {Tier})", bestMatch.Filename, tier);
-                _forensicLogger.Info(track.TrackUniqueHash, Data.Entities.ForensicStage.Matching, 
-                    $"Brain Selected: Approved {bestMatch.Username}'s file. Tier: {tier}. File: {bestMatch.Filename}");
-                
-                // Update log for diagnostics persistence
-                log.SearchScore = bestMatch.CurrentRank; 
                 return new DiscoveryResult(bestMatch, log);
             }
 
+
             // 4. Adaptive Relaxation Strategy (Phase 2.0) - WITH TIMEOUT
+            // Phase 21 Hardening: If we are in regular FLAC mode, we DON'T relax to MP3 automatically.
+            // Relaxation only happens if specifically allowed or if we are already in MP3-fallback mode (OnHold).
             if (_config.EnableRelaxationStrategy && allTracks.Any())
             {
+                if (track.Status != TrackStatus.OnHold && formatsList.Contains("flac") && !formatsList.Contains("mp3"))
+                {
+                     _logger.LogInformation("🧠 BRAIN: FLAC-only search failed. Strict policy prevents relaxation to MP3.");
+                     return new DiscoveryResult(null, log);
+                }
+
                 _logger.LogInformation("🧠 BRAIN: Strict match failed. Waiting {Timeout}s before relaxation...", 
                     _config.RelaxationTimeoutSeconds);
                 

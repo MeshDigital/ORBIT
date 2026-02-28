@@ -120,4 +120,10 @@ public class ForensicSidebarViewModel : ReactiveObject, ISidebarContent
             IsScanning = false;
         }
     }
+
+    public void SetDetectedFrauds(IEnumerable<FraudReport> frauds)
+    {
+        DetectedFrauds.Clear();
+        foreach (var f in frauds) DetectedFrauds.Add(f);
+    }
 }

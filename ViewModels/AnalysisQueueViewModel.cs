@@ -26,6 +26,11 @@ public class AnalysisJobViewModel : ReactiveObject
     public string FilePath { get; set; }
     public string FileName => System.IO.Path.GetFileName(FilePath);
     
+    // Clean Metadata (Phase 19.5: UI Refinement)
+    public string Artist { get; set; } = "Unknown Artist";
+    public string Title { get; set; } = "Unknown Title";
+    public string DisplayName => $"{Artist} - {Title}";
+    
     public string Status 
     {
         get => _status;
@@ -86,16 +91,16 @@ public class LiveLogViewModel
 {
     private readonly ForensicLogEntry _log;
     
-    public string LogText => $"[{_log.Timestamp:HH:mm:ss}] [{_log.Level.ToUpper()}] [{_log.Stage}] {_log.Message}";
+    public string LogText => $"[{_log.Timestamp:HH:mm:ss}] [{_log.Level.ToString().ToUpper()}] [{_log.Stage}] {_log.Message}";
     public IBrush LogColor 
     {
         get
         {
             return _log.Level switch
             {
-                "Error" => Brushes.OrangeRed,
-                "Warning" => Brushes.Yellow,
-                "Debug" => Brushes.Gray,
+                ForensicLevel.Error => Brushes.OrangeRed,
+                ForensicLevel.Warning => Brushes.Yellow,
+                ForensicLevel.Debug => Brushes.Gray,
                 _ => Brushes.LightGreen
             };
         }
@@ -473,11 +478,24 @@ public class AnalysisQueueViewModel : ReactiveObject, IDisposable
 
     private void OnAnalysisStarted(TrackAnalysisStartedEvent evt)
     {
+        // Try to parse Artist/Title from filename if not provided in event (best effort)
+        var artist = "Unknown Artist";
+        var title = System.IO.Path.GetFileNameWithoutExtension(evt.FileName);
+
+        if (evt.FileName.Contains(" - "))
+        {
+            var parts = evt.FileName.Split(new[] { " - " }, 2, StringSplitOptions.RemoveEmptyEntries);
+            artist = parts[0].Trim();
+            title = System.IO.Path.GetFileNameWithoutExtension(parts[1].Trim());
+        }
+
         var job = new AnalysisJobViewModel(evt.TrackGlobalId, evt.FileName) 
         { 
             Status = "Analyzing",
             Step = "Initializing...",
-            DatabaseId = evt.DatabaseId
+            DatabaseId = evt.DatabaseId,
+            Artist = artist,
+            Title = title
         };
         ActiveJobs.Add(job);
     }

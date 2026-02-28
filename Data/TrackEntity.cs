@@ -120,6 +120,10 @@ public class TrackEntity
     public bool IsLiked { get; set; } = false;
     public int PlayCount { get; set; } = 0;
     public DateTime? LastPlayedAt { get; set; }
+
+    // Phase 21: Failure Escalation
+    public int SearchRetryCount { get; set; } = 0;
+    public int NotFoundRestartCount { get; set; } = 0;
 }
 
 /// <summary>
@@ -285,6 +289,10 @@ public class PlaylistTrackEntity
     public double? DropTimestamp { get; set; }
     public int? ManualEnergy { get; set; }
     public string? SourceProvenance { get; set; }
+
+    // Phase 21: Failure Escalation
+    public int SearchRetryCount { get; set; } = 0;
+    public int NotFoundRestartCount { get; set; } = 0;
 
     // Configured in AppDbContext via Fluent API
     public virtual AudioFeaturesEntity? AudioFeatures { get; set; }

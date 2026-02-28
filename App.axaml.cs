@@ -320,13 +320,19 @@ public partial class App : Application
                         }
                         
                         // Load projects into the LibraryViewModel
-                        await mainVm.LibraryViewModel.LoadProjectsAsync();
+                        if (mainVm?.LibraryViewModel != null)
+                        {
+                            await mainVm.LibraryViewModel.LoadProjectsAsync();
+                        }
                         
                         // Update UI on completion
                         await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() =>
                         {
-                            mainVm.IsInitializing = false;
-                            mainVm.StatusText = "Ready";
+                            if (mainVm != null)
+                            {
+                                mainVm.IsInitializing = false;
+                                mainVm.StatusText = "Ready";
+                            }
                             Serilog.Log.Information("Background initialization completed");
 
                             // Start maintenance tasks AFTER initialization is confirmed complete
@@ -654,7 +660,9 @@ public partial class App : Application
         
         // Phase 24: Stem Workspace (Stem Separation & Remixing)
         services.AddSingleton<StemSeparationService>();
+        services.AddSingleton<BatchStemExportService>();
         services.AddSingleton<StemProjectService>();
+        services.AddSingleton<Services.Audio.StemPreferenceService>();
         services.AddTransient<Services.Audio.RealTimeStemEngine>();
         services.AddSingleton<ViewModels.Stem.StemWorkspaceViewModel>(); // Root VM for workspace
         
@@ -681,7 +689,9 @@ public partial class App : Application
                 sp.GetRequiredService<AppConfig>(),
                 sp.GetRequiredService<MetadataEnrichmentOrchestrator>(),
                 sp.GetRequiredService<AnalysisQueueService>(),
-                sp.GetRequiredService<IBulkOperationCoordinator>()
+                sp.GetRequiredService<IBulkOperationCoordinator>(),
+                sp.GetRequiredService<BatchStemExportService>(),
+                sp.GetRequiredService<StemSeparationService>()
             );
         });
         services.AddTransient<ViewModels.Library.TrackOperationsViewModel>();

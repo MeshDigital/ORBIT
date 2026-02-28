@@ -21,7 +21,6 @@ namespace SLSKDONET.Services
         private readonly ILogger<MissionControlService> _logger;
         
         private readonly CancellationTokenSource _cts = new();
-        private int _lastHash = 0;
         private readonly IAudioIntelligenceService _essentia;
         private readonly AnalysisQueueService _analysisQueue;
         private readonly IForensicLockdownService _lockdown;

@@ -2,6 +2,7 @@ using System;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 using SLSKDONET.Data.Essentia;
+using SLSKDONET.Models;
 
 namespace SLSKDONET.Data.Entities;
 

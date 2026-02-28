@@ -3,21 +3,92 @@
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              xmlns:vm="clr-namespace:SLSKDONET.Features.LibrarySidebar.ViewModels"
-             mc:Ignorable="d" d:DesignWidth="350" d:DesignHeight="800"
+             mc:Ignorable="d" d:DesignWidth="400" d:DesignHeight="800"
              x:Class="SLSKDONET.Features.LibrarySidebar.Views.MetadataSidebarView"
-             x:DataType="vm:MetadataSidebarViewModel">
-    <Grid RowDefinitions="Auto,*">
+             x:DataType="vm:MetadataSidebarViewModel"
+             Background="#111">
+    <Grid RowDefinitions="Auto,*,Auto">
+        <!-- Header -->
         <StackPanel Grid.Row="0" Margin="16" Spacing="8">
-            <TextBlock Text="Metadata Editor" FontSize="18" FontWeight="SemiBold" Foreground="#3B82F6"/>
-            <TextBlock Text="Manual tag editing and artwork management." 
-                       TextWrapping="Wrap" FontSize="12" Foreground="#888"/>
+            <TextBlock Text="Metadata Alignment" FontSize="18" FontWeight="SemiBold" Foreground="#3B82F6"/>
+            <TextBlock Text="Align file tags, database records, and Spotify metadata." 
+                       TextWrapping="Wrap" FontSize="11" Foreground="#888"/>
+            
+            <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,8,0,0">
+                <Button Command="{Binding SyncSpotifyCommand}" 
+                        Background="#1DB954" Foreground="White" Padding="8,4" FontSize="11">
+                    <StackPanel Orientation="Horizontal" Spacing="4">
+                        <Path Data="M12,2C6.48,2,2,6.48,2,12s4.48,10,10,10,10-4.48,10-10S17.52,2,12,2ZM16.5,15.5l-4.5-3v-4h1.5v3.25l3.75,2.5-.75.75Z" 
+                              Fill="White" Width="12" Height="12" Stretch="Uniform"/>
+                        <TextBlock Text="Match with Spotify Data"/>
+                    </StackPanel>
+                </Button>
+            </StackPanel>
         </StackPanel>
         
+        <Separator Grid.Row="0" VerticalAlignment="Bottom" Background="#333" Height="1" Margin="16,0"/>
+        
+        <!-- Field List -->
         <ScrollViewer Grid.Row="1">
-            <StackPanel Margin="16" Spacing="12">
-                <!-- Form fields will go here in Phase 3 -->
-                <TextBlock Text="Editor active" HorizontalAlignment="Center" Foreground="#555"/>
-            </StackPanel>
+            <ItemsControl ItemsSource="{Binding Fields}" Margin="8">
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate x:DataType="vm:MetadataFieldViewModel">
+                        <Border BorderBrush="#222" BorderThickness="0,0,0,1" Padding="8">
+                            <Grid ColumnDefinitions="80,*,*,*" RowDefinitions="Auto,Auto">
+                                <!-- Row 1: Labels -->
+                                <TextBlock Grid.Column="0" Text="{Binding FieldName}" FontWeight="SemiBold" Foreground="#666" FontSize="11" VerticalAlignment="Center"/>
+                                
+                                <!-- File Column -->
+                                <StackPanel Grid.Column="1" Spacing="2" Margin="4,0">
+                                    <TextBlock Text="FILE TAGS" FontSize="9" Foreground="#666" FontWeight="Bold"/>
+                                    <TextBlock Text="{Binding FileValue}" FontSize="11" Foreground="#AAA" TextWrapping="NoWrap" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding FileValue}"/>
+                                    <Button Background="Transparent" Padding="4,2" HorizontalAlignment="Left" Command="{Binding ApplyFile}" IsVisible="{Binding !IsReadOnly}">
+                                        <Path Data="M10,6L8.59,7.41L13.17,12l-4.58,4.59L10,18l6,-6Z" Fill="#3B82F6" Width="10" Height="10" Stretch="Uniform"/>
+                                    </Button>
+                                </StackPanel>
+
+                                <!-- DB Column (Editable) -->
+                                <StackPanel Grid.Column="2" Spacing="2" Margin="4,0" Background="{Binding IsModified, Converter={StaticResource BooleanToBrushConverter}}">
+                                    <TextBlock Text="DATABASE (LOCAL)" FontSize="9" Foreground="#3B82F6" FontWeight="Bold"/>
+                                    <TextBox Text="{Binding EditValue}" FontSize="12" Padding="4" Background="#1a1a1a" BorderThickness="0" CornerRadius="4" IsVisible="{Binding !IsReadOnly}"/>
+                                    <TextBlock Text="{Binding DatabaseValue}" FontSize="11" Foreground="#AAA" TextWrapping="NoWrap" TextTrimming="CharacterEllipsis" IsVisible="{Binding IsReadOnly}" ToolTip.Tip="{Binding DatabaseValue}"/>
+                                </StackPanel>
+
+                                <!-- Spotify Column -->
+                                <StackPanel Grid.Column="3" Spacing="2" Margin="4,0">
+                                    <TextBlock Text="SPOTIFY (IDEAL)" FontSize="9" Foreground="#1DB954" FontWeight="Bold"/>
+                                    <TextBlock Text="{Binding SpotifyValue}" FontSize="11" Foreground="#AAA" TextWrapping="NoWrap" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding SpotifyValue}"/>
+                                    <Button Background="Transparent" Padding="4,2" HorizontalAlignment="Left" Command="{Binding ApplySpotify}" IsEnabled="{Binding SpotifyValue, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" IsVisible="{Binding !IsReadOnly}">
+                                        <Path Data="M10,6L8.59,7.41L13.17,12l-4.58,4.59L10,18l6,-6Z" Fill="#1DB954" Width="10" Height="10" Stretch="Uniform"/>
+                                    </Button>
+                                </StackPanel>
+
+                                <!-- Conflict Indicator -->
+                                <Path Grid.Row="1" Grid.Column="0" IsVisible="{Binding HasConflict}"
+                                      Data="M1,21H23L12,2L1,21M13,18H11V16H13V18M13,14H11V10H13V14Z" 
+                                      Fill="#F59E0B" Width="12" Height="12" Margin="0,4,0,0" HorizontalAlignment="Left"/>
+                            </Grid>
+                        </Border>
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
         </ScrollViewer>
+
+        <!-- Global Actions -->
+        <Border Grid.Row="2" Background="#1a1a1a" BorderBrush="#333" BorderThickness="0,1,0,0" Padding="16">
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Spacing="12">
+                <Button Command="{Binding SaveToDbCommand}" Background="#3B82F6" Foreground="White" Padding="16,8">
+                    <TextBlock Text="Update Database"/>
+                </Button>
+                <Button Command="{Binding SaveToFileCommand}" Background="#1F2937" Foreground="White" Padding="16,8">
+                    <TextBlock Text="Apply to File Tags"/>
+                </Button>
+            </StackPanel>
+        </Border>
+        
+        <!-- Loading Overlay -->
+        <Grid Grid.RowSpan="3" Background="#AA000000" IsVisible="{Binding IsLoading}">
+            <ProgressBar IsIndeterminate="True" Width="100" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+        </Grid>
     </Grid>
 </UserControl>

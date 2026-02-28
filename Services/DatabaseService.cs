@@ -225,9 +225,9 @@ public class DatabaseService
     /// Updates the status of a track across all playlists that contain it,
     /// then recalculates the progress counts for those playlists.
     /// </summary>
-    public async Task<List<Guid>> UpdatePlaylistTrackStatusAndRecalculateJobsAsync(string trackUniqueHash, TrackStatus newStatus, string? resolvedPath)
+    public async Task<List<Guid>> UpdatePlaylistTrackStatusAndRecalculateJobsAsync(string trackUniqueHash, TrackStatus newStatus, string? resolvedPath, int searchRetryCount = 0, int notFoundRestartCount = 0)
     {
-        return await _trackRepository.UpdatePlaylistTrackStatusAndRecalculateJobsAsync(trackUniqueHash, newStatus, resolvedPath);
+        return await _trackRepository.UpdatePlaylistTrackStatusAndRecalculateJobsAsync(trackUniqueHash, newStatus, resolvedPath, searchRetryCount, notFoundRestartCount);
     }
 
     // ===== LibraryEntry Methods =====
@@ -441,6 +441,11 @@ public class DatabaseService
     public async Task UpdateLikeStatusAsync(string trackHash, bool isLiked)
     {
         await _trackRepository.UpdateLikeStatusAsync(trackHash, isLiked);
+    }
+
+    public async Task UpdateRatingAsync(string trackHash, int rating)
+    {
+        await _trackRepository.UpdateRatingAsync(trackHash, rating);
     }
 
     public async Task<List<PlaylistTrackEntity>> LoadPlaylistTracksAsync(Guid jobId)

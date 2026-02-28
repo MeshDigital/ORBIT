@@ -566,6 +566,32 @@ public class SchemaMigratorService
                 await command.ExecuteNonQueryAsync();
             }
 
+            // Phase: FLAC-Gold Download Resilience & Failure Escalation
+            if (!ColumnExists("Tracks", "SearchRetryCount"))
+            {
+                _logger.LogInformation("Patching Schema: Adding SearchRetryCount to Tracks...");
+                command.CommandText = @"ALTER TABLE ""Tracks"" ADD COLUMN ""SearchRetryCount"" INTEGER NOT NULL DEFAULT 0;";
+                await command.ExecuteNonQueryAsync();
+            }
+            if (!ColumnExists("Tracks", "NotFoundRestartCount"))
+            {
+                _logger.LogInformation("Patching Schema: Adding NotFoundRestartCount to Tracks...");
+                command.CommandText = @"ALTER TABLE ""Tracks"" ADD COLUMN ""NotFoundRestartCount"" INTEGER NOT NULL DEFAULT 0;";
+                await command.ExecuteNonQueryAsync();
+            }
+            if (!ColumnExists("PlaylistTracks", "SearchRetryCount"))
+            {
+                _logger.LogInformation("Patching Schema: Adding SearchRetryCount to PlaylistTracks...");
+                command.CommandText = @"ALTER TABLE ""PlaylistTracks"" ADD COLUMN ""SearchRetryCount"" INTEGER NOT NULL DEFAULT 0;";
+                await command.ExecuteNonQueryAsync();
+            }
+            if (!ColumnExists("PlaylistTracks", "NotFoundRestartCount"))
+            {
+                _logger.LogInformation("Patching Schema: Adding NotFoundRestartCount to PlaylistTracks...");
+                command.CommandText = @"ALTER TABLE ""PlaylistTracks"" ADD COLUMN ""NotFoundRestartCount"" INTEGER NOT NULL DEFAULT 0;";
+                await command.ExecuteNonQueryAsync();
+            }
+
             // Phase: Engagement, Intelligence & Sonic Tracking
             var primaryTables = new[] { "Tracks", "PlaylistTracks", "LibraryEntries" };
             foreach (var table in primaryTables)
@@ -668,6 +694,27 @@ public class SchemaMigratorService
                         await command.ExecuteNonQueryAsync();
                     }
                 }
+            }
+
+            // 1C. StemPreferences Table (Phase 5: Engagement)
+            if (!TableExists("StemPreferences"))
+            {
+                _logger.LogInformation("Patching Schema: Creating StemPreferences table...");
+                command.CommandText = @"
+                    CREATE TABLE ""StemPreferences"" (
+                        ""Id"" TEXT NOT NULL CONSTRAINT ""PK_StemPreferences"" PRIMARY KEY,
+                        ""TrackUniqueHash"" TEXT NOT NULL,
+                        ""AlwaysMutedJson"" TEXT NULL,
+                        ""AlwaysSoloJson"" TEXT NULL,
+                        ""LastModified"" TEXT NOT NULL,
+                        CONSTRAINT ""FK_StemPreferences_LibraryEntries_TrackUniqueHash"" FOREIGN KEY (""TrackUniqueHash"") REFERENCES ""LibraryEntries"" (""UniqueHash"") ON DELETE CASCADE
+                    );
+                    CREATE UNIQUE INDEX ""IX_StemPreferences_TrackUniqueHash"" ON ""StemPreferences"" (""TrackUniqueHash"");
+                ";
+                await command.ExecuteNonQueryAsync();
+                
+                // Trigger migration from JSON file if it exists
+                _ = Task.Run(() => MigrateStemPreferencesFromJsonAsync());
             }
 
             // Phase: Library Entry Enrichment Retry
@@ -1995,5 +2042,58 @@ public class SchemaMigratorService
         {
             _logger.LogError(ex, "Failed to apply schema patches. Application may be unstable.");
         }
+    }
+
+    private async Task MigrateStemPreferencesFromJsonAsync()
+    {
+        try
+        {
+            var appData = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
+            var jsonPath = System.IO.Path.Combine(appData, "ORBIT", "stem_preferences.json");
+
+            if (!System.IO.File.Exists(jsonPath)) return;
+
+            _logger.LogInformation("Migrating Stem Preferences from JSON to SQLite...");
+            var jsonContent = await System.IO.File.ReadAllTextAsync(jsonPath);
+            var preferences = System.Text.Json.JsonSerializer.Deserialize<Dictionary<string, StemPreference>>(jsonContent);
+
+            if (preferences == null || !preferences.Any()) return;
+
+            using (var scope = new SqliteConnection($"Data Source={System.IO.Path.Combine(appData, "ORBIT", "library.db")}"))
+            {
+                await scope.OpenAsync();
+                foreach (var (trackId, pref) in preferences)
+                {
+                    using (var cmd = scope.CreateCommand())
+                    {
+                        cmd.CommandText = @"
+                            INSERT OR IGNORE INTO ""StemPreferences"" (""Id"", ""TrackUniqueHash"", ""AlwaysMutedJson"", ""AlwaysSoloJson"", ""LastModified"")
+                            VALUES (@Id, @Hash, @Muted, @Solo, @Modified)";
+                        
+                        cmd.Parameters.AddWithValue("@Id", Guid.NewGuid().ToString());
+                        cmd.Parameters.AddWithValue("@Hash", trackId);
+                        cmd.Parameters.AddWithValue("@Muted", System.Text.Json.JsonSerializer.Serialize(pref.AlwaysMuted));
+                        cmd.Parameters.AddWithValue("@Solo", System.Text.Json.JsonSerializer.Serialize(pref.AlwaysSolo));
+                        cmd.Parameters.AddWithValue("@Modified", DateTime.Now.ToString("O"));
+                        
+                        await cmd.ExecuteNonQueryAsync();
+                    }
+                }
+            }
+
+            _logger.LogInformation("Successfully migrated {Count} stem preferences. Archiving JSON file.", preferences.Count);
+            System.IO.File.Move(jsonPath, jsonPath + ".old", overwrite: true);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to migrate stem preferences from JSON");
+        }
+    }
+
+    // Helper class for migration
+    private class StemPreference
+    {
+        public List<int> AlwaysMuted { get; set; } = new();
+        public List<int> AlwaysSolo { get; set; } = new();
     }
 }

@@ -228,6 +228,9 @@ public class LibraryService : ILibraryService
             }
 
             _logger.LogInformation("Library Synchronization Completed. Added {Count} new entries.", addedCount);
+            
+            // Phase 5: Ensure Default Smart Playlists
+            await InitializeDefaultPlaylistsAsync();
         }
         catch (Exception ex)
         {
@@ -784,6 +787,22 @@ public class LibraryService : ILibraryService
         catch (Exception ex)
         {
             _logger.LogError(ex, "Failed to update global like status for {Hash}", trackHash);
+        }
+    }
+
+    public async Task UpdateRatingAsync(string trackHash, int rating)
+    {
+        try
+        {
+            await _databaseService.UpdateRatingAsync(trackHash, rating).ConfigureAwait(false);
+            _logger.LogDebug("Updated rating globally for hash {Hash}: {Rating}", trackHash, rating);
+            
+            // Invalidate cache
+            _cache.InvalidateGlobalLibrary();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to update global rating for {Hash}", trackHash);
         }
     }
 
@@ -1476,5 +1495,32 @@ public class LibraryService : ILibraryService
     public async Task SavePhrasesAsync(List<TrackPhraseEntity> phrases)
     {
         await _databaseService.SavePhrasesAsync(phrases);
+    }
+
+    private async Task InitializeDefaultPlaylistsAsync()
+    {
+        try
+        {
+            var likedJob = await FindPlaylistJobBySourceTypeAsync("Smart:Liked");
+            if (likedJob == null)
+            {
+                _logger.LogInformation("Creating default 'Liked Songs' smart playlist...");
+                var criteria = new SmartPlaylistCriteria { IsLiked = true };
+                var job = new PlaylistJob
+                {
+                    Id = Guid.NewGuid(),
+                    SourceTitle = "Liked Songs",
+                    SourceType = "Smart:Liked",
+                    CreatedAt = DateTime.UtcNow,
+                    IsSmartPlaylist = true,
+                    SmartCriteriaJson = System.Text.Json.JsonSerializer.Serialize(criteria)
+                };
+                await SavePlaylistJobAsync(job);
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to initialize default playlists");
+        }
     }
 }

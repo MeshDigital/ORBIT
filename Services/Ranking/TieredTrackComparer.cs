@@ -66,16 +66,19 @@ public class TieredTrackComparer : IComparer<Track>
     public string GenerateBreakdown(Track track)
     {
         var tier = CalculateTier(track);
+        var stats = $" (Bitrate: {track.Bitrate}kbps, Queue: {track.QueueLength}, Slot: {(track.HasFreeUploadSlot == true ? "Free" : "Full")})";
+        
         return tier switch
         {
-            TrackTier.Diamond => "💎 DIAMOND TIER\n• Perfect Match\n• High Quality\n• Available",
-            TrackTier.Gold => "🥇 GOLD TIER\n• Great Quality\n• Good Availability",
-            TrackTier.Silver => "🥈 SILVER TIER\n• Acceptable Match",
-            TrackTier.Bronze => "🥉 BRONZE TIER\n• Low Quality/Availability",
-            TrackTier.Trash => "🗑️ TRASH TIER\n• Forensic Mismatch (Fake?)", // Updated Label
+            TrackTier.Diamond => $"💎 DIAMOND TIER\n• Perfect Match\n• High Quality\n• Available{stats}",
+            TrackTier.Gold => $"🥇 GOLD TIER\n• Great Quality\n• Good Availability{stats}",
+            TrackTier.Silver => $"🥈 SILVER TIER\n• Acceptable Match{stats}",
+            TrackTier.Bronze => $"🥉 BRONZE TIER\n• Low Quality/Availability{stats}",
+            TrackTier.Trash => $"🗑️ TRASH TIER\n• Forensic Mismatch (Fake?)\n• Rejection triggered by math core",
             _ => "📉 LOW TIER"
         };
     }
+
 
     private TrackTier CalculateTier(Track track)
     {

@@ -54,6 +54,8 @@ public class RejectedResult
     public string Format { get; set; } = "";
     public long FileSize { get; set; }
     public string Filename { get; set; } = "";
+    public string Artist { get; set; } = "";
+    public string Title { get; set; } = "";
     public double SearchScore { get; set; } // ResultSorter score
     public string? ScoreBreakdown { get; set; } // Phase 1.1: Detailed points breakdown
     

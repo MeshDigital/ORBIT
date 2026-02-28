@@ -9,6 +9,7 @@ using Microsoft.Extensions.Logging;
 using SLSKDONET.Data;
 using Microsoft.EntityFrameworkCore;
 using SLSKDONET.Data.Essentia;
+using SLSKDONET.Models;
 
 namespace SLSKDONET.Services;
 

@@ -27,7 +27,7 @@ public interface ITrackRepository
     Task UpdateLibraryEntryEnrichmentAsync(string uniqueHash, TrackEnrichmentResult result);
     Task<List<PlaylistTrackEntity>> GetPlaylistTracksNeedingEnrichmentAsync(int limit);
     Task UpdatePlaylistTrackEnrichmentAsync(Guid id, TrackEnrichmentResult result);
-    Task<List<Guid>> UpdatePlaylistTrackStatusAndRecalculateJobsAsync(string trackUniqueHash, TrackStatus newStatus, string? resolvedPath);
+    Task<List<Guid>> UpdatePlaylistTrackStatusAndRecalculateJobsAsync(string trackUniqueHash, TrackStatus newStatus, string? resolvedPath, int searchRetryCount = 0, int notFoundRestartCount = 0);
     Task SavePlaylistTracksAsync(IEnumerable<PlaylistTrackEntity> tracks);
     Task DeletePlaylistTracksAsync(Guid playlistId);
     Task UpdatePlaylistTracksPriorityAsync(Guid playlistId, int newPriority);
@@ -54,6 +54,7 @@ public interface ITrackRepository
     /// Global "Like" update: synchronizes status across Library and all Projects.
     /// </summary>
     Task UpdateLikeStatusAsync(string trackHash, bool isLiked);
+    Task UpdateRatingAsync(string trackHash, int rating);
 
     /// <summary>
     /// Searches tracks across all playlists.

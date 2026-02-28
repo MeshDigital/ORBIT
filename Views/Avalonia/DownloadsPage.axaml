@@ -123,17 +123,19 @@
                                                      
                                                      <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="6" Margin="8,0,0,0">
                                                           <TextBlock Text="{Binding Bitrate, StringFormat='{}{0}kbps'}" Foreground="#888" FontSize="11"/>
-                                                          <TextBlock Text="{Binding Format}" Foreground="#888" FontSize="11"/>
+                                                          <TextBlock Text="{Binding Artist}" FontWeight="SemiBold" Foreground="#1DB954" FontSize="11"/>
+                                                          <TextBlock Text=" - " Foreground="#444" FontSize="11"/>
+                                                          <TextBlock Text="{Binding Title}" Foreground="#EEE" FontSize="11"/>
                                                           <TextBlock Text="{Binding Username, StringFormat='{}@{0}'}" Foreground="#555" FontSize="11"/>
                                                      </StackPanel>
-                                                 </Grid>
+                                                  </Grid>
  
-                                                 <!-- Bottom Row: Filename -->
-                                                 <TextBlock Grid.Row="1" Grid.Column="1" 
-                                                            Text="{Binding Filename}" 
-                                                            Foreground="#666" FontStyle="Italic" FontSize="10" 
-                                                            TextTrimming="CharacterEllipsis" Margin="0,1,0,0"
-                                                            ToolTip.Tip="{Binding Filename}"/>
+                                                  <!-- Bottom Row: Filename (Subtle) -->
+                                                  <TextBlock Grid.Row="1" Grid.Column="1" 
+                                                             Text="{Binding Filename}" 
+                                                             Foreground="#444" FontStyle="Italic" FontSize="9" 
+                                                             TextTrimming="CharacterEllipsis" Margin="0,1,0,0"
+                                                             ToolTip.Tip="{Binding Filename}"/>
                                              </Grid>
                                          </DataTemplate>
                                      </ItemsControl.ItemTemplate>

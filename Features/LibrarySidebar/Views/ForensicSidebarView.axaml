@@ -71,6 +71,18 @@
                                             <TextBlock Text="{Binding ExpectedBpm, StringFormat=\{0:F0\}}" FontSize="10" Foreground="#888"/>
                                             <TextBlock Text=")" FontSize="10" Foreground="#888"/>
                                         </StackPanel>
+                                        
+                                        <Button Margin="0,8,0,0" 
+                                                Classes="Danger" 
+                                                Height="24" Padding="0" 
+                                                Background="#450A0A" BorderBrush="#991B1B" BorderThickness="1"
+                                                Command="{Binding $parent[UserControl].DataContext.PurgeAndRedownloadCommand}"
+                                                CommandParameter="{Binding TrackUniqueHash}">
+                                            <StackPanel Orientation="Horizontal" Spacing="4" HorizontalAlignment="Center">
+                                                <TextBlock Text="🗑" FontSize="10" VerticalAlignment="Center"/>
+                                                <TextBlock Text="Purge &amp; Redownload" FontSize="9" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                                            </StackPanel>
+                                        </Button>
                                     </StackPanel>
                                 </Grid>
                             </Border>

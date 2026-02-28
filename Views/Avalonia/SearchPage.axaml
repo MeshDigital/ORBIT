@@ -29,7 +29,7 @@
                             <ItemsControl.ItemTemplate>
                                 <DataTemplate>
                                     <StackPanel Spacing="8" Margin="0,0,0,12">
-                                        <TextBlock Text="{Binding Filename}" TextTrimming="CharacterEllipsis" FontWeight="Bold"/>
+                                        <TextBlock Text="{Binding DisplayName}" TextTrimming="CharacterEllipsis" FontWeight="Bold"/>
 
                                         <!-- Trust Score Bar -->
                                         <Grid ColumnDefinitions="*,Auto">
@@ -218,7 +218,7 @@
                         <dg:DataGridTemplateColumn.CellTemplate>
                             <DataTemplate DataType="vm:AnalyzedSearchResultViewModel">
                                 <StackPanel Margin="8,4" Spacing="2" Opacity="{Binding Opacity}">
-                                    <TextBlock Text="{Binding Filename}" FontWeight="SemiBold" 
+                                    <TextBlock Text="{Binding DisplayName}" FontWeight="SemiBold" 
                                                TextTrimming="CharacterEllipsis" Foreground="{Binding ForegroundColor}"/>
                                     
                                     <!-- Match Reason -->

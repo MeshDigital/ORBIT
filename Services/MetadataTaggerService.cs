@@ -335,6 +335,74 @@ public class MetadataTaggerService : ITaggerService
     /// <summary>
     /// Determines the MIME type of image data based on magic bytes or URL extension.
     /// </summary>
+    /// <summary>
+    /// Reads metadata tags from an audio file.
+    /// </summary>
+    public async Task<Track?> ReadTagsAsync(string filePath)
+    {
+        try
+        {
+            if (!File.Exists(filePath)) return null;
+
+            return await Task.Run(() =>
+            {
+                using var file = TagLib.File.Create(filePath);
+                if (file == null) return null;
+
+                var track = new Track
+                {
+                    Filename = Path.GetFileName(filePath),
+                    Format = Path.GetExtension(filePath).TrimStart('.').ToLowerInvariant(),
+                    Size = (long)new FileInfo(filePath).Length,
+                    Metadata = new Dictionary<string, object>()
+                };
+
+                // Add standard metadata fields if tags are available
+                var tag = file.Tag;
+                if (tag != null)
+                {
+                    track.Title = tag.Title;
+                    track.Artist = tag.FirstPerformer;
+                    track.Album = tag.Album;
+                    track.Label = tag.Publisher;
+                    track.Bitrate = file.Properties.AudioBitrate;
+                    track.Length = (int)file.Properties.Duration.TotalSeconds;
+                    
+                    track.Metadata["Year"] = tag.Year;
+                    track.Metadata["TrackNumber"] = tag.Track;
+                    track.Metadata["Genres"] = tag.Genres;
+                    track.Metadata["Comment"] = tag.Comment;
+                    track.Metadata["SampleRate"] = file.Properties.AudioSampleRate;
+                    track.Metadata["Channels"] = file.Properties.AudioChannels;
+                }
+
+                // Read custom TXXX tags (Spotify IDs)
+                var customTags = (TagLib.Id3v2.Tag)file.GetTag(TagLib.TagTypes.Id3v2);
+                if (customTags != null)
+                {
+                    var spotifyIdFrame = TagLib.Id3v2.UserTextInformationFrame.Get(customTags, "SPOTIFY_TRACK_ID", false);
+                    if (spotifyIdFrame?.Text != null && spotifyIdFrame.Text.Length > 0)
+                        track.Metadata["SpotifyTrackId"] = spotifyIdFrame.Text[0];
+                    
+                    var spotifyAlbumIdFrame = TagLib.Id3v2.UserTextInformationFrame.Get(customTags, "SPOTIFY_ALBUM_ID", false);
+                    if (spotifyAlbumIdFrame?.Text != null && spotifyAlbumIdFrame.Text.Length > 0)
+                        track.Metadata["SpotifyAlbumId"] = spotifyAlbumIdFrame.Text[0];
+                    
+                    var spotifyArtistIdFrame = TagLib.Id3v2.UserTextInformationFrame.Get(customTags, "SPOTIFY_ARTIST_ID", false);
+                    if (spotifyArtistIdFrame?.Text != null && spotifyArtistIdFrame.Text.Length > 0)
+                        track.Metadata["SpotifyArtistId"] = spotifyArtistIdFrame.Text[0];
+                }
+
+                return track;
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Failed to read tags from {FilePath}", filePath);
+            return null;
+        }
+    }
+
     private string DetermineMimeType(string url, byte[] imageData)
     {
         // Check magic bytes first (most reliable)

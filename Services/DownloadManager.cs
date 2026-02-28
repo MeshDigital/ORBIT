@@ -56,6 +56,8 @@ public class DownloadManager : INotifyPropertyChanged, IDisposable
     private readonly AnalysisQueueService _analysisQueue; // Phase 4: Musical Brain Queue
     private readonly WaveformAnalysisService _waveformService; // Phase 3: Waveform Integration
     private readonly LibraryEnrichmentWorker _enrichmentWorker; // Phase 1: Engine Overhaul
+    private readonly TrackForensicLogger _forensicLogger;
+
 
     // Phase 2: Parallel Pre-Search Cache
     private readonly ConcurrentDictionary<string, Task<DownloadDiscoveryService.DiscoveryResult>> _preSearchTasks = new();
@@ -134,7 +136,9 @@ public class DownloadManager : INotifyPropertyChanged, IDisposable
         IAudioAnalysisService audioAnalysisService,
         AnalysisQueueService analysisQueue,
         WaveformAnalysisService waveformService,
-        LibraryEnrichmentWorker enrichmentWorker) // Phase 1: Engine Overhaul
+        LibraryEnrichmentWorker enrichmentWorker,
+        TrackForensicLogger forensicLogger) // Phase 1: Engine Overhaul
+
     {
         _logger = logger;
         _config = config;
@@ -154,6 +158,8 @@ public class DownloadManager : INotifyPropertyChanged, IDisposable
         _analysisQueue = analysisQueue;
         _waveformService = waveformService;
         _enrichmentWorker = enrichmentWorker;
+        _forensicLogger = forensicLogger;
+
 
         // CONCURRENCY CONTROL ARCHITECTURE:
         // WHY: SemaphoreSlim instead of Task.WhenAll() or Parallel.ForEach():
@@ -631,7 +637,9 @@ public class DownloadManager : INotifyPropertyChanged, IDisposable
                     AddedAt = t.AddedAt,
                     CompletedAt = t.CompletedAt,
                     IsUserPaused = t.IsUserPaused,
-                    SourcePlaylistName = t.SourcePlaylistName
+                    SourcePlaylistName = t.SourcePlaylistName,
+                    SearchRetryCount = 0, // Reset in-session counter on start
+                    NotFoundRestartCount = t.NotFoundRestartCount
                 };
                 
                 // Map status to download state
@@ -651,9 +659,17 @@ public class DownloadManager : INotifyPropertyChanged, IDisposable
                         TrackStatus.Downloaded => PlaylistTrackState.Completed,
                         TrackStatus.Failed => PlaylistTrackState.Failed,
                         TrackStatus.Skipped => PlaylistTrackState.Cancelled,
+                        TrackStatus.OnHold => PlaylistTrackState.Paused, // OnHold tracks start paused
                         // If it was pending/downloading/searching, we make it Pending to restart
                         _ => PlaylistTrackState.Pending 
                     };
+                }
+
+                // Phase 21: Auto-escalate to OnHold if restart limit reached
+                if (model.NotFoundRestartCount >= 3 && model.Status != TrackStatus.Downloaded)
+                {
+                    model.Status = TrackStatus.OnHold;
+                    ctx.State = PlaylistTrackState.Paused;
                 }
 
                 _downloads.Add(ctx);
@@ -881,6 +897,19 @@ public class DownloadManager : INotifyPropertyChanged, IDisposable
              await UpdatePlaylistStatusAsync(ctx);
         }
 
+        // Phase 14: Lifecycle Forensic Logging
+        _forensicLogger.Info(ctx.GlobalId, Data.Entities.ForensicStage.Download, 
+            $"State Transition: {newState}{(error != null ? $" - Error: {error}" : "")}", 
+            ctx.GlobalId, 
+            new { 
+                ctx.State, 
+                ctx.ErrorMessage,
+                ctx.Model.Priority,
+                ctx.IsVip,
+                ctx.CurrentUsername
+            });
+
+
         // Phase 6 Fix: Real-time population of "All Tracks" (LibraryEntry)
         if (newState == PlaylistTrackState.Completed && !string.IsNullOrEmpty(ctx.Model.ResolvedFilePath))
         {
@@ -903,7 +932,9 @@ public class DownloadManager : INotifyPropertyChanged, IDisposable
             var updatedJobIds = await _databaseService.UpdatePlaylistTrackStatusAndRecalculateJobsAsync(
                 ctx.GlobalId, 
                 dbStatus, 
-                ctx.Model.ResolvedFilePath
+                ctx.Model.ResolvedFilePath,
+                ctx.Model.SearchRetryCount,
+                ctx.Model.NotFoundRestartCount
             );
 
             // Notify the Library UI to refresh the specific Project Header
@@ -935,7 +966,9 @@ public class DownloadManager : INotifyPropertyChanged, IDisposable
                 ErrorMessage = ctx.ErrorMessage,
                 AlbumArtUrl = ctx.Model.AlbumArtUrl,
                 SpotifyTrackId = ctx.Model.SpotifyTrackId,
-                StalledReason = ctx.Model.StalledReason // [NEW] Added for Overhaul
+                StalledReason = ctx.Model.StalledReason, // [NEW] Added for Overhaul
+                SearchRetryCount = ctx.Model.SearchRetryCount,
+                NotFoundRestartCount = ctx.Model.NotFoundRestartCount
             });
         }  
         catch (Exception ex)
@@ -1770,20 +1803,13 @@ public class DownloadManager : INotifyPropertyChanged, IDisposable
 
                 if (bestMatch == null)
                 {
-                    // Check if we should auto-retry (but only for network/transient failures)
-                    if (_config.AutoRetryFailedDownloads && ctx.RetryCount < _config.MaxDownloadRetries)
-                    {
-                         _logger.LogWarning("No match found for {Title}. Auto-retrying (Attempt {Count}/{Max})", 
-                             ctx.Model.Title, ctx.RetryCount + 1, _config.MaxDownloadRetries);
-                         
-                         // Throw custom exception to preserve the "Search Rejected" state during retry
-                         throw new SearchRejectedException("No suitable match found", discoveryResult.Log);
-                    }
-
                     // Determine specific failure reason based on search history
                     var failureReason = DownloadFailureReason.NoSearchResults; // Default
+
+                    // Phase 21: Progressive Retry Logic (3x Session, 3x Restart)
+                    ctx.Model.SearchRetryCount++;
                     
-                    // If we have search attempts, analyze rejection patterns
+                    // Determine specific failure reason based on search history for better logs/UI
                     if (ctx.SearchAttempts.Any())
                     {
                         var lastAttempt = ctx.SearchAttempts.Last();
@@ -1798,9 +1824,43 @@ public class DownloadManager : INotifyPropertyChanged, IDisposable
                                 failureReason = DownloadFailureReason.AllResultsBlacklisted;
                         }
                     }
-                    
-                    await UpdateStateAsync(ctx, PlaylistTrackState.Failed, failureReason);
-                    return;
+
+                    if (ctx.Model.SearchRetryCount < 3)
+                    {
+                        // In-session retry: put at the end of the queue
+                        ctx.Model.Priority = 20; // Lower priority for retries
+                        
+                        // USER REQUEST: 20 minute intervals
+                        var delayMinutes = 20; 
+                        ctx.NextRetryTime = DateTime.UtcNow.AddMinutes(delayMinutes);
+                        
+                        _logger.LogWarning("🔍 No match for {Title}. In-session retry {Count}/3. Next try at {Time} (20m | Reason: {Reason}).", 
+                            ctx.Model.Title, ctx.Model.SearchRetryCount, ctx.NextRetryTime, failureReason);
+                        
+                        await UpdateStateAsync(ctx, PlaylistTrackState.Pending, $"Retrying in {delayMinutes}m ({failureReason})");
+                        return;
+                    }
+                    else
+                    {
+                        // Exceeded session retries: increment restart count and mark Failed/OnHold
+                        ctx.Model.SearchRetryCount = 0; // Reset for next session
+                        ctx.Model.NotFoundRestartCount++;
+                        
+                        // 3 sessions x 3 retries = 9 total
+                        if (ctx.Model.NotFoundRestartCount >= 3)
+                        {
+                            _logger.LogError("🛑 GLOBAL FAILURE for {Title}: No results found after 9 attempts across 3 restarts. Moving to ON HOLD (MP3 Fallback).", ctx.Model.Title);
+                            ctx.Model.Status = TrackStatus.OnHold;
+                            await UpdateStateAsync(ctx, PlaylistTrackState.Failed, "On Hold: 9x Search Failed (Manual MP3 Search Required)");
+                        }
+                        else
+                        {
+                            _logger.LogWarning("⚠️ Session Failure for {Title}: No results found after 3 attempts. Deferring to next app restart (Session {Count}/3 | Reason: {Reason}).", 
+                                ctx.Model.Title, ctx.Model.NotFoundRestartCount, failureReason);
+                            await UpdateStateAsync(ctx, PlaylistTrackState.Failed, $"Search failed 3x in this session ({failureReason}). Deferring to next restart.");
+                        }
+                        return;
+                    }
                 }
 
                 // Phase 3.1: Download Logic (Downloading State)
@@ -2316,7 +2376,34 @@ public class DownloadManager : INotifyPropertyChanged, IDisposable
                             try
                             {
                                 analysis = await _audioAnalysisService.AnalyzeFileAsync(analysisParams.Path, analysisParams.Hash);
-                                _logger.LogInformation("âœ… Audio analysis complete: {Loudness} LUFS", analysis?.LoudnessLufs);
+                                _logger.LogInformation("✅ Audio analysis complete: {Loudness} LUFS", analysis?.LoudnessLufs);
+
+                                // Phase 9 Resilience: Forensic-Driven Retry
+                                if (analysis != null && analysis.IsUpscaled)
+                                {
+                                     _logger.LogWarning("🛑 Forensic Failure: {Title} is upscaled (Fake FLAC/MP3). Triggering automatic retry.", ctx.Model.Title);
+                                     
+                                     // 1. Delete the fake file
+                                     DeleteLocalFiles(analysisParams.Path);
+                                     
+                                     // 2. Increment session-restart count and reschedule
+                                     ctx.Model.NotFoundRestartCount++;
+                                     ctx.Model.SearchRetryCount = 0; // Reset in-session retries for the new session
+                                     
+                                     if (ctx.Model.NotFoundRestartCount >= 3)
+                                     {
+                                         _logger.LogError("🛑 GLOBAL FAILURE for {Title}: Forensic upscales detected 3 times across sessions. Moving to ON HOLD.", ctx.Model.Title);
+                                         await UpdateStateAsync(ctx, PlaylistTrackState.Paused, "On Hold: 9x Forensic Rejection (Upscale Detected)");
+                                         ctx.Model.Status = TrackStatus.OnHold;
+                                     }
+                                     else
+                                     {
+                                         ctx.NextRetryTime = DateTime.UtcNow.AddMinutes(20);
+                                         await UpdateStateAsync(ctx, PlaylistTrackState.Pending, "Forensic failure (Upscale detected) - Retrying in 20 minutes.");
+                                     }
+                                     
+                                     return; // Exit the analysis Task.Run context
+                                }
                             }
                             catch (Exception ex)
                             {

@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using SLSKDONET.Data;
 using SLSKDONET.Models;
+using SLSKDONET.Data.Entities;
 
 namespace SLSKDONET.Services
 {
@@ -57,6 +58,12 @@ namespace SLSKDONET.Services
                 if (!genreMatch) return false;
             }
 
+            // Rating
+            if (criteria.MinRating.HasValue && track.Rating < criteria.MinRating.Value) return false;
+
+            // Liked
+            if (criteria.IsLiked.HasValue && track.IsLiked != criteria.IsLiked.Value) return false;
+
             return true;
         }
 
@@ -87,6 +94,8 @@ namespace SLSKDONET.Services
                 if (!genreMatch) return false;
             }
 
+            // Rating & Liked (TrackEntity doesn't have these directly)
+            
             return true;
         }
 
@@ -117,6 +126,12 @@ namespace SLSKDONET.Services
                                  (track.PrimaryGenre ?? "").Contains(criteria.Genre, StringComparison.OrdinalIgnoreCase);
                 if (!genreMatch) return false;
             }
+
+            // Rating
+            if (criteria.MinRating.HasValue && track.Rating < criteria.MinRating.Value) return false;
+
+            // Liked
+            if (criteria.IsLiked.HasValue && track.IsLiked != criteria.IsLiked.Value) return false;
 
             return true;
         }

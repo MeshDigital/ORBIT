@@ -189,18 +189,20 @@ public class SafetyFilterService : ISafetyFilterService
         // 192kbps cuts off around 18-19kHz.
         // 128kbps cuts off around 16-17kHz.
         
-        // If it claims to be high quality (> 256kbps) but has low shelf...
-        if (bitrate >= 256 && cutoff < 17000)
+        // 2. Strict Gold Standard: Fake FLAC check
+        // Real FLACs MUST have a frequency cutoff well above 16.1 kHz.
+        // If it claims to be FLAC (lossless) but looks like a low-bitrate MP3 shelf...
+        if ((track.Format?.Equals("flac", StringComparison.OrdinalIgnoreCase) ?? false) && cutoff < 16100)
         {
-            _logger.LogWarning("Potential upscale detected: {Track} claims {Bitrate}kbps but cutoff is {Cutoff}Hz", track.Title, bitrate, cutoff);
-            return true;
+             _logger.LogWarning("🛑 Forensic Failure: Strict 16.1 kHz FLAC gate failed for {Track}. Cutoff: {Cutoff}Hz. Marking as fake.", track.Title, cutoff);
+             return true; 
         }
 
-        // If it claims to be FLAC (lossless) but looks like MP3 shelf
-        if ((track.Format?.Equals("flac", StringComparison.OrdinalIgnoreCase) ?? false) && cutoff < 21000)
+        // 3. High Quality MP3 upscale check
+        if (bitrate >= 256 && cutoff < 16100)
         {
-             _logger.LogWarning("Potential Fake FLAC detected: {Track} is FLAC but cutoff is {Cutoff}Hz", track.Title, cutoff);
-             return true;
+            _logger.LogWarning("Potential High-Quality MP3 upscale detected: {Track} claims {Bitrate}kbps but cutoff is {Cutoff}Hz", track.Title, bitrate, cutoff);
+            return true;
         }
 
         return false;

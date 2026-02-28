@@ -713,9 +713,9 @@
                                         </StackPanel>
                                         <SplitButton.Flyout>
                                             <MenuFlyout>
-                                                <MenuItem Header="Tier 1: Basic (Fast)" Command="{Binding ForceReAnalyzeTieredCommand}" CommandParameter="{x:Static essentia:AnalysisTier.Tier1}" />
-                                                <MenuItem Header="Tier 2: Detailed" Command="{Binding ForceReAnalyzeTieredCommand}" CommandParameter="{x:Static essentia:AnalysisTier.Tier2}" />
-                                                <MenuItem Header="Tier 3: Specialized (Deep)" Command="{Binding ForceReAnalyzeTieredCommand}" CommandParameter="{x:Static essentia:AnalysisTier.Tier3}" />
+                                                <MenuItem Header="Tier 1: Basic (Fast)" Command="{Binding ForceReAnalyzeTieredCommand}" CommandParameter="{x:Static models:AnalysisTier.Tier1}" />
+                                                <MenuItem Header="Tier 2: Detailed" Command="{Binding ForceReAnalyzeTieredCommand}" CommandParameter="{x:Static models:AnalysisTier.Tier2}" />
+                                                <MenuItem Header="Tier 3: Specialized (Deep)" Command="{Binding ForceReAnalyzeTieredCommand}" CommandParameter="{x:Static models:AnalysisTier.Tier3}" />
                                             </MenuFlyout>
                                         </SplitButton.Flyout>
                                     </SplitButton>
