@@ -2036,6 +2036,17 @@ public class SchemaMigratorService
                 await command.ExecuteNonQueryAsync();
             }
 
+            // 15. Soft Clear: IsClearedFromDownloadCenter
+            if (TableExists("PlaylistTracks"))
+            {
+                if (!ColumnExists("PlaylistTracks", "IsClearedFromDownloadCenter"))
+                {
+                    _logger.LogInformation("Patching Schema: Adding IsClearedFromDownloadCenter to PlaylistTracks...");
+                    command.CommandText = @"ALTER TABLE ""PlaylistTracks"" ADD COLUMN ""IsClearedFromDownloadCenter"" INTEGER NOT NULL DEFAULT 0;";
+                    await command.ExecuteNonQueryAsync();
+                }
+            }
+
             _logger.LogInformation("Schema patching completed.");
         }
         catch (Exception ex)
