@@ -179,6 +179,13 @@ public class UnifiedTrackViewModel : ReactiveObject, IDisplayableTrack, IDisposa
             .ObserveOn(RxApp.MainThreadScheduler)
             .Subscribe(OnMetadataUpdated)
             .DisposeWith(_disposables);
+
+        // Fix: Subscribe to granular search status events for live console updates
+        _eventBus.GetEvent<TrackDetailedStatusEvent>()
+            .Where(e => e.TrackHash == GlobalId)
+            .ObserveOn(RxApp.MainThreadScheduler)
+            .Subscribe(OnDetailedStatus)
+            .DisposeWith(_disposables);
             
          // Initialize sliding window for speed
          _lastProgressTime = DateTime.MinValue;
@@ -310,6 +317,8 @@ public class UnifiedTrackViewModel : ReactiveObject, IDisplayableTrack, IDisposa
             if (_state != value)
             {
                 this.RaiseAndSetIfChanged(ref _state, value);
+                
+                // Core state flags
                 this.RaisePropertyChanged(nameof(StatusText));
                 this.RaisePropertyChanged(nameof(StatusColor));
                 this.RaisePropertyChanged(nameof(DetailedStatusText));
@@ -317,22 +326,30 @@ public class UnifiedTrackViewModel : ReactiveObject, IDisplayableTrack, IDisposa
                 this.RaisePropertyChanged(nameof(IsFailed));
                 this.RaisePropertyChanged(nameof(IsActive));
                 this.RaisePropertyChanged(nameof(IsWaiting));
-                this.RaisePropertyChanged(nameof(CanForceStart));
-                this.RaisePropertyChanged(nameof(CanRetry));
-                this.RaisePropertyChanged(nameof(CanBumpToTop));
                 this.RaisePropertyChanged(nameof(IsSearching));
                 this.RaisePropertyChanged(nameof(IsDownloading));
                 this.RaisePropertyChanged(nameof(IsPaused));
                 this.RaisePropertyChanged(nameof(IsStalled));
                 this.RaisePropertyChanged(nameof(IsCompleted));
-                this.RaisePropertyChanged(nameof(TechnicalSummary));
-                this.RaisePropertyChanged(nameof(DownloadDurationDisplay));
-                this.RaisePropertyChanged(nameof(IsSearching));
-                this.RaisePropertyChanged(nameof(IsDownloading));
+                
+                // Action enablement
+                this.RaisePropertyChanged(nameof(CanForceStart));
                 this.RaisePropertyChanged(nameof(CanRetry));
                 this.RaisePropertyChanged(nameof(CanResume));
                 this.RaisePropertyChanged(nameof(CanBumpToTop));
-                this.RaisePropertyChanged(nameof(CanForceStart));
+                
+                // Display properties
+                this.RaisePropertyChanged(nameof(TechnicalSummary));
+                this.RaisePropertyChanged(nameof(DownloadDurationDisplay));
+                this.RaisePropertyChanged(nameof(HasBpm));
+                this.RaisePropertyChanged(nameof(HasKey));
+                this.RaisePropertyChanged(nameof(HasGenre));
+                this.RaisePropertyChanged(nameof(IsHighRisk));
+                this.RaisePropertyChanged(nameof(MatchConfidence));
+                
+                // Clear detailed status when leaving search state
+                if (value != PlaylistTrackState.Searching)
+                    DetailedSearchStatus = null;
 
                 // Lazy synergy check: fire once when track first reaches a failed/cancelled
                 // terminal state. This avoids the constructor-time DB flood during bulk hydration.
@@ -345,7 +362,9 @@ public class UnifiedTrackViewModel : ReactiveObject, IDisplayableTrack, IDisposa
     {
         PlaylistTrackState.Completed => "Ready",
         PlaylistTrackState.Downloading => $"{(int)(Progress)}%",
-        PlaylistTrackState.Searching => SearchAttemptCount > 1 ? $"Searching... ({SearchAttemptCount})" : "Searching...",
+        PlaylistTrackState.Searching => !string.IsNullOrEmpty(DetailedSearchStatus) 
+            ? DetailedSearchStatus 
+            : (SearchAttemptCount > 1 ? $"Searching... ({SearchAttemptCount})" : "Searching..."),
         PlaylistTrackState.Queued => "Queued",
         PlaylistTrackState.Failed => !string.IsNullOrEmpty(FailureReason) ? FailureReason : 
                                      (FailureEnum != DownloadFailureReason.None ? FailureEnum.ToDisplayMessage() : "Failed"),
@@ -577,6 +596,37 @@ public class UnifiedTrackViewModel : ReactiveObject, IDisplayableTrack, IDisposa
     public string QualityIcon => TierBadge;
     public Avalonia.Media.IBrush QualityColor => TierColor;
     
+    // Match & High Risk Logic
+    public double MatchConfidence => (Model.QualityConfidence ?? 0) * 100;
+    
+    public string MatchConfidenceColor => MatchConfidence switch
+    {
+        >= 90 => "#1DB954", // Spotify Green
+        >= 70 => "#FFD700", // Gold/Yellow
+        _ => "#E91E63"      // Pink/Red
+    };
+
+    public bool IsHighRisk => Model.IsFlagged && State != PlaylistTrackState.Searching && State != PlaylistTrackState.Queued && State != PlaylistTrackState.Pending;
+    public string? FlagReason => Model.FlagReason;
+
+    public string CurationIcon => Model.CurationConfidence switch
+    {
+        SLSKDONET.Data.Entities.CurationConfidence.Manual => "🛡️",
+        SLSKDONET.Data.Entities.CurationConfidence.High => "🏅",
+        SLSKDONET.Data.Entities.CurationConfidence.Medium => "🥈",
+        SLSKDONET.Data.Entities.CurationConfidence.Low => "📉",
+        _ => string.Empty
+    };
+    
+    public Avalonia.Media.IBrush CurationColor => Model.CurationConfidence switch
+    {
+        SLSKDONET.Data.Entities.CurationConfidence.Manual => Avalonia.Media.Brushes.LimeGreen,
+        SLSKDONET.Data.Entities.CurationConfidence.High => Avalonia.Media.Brushes.Gold,
+        SLSKDONET.Data.Entities.CurationConfidence.Medium => Avalonia.Media.Brushes.Silver,
+        SLSKDONET.Data.Entities.CurationConfidence.Low => Avalonia.Media.Brushes.OrangeRed,
+        _ => Avalonia.Media.Brushes.Transparent
+    };
+    
     public string BpmDisplay => Model.BPM.HasValue ? $"{Model.BPM:0}" : "—";
     public string KeyDisplay
     {
@@ -609,6 +659,11 @@ public class UnifiedTrackViewModel : ReactiveObject, IDisplayableTrack, IDisposa
     public string? StalledReason => Model.StalledReason;
     public string? DetectedSubGenre => Model.DetectedSubGenre;
     public float? SubGenreConfidence => Model.SubGenreConfidence;
+
+    // UI Layout Bools (For clean XAML)
+    public bool HasBpm => Model.BPM > 0;
+    public bool HasKey => !string.IsNullOrEmpty(Model.MusicalKey) && Model.MusicalKey != "—";
+    public bool HasGenre => !string.IsNullOrEmpty(DetectedSubGenre) || !string.IsNullOrEmpty(PrimaryGenre);
 
     // Phase 2: In-Flight Forensics
     private string _forensicVerdict = "Initializing Probe...";
@@ -851,6 +906,29 @@ public class UnifiedTrackViewModel : ReactiveObject, IDisplayableTrack, IDisposa
         }
     }
 
+    private void OnDetailedStatus(TrackDetailedStatusEvent e)
+    {
+        // Already filtered by TrackHash in the Rx subscription (Where clause)
+        DetailedSearchStatus = e.Message;
+    }
+
+    private string? _detailedSearchStatus;
+    /// <summary>
+    /// Granular search progress message from the discovery service.
+    /// Shows live updates like "🔎 Started Dirty search..." or "Rejected @user: Duration mismatch".
+    /// Cleared automatically when the track leaves the Searching state.
+    /// </summary>
+    public string? DetailedSearchStatus
+    {
+        get => _detailedSearchStatus;
+        set
+        {
+            this.RaiseAndSetIfChanged(ref _detailedSearchStatus, value);
+            // Also refresh StatusText since it may incorporate this
+            this.RaisePropertyChanged(nameof(StatusText));
+        }
+    }
+
     private void OnProgressChanged(TrackProgressChangedEvent e)
     {
         if (e.TrackGlobalId != GlobalId) return;
@@ -1061,25 +1139,6 @@ public class UnifiedTrackViewModel : ReactiveObject, IDisplayableTrack, IDisposa
     
     // Phase 11.5: Library Trust Badges
     public SLSKDONET.Data.Entities.CurationConfidence CurationConfidence => Model.CurationConfidence;
-
-    public string CurationIcon => CurationConfidence switch
-    {
-        SLSKDONET.Data.Entities.CurationConfidence.Manual => "🛡️",
-        SLSKDONET.Data.Entities.CurationConfidence.High => "🏅",
-        SLSKDONET.Data.Entities.CurationConfidence.Medium => "🥈",
-        SLSKDONET.Data.Entities.CurationConfidence.Low => "📉",
-        _ => string.Empty
-    };
-    
-    public Avalonia.Media.IBrush CurationColor => CurationConfidence switch
-    {
-        SLSKDONET.Data.Entities.CurationConfidence.Manual => Avalonia.Media.Brushes.LimeGreen,
-        SLSKDONET.Data.Entities.CurationConfidence.High => Avalonia.Media.Brushes.Gold,
-        SLSKDONET.Data.Entities.CurationConfidence.Medium => Avalonia.Media.Brushes.Silver,
-        SLSKDONET.Data.Entities.CurationConfidence.Low => Avalonia.Media.Brushes.OrangeRed,
-        _ => Avalonia.Media.Brushes.Transparent
-    };
-
     public string ProvenanceTooltip => $"Confidence: {CurationConfidence}\nSource: {Model.Source}";
 
     public void Dispose()

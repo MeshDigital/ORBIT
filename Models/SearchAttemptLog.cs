@@ -13,8 +13,14 @@ public class SearchAttemptLog
     public int RejectedByBlacklist { get; set; }
     public int RejectedByForensics { get; set; } // Phase 14: Operation Forensic Core
     
+    
     // Fix: Added SearchScore to resolve build error in DownloadDiscoveryService
     public double SearchScore { get; set; }
+    
+    /// <summary>
+    /// True if the search was aborted due to the global discovery timeout (90s).
+    /// </summary>
+    public bool TimedOut { get; set; }
     
     public DateTime AttemptedAt { get; set; } = DateTime.UtcNow;
     

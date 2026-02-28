@@ -70,53 +70,67 @@ public class DownloadDiscoveryService
     /// </summary>
     public async Task<DiscoveryResult> FindBestMatchAsync(PlaylistTrack track, CancellationToken ct, HashSet<string>? blacklistedUsers = null)
     {
+        // Global discovery timeout: if all tiers combined take > 90s, abort cleanly.
+        // This prevents a single search from hogging a semaphore slot indefinitely.
+        using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+        timeoutCts.CancelAfter(TimeSpan.FromSeconds(90));
+        var timedCt = timeoutCts.Token;
+
         var tiers = _autoCleaner.Clean($"{track.Artist} - {track.Title}");
         var log = new SearchAttemptLog();
         var queryTiers = new[] { tiers.Dirty, tiers.Smart, tiers.Aggressive };
         var tierNames = new[] { "Dirty", "Smart", "Aggressive" };
 
-
-
-        for (int i = 0; i < queryTiers.Length; i++)
+        try
         {
-            var query = queryTiers[i];
-            if (string.IsNullOrEmpty(query)) continue;
-
-            _logger.LogInformation("Discovery Tier {Tier} started for: {Query} (GlobalId: {Id})", tierNames[i], query, track.TrackUniqueHash);
-            _forensicLogger.Info(track.TrackUniqueHash, Data.Entities.ForensicStage.Discovery, $"Tier {tierNames[i]} Search Query: \"{query}\"");
-            _eventBus.Publish(new Events.TrackDetailedStatusEvent(track.TrackUniqueHash, $"🔎 Started {tierNames[i]} search for: '{query}'..."));
-
-            var result = await PerformSearchTierAsync(track, query, tierNames[i], ct, blacklistedUsers, log);
-
-            
-            if (result.BestMatch != null)
+            for (int i = 0; i < queryTiers.Length; i++)
             {
-                // If it's an Aggressive match, we might want to flag it or lower the confidence
-                if (tierNames[i] == "Aggressive" && result.BestMatch.CurrentRank > 0)
+                var query = queryTiers[i];
+                if (string.IsNullOrEmpty(query)) continue;
+
+                _logger.LogInformation("Discovery Tier {Tier} started for: {Query} (GlobalId: {Id})", tierNames[i], query, track.TrackUniqueHash);
+                _forensicLogger.Info(track.TrackUniqueHash, Data.Entities.ForensicStage.Discovery, $"Tier {tierNames[i]} Search Query: \"{query}\"");
+                _eventBus.Publish(new Events.TrackDetailedStatusEvent(track.TrackUniqueHash, $"🔎 Started {tierNames[i]} search for: '{query}'..."));
+
+                var result = await PerformSearchTierAsync(track, query, tierNames[i], timedCt, blacklistedUsers, log);
+
+                
+                if (result.BestMatch != null)
                 {
-                    result.BestMatch.CurrentRank *= 0.8; // Penalty for aggressive query match
-                    _logger.LogWarning("Aggressive match found. Reducing confidence score for {Title}.", track.Title);
+                    // If it's an Aggressive match, we might want to flag it or lower the confidence
+                    if (tierNames[i] == "Aggressive" && result.BestMatch.CurrentRank > 0)
+                    {
+                        result.BestMatch.CurrentRank *= 0.8; // Penalty for aggressive query match
+                        _logger.LogWarning("Aggressive match found. Reducing confidence score for {Title}.", track.Title);
+                    }
+                    return result;
                 }
-                return result;
+
+                if (timedCt.IsCancellationRequested) break;
+                
+                _forensicLogger.LogSearchSummary(track.TrackUniqueHash, track.TrackUniqueHash, 
+                    $"Tier {tierNames[i]} Summary: {log.GetSummary()}", 
+                    new { 
+                        Tier = tierNames[i], 
+                        Results = log.ResultsCount, 
+                        RejectedForensics = log.RejectedByForensics,
+                        RejectedQuality = log.RejectedByQuality,
+                        RejectedFormat = log.RejectedByFormat,
+                        RejectedBlacklist = log.RejectedByBlacklist
+                    });
+
+                // If we found NO results in Dirty, we move to Smart immediately.
+
+                // If we found results but NO match, we might wait a bit or just move on.
+                _logger.LogInformation("Tier {Tier} yielded no suitable matches. Moving to next tier...", tierNames[i]);
             }
-
-            if (ct.IsCancellationRequested) break;
-            
-            _forensicLogger.LogSearchSummary(track.TrackUniqueHash, track.TrackUniqueHash, 
-                $"Tier {tierNames[i]} Summary: {log.GetSummary()}", 
-                new { 
-                    Tier = tierNames[i], 
-                    Results = log.ResultsCount, 
-                    RejectedForensics = log.RejectedByForensics,
-                    RejectedQuality = log.RejectedByQuality,
-                    RejectedFormat = log.RejectedByFormat,
-                    RejectedBlacklist = log.RejectedByBlacklist
-                });
-
-            // If we found NO results in Dirty, we move to Smart immediately.
-
-            // If we found results but NO match, we might wait a bit or just move on.
-            _logger.LogInformation("Tier {Tier} yielded no suitable matches. Moving to next tier...", tierNames[i]);
+        }
+        catch (OperationCanceledException) when (timeoutCts.IsCancellationRequested && !ct.IsCancellationRequested)
+        {
+            // The global timeout fired (not external cancellation)
+            _logger.LogWarning("⏱️ Discovery TIMEOUT (90s) for {Title}. Releasing slot.", track.Title);
+            _eventBus.Publish(new Events.TrackDetailedStatusEvent(track.TrackUniqueHash, "⏱️ Search timed out after 90 seconds"));
+            log.TimedOut = true;
         }
 
         return new DiscoveryResult(null, log);

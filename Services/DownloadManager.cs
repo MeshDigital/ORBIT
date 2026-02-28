@@ -1648,8 +1648,15 @@ public class DownloadManager : INotifyPropertyChanged, IDisposable
                 bool tookSemaphoreSlot = false;
                 if (!nextContext.IsVip)
                 {
-                    // Regular track: Wait for one of the semaphore slots to open up
-                    await _downloadSemaphore.WaitAsync(token);
+                    // NON-BLOCKING: Try to acquire a slot without waiting.
+                    // If no slot is available, yield the loop and retry on the next cycle.
+                    // This prevents the orchestrator from stalling when all slots are full,
+                    // keeping it responsive for VIP tracks, pre-searches, and UI updates.
+                    if (!_downloadSemaphore.Wait(0))
+                    {
+                        await Task.Delay(200, token);
+                        continue;
+                    }
                     tookSemaphoreSlot = true;
                 }
                 else
