@@ -224,8 +224,21 @@ Run:   dotnet test --filter "ViewModelDisposalGuard"
 
 ---
 
-## 📝 Immediate Tasks (Next Session)
-1. [ ] **Sidebar Mode Extension**: Update `LibrarySidebarMode` and `ContextualSidebarViewModel`.
-2. [ ] **Sidebar Navigation UI**: Implement the IconStrip navigation in `LibraryPage.axaml` (right side of docked panel).
-3. [ ] **CueSidebar Skeleton**: Create `CueSidebarViewModel` and basic view structure.
-4. [ ] **Stress Validation**: Run SetlistStressTest with 100+ track import; confirm zero `Database is locked` errors.
+---
+
+## Phase 7: MixInKey 2026 Alignment — Unified DAW Workspace (Strategic Pivot)
+**Goal**: Consolidate ORBIT into a single-pane, high-performance DAW-style interface, eliminating fragmented "Main Pages."
+
+### 7.1: The Shell Refactor
+- [ ] **MainWindow.axaml**: Rewrite Grid layout to support static zones (Navigator, Canvas, Inspector, Dock).
+- [ ] **MainViewModel.cs**: Transition navigation from `Routing/Navigation` frame to in-place Context Switching.
+
+### 7.2: Canvas & Grid Unification
+- [ ] **UnifiedTrackGridView**: Create a master track list that swaps `ItemsSource` based on navigator context (Library vs. Search vs. Inbox).
+- [ ] **Consistent Metadata**: Ensure BPM, Key, Energy, and Deep DNA columns are persistent across all views.
+
+### 7.3: Activity & Mission Control
+- [ ] **Status Popover**: Move Analysis Queue and Download Manager into a non-intrusive status bar widget.
+
+### 7.4: Timeline Integration
+- [ ] **Bottom Dock**: Expand player bar into a collapsible Set Designer Timeline for drag-and-drop mixing.
