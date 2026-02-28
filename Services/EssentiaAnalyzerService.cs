@@ -466,6 +466,14 @@ public class EssentiaAnalyzerService : IAudioIntelligenceService, IDisposable
                                     
                                     // Phase 21 / Phase 5: AI Brain Vector Storage (stored as normalized BLOB)
                                     entity.VectorEmbedding = embedding;
+
+                                    // Phase 5: Deep DNA — also store as dedicated 512-D texture embedding
+                                    // for the zero-alloc SIMD scoring path in SonicMatchService.ScoreTexture()
+                                    if (embedding.Length == 512)
+                                    {
+                                        entity.DeepTextureEmbedding = embedding;
+                                        _logger.LogInformation("🧬 DEEP DNA: 512-D texture embedding stored for zero-alloc SIMD scoring");
+                                    }
                                     
                                     _logger.LogInformation("🧠 DEEP DNA: Extracted & Normalized {Size}D Neural Texture from {Key}", embedding.Length, kvp.Key);
                                 }

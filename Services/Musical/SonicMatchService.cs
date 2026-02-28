@@ -283,6 +283,7 @@ public class SonicMatchService
 
     /// <summary>
     /// Scores a single candidate against the source and returns a full SimilarityBreakdown.
+    /// Phase 5: Now includes TextureScore (512-D Deep DNA) and adaptive weighting.
     /// </summary>
     private SimilarityBreakdown ScoreCandidate(
         AudioFeaturesEntity src,
@@ -304,8 +305,11 @@ public class SonicMatchService
         float[] candMoodVec = BuildMoodVector(cand);
         breakdown.VibeScore = ScoreVibe(srcMoodVec, candMoodVec, src, cand);
 
-        // ④ Timbre Score (AI embedding or genre fallback)
+        // ④ Timbre Score (128-D AI embedding or genre fallback)
         breakdown.TimbreScore = ScoreTimbre(src, cand);
+
+        // ⑤ Texture Score (512-D Deep DNA — SIMD accelerated)
+        breakdown.TextureScore = ScoreTexture(src, cand);
 
         // Raw diagnostics for UI
         breakdown.CandidateBpm    = cand.Bpm;
@@ -313,13 +317,16 @@ public class SonicMatchService
         breakdown.BpmDelta        = cand.Bpm - src.Bpm;
         breakdown.EnergyDelta     = cand.Energy - src.Energy;
 
-        // ⑤ Weighted combination based on profile
-        breakdown.TotalConfidence = ApplyProfileWeights(breakdown, profile);
+        // ⑥ Adaptive weighted combination based on profile + source characteristics
+        breakdown.TotalConfidence = ApplyAdaptiveWeights(breakdown, profile, src);
 
-        // ⑥ Vocal Clash Avoidance
+        // ⑦ Phrase trajectory bonus (Outro→Intro energy alignment)
+        ApplyPhraseTrajectoryBonus(src, cand, breakdown);
+
+        // ⑧ Vocal Clash Avoidance
         ApplyVocalAdjustments(src, cand, breakdown);
 
-        // ⑥a Final clamp
+        // Final clamp
         breakdown.TotalConfidence = Math.Clamp(breakdown.TotalConfidence, 0.0, 1.0);
 
         // Build human-readable tags
@@ -456,7 +463,7 @@ public class SonicMatchService
     }
 
     // ====================================================================
-    // ④ Timbre Scoring — AI Embedding or Genre Fallback
+    // ④ Timbre Scoring — 128-D AI Embedding or Genre Fallback
     // ====================================================================
 
     private static double ScoreTimbre(AudioFeaturesEntity src, AudioFeaturesEntity cand)
@@ -482,26 +489,180 @@ public class SonicMatchService
     }
 
     // ====================================================================
-    // ⑤ Profile Weights
+    // ⑤ Texture Scoring — 512-D Deep DNA (Phase 5)
     // ====================================================================
 
-    private static double ApplyProfileWeights(SimilarityBreakdown b, MatchProfile profile)
+    /// <summary>
+    /// Deep Texture similarity using 512-D discogs-effnet embeddings.
+    /// Uses SIMD-accelerated cosine similarity via VectorMathUtils.
+    /// Zero-allocation path: compares byte[] blobs directly.
+    /// Falls back to TimbreScore when 512-D embeddings are unavailable.
+    /// </summary>
+    private static double ScoreTexture(AudioFeaturesEntity src, AudioFeaturesEntity cand)
     {
-        return profile switch
+        // Best case: both tracks have 512-D deep texture embeddings
+        if (src.DeepTextureEmbeddingBytes != null && cand.DeepTextureEmbeddingBytes != null &&
+            src.DeepTextureEmbeddingBytes.Length > 0 &&
+            src.DeepTextureEmbeddingBytes.Length == cand.DeepTextureEmbeddingBytes.Length)
         {
-            MatchProfile.Mixable =>
-                b.HarmonicScore * 0.30 +
-                b.RhythmScore * 0.20 +
-                b.VibeScore * 0.25 +
-                b.TimbreScore * 0.25,
+            // Zero-alloc SIMD path: MemoryMarshal.Cast → Span<float> → SIMD
+            return VectorMathUtils.CosineSimilarityFromBlobs(
+                src.DeepTextureEmbeddingBytes, cand.DeepTextureEmbeddingBytes);
+        }
 
-            MatchProfile.VibeMatch =>
-                b.VibeScore * 0.30 +
-                b.TimbreScore * 0.65 +
-                b.RhythmScore * 0.05,
+        // Graceful fallback: no deep embeddings available → return 0 (not used in weighting)
+        return 0.0;
+    }
 
-            _ => (b.HarmonicScore + b.RhythmScore + b.VibeScore + b.TimbreScore) / 4.0
-        };
+    // ====================================================================
+    // ⑥ Adaptive Profile Weights (Phase 5: Energy-Aware)
+    // ====================================================================
+
+    /// <summary>
+    /// Dynamic weighting that adapts to the source track's characteristics.
+    /// 
+    /// High-energy source (≥0.80): Prioritizes rhythm lock + harmonic safety.
+    ///   → Harmonic 30%, Rhythm 30%, Texture 20%, Vibe 15%, Timbre 5%
+    /// 
+    /// Low-energy source (≤0.35): Prioritizes texture + vibe (mood journey).
+    ///   → Texture 35%, Vibe 30%, Harmonic 15%, Rhythm 10%, Timbre 10%
+    /// 
+    /// Mid-energy source: Balanced across all dimensions.
+    ///   → Harmonic 25%, Rhythm 20%, Texture 25%, Vibe 20%, Timbre 10%
+    /// 
+    /// When DeepTextureEmbedding is unavailable (TextureScore == 0),
+    /// its weight redistributes to TimbreScore and VibeScore.
+    /// </summary>
+    private static double ApplyAdaptiveWeights(
+        SimilarityBreakdown b, MatchProfile profile, AudioFeaturesEntity src)
+    {
+        // VibeMatch mode: texture-dominant, key-agnostic
+        if (profile == MatchProfile.VibeMatch)
+        {
+            // If we have deep texture, it dominates
+            if (b.TextureScore > 0)
+            {
+                return b.TextureScore * 0.45 +
+                       b.VibeScore    * 0.30 +
+                       b.TimbreScore  * 0.15 +
+                       b.RhythmScore  * 0.10;
+            }
+            // Fallback: TimbreScore absorbs texture weight
+            return b.VibeScore   * 0.35 +
+                   b.TimbreScore * 0.55 +
+                   b.RhythmScore * 0.10;
+        }
+
+        // Mixable (DJ) mode: adaptive based on source energy
+        float energy = src.Energy;
+        bool hasTexture = b.TextureScore > 0;
+
+        double wHarmonic, wRhythm, wTexture, wVibe, wTimbre;
+
+        if (energy >= 0.80f)
+        {
+            // 🔥 High-energy source: rhythm lock is critical for peak-time mixing
+            wHarmonic = 0.30; wRhythm = 0.30; wTexture = 0.20; wVibe = 0.15; wTimbre = 0.05;
+        }
+        else if (energy <= 0.35f)
+        {
+            // 🌊 Low-energy source: texture/vibe matter more for mood journey
+            wHarmonic = 0.15; wRhythm = 0.10; wTexture = 0.35; wVibe = 0.30; wTimbre = 0.10;
+        }
+        else
+        {
+            // ⚡ Mid-energy: balanced approach
+            wHarmonic = 0.25; wRhythm = 0.20; wTexture = 0.25; wVibe = 0.20; wTimbre = 0.10;
+        }
+
+        // If no deep texture embedding: redistribute its weight
+        if (!hasTexture)
+        {
+            wTimbre += wTexture * 0.60;  // 60% back to legacy timbre
+            wVibe   += wTexture * 0.40;  // 40% back to vibe
+            wTexture = 0;
+        }
+
+        return b.HarmonicScore * wHarmonic +
+               b.RhythmScore   * wRhythm  +
+               b.TextureScore  * wTexture  +
+               b.VibeScore     * wVibe     +
+               b.TimbreScore   * wTimbre;
+    }
+
+    // ====================================================================
+    // ⑦ Phrase Trajectory Bonus (Outro→Intro Energy Alignment)
+    // ====================================================================
+
+    /// <summary>
+    /// Awards a bonus when the candidate's intro energy aligns with the source's
+    /// outro energy, creating a smooth mix transition.
+    /// 
+    /// Uses PhraseSegmentsJson to find the last "Outro" phrase of the source
+    /// and the first "Intro" phrase of the candidate, comparing their energy levels.
+    /// 
+    /// Bonus: up to +5% TotalConfidence for perfect alignment.
+    /// </summary>
+    private static void ApplyPhraseTrajectoryBonus(
+        AudioFeaturesEntity src, AudioFeaturesEntity cand, SimilarityBreakdown b)
+    {
+        try
+        {
+            // Parse phrase segments from JSON
+            var srcPhrases = DeserializePhrases(src.PhraseSegmentsJson);
+            var candPhrases = DeserializePhrases(cand.PhraseSegmentsJson);
+
+            if (srcPhrases == null || candPhrases == null) return;
+
+            // Find source's last phrase (Outro or last segment) energy
+            var srcOutro = srcPhrases.LastOrDefault(p => p.Type == "Outro")
+                        ?? srcPhrases.LastOrDefault();
+            // Find candidate's first phrase (Intro or first segment) energy
+            var candIntro = candPhrases.FirstOrDefault(p => p.Type == "Intro")
+                         ?? candPhrases.FirstOrDefault();
+
+            if (srcOutro == null || candIntro == null) return;
+
+            // Energy alignment: reward when intro energy ≈ outro energy
+            // Perfect alignment (diff < 0.10): +5% bonus
+            // Good alignment (diff < 0.20): +3% bonus
+            // Acceptable (diff < 0.30): +1% bonus
+            float energyDiff = Math.Abs(srcOutro.Energy - candIntro.Energy);
+
+            if (energyDiff < 0.10f)
+                b.TotalConfidence += 0.05;
+            else if (energyDiff < 0.20f)
+                b.TotalConfidence += 0.03;
+            else if (energyDiff < 0.30f)
+                b.TotalConfidence += 0.01;
+        }
+        catch
+        {
+            // Phrase data missing or malformed — no bonus, no penalty
+        }
+    }
+
+    /// <summary>
+    /// Lightweight phrase deserialization for the trajectory bonus.
+    /// </summary>
+    private static List<PhraseSegment>? DeserializePhrases(string? json)
+    {
+        if (string.IsNullOrEmpty(json) || json == "[]" || json == "{}") return null;
+        try
+        {
+            return System.Text.Json.JsonSerializer.Deserialize<List<PhraseSegment>>(json,
+                new System.Text.Json.JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+        }
+        catch { return null; }
+    }
+
+    /// <summary>Minimal DTO for PhraseSegmentsJson deserialization.</summary>
+    private class PhraseSegment
+    {
+        public string Type { get; set; } = string.Empty;
+        public float Energy { get; set; }
+        public float StartTime { get; set; }
+        public float EndTime { get; set; }
     }
 
     // ====================================================================
