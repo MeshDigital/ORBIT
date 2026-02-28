@@ -8,12 +8,13 @@ public enum IntegrityLevel
     Gold = 3        // Perfect Match (Duration + BPM + Key + Audio Hash)
 }
 
-public enum ActiveWorkspace
+public enum LibraryWorkspace
 {
     Selector, // Central Only (Triage)
     Analyst,  // Inspector (Verification)
     Preparer, // Mix Helper + Inspector (Cueing)
-    Forensic  // Full Page Lab (Deep Dive)
+    Forensic, // Full Page Lab (Deep Dive)
+    Industrial // Industrial Mode
 }
 
 public enum AnalysisStage
@@ -24,4 +25,11 @@ public enum AnalysisStage
     Forensics,    // Spectral Analysis
     Finalizing,   // Writing Tags/Cues
     Complete
+}
+
+public enum PerformanceDockMode
+{
+    None,
+    CompactPlayer,
+    FullDesigner
 }

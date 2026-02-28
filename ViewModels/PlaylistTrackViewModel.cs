@@ -18,7 +18,7 @@ namespace SLSKDONET.ViewModels;
 /// ViewModel representing a track in the download queue.
 /// Manages state, progress, and updates for the UI.
 /// </summary>
-public class PlaylistTrackViewModel : INotifyPropertyChanged, Library.ILibraryNode, IDisposable
+public class PlaylistTrackViewModel : INotifyPropertyChanged, Library.ILibraryNode, IDisplayableTrack, IDisposable
 {
     private PlaylistTrackState _state;
     private double _progress;
@@ -170,9 +170,9 @@ public class PlaylistTrackViewModel : INotifyPropertyChanged, Library.ILibraryNo
         _ => "Not Analyzed"
     };
 
-    public double Energy
+    public double? Energy
     {
-        get => Model.Energy ?? 0.0;
+        get => Model.Energy;
         set
         {
             Model.Energy = value;
@@ -248,7 +248,7 @@ public class PlaylistTrackViewModel : INotifyPropertyChanged, Library.ILibraryNo
     public bool HasMood => !string.IsNullOrEmpty(MoodTag) && MoodTag != "Neutral";
 
     public Models.SonicProfileData SonicProfile => new Models.SonicProfileData(
-        Energy, 
+        Energy ?? 0.0, 
         Valence, 
         Model.InstrumentalProbability ?? 0.0);
     
@@ -258,6 +258,12 @@ public class PlaylistTrackViewModel : INotifyPropertyChanged, Library.ILibraryNo
     public string MusicalKey => Model.MusicalKey ?? "—";
     
     public string GlobalId { get; set; } // TrackUniqueHash
+    
+    // IDisplayableTrack Implementation
+    public double? Bpm => BPM;
+    public string? Key => MusicalKey;
+    public double? DeepDNAScore => Model.Rating > 0 ? (double?)Model.Rating : null; // Simple mapping for now
+    object? IDisplayableTrack.Artwork => _artwork;
     
     // Properties linked to Model and Notification
     public string Artist 

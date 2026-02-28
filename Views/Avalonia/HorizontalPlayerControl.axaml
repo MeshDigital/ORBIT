@@ -4,6 +4,7 @@
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              xmlns:vm="clr-namespace:SLSKDONET.ViewModels"
              xmlns:controls="clr-namespace:SLSKDONET.Views.Avalonia.Controls"
+             xmlns:data="clr-namespace:SLSKDONET.Data"
              mc:Ignorable="d" d:DesignWidth="1200" d:DesignHeight="100"
              x:Class="SLSKDONET.Views.Avalonia.HorizontalPlayerControl"
              x:DataType="vm:PlayerViewModel"
@@ -208,6 +209,22 @@
 
                 <Rectangle Width="1" Height="24" Fill="#3E3E3E"/>
 
+                <Button Command="{Binding $parent[Window].DataContext.TogglePerformanceDockCommand}" 
+                        Classes="icon-button" 
+                        ToolTip.Tip="Expand Performance Designer"
+                        Padding="8,4"
+                        Margin="4,0"
+                        Background="#334EC9B0"
+                        BorderBrush="#4EC9B0"
+                        BorderThickness="1">
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                        <TextBlock Text="📉" FontSize="18" 
+                                   Opacity="{Binding $parent[Window].DataContext.PerformanceDockMode, Converter={StaticResource EnumToOpacityConverter}, ConverterParameter={x:Static data:PerformanceDockMode.FullDesigner}}"/>
+                        <TextBlock Text="DESIGNER" FontSize="10" FontWeight="Bold" 
+                                   VerticalAlignment="Center" Foreground="White" Opacity="0.9"/>
+                    </StackPanel>
+                </Button>
+
                 <Button Command="{Binding ToggleTheaterModeCommand}" 
                         Classes="icon-button" 
                         ToolTip.Tip="Visualizer (Theater Mode)"
@@ -218,7 +235,7 @@
                     <StackPanel Orientation="Horizontal" Spacing="8">
                         <TextBlock Text="✨" FontSize="18" 
                                    Foreground="{Binding IsTheaterMode, Converter={StaticResource BoolToColorConverter}}"/>
-                        <TextBlock Text="THEATER MODE" FontSize="10" FontWeight="Bold" 
+                        <TextBlock Text="THEATER" FontSize="10" FontWeight="Bold" 
                                    VerticalAlignment="Center" Foreground="White" Opacity="0.9"/>
                     </StackPanel>
                 </Button>

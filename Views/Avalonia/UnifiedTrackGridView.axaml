@@ -1,0 +1,95 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:vm="clr-namespace:SLSKDONET.ViewModels"
+             xmlns:dg="clr-namespace:Avalonia.Controls;assembly=Avalonia.Controls.DataGrid"
+             mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450"
+             x:Class="SLSKDONET.Views.Avalonia.UnifiedTrackGridView"
+             x:DataType="vm:ActiveWorkspace">
+    <Grid>
+        <dg:DataGrid Name="UnifiedGrid"
+                   ItemsSource="{Binding CurrentGridItems}"
+                   SelectedItem="{Binding SelectedTrack, Mode=TwoWay}"
+                   SelectionMode="Extended"
+                   CanUserReorderColumns="True"
+                   CanUserResizeColumns="True"
+                   CanUserSortColumns="True"
+                   IsReadOnly="True"
+                   Background="Transparent"
+                   BorderThickness="0"
+                   HeadersVisibility="Column"
+                   GridLinesVisibility="Horizontal"
+                   HorizontalGridLinesBrush="#1AFFFFFF">
+            <dg:DataGrid.Styles>
+                <Style Selector="dg|DataGridColumnHeader">
+                    <Setter Property="Background" Value="#252526"/>
+                    <Setter Property="Foreground" Value="#AAA"/>
+                    <Setter Property="FontSize" Value="11"/>
+                    <Setter Property="FontWeight" Value="SemiBold"/>
+                    <Setter Property="Padding" Value="12,10"/>
+                    <Setter Property="BorderThickness" Value="0,0,1,1"/>
+                    <Setter Property="BorderBrush" Value="#3E3E3E"/>
+                </Style>
+                <Style Selector="dg|DataGridRow:selected /template/ Rectangle#BackgroundRectangle">
+                    <Setter Property="Fill" Value="#334EC9B0"/>
+                </Style>
+                <Style Selector="dg|DataGridRow:selected">
+                    <Setter Property="Foreground" Value="#4EC9B0"/>
+                </Style>
+            </dg:DataGrid.Styles>
+            <dg:DataGrid.Columns>
+                <!-- Artwork -->
+                <dg:DataGridTemplateColumn Header="Art" Width="50">
+                    <dg:DataGridTemplateColumn.CellTemplate>
+                        <DataTemplate x:DataType="vm:IDisplayableTrack">
+                            <Border Width="32" Height="32" CornerRadius="4" ClipToBounds="True" Background="#333" HorizontalAlignment="Center" VerticalAlignment="Center">
+                                <Image Source="{Binding Artwork}" Stretch="UniformToFill"/>
+                            </Border>
+                        </DataTemplate>
+                    </dg:DataGridTemplateColumn.CellTemplate>
+                </dg:DataGridTemplateColumn>
+
+                <!-- Metadata -->
+                <dg:DataGridTextColumn Header="Artist" Binding="{Binding Artist}" Width="1.5*"/>
+                <dg:DataGridTextColumn Header="Title" Binding="{Binding Title}" Width="2*"/>
+                
+                <!-- Musicality -->
+                <dg:DataGridTemplateColumn Header="BPM" Width="60">
+                    <dg:DataGridTemplateColumn.CellTemplate>
+                        <DataTemplate x:DataType="vm:IDisplayableTrack">
+                            <TextBlock Text="{Binding Bpm, StringFormat={}{0:F0}}" 
+                                     VerticalAlignment="Center" HorizontalAlignment="Center" 
+                                     FontWeight="Bold" Foreground="#4EC9B0"/>
+                        </DataTemplate>
+                    </dg:DataGridTemplateColumn.CellTemplate>
+                </dg:DataGridTemplateColumn>
+
+                <dg:DataGridTemplateColumn Header="Key" Width="70">
+                    <dg:DataGridTemplateColumn.CellTemplate>
+                        <DataTemplate x:DataType="vm:IDisplayableTrack">
+                            <Border Background="#333" CornerRadius="4" Padding="4,2" HorizontalAlignment="Center" VerticalAlignment="Center">
+                                <TextBlock Text="{Binding Key}" Foreground="White" FontSize="11" FontWeight="Bold"/>
+                            </Border>
+                        </DataTemplate>
+                    </dg:DataGridTemplateColumn.CellTemplate>
+                </dg:DataGridTemplateColumn>
+
+                <!-- Deep DNA Score -->
+                <dg:DataGridTemplateColumn Header="Sonic" Width="80">
+                    <dg:DataGridTemplateColumn.CellTemplate>
+                        <DataTemplate x:DataType="vm:IDisplayableTrack">
+                            <Grid ColumnDefinitions="Auto,*">
+                                <TextBlock Text="🧬" FontSize="10" VerticalAlignment="Center" Margin="0,0,4,0"/>
+                                <ProgressBar Grid.Column="1" Value="{Binding DeepDNAScore}" Maximum="100" Height="4" VerticalAlignment="Center" Foreground="#1DB954" Background="#222"/>
+                            </Grid>
+                        </DataTemplate>
+                    </dg:DataGridTemplateColumn.CellTemplate>
+                </dg:DataGridTemplateColumn>
+
+                <!-- Status -->
+                <dg:DataGridTextColumn Header="Status" Binding="{Binding Status}" Width="150"/>
+            </dg:DataGrid.Columns>
+        </dg:DataGrid>
+    </Grid>
+</UserControl>

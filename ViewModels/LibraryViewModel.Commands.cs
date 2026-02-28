@@ -184,7 +184,7 @@ public partial class LibraryViewModel
         RenameProjectCommand = new AsyncRelayCommand<PlaylistJob>(ExecuteRenameProjectAsync);
 
         // Fluidity
-        SwitchWorkspaceCommand = new RelayCommand<ActiveWorkspace>(ws => CurrentWorkspace = ws);
+        SwitchWorkspaceCommand = new RelayCommand<LibraryWorkspace>(ws => CurrentWorkspace = ws);
         QuickLookCommand = new RelayCommand(() => 
         {
             if (Tracks.LeadSelectedTrack is { } selectedTrack)

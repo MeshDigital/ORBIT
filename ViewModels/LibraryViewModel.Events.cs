@@ -63,7 +63,7 @@ public partial class LibraryViewModel
 
         // ── Discovery Lane (harmonic matches, legacy path) ──────────────────
         if (lastSelected is PlaylistTrackViewModel seedTrack &&
-            (IsDiscoveryLaneVisible || CurrentWorkspace == ActiveWorkspace.Preparer))
+            (IsDiscoveryLaneVisible || CurrentWorkspace == LibraryWorkspace.Preparer))
         {
             _selectionDebounceTimer?.Dispose();
             _selectionDebounceTimer = new System.Threading.Timer(async _ =>
@@ -94,7 +94,7 @@ public partial class LibraryViewModel
             await Tracks.LoadProjectTracksAsync(project);
             
             // If we are in Preparer mode, find matches for the first track automatically
-            if (CurrentWorkspace == ActiveWorkspace.Preparer && Tracks.CurrentProjectTracks.Any())
+            if (CurrentWorkspace == LibraryWorkspace.Preparer && Tracks.CurrentProjectTracks.Any())
             {
                  var firstTrack = Tracks.CurrentProjectTracks.First();
                  // Delay slightly to ensure UI is ready

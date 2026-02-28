@@ -4,13 +4,29 @@
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              xmlns:vm="clr-namespace:SLSKDONET.Features.LibrarySidebar.ViewModels"
              xmlns:conv="clr-namespace:SLSKDONET.Views.Avalonia.Converters"
+             xmlns:controls="clr-namespace:SLSKDONET.Views.Avalonia.Controls"
              mc:Ignorable="d" d:DesignWidth="400" d:DesignHeight="800"
              x:Class="SLSKDONET.Features.LibrarySidebar.Views.TransitionProberView"
              x:DataType="vm:TransitionProberViewModel">
     
     <UserControl.Resources>
         <conv:SyncColorConverter x:Key="SyncColorConverter"/>
+        <conv:NumericGreaterThanConverter x:Key="GreaterThanThreshold"/>
     </UserControl.Resources>
+
+    <UserControl.Styles>
+        <Style Selector="Button.ToolButton">
+            <Setter Property="Background" Value="#1AFFFFFF"/>
+            <Setter Property="BorderBrush" Value="#22FFFFFF"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Padding" Value="10,8"/>
+            <Setter Property="CornerRadius" Value="6"/>
+        </Style>
+        <Style Selector="Button.ToolButton:hover">
+            <Setter Property="Background" Value="#33FFFFFF"/>
+        </Style>
+    </UserControl.Styles>
+
     <Grid RowDefinitions="Auto,Auto,*,Auto">
         <!-- Header -->
         <TextBlock Text="TRANSITION PROBER" FontSize="14" FontWeight="Bold" LetterSpacing="2" Margin="20" Opacity="0.8"/>
@@ -18,10 +34,12 @@
         <!-- Mashup Sandbox Control Panel -->
         <Border Grid.Row="1" Background="#1A000000" BorderBrush="#33FFFFFF" BorderThickness="0,1" Padding="20,15" BoxShadow="0 4 20 #1A000000">
             <StackPanel Spacing="15">
-                <Grid ColumnDefinitions="*,Auto,Auto">
+                <Grid ColumnDefinitions="*,Auto,Auto,Auto">
                     <StackPanel Grid.Column="0">
                         <TextBlock Text="MASHUP SANDBOX" FontWeight="SemiBold" FontSize="12" Foreground="#4EC9B0"/>
                         <TextBlock Text="{Binding MashupStatus}" FontSize="10" Opacity="0.6" Margin="0,4,0,0"/>
+                        <ProgressBar IsIndeterminate="True" IsVisible="{Binding IsSyncing}" Height="2" Margin="0,6,40,0" Foreground="#00FFD1" Background="#33FFFFFF"/>
+                        <ProgressBar Value="{Binding CrossfaderValue}" Maximum="1.0" Height="2" Margin="0,6,40,0" Foreground="#FF4081" Background="#4EC9B0" IsVisible="{Binding !IsSyncing}"/>
                     </StackPanel>
                     
                     <Button Grid.Column="1" 
@@ -33,6 +51,18 @@
                     </Button>
 
                     <ToggleButton Grid.Column="2" 
+                                   IsChecked="{Binding AutoCrossfadeEnabled}" 
+                                   Command="{Binding ToggleAutoCrossfadeCommand}"
+                                   Classes="SandboxToggle" Margin="0,0,10,0"
+                                   IsVisible="{Binding IsAuditioning}"
+                                   ToolTip.Tip="Automate crossfader during overlap">
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                            <PathIcon Data="{StaticResource sparkles_regular}" Width="14"/>
+                            <TextBlock Text="AUTO-CROSSFADE"/>
+                        </StackPanel>
+                    </ToggleButton>
+
+                    <ToggleButton Grid.Column="3" 
                                    IsChecked="{Binding IsAuditioning}" 
                                    Command="{Binding ToggleAuditionCommand}"
                                    Classes="SandboxToggle">
@@ -81,59 +111,130 @@
             </StackPanel>
         </Border>
 
-        <!-- Deck Display -->
-        <ScrollViewer Grid.Row="2" Padding="15">
-            <StackPanel Spacing="20">
-                <!-- Deck A -->
-                <Border Background="#1AFFFFFF" CornerRadius="12" Padding="15" BorderBrush="#22FFFFFF" BorderThickness="1">
-                    <Grid ColumnDefinitions="Auto,*,Auto">
-                        <Border Width="60" Height="60" CornerRadius="4" ClipToBounds="True">
-                             <Image Source="{Binding PrimaryTrack.Artwork.Image}" Stretch="UniformToFill"/>
-                        </Border>
-                        <StackPanel Grid.Column="1" Margin="15,0">
-                            <TextBlock Text="DECK A (LEAD)" FontSize="10" Opacity="0.5" FontWeight="Bold"/>
-                            <TextBlock Text="{Binding PrimaryTrack.Title}" FontWeight="Bold" TextTrimming="CharacterEllipsis"/>
-                            <TextBlock Text="{Binding PrimaryTrack.Artist}" FontSize="12" Opacity="0.7"/>
+        <!-- Mashup Lab (Waveform Workspace) -->
+        <Grid Grid.Row="2" RowDefinitions="*,1,*" Margin="15">
+            <!-- Deck A (Lead) -->
+            <Border Grid.Row="0" Background="#080808" CornerRadius="8" BorderBrush="#33FFFFFF" BorderThickness="1" ClipToBounds="True">
+                <Grid>
+                    <controls:WaveformControl Name="LeadWaveform"
+                                            WaveformData="{Binding PrimaryWaveform}"
+                                            PhraseSegments="{Binding PrimaryPhrases}"
+                                            VocalHazardPoints="{Binding VocalHazardPoints}"
+                                            Progress="{Binding $parent[UserControl].DataContext.PrimaryTrack.Progress}"
+                                            IsRolling="True"
+                                            ZoomLevel="4.0"
+                                            Foreground="#4EC9B0"
+                                            PlayheadBrush="Transparent"/>
+                    <Panel Background="#20000000" VerticalAlignment="Top" HorizontalAlignment="Left" Margin="10">
+                        <TextBlock Text="LEAD TRACK" FontSize="10" FontWeight="Bold" Opacity="0.6"/>
+                    </Panel>
+                    <!-- Lead Loading Overlay -->
+                    <Border Background="#40000000" CornerRadius="8" IsVisible="{Binding IsPrimaryLoading}">
+                        <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="8">
+                            <ProgressBar IsIndeterminate="True" Width="100" Height="2" Foreground="#4EC9B0" Background="#33FFFFFF"/>
+                            <TextBlock Text="ANALYZING WAVEFORM..." FontSize="10" FontWeight="Bold" Foreground="#4EC9B0" Opacity="0.8" TextAlignment="Center" LetterSpacing="1"/>
                         </StackPanel>
-                        <Border Grid.Column="2" Background="#204EC9B0" Padding="8,4" CornerRadius="4" VerticalAlignment="Center">
-                             <TextBlock Text="{Binding PrimaryTrack.CamelotKey}" Foreground="#4EC9B0" FontWeight="Bold"/>
-                        </Border>
-                    </Grid>
-                </Border>
+                    </Border>
+                </Grid>
+            </Border>
 
-                <PathIcon Data="{StaticResource arrow_repeat_all_regular}" Width="24" Opacity="0.3" HorizontalAlignment="Center"/>
+            <!-- Alignment Gutter -->
+            <Rectangle Grid.Row="1" Fill="#22FFFFFF" Height="1"/>
 
-                <!-- Deck B -->
-                <Border Background="#1AFFFFFF" CornerRadius="12" Padding="15" BorderBrush="#22FFFFFF" BorderThickness="1">
-                    <Grid ColumnDefinitions="Auto,*,Auto">
-                        <Border Width="60" Height="60" CornerRadius="4" ClipToBounds="True">
-                             <Image Source="{Binding SecondaryTrack.Artwork.Image}" Stretch="UniformToFill"/>
-                        </Border>
-                        <StackPanel Grid.Column="1" Margin="15,0">
-                            <TextBlock Text="DECK B (CANDIDATE)" FontSize="10" Opacity="0.5" FontWeight="Bold"/>
-                            <TextBlock Text="{Binding SecondaryTrack.Title}" FontWeight="Bold" TextTrimming="CharacterEllipsis"/>
-                            <TextBlock Text="{Binding SecondaryTrack.Artist}" FontSize="12" Opacity="0.7"/>
+            <!-- Deck B (Candidate) -->
+            <Border Grid.Row="2" Background="#080808" CornerRadius="8" BorderBrush="#33FFFFFF" BorderThickness="1" ClipToBounds="True">
+                <Grid>
+                    <!-- Candidate Waveform: Pos is Offset relative to Lead -->
+                    <controls:WaveformControl Name="CandidateWaveform"
+                                            WaveformData="{Binding SecondaryWaveform}"
+                                            PhraseSegments="{Binding SecondaryPhrases}"
+                                            Progress="{Binding $parent[UserControl].DataContext.SecondaryTrack.Progress}"
+                                            VisualOffsetSeconds="{Binding NegativeHandoffOffset}"
+                                            IsRolling="True"
+                                            ZoomLevel="4.0"
+                                            Foreground="#FF4081"
+                                            PlayheadBrush="Transparent">
+                        <controls:WaveformControl.Transitions>
+                            <Transitions>
+                                <DoubleTransition Property="VisualOffsetSeconds" Duration="0:0:0.3" Easing="SineEaseOut"/>
+                            </Transitions>
+                        </controls:WaveformControl.Transitions>
+                    </controls:WaveformControl>
+                    <Panel Background="#20000000" VerticalAlignment="Top" HorizontalAlignment="Left" Margin="10">
+                        <TextBlock Text="CANDIDATE TRACK" FontSize="10" FontWeight="Bold" Opacity="0.6"/>
+                    </Panel>
+                    <!-- Candidate Loading Overlay -->
+                    <Border Background="#40000000" CornerRadius="8" IsVisible="{Binding IsSecondaryLoading}">
+                        <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="8">
+                            <ProgressBar IsIndeterminate="True" Width="100" Height="2" Foreground="#FF4081" Background="#33FFFFFF"/>
+                            <TextBlock Text="ANALYZING WAVEFORM..." FontSize="10" FontWeight="Bold" Foreground="#FF4081" Opacity="0.8" TextAlignment="Center" LetterSpacing="1"/>
                         </StackPanel>
-                        <Border Grid.Column="2" Background="#204EC9B0" Padding="8,4" CornerRadius="4" VerticalAlignment="Center">
-                             <TextBlock Text="{Binding SecondaryTrack.CamelotKey}" Foreground="#4EC9B0" FontWeight="Bold"/>
-                        </Border>
-                    </Grid>
-                </Border>
+                    </Border>
+                </Grid>
+            </Border>
+
+            <!-- THE PLAYHEAD LOCK (Visual Center) -->
+            <Rectangle Grid.RowSpan="3" Width="2" Fill="#00FFFF" HorizontalAlignment="Center">
+                <Rectangle.Effect>
+                    <DropShadowEffect BlurRadius="10" Color="#00FFFF" Opacity="0.8"/>
+                </Rectangle.Effect>
+            </Rectangle>
+            <Polygon Grid.Row="0" Points="0,0 12,0 6,8" Fill="#00FFFF" HorizontalAlignment="Center" VerticalAlignment="Top"/>
+            <Polygon Grid.Row="2" Points="6,0 12,8 0,8" Fill="#00FFFF" HorizontalAlignment="Center" VerticalAlignment="Bottom"/>
+        </Grid>
+
+        <!-- PRO-TOOLS ACTION BAR -->
+        <Border Grid.Row="3" Background="#1A000000" BorderBrush="#33FFFFFF" BorderThickness="0,1,0,0" Padding="15">
+            <StackPanel Spacing="15">
+                <Grid ColumnDefinitions="*,Auto,*">
+                    <Button Grid.Column="0" 
+                            Command="{Binding AlignTransitionCommand}"
+                            Classes="ToolButton"
+                            HorizontalAlignment="Stretch">
+                        <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Center">
+                            <PathIcon Data="{StaticResource text_align_center_regular}" Width="14"/>
+                            <TextBlock Text="AUTO-ALIGN" FontSize="11" FontWeight="Bold"/>
+                        </StackPanel>
+                    </Button>
+
+                    <Rectangle Grid.Column="1" Width="1" Fill="#22FFFFFF" Margin="15,0"/>
+
+                    <Button Grid.Column="2" 
+                            Command="{Binding AuditionTransitionCommand}"
+                            Background="#2000FFD1"
+                            BorderBrush="#00FFD1"
+                            Classes="ToolButton"
+                            HorizontalAlignment="Stretch">
+                        <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Center">
+                            <PathIcon Data="{StaticResource play_circle_regular}" Width="14"/>
+                            <TextBlock Text="AUDITION HANDOFF" FontSize="11" FontWeight="Bold"/>
+                        </StackPanel>
+                    </Button>
+                </Grid>
+
+                <!-- Manual Offset Nudge -->
+                <Grid ColumnDefinitions="Auto,Auto,*,Auto,Auto" VerticalAlignment="Center" Opacity="0.8">
+                    <TextBlock Text="OFFSET NUDGE" FontSize="9" FontWeight="Bold" Grid.Column="0" VerticalAlignment="Center" Margin="0,0,10,0"/>
+                    
+                    <Button Grid.Column="1" Command="{Binding NudgeLeftCommand}" 
+                            Classes="ToolButton" Padding="8,4" ToolTip.Tip="Nudge Left (1 Beat)">
+                        <TextBlock Text="&lt; 1 Beat" FontSize="9" FontWeight="Bold"/>
+                    </Button>
+                    
+                    <Slider Grid.Column="2" 
+                            Margin="10,0"
+                            Minimum="-120" Maximum="120" 
+                            Value="{Binding HandoffOffset}" 
+                            HorizontalAlignment="Stretch"/>
+                            
+                    <Button Grid.Column="3" Command="{Binding NudgeRightCommand}" 
+                            Classes="ToolButton" Padding="8,4" Margin="0,0,10,0" ToolTip.Tip="Nudge Right (1 Beat)">
+                        <TextBlock Text="1 Beat &gt;" FontSize="9" FontWeight="Bold"/>
+                    </Button>
+                    
+                    <TextBlock Text="{Binding HandoffOffset, StringFormat={}{0:F1}s}" FontSize="10" Grid.Column="4" VerticalAlignment="Center" Width="40" TextAlignment="Right"/>
+                </Grid>
             </StackPanel>
-        </ScrollViewer>
-
-        <Border Grid.Row="3" Height="40" Background="#111" Padding="15,0">
-            <Grid ColumnDefinitions="Auto,*,Auto">
-                <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Spacing="8">
-                    <TextBlock Text="READY TO MIX" FontSize="10" Opacity="0.5" IsVisible="{Binding !IsSyncing}"/>
-                    <TextBlock Text="SYNCING DECKS..." FontSize="10" Foreground="#F59E0B" FontWeight="Bold" IsVisible="{Binding IsSyncing}"/>
-                </StackPanel>
-                
-                <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center" Spacing="10">
-                    <Ellipse Width="6" Height="6" Fill="{Binding IsSyncing, Converter={StaticResource SyncColorConverter}}"/>
-                    <TextBlock Text="ENGINE ONLINE" FontSize="10" FontWeight="Bold"/>
-                </StackPanel>
-            </Grid>
         </Border>
     </Grid>
 </UserControl>

@@ -2,6 +2,7 @@ using System;
 using System.ComponentModel;
 using SLSKDONET.Models;
 using SLSKDONET.Views;
+using SLSKDONET.Data;
 
 namespace SLSKDONET.ViewModels;
 
@@ -28,8 +29,8 @@ public partial class LibraryViewModel
         }
     }
 
-    private ActiveWorkspace _currentWorkspace = ActiveWorkspace.Selector;
-    public ActiveWorkspace CurrentWorkspace
+    private LibraryWorkspace _currentWorkspace = LibraryWorkspace.Selector;
+    public LibraryWorkspace CurrentWorkspace
     {
         get => _currentWorkspace;
         set
@@ -80,15 +81,15 @@ public partial class LibraryViewModel
 
         if (IsMixHelperVisible)
         {
-            CurrentWorkspace = ActiveWorkspace.Preparer;
+            CurrentWorkspace = LibraryWorkspace.Preparer;
         }
         else if (IsDiscoveryLaneVisible)
         {
-             CurrentWorkspace = ActiveWorkspace.Preparer;
+             CurrentWorkspace = LibraryWorkspace.Preparer;
         }
         else
         {
-            CurrentWorkspace = ActiveWorkspace.Selector;
+            CurrentWorkspace = LibraryWorkspace.Selector;
         }
 
         _isUpdatingState = false;
@@ -101,22 +102,22 @@ public partial class LibraryViewModel
 
         switch (CurrentWorkspace)
         {
-            case ActiveWorkspace.Selector:
+            case LibraryWorkspace.Selector:
                 IsMixHelperVisible = false;
                 IsDiscoveryLaneVisible = false;
                 IsForensicLabVisible = false;
                 break;
-            case ActiveWorkspace.Analyst:
+            case LibraryWorkspace.Analyst:
                 IsMixHelperVisible = false;
                 IsDiscoveryLaneVisible = true; // Enabled for Analyst too
                 IsForensicLabVisible = false;
                 break;
-            case ActiveWorkspace.Preparer:
+            case LibraryWorkspace.Preparer:
                 IsMixHelperVisible = true;
                 IsDiscoveryLaneVisible = true;
                 IsForensicLabVisible = false;
                 break;
-            case ActiveWorkspace.Forensic:
+            case LibraryWorkspace.Forensic:
                 IsMixHelperVisible = false;
                 IsDiscoveryLaneVisible = false;
                 
@@ -132,7 +133,7 @@ public partial class LibraryViewModel
                     _notificationService.Show("Forensic Lab", "Select a track to enter forensic mode", NotificationType.Warning);
                 }
                 break;
-            case ActiveWorkspace.Industrial:
+            case LibraryWorkspace.Industrial:
                 IsMixHelperVisible = false;
                 IsDiscoveryLaneVisible = false;
                 IsForensicLabVisible = false;

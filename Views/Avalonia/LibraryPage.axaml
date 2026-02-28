@@ -1,5 +1,6 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:data="clr-namespace:SLSKDONET.Data"
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              xmlns:ds="clr-namespace:DraggingService;assembly=Simple-Avalonia-DragnDrop-Service"
@@ -32,11 +33,11 @@
 
     <UserControl.KeyBindings>
         <!-- Workspace Switching (Ctrl + 1-5) - These are safe as they use Ctrl -->
-        <KeyBinding Gesture="Ctrl+D1" Command="{Binding SwitchWorkspaceCommand}" CommandParameter="{x:Static vm:ActiveWorkspace.Selector}"/>
-        <KeyBinding Gesture="Ctrl+D2" Command="{Binding SwitchWorkspaceCommand}" CommandParameter="{x:Static vm:ActiveWorkspace.Analyst}"/>
-        <KeyBinding Gesture="Ctrl+D3" Command="{Binding SwitchWorkspaceCommand}" CommandParameter="{x:Static vm:ActiveWorkspace.Preparer}"/>
-        <KeyBinding Gesture="Ctrl+D4" Command="{Binding SwitchWorkspaceCommand}" CommandParameter="{x:Static vm:ActiveWorkspace.Forensic}"/>
-        <KeyBinding Gesture="Ctrl+D5" Command="{Binding SwitchWorkspaceCommand}" CommandParameter="{x:Static vm:ActiveWorkspace.Industrial}"/>
+        <KeyBinding Gesture="Ctrl+D1" Command="{Binding SwitchWorkspaceCommand}" CommandParameter="{x:Static data:LibraryWorkspace.Selector}"/>
+        <KeyBinding Gesture="Ctrl+D2" Command="{Binding SwitchWorkspaceCommand}" CommandParameter="{x:Static data:LibraryWorkspace.Analyst}"/>
+        <KeyBinding Gesture="Ctrl+D3" Command="{Binding SwitchWorkspaceCommand}" CommandParameter="{x:Static data:LibraryWorkspace.Preparer}"/>
+        <KeyBinding Gesture="Ctrl+D4" Command="{Binding SwitchWorkspaceCommand}" CommandParameter="{x:Static data:LibraryWorkspace.Forensic}"/>
+        <KeyBinding Gesture="Ctrl+D5" Command="{Binding SwitchWorkspaceCommand}" CommandParameter="{x:Static data:LibraryWorkspace.Industrial}"/>
 
         <KeyBinding Gesture="Escape" Command="{Binding SmartEscapeCommand}"/>
         
@@ -484,7 +485,7 @@
                                                 </MenuItem>
                                                 <MenuItem Header="Open in Forensic Lab" 
                                                           Command="{Binding $parent[UserControl].DataContext.SwitchWorkspaceCommand}" 
-                                                          CommandParameter="{x:Static vm:ActiveWorkspace.Forensic}">
+                                                          CommandParameter="{x:Static data:LibraryWorkspace.Forensic}">
                                                     <MenuItem.Icon><TextBlock Text="🕵️"/></MenuItem.Icon>
                                                 </MenuItem>
                                                 <MenuItem Header="Add Selected to Timeline" IsVisible="{Binding $parent[UserControl].DataContext.Tracks.HasMultiSelection}"

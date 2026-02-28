@@ -2,28 +2,22 @@ using System.ComponentModel;
 
 namespace SLSKDONET.ViewModels;
 
+/// <summary>
+/// Universal interface for tracks displayed in the unified DAW grid (2026 Alignment).
+/// Ensures consistent column binding across different data sources (Library, Search, Spotify, etc.).
+/// </summary>
 public interface IDisplayableTrack : INotifyPropertyChanged
 {
     string GlobalId { get; }
-    string ArtistName { get; }
-    string TrackTitle { get; }
-    string AlbumName { get; }
-    string? AlbumArtUrl { get; }
-    
-    // Status & Progress
+    object? Artwork { get; } // URL, Bitmap, or Drawing
+    string Title { get; }
+    string Artist { get; }
+    double? Bpm { get; }
+    string? Key { get; }
+    double? Energy { get; }
+    double? DeepDNAScore { get; }
     string StatusText { get; }
-    double Progress { get; } // 0-100
-    bool IsIndeterminate { get; } // For searching state
     
-    // Technical Stats
-    string TechnicalSummary { get; } // "Soulseek • 320kbps • 12MB"
-    
-    // Metrics
-    double IntegrityScore { get; } // 0.0 - 1.0 (or 0-100)
-    bool IsSecure { get; } // Validated/Safe
-    
-    // State Flags for UI triggers
-    bool IsFailed { get; }
-    bool IsActive { get; }
-    bool IsCompleted { get; }
+    // Selection state for grid interaction
+    bool IsSelected { get; set; }
 }

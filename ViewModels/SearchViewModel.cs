@@ -42,6 +42,7 @@ public partial class SearchViewModel : ReactiveObject, IDisposable
     private readonly SearchOrchestrationService _searchOrchestration;
     private readonly IBulkOperationCoordinator _bulkCoordinator;
     private readonly ISonicMatchService _sonicMatchService; // Phase 18.2
+    private readonly ActiveWorkspace _activeWorkspace;
 
     private readonly FileNameFormatter _fileNameFormatter;
     
@@ -222,7 +223,8 @@ public partial class SearchViewModel : ReactiveObject, IDisposable
         FileNameFormatter fileNameFormatter,
         IEventBus eventBus,
         IBulkOperationCoordinator bulkCoordinator,
-        ISonicMatchService sonicMatchService) // <--- Injected
+        ISonicMatchService sonicMatchService,
+        ActiveWorkspace activeWorkspace) // <--- Injected
     {
         _logger = logger;
         _soulseek = soulseek;
@@ -239,6 +241,7 @@ public partial class SearchViewModel : ReactiveObject, IDisposable
         _fileNameFormatter = fileNameFormatter;
         _bulkCoordinator = bulkCoordinator;
         _sonicMatchService = sonicMatchService;
+        _activeWorkspace = activeWorkspace;
 
         // Reactive Status Updates
         eventBus.GetEvent<TrackStateChangedEvent>()
@@ -267,6 +270,10 @@ public partial class SearchViewModel : ReactiveObject, IDisposable
             {
                 HiddenResultsCount = _searchResults.Count - _publicSearchResults.Count;
                 SyncSearchResultsView();
+                if (_activeWorkspace.CurrentContext == WorkspaceContext.SoulseekSearch)
+                {
+                    _activeWorkspace.SyncItems(_publicSearchResults);
+                }
                 this.RaisePropertyChanged(nameof(SearchResults)); 
             })
             .DisposeWith(_disposables);

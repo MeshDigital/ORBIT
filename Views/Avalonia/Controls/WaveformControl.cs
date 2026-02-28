@@ -145,6 +145,18 @@ namespace SLSKDONET.Views.Avalonia.Controls
             set => SetValue(BpmProperty, value);
         }
 
+        public static readonly StyledProperty<System.Collections.Generic.IEnumerable<float>?> VocalHazardPointsProperty =
+            AvaloniaProperty.Register<WaveformControl, System.Collections.Generic.IEnumerable<float>?>(nameof(VocalHazardPoints));
+
+        /// <summary>
+        /// Points where vocal clashes are detected (0.0 to 1.0 hazard score)
+        /// </summary>
+        public System.Collections.Generic.IEnumerable<float>? VocalHazardPoints
+        {
+            get => GetValue(VocalHazardPointsProperty);
+            set => SetValue(VocalHazardPointsProperty, value);
+        }
+
         public static readonly StyledProperty<System.Windows.Input.ICommand?> SegmentUpdatedCommandProperty =
             AvaloniaProperty.Register<WaveformControl, System.Windows.Input.ICommand?>(nameof(SegmentUpdatedCommand));
 
@@ -179,6 +191,18 @@ namespace SLSKDONET.Views.Avalonia.Controls
             set => SetValue(ViewOffsetProperty, Math.Clamp(value, 0.0, Math.Max(0, 1.0 - (1.0 / ZoomLevel))));
         }
 
+        public static readonly StyledProperty<double> VisualOffsetSecondsProperty =
+            AvaloniaProperty.Register<WaveformControl, double>(nameof(VisualOffsetSeconds), 0.0);
+
+        /// <summary>
+        /// Secondary offset in seconds, smoothly animated for glide alignments.
+        /// </summary>
+        public double VisualOffsetSeconds
+        {
+            get => GetValue(VisualOffsetSecondsProperty);
+            set => SetValue(VisualOffsetSecondsProperty, value);
+        }
+
         public static readonly StyledProperty<System.Windows.Input.ICommand?> CueClickedCommandProperty =
             AvaloniaProperty.Register<WaveformControl, System.Windows.Input.ICommand?>(nameof(CueClickedCommand));
 
@@ -210,7 +234,9 @@ namespace SLSKDONET.Views.Avalonia.Controls
                 BackgroundProperty,
                 PlayheadBrushProperty,
                 ZoomLevelProperty,
-                ViewOffsetProperty);
+                ViewOffsetProperty,
+                VisualOffsetSecondsProperty,
+                VocalHazardPointsProperty);
         }
 
 
@@ -620,6 +646,17 @@ namespace SLSKDONET.Views.Avalonia.Controls
             context.DrawLine(new Pen(PlayheadBrush ?? Brushes.White, 2), new Point(playheadX, 0), new Point(playheadX, height));
 
             RenderCues(context, width, height);
+
+            // 3. Draw Vocal Hazard (Red Hatching)
+            RenderVocalHazard(context, width, height);
+        }
+
+        private void RenderVocalHazard(DrawingContext context, double width, double height)
+        {
+            var hazards = VocalHazardPoints?.ToList();
+            if (hazards == null || hazards.Count == 0) return;
+
+            context.Custom(new VocalHazardDrawOperation(new Rect(0, 0, width, height), hazards, WaveformData?.DurationSeconds ?? 1.0, Progress, IsRolling, ZoomLevel, ViewOffset));
         }
 
         private void UpdateBitmapCache(Size size)
@@ -813,7 +850,10 @@ namespace SLSKDONET.Views.Avalonia.Controls
         {
             double windowSec = 10.0;
             double pixelsPerSec = width / windowSec;
-            double currentSec = Progress * data.DurationSeconds;
+            
+            // Apply VisualOffsetSeconds for smooth glide alignment
+            double currentSec = (Progress * data.DurationSeconds) + VisualOffsetSeconds;
+            
             double startSec = currentSec - (windowSec / 2);
             
             int samplesPerSec = (int)(data.PeakData!.Length / data.DurationSeconds);
@@ -1076,6 +1116,108 @@ namespace SLSKDONET.Views.Avalonia.Controls
                     {
                         canvas.DrawRect(x, 0, w, height, paint);
                         lastX = x + w;
+                    }
+                }
+            }
+            
+            canvas.Restore();
+        }
+    }
+
+    public class VocalHazardDrawOperation : ICustomDrawOperation
+    {
+        public Rect Bounds { get; }
+        private readonly System.Collections.Generic.List<float> _hazardData;
+        private readonly double _duration;
+        private readonly float _progress;
+        private readonly bool _isRolling;
+        private readonly double _zoom;
+        private readonly double _offset;
+
+        public VocalHazardDrawOperation(Rect bounds, System.Collections.Generic.List<float> hazardData, double duration, float progress, bool isRolling, double zoom, double offset)
+        {
+            Bounds = bounds;
+            _hazardData = hazardData;
+            _duration = duration;
+            _progress = progress;
+            _isRolling = isRolling;
+            _zoom = zoom;
+            _offset = offset;
+        }
+
+        public void Dispose() { }
+
+        public bool HitTest(Point p) => false;
+
+        public bool Equals(ICustomDrawOperation? other) => false;
+
+        public void Render(ImmediateDrawingContext context)
+        {
+            var lease = context.TryGetFeature<ISkiaSharpApiLease>();
+            if (lease == null) return;
+
+            using var canvas = lease.SkCanvas;
+            canvas.Save();
+            
+            var width = (float)Bounds.Width;
+            var height = (float)Bounds.Height;
+            var samples = _hazardData.Count;
+            
+            // Bright Red (#FF0000) for Hazard
+            var hazardColor = SKColors.Red;
+
+            using var hatchPaint = new SKPaint
+            {
+                Color = hazardColor.WithAlpha(180),
+                StrokeWidth = 2,
+                IsAntialias = true,
+                Style = SKPaintStyle.Stroke
+            };
+
+            // Diagonal Hatching Shader
+            using var hatchShader = SKShader.CreateColor(hazardColor.WithAlpha(40));
+            // Actually, diagonal lines are better drawn manually or via a pattern shader.
+            // For simplicity and "WOW" factor, let's draw diagonal lines in a loop for identified blocks.
+
+            double duration = _duration > 0 ? _duration : 1.0;
+            double visibleDuration = duration / _zoom;
+            double startTime = _offset * duration;
+            double endTime = startTime + visibleDuration;
+            
+            int startIndex = (int)((startTime / duration) * samples);
+            int endIndex = (int)((endTime / duration) * samples);
+            
+            startIndex = Math.Clamp(startIndex, 0, samples - 1);
+            endIndex = Math.Clamp(endIndex, 0, samples - 1);
+            
+            int range = endIndex - startIndex;
+            if (range <= 0) { canvas.Restore(); return; }
+
+            int step = Math.Max(1, range / (int)width); 
+
+            for (int i = startIndex; i < endIndex; i += step)
+            {
+                if (i >= _hazardData.Count) break;
+                
+                float hazard = _hazardData[i]; 
+                
+                if (hazard > 0.05f) 
+                {
+                    double sampleTime = (i / (double)samples) * duration;
+                    double relTime = sampleTime - startTime;
+                    double relPos = relTime / visibleDuration;
+                    
+                    float x = (float)(relPos * width);
+                    float w = Math.Max(1.0f, (float)(width / range) * step);
+                    
+                    // Draw Red Background Glow
+                    using var glowPaint = new SKPaint { Color = hazardColor.WithAlpha((byte)(60 * hazard)), Style = SKPaintStyle.Fill };
+                    canvas.DrawRect(x, 0, w, height, glowPaint);
+
+                    // Draw diagonal hatch lines every 10 pixels
+                    if ((int)x % 10 < w)
+                    {
+                         canvas.DrawLine(x, height, x + 10, 0, hatchPaint);
                     }
                 }
             }

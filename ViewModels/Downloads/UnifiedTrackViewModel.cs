@@ -305,8 +305,14 @@ public class UnifiedTrackViewModel : ReactiveObject, IDisplayableTrack, IDisposa
     public string? AlbumArtUrl => Model.AlbumArtUrl;
 
     private ArtworkProxy _artwork;
-    public ArtworkProxy Artwork => _artwork;
+    public object? Artwork => _artwork?.Image;
     
+    public string Title => TrackTitle;
+    public string Artist => ArtistName;
+    public double? Bpm => Model.BPM;
+    public string? Key => Model.MusicalKey;
+    public double? Energy => Model.Energy;
+    public double? DeepDNAScore => null;
     // Legacy support: redirects to Proxy.Image (which triggers load)
     public Avalonia.Media.Imaging.Bitmap? ArtworkBitmap => _artwork?.Image;
 

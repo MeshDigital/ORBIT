@@ -63,7 +63,11 @@
         <converters:EnumToBoolConverter x:Key="EnumToBoolConverter"/>
         <converters:EnumToColorConverter x:Key="EnumToColorConverter"/>
         <converters:PassThroughConverter x:Key="PassThroughConverter"/>
+        <converters:EnumToOpacityConverter x:Key="EnumToOpacityConverter"/>
         <converters:ForensicLevelToColorConverter x:Key="ForensicLevelToColorConverter"/>
+        <converters:HealthToColorConverter x:Key="HealthToColorConverter"/>
+        <converters:HealthToIconConverter x:Key="HealthToIconConverter"/>
+        <converters:MoreThanZeroConverter x:Key="MoreThanZeroConverter"/>
         <converters:PercentToWidthConverter x:Key="PercentToWidthConverter"/>
         
         <!-- Phase 18: Sonic Match Visual Converters -->

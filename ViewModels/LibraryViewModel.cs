@@ -50,6 +50,7 @@ public partial class LibraryViewModel : INotifyPropertyChanged, IDisposable
     private readonly DownloadManager _downloadManager;
     private readonly Services.Library.ColumnConfigurationService _columnConfigService;
     private readonly ForensicLibrarianService _forensicLibrarian;
+    private readonly ActiveWorkspace _activeWorkspace;
 
     // Infrastructure for Sidebars/Delayed operations
     private System.Threading.Timer? _selectionDebounceTimer;
@@ -221,7 +222,8 @@ public partial class LibraryViewModel : INotifyPropertyChanged, IDisposable
         DownloadManager downloadManager,
         Services.Library.ColumnConfigurationService columnConfigService,
         ContextualSidebarViewModel sidebar,
-        ForensicLibrarianService forensicLibrarian)
+        ForensicLibrarianService forensicLibrarian,
+        ActiveWorkspace activeWorkspace)
     {
         _logger = logger;
         _navigationService = navigationService;
@@ -248,10 +250,28 @@ public partial class LibraryViewModel : INotifyPropertyChanged, IDisposable
         _columnConfigService = columnConfigService;
         _sidebar = sidebar;
         _forensicLibrarian = forensicLibrarian;
+        _activeWorkspace = activeWorkspace;
         LibrarySourcesViewModel = librarySourcesViewModel;
 
         Projects = projects;
         Tracks = tracks;
+        
+        // Phase 2: Unified Grid Sync
+        if (_activeWorkspace.CurrentContext == WorkspaceContext.LocalLibrary)
+        {
+            _activeWorkspace.SyncItems(Tracks.FilteredTracks);
+        }
+
+        if (Tracks.FilteredTracks is System.Collections.Specialized.INotifyCollectionChanged observableList)
+        {
+            observableList.CollectionChanged += (s, e) =>
+            {
+                if (_activeWorkspace.CurrentContext == WorkspaceContext.LocalLibrary)
+                {
+                    _activeWorkspace.SyncItems(Tracks.FilteredTracks);
+                }
+            };
+        }
         Operations = operations;
         SmartPlaylists = smartPlaylists;
         UpgradeScout = upgradeScout;

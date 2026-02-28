@@ -7,7 +7,7 @@ using SLSKDONET.Services;
 
 namespace SLSKDONET.ViewModels
 {
-    public class AnalyzedSearchResultViewModel : ReactiveObject
+    public class AnalyzedSearchResultViewModel : ReactiveObject, IDisplayableTrack
     {
         private readonly SearchResult _result;
         public Models.SearchTier Tier { get; } // Phase 19
@@ -33,6 +33,25 @@ namespace SLSKDONET.ViewModels
         public string UploadSpeedDisplay => UploadSpeed > 0 ? $"{(double)UploadSpeed / 1024.0:F1}MB/s" : "Slow";
         public int QueueLength => _result.QueueLength;
         public bool SlotFree => _result.SlotFree;
+        
+        // IDisplayableTrack Implementation
+        public string GlobalId => _result.Filename; // Use filename or generate hash
+        public string Artist => ArtistName;
+        public string Title => TrackTitle;
+        public double? Bpm => null; // Search results might not have BPM yet
+        public string? Key => null;
+        public double? Energy => null;
+        public double? DeepDNAScore => TrustScore;
+        public string StatusText => ForensicAssessment;
+        
+        private bool _isSelected;
+        public bool IsSelected
+        {
+            get => _isSelected;
+            set => this.RaiseAndSetIfChanged(ref _isSelected, value);
+        }
+
+        object? IDisplayableTrack.Artwork => null; // Search results don't have artwork usually
         
         // Phase 19: Sonic Match Reason
         public string? MatchReason => _result.Model.MatchReason;

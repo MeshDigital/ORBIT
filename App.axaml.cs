@@ -429,6 +429,9 @@ public partial class App : Application
 
         // EventBus - Unified event communication
         services.AddSingleton<IEventBus, EventBusService>();
+
+        // Phase 7: Active Workspace Orchestrator (DAW Alignment)
+        services.AddSingleton<ActiveWorkspace>();
         
         // Phase 1A: SafeWrite Service - Atomic file operations (ORBIT v1.0)
         services.AddSingleton<SLSKDONET.Services.IO.IFileWriteService, SLSKDONET.Services.IO.SafeWriteService>();
@@ -595,6 +598,7 @@ public partial class App : Application
         services.AddSingleton<SettingsViewModel>();
         services.AddSingleton<HomeViewModel>(); // [NEW] Command Center ViewModel
         services.AddSingleton<BulkOperationViewModel>();
+        services.AddSingleton<MissionControlViewModel>();
         services.AddSingleton<ExportManagerViewModel>();
 
         // [NEW] Library Scanning

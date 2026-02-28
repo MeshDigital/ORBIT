@@ -9,7 +9,11 @@
         xmlns:models="clr-namespace:SLSKDONET.Models"
         xmlns:sidebar="clr-namespace:SLSKDONET.Features.LibrarySidebar.Views"
         xmlns:vmSidebar="clr-namespace:SLSKDONET.Features.LibrarySidebar.ViewModels"
+        xmlns:sidebarData="clr-namespace:SLSKDONET.Features.LibrarySidebar"
+        xmlns:vmTimeline="clr-namespace:SLSKDONET.ViewModels.Timeline"
+        xmlns:timeline="clr-namespace:SLSKDONET.Views.Avalonia.Timeline"
         xmlns:vmCore="clr-namespace:SLSKDONET.ViewModels"
+        xmlns:data="clr-namespace:SLSKDONET.Data"
         mc:Ignorable="d" d:DesignWidth="1400" d:DesignHeight="900"
         x:Class="SLSKDONET.Views.Avalonia.MainWindow"
         x:DataType="vm:MainViewModel"
@@ -122,20 +126,47 @@
                     </Border>
                 </StackPanel>
 
-                <!-- Center: Smart Status text & Global Activity -->
-                <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="12">
-                    <!-- Global Activity Spinner -->
-                    <TextBlock Text="⏳" 
-                               FontSize="14" 
-                               Foreground="#4EC9B0"
-                               IsVisible="{Binding IsGlobalActivityActive}"/>
-                               
-                    <TextBlock Text="{Binding StatusText}" 
-                               FontSize="12" 
-                               Foreground="#DDD" 
-                               FontWeight="SemiBold"
-                               VerticalAlignment="Center"/>
-                               
+                <!-- Center: Mission Control (Activity Center) -->
+                <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="16">
+                    <Button Command="{Binding ToggleIntelligenceCommand}" 
+                            Background="#252526" 
+                            BorderBrush="{Binding MissionControl.Health, Converter={StaticResource HealthToColorConverter}}"
+                            BorderThickness="1"
+                            CornerRadius="20"
+                            Padding="12,4"
+                            Height="32"
+                            ToolTip.Tip="System Mission Control">
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                            <!-- Health Icon -->
+                            <TextBlock Text="{Binding MissionControl.Health, Converter={StaticResource HealthToIconConverter}}" 
+                                       FontSize="14" 
+                                       VerticalAlignment="Center"/>
+                            
+                            <!-- Status Summary -->
+                            <TextBlock Text="{Binding MissionControl.StatusSummary}" 
+                                       FontSize="12" 
+                                       Foreground="#DDD" 
+                                       FontWeight="SemiBold"
+                                       VerticalAlignment="Center"/>
+                            
+                            <!-- Active Operations Badge -->
+                            <Border Background="{Binding MissionControl.Health, Converter={StaticResource HealthToColorConverter}}"
+                                    CornerRadius="10"
+                                    MinWidth="20"
+                                    Height="18"
+                                    VerticalAlignment="Center"
+                                    Padding="4,0"
+                                    IsVisible="{Binding MissionControl.ActiveOperationsCount, Converter={StaticResource MoreThanZeroConverter}}">
+                                 <TextBlock Text="{Binding MissionControl.ActiveOperationsCount}" 
+                                            FontSize="10" 
+                                            Foreground="Black" 
+                                            FontWeight="Bold"
+                                            HorizontalAlignment="Center"
+                                            VerticalAlignment="Center"/>
+                            </Border>
+                        </StackPanel>
+                    </Button>
+
                     <Button Command="{Binding ExecuteBrainTestCommand}"
                             Background="Transparent"
                             BorderThickness="0"
@@ -146,10 +177,10 @@
                     </Button>
 
                     <TextBlock Text="{Binding ApplicationVersion, StringFormat='v{0}'}" 
-                               Foreground="#555"
+                               Foreground="#444"
                                FontSize="10"
                                VerticalAlignment="Center"
-                               Margin="4,0,0,0"/>
+                               Margin="0"/>
                 </StackPanel>
 
                 <!-- Right: Activity Monitor & System Controls -->
@@ -223,10 +254,10 @@
             </Grid>
         </Border>
 
-        <!-- Main Content Area with Sidebars -->
-        <Grid Grid.Row="1" ColumnDefinitions="Auto,*">
+        <!-- Main Content Area: 4-Zone DAW Layout -->
+        <Grid Grid.Row="1" ColumnDefinitions="Auto,4,*,4,Auto">
             
-            <!-- Left Navigation Sidebar -->
+            <!-- Zone 1: Navigator (Left Sidebar) -->
             <Border Grid.Column="0" 
                     Background="{StaticResource DeepBackgroundBrush}" 
                     BorderBrush="{StaticResource BorderBrush}" 
@@ -255,7 +286,7 @@
                             <StackPanel Spacing="2">
                                 <Button Classes="nav" Command="{Binding NavigateSearchCommand}"
                                         ToolTip.Tip="Search"
-                                        Classes.selected="{Binding CurrentPageType, Converter={StaticResource EqualityConverter}, ConverterParameter={x:Static models:PageType.Search}}">
+                                        Classes.selected="{Binding Workspace.CurrentContext, Converter={StaticResource EqualityConverter}, ConverterParameter={x:Static models:WorkspaceContext.SoulseekSearch}}">
                                     <StackPanel Orientation="Horizontal" Spacing="12" Margin="16,0">
                                         <TextBlock Text="🔍" FontSize="16"/>
                                         <TextBlock Text="Search" FontSize="14"/>
@@ -273,7 +304,7 @@
 
                                 <Button Classes="nav" Command="{Binding NavigateProjectsCommand}"
                                         ToolTip.Tip="Inbox"
-                                        Classes.selected="{Binding CurrentPageType, Converter={StaticResource EqualityConverter}, ConverterParameter={x:Static models:PageType.Projects}}">
+                                        Classes.selected="{Binding Workspace.CurrentContext, Converter={StaticResource EqualityConverter}, ConverterParameter={x:Static models:WorkspaceContext.SetDesigner}}">
                                     <StackPanel Orientation="Horizontal" Spacing="12" Margin="16,0">
                                         <TextBlock Text="📥" FontSize="16"/>
                                         <TextBlock Text="Inbox" FontSize="14"/>
@@ -282,7 +313,7 @@
 
                                 <Button Classes="nav" Command="{Binding NavigateImportCommand}"
                                         ToolTip.Tip="Import"
-                                        Classes.selected="{Binding CurrentPageType, Converter={StaticResource EqualityConverter}, ConverterParameter={x:Static models:PageType.Import}}">
+                                        Classes.selected="{Binding Workspace.CurrentContext, Converter={StaticResource EqualityConverter}, ConverterParameter={x:Static models:WorkspaceContext.SpotifyImport}}">
                                     <StackPanel Orientation="Horizontal" Spacing="12" Margin="16,0">
                                         <TextBlock Text="🔗" FontSize="16"/>
                                         <TextBlock Text="Import" FontSize="14"/>
@@ -354,7 +385,7 @@
 
                                 <Button Classes="nav" Command="{Binding NavigateDawCommand}"
                                         ToolTip.Tip="Timeline"
-                                        Classes.selected="{Binding CurrentPageType, Converter={StaticResource EqualityConverter}, ConverterParameter={x:Static models:PageType.DawTimeline}}">
+                                        Classes.selected="{Binding Workspace.CurrentContext, Converter={StaticResource EqualityConverter}, ConverterParameter={x:Static models:WorkspaceContext.SetDesigner}}">
                                     <StackPanel Orientation="Horizontal" Spacing="12" Margin="16,0">
                                         <TextBlock Text="⏱️" FontSize="16"/>
                                         <TextBlock Text="Timeline" FontSize="14"/>
@@ -392,7 +423,7 @@
                             <StackPanel Spacing="2">
                                  <Button Classes="nav" Command="{Binding NavigateHomeCommand}"
                                         ToolTip.Tip="Dashboard"
-                                        Classes.selected="{Binding CurrentPageType, Converter={StaticResource EqualityConverter}, ConverterParameter={x:Static models:PageType.Home}}">
+                                        Classes.selected="{Binding Workspace.CurrentContext, Converter={StaticResource EqualityConverter}, ConverterParameter={x:Static models:WorkspaceContext.LocalLibrary}}">
                                     <StackPanel Orientation="Horizontal" Spacing="12" Margin="16,0">
                                         <TextBlock Text="🏠" FontSize="16"/>
                                         <TextBlock Text="Dashboard" FontSize="14"/>
@@ -401,7 +432,7 @@
 
                                 <Button Classes="nav" Command="{Binding NavigateLibraryCommand}"
                                         ToolTip.Tip="Library"
-                                        Classes.selected="{Binding CurrentPageType, Converter={StaticResource EqualityConverter}, ConverterParameter={x:Static models:PageType.Library}}">
+                                        Classes.selected="{Binding Workspace.CurrentContext, Converter={StaticResource EqualityConverter}, ConverterParameter={x:Static models:WorkspaceContext.LocalLibrary}}">
                                     <StackPanel Orientation="Horizontal" Spacing="12" Margin="16,0">
                                         <TextBlock Text="📚" FontSize="16"/>
                                         <TextBlock Text="Library" FontSize="14"/>
@@ -431,59 +462,98 @@
                 </ScrollViewer>
             </Border>
 
-            <!-- Center Content Area with Global Contextual Sidebar -->
-            <SplitView Grid.Column="1"
-                       IsPaneOpen="{Binding IsGlobalSidebarOpen}"
-                       DisplayMode="Overlay"
-                       PanePlacement="Right"
-                       OpenPaneLength="350">
-                
-                <SplitView.Pane>
-                    <Border Background="#252526" BorderBrush="#3E3E3E" BorderThickness="1,0,0,0">
-                        <Grid RowDefinitions="Auto,*">
-                            <Border Grid.Row="0" Padding="12" Background="#1E1E1E" BorderBrush="#3E3E3E" BorderThickness="0,0,0,1">
-                                <Grid ColumnDefinitions="Auto,*,Auto">
-                                    <TextBlock Text="{Binding Sidebar.ModeIcon}" FontSize="16" VerticalAlignment="Center" Margin="0,0,8,0"/>
-                                    <TextBlock Grid.Column="1" Text="{Binding Sidebar.ModeLabel}" FontWeight="Bold" VerticalAlignment="Center" Foreground="#DDD"/>
-                                    <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="4">
-                                        <Button Classes="tool" Command="{Binding Sidebar.ShowPlayerCommand}" ToolTip.Tip="Show Player">
-                                            <TextBlock Text="🎵" FontSize="12"/>
-                                        </Button>
-                                        <Button Classes="tool" Command="{Binding Sidebar.HideCommand}" Content="✖" Foreground="#888"/>
-                                    </StackPanel>
-                                </Grid>
-                            </Border>
-                            
-                            <ContentControl Grid.Row="1" Content="{Binding Sidebar.CurrentContent}">
-                                <ContentControl.DataTemplates>
-                                    <DataTemplate DataType="vmSidebar:SimilaritySidebarViewModel">
-                                        <sidebar:SimilaritySidebarView/>
-                                    </DataTemplate>
-                                    <DataTemplate DataType="vmSidebar:BulkActionSidebarViewModel">
-                                        <sidebar:BulkActionSidebarView/>
-                                    </DataTemplate>
-                                    <DataTemplate DataType="vmSidebar:ForensicSidebarViewModel">
-                                        <sidebar:ForensicSidebarView/>
-                                    </DataTemplate>
-                                    <DataTemplate DataType="vmSidebar:MetadataSidebarViewModel">
-                                        <sidebar:MetadataSidebarView/>
-                                    </DataTemplate>
-                                    <DataTemplate DataType="vmCore:PlayerViewModel">
-                                        <views:PlayerControl/>
-                                    </DataTemplate>
-                                </ContentControl.DataTemplates>
-                            </ContentControl>
-                        </Grid>
-                    </Border>
-                </SplitView.Pane>
+            <!-- Zone 2: Navigator Splitter -->
+            <GridSplitter Grid.Column="1" Background="Transparent" Width="4" HorizontalAlignment="Stretch"/>
 
-                <TransitioningContentControl Content="{Binding CurrentPage}" 
-                                           Background="#1E1E1E">
+            <!-- Zone 3: Canvas (Center Content Area) -->
+            <Border Grid.Column="2" Background="#1E1E1E">
+                <TransitioningContentControl Content="{Binding CurrentPage}">
                     <TransitioningContentControl.PageTransition>
                         <CrossFade Duration="0:0:0.25"/>
                     </TransitioningContentControl.PageTransition>
                 </TransitioningContentControl>
-            </SplitView>
+            </Border>
+
+            <!-- Zone 4: Inspector Splitter -->
+            <GridSplitter Grid.Column="3" Background="Transparent" Width="4" HorizontalAlignment="Stretch"/>
+
+            <!-- Zone 5: Inspector (Right Sidebar) -->
+            <Border Grid.Column="4" Background="#252526" BorderBrush="#3E3E3E" BorderThickness="1,0,0,0" Width="350">
+                <Grid RowDefinitions="Auto,*">
+                    <Border Grid.Row="0" Padding="8,4" Background="#1E1E1E" BorderBrush="#3E3E3E" BorderThickness="0,0,0,1">
+                        <StackPanel>
+                            <Grid ColumnDefinitions="*,Auto" Margin="4,0,4,4">
+                                <TextBlock Text="{Binding Sidebar.ModeLabel}" FontWeight="Bold" FontSize="11" VerticalAlignment="Center" Foreground="#888" TextTrimming="CharacterEllipsis"/>
+                                <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="4">
+                                    <Button Classes="tool" Command="{Binding Sidebar.ShowPlayerCommand}" ToolTip.Tip="Show Player">
+                                        <TextBlock Text="🎵" FontSize="12"/>
+                                    </Button>
+                                    <Button Classes="tool" Command="{Binding Sidebar.HideCommand}" Content="✖" Foreground="#666"/>
+                                </StackPanel>
+                            </Grid>
+                            
+                            <!-- DAW Intelligence Tabs -->
+                            <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled">
+                                <StackPanel Orientation="Horizontal" Spacing="2" Margin="0,0,0,4">
+                                    <Button Classes="tab" Command="{Binding Sidebar.SetModeCommand}" CommandParameter="{x:Static sidebarData:LibrarySidebarMode.Similarity}" ToolTip.Tip="Similarity Discovery">
+                                        <TextBlock Text="🎯" Opacity="{Binding Sidebar.ActiveMode, Converter={StaticResource EnumToOpacityConverter}, ConverterParameter={x:Static sidebarData:LibrarySidebarMode.Similarity}}"/>
+                                    </Button>
+                                    <Button Classes="tab" Command="{Binding Sidebar.SetModeCommand}" CommandParameter="{x:Static sidebarData:LibrarySidebarMode.Cues}" ToolTip.Tip="Cue Points &amp; Phrases">
+                                        <TextBlock Text="📍" Opacity="{Binding Sidebar.ActiveMode, Converter={StaticResource EnumToOpacityConverter}, ConverterParameter={x:Static sidebarData:LibrarySidebarMode.Cues}}"/>
+                                    </Button>
+                                    <Button Classes="tab" Command="{Binding Sidebar.SetModeCommand}" CommandParameter="{x:Static sidebarData:LibrarySidebarMode.Stems}" ToolTip.Tip="STEMS Explorer">
+                                        <TextBlock Text="🎛️" Opacity="{Binding Sidebar.ActiveMode, Converter={StaticResource EnumToOpacityConverter}, ConverterParameter={x:Static sidebarData:LibrarySidebarMode.Stems}}"/>
+                                    </Button>
+                                    <Button Classes="tab" Command="{Binding Sidebar.SetModeCommand}" CommandParameter="{x:Static sidebarData:LibrarySidebarMode.VibeLab}" ToolTip.Tip="Vibe Radar">
+                                        <TextBlock Text="🎭" Opacity="{Binding Sidebar.ActiveMode, Converter={StaticResource EnumToOpacityConverter}, ConverterParameter={x:Static sidebarData:LibrarySidebarMode.VibeLab}}"/>
+                                    </Button>
+                                    <Button Classes="tab" Command="{Binding Sidebar.SetModeCommand}" CommandParameter="{x:Static sidebarData:LibrarySidebarMode.TransitionProber}" ToolTip.Tip="Transition Prober">
+                                        <TextBlock Text="🔄" Opacity="{Binding Sidebar.ActiveMode, Converter={StaticResource EnumToOpacityConverter}, ConverterParameter={x:Static sidebarData:LibrarySidebarMode.TransitionProber}}"/>
+                                    </Button>
+                                    <Button Classes="tab" Command="{Binding Sidebar.SetModeCommand}" CommandParameter="{x:Static sidebarData:LibrarySidebarMode.Forensic}" ToolTip.Tip="Forensic Repair">
+                                        <TextBlock Text="🔬" Opacity="{Binding Sidebar.ActiveMode, Converter={StaticResource EnumToOpacityConverter}, ConverterParameter={x:Static sidebarData:LibrarySidebarMode.Forensic}}"/>
+                                    </Button>
+                                    <Button Classes="tab" Command="{Binding Sidebar.SetModeCommand}" CommandParameter="{x:Static sidebarData:LibrarySidebarMode.Metadata}" ToolTip.Tip="Full Metadata Inspector">
+                                        <TextBlock Text="🏷️" Opacity="{Binding Sidebar.ActiveMode, Converter={StaticResource EnumToOpacityConverter}, ConverterParameter={x:Static sidebarData:LibrarySidebarMode.Metadata}}"/>
+                                    </Button>
+                                </StackPanel>
+                            </ScrollViewer>
+                        </StackPanel>
+                    </Border>
+                    
+                    <ContentControl Grid.Row="1" Content="{Binding Sidebar.CurrentContent}">
+                        <ContentControl.DataTemplates>
+                            <DataTemplate DataType="vmSidebar:SimilaritySidebarViewModel">
+                                <sidebar:SimilaritySidebarView/>
+                            </DataTemplate>
+                            <DataTemplate DataType="vmSidebar:BulkActionSidebarViewModel">
+                                <sidebar:BulkActionSidebarView/>
+                            </DataTemplate>
+                            <DataTemplate DataType="vmSidebar:ForensicSidebarViewModel">
+                                <sidebar:ForensicSidebarView/>
+                            </DataTemplate>
+                            <DataTemplate DataType="vmSidebar:MetadataSidebarViewModel">
+                                <sidebar:MetadataSidebarView/>
+                            </DataTemplate>
+                            <DataTemplate DataType="vmSidebar:CueSidebarViewModel">
+                                <sidebar:CueSidebarView/>
+                            </DataTemplate>
+                            <DataTemplate DataType="vmSidebar:StemSidebarViewModel">
+                                <sidebar:StemSidebarView/>
+                            </DataTemplate>
+                            <DataTemplate DataType="vmSidebar:VibeSidebarViewModel">
+                                <sidebar:VibeSidebarView/>
+                            </DataTemplate>
+                            <DataTemplate DataType="vmSidebar:TransitionProberViewModel">
+                                <sidebar:TransitionProberView/>
+                            </DataTemplate>
+                            <DataTemplate DataType="vmCore:PlayerViewModel">
+                                <views:PlayerControl/>
+                            </DataTemplate>
+                        </ContentControl.DataTemplates>
+                    </ContentControl>
+                </Grid>
+            </Border>
 
         </Grid>
 
@@ -563,23 +633,48 @@
             </Border>
         </Grid>
         
-        <!-- Bottom Player Drawer -->
+        <!-- Zone 6: Performance Master (Bottom Dock) -->
         <Border Grid.Row="2" 
                 Background="#252526" 
                 BorderBrush="#3E3E3E" 
                 BorderThickness="0,1,0,0"
-                Height="100">
-             <Border.IsVisible>
-                <MultiBinding Converter="{x:Static BoolConverters.And}">
-                    <Binding Path="IsPlayerAtBottomVisible"/>
-                    <Binding Path="PlayerViewModel.IsPlayerVisible"/>
-                </MultiBinding>
-            </Border.IsVisible>
-             <Grid>
-                 <!-- Bottom Layout usually needs a more horizontal PlayerControl, 
-                      but for now we'll host the same control or a variant. -->
-                 <views:HorizontalPlayerControl DataContext="{Binding PlayerViewModel}"/>
-             </Grid>
+                Height="{Binding PerformanceDockHeight}"
+                IsVisible="{Binding IsPerformanceDockVisible}">
+            <Grid>
+                <!-- Compact Player Mode -->
+                <ContentControl IsVisible="{Binding PerformanceDockMode, Converter={StaticResource EnumToBoolConverter}, ConverterParameter={x:Static data:PerformanceDockMode.CompactPlayer}}"
+                              Content="{Binding PlayerViewModel}">
+                    <ContentControl.ContentTemplate>
+                        <DataTemplate>
+                            <views:HorizontalPlayerControl/>
+                        </DataTemplate>
+                    </ContentControl.ContentTemplate>
+                </ContentControl>
+
+                <!-- Full Designer Mode -->
+                <ContentControl IsVisible="{Binding PerformanceDockMode, Converter={StaticResource EnumToBoolConverter}, ConverterParameter={x:Static data:PerformanceDockMode.FullDesigner}}"
+                              Content="{Binding SetDesignerViewModel}">
+                    <ContentControl.ContentTemplate>
+                        <DataTemplate>
+                            <timeline:SetDesignerView/>
+                        </DataTemplate>
+                    </ContentControl.ContentTemplate>
+                </ContentControl>
+
+                <!-- Zone Toggles (Always visible if dock is open) -->
+                <StackPanel VerticalAlignment="Top" HorizontalAlignment="Right" Margin="4,4,16,4" Orientation="Horizontal" Spacing="4">
+                    <Button Classes="tab" ToolTip.Tip="Toggle Compact Player" 
+                            Command="{Binding SetPerformanceDockModeCommand}"
+                            CommandParameter="{x:Static data:PerformanceDockMode.CompactPlayer}">
+                        <TextBlock Text="🎵" Opacity="{Binding PerformanceDockMode, Converter={StaticResource EnumToOpacityConverter}, ConverterParameter={x:Static data:PerformanceDockMode.CompactPlayer}}"/>
+                    </Button>
+                    <Button Classes="tab" ToolTip.Tip="Toggle Performance Designer" 
+                            Command="{Binding SetPerformanceDockModeCommand}"
+                            CommandParameter="{x:Static data:PerformanceDockMode.FullDesigner}">
+                        <TextBlock Text="📉" Opacity="{Binding PerformanceDockMode, Converter={StaticResource EnumToOpacityConverter}, ConverterParameter={x:Static data:PerformanceDockMode.FullDesigner}}"/>
+                    </Button>
+                </StackPanel>
+            </Grid>
         </Border>
 
         <!-- Stem Workspace Overlay -->

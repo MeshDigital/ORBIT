@@ -18,6 +18,7 @@ using SLSKDONET.Services.ImportProviders; // Added for SpotifyLikedSongsImportPr
 using System.Reactive.Disposables;
 using System.Reactive.Linq;
 using ReactiveUI;
+using SLSKDONET.Data;
 
 namespace SLSKDONET.Views;
 
@@ -45,6 +46,7 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
     private readonly NativeDependencyHealthService _dependencyHealthService; // Phase 10.5
     private readonly IDialogService _dialogService;
     private readonly ILibraryService _libraryService;
+    private readonly ActiveWorkspace _activeWorkspace;
 
     // Child ViewModels
     public PlayerViewModel PlayerViewModel { get; }
@@ -57,6 +59,7 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
     public StatusBarViewModel StatusBar { get; }
     public AnalysisQueueViewModel AnalysisQueueViewModel { get; }
     public BulkOperationViewModel BulkOperationViewModel { get; }
+    public MissionControlViewModel MissionControl { get; }
     
     // Phase 24: Stem Workspace
     public ViewModels.Stem.StemWorkspaceViewModel StemWorkspaceViewModel { get; }
@@ -69,6 +72,7 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
     public ExportManagerViewModel ExportManagerViewModel { get; }
     public CommandPaletteViewModel CommandPaletteViewModel { get; }
     public Features.LibrarySidebar.ViewModels.ContextualSidebarViewModel Sidebar { get; }
+    public ActiveWorkspace Workspace => _activeWorkspace;
 
 
     public event PropertyChangedEventHandler? PropertyChanged;
@@ -123,7 +127,9 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
         FlowBuilderViewModel flowBuilderViewModel,
         ExportManagerViewModel exportManagerViewModel,
         DiscoveryHubViewModel discoveryHubViewModel,
-        Features.LibrarySidebar.ViewModels.ContextualSidebarViewModel sidebar)
+        Features.LibrarySidebar.ViewModels.ContextualSidebarViewModel sidebar,
+        MissionControlViewModel missionControl,
+        ActiveWorkspace activeWorkspace)
 
     {
         _logger = logger;
@@ -143,6 +149,7 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
         _analysisQueue = analysisQueue;
         _dialogService = dialogService;
         _libraryService = libraryService;
+        _activeWorkspace = activeWorkspace;
 
         PlayerViewModel = playerViewModel;
         LibraryViewModel = libraryViewModel;
@@ -162,6 +169,7 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
         ExportManagerViewModel = exportManagerViewModel;
         DiscoveryHubViewModel = discoveryHubViewModel;
         Sidebar = sidebar;
+        MissionControl = missionControl;
         CommandPaletteViewModel = new CommandPaletteViewModel(navigationService);
 
         Sidebar.PropertyChanged += (s, e) => 
@@ -173,17 +181,17 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
         };
 
         // Initialize commands
-        NavigateHomeCommand = new RelayCommand(NavigateToHome); // Phase 6D
-        NavigateSearchCommand = new RelayCommand(NavigateToSearch);
-        NavigateLibraryCommand = new RelayCommand(NavigateToLibrary);
-        NavigateProjectsCommand = new RelayCommand(NavigateToProjects);
+        NavigateHomeCommand = new RelayCommand(() => { Workspace.SetContext(WorkspaceContext.LocalLibrary); NavigateToHome(); }); 
+        NavigateSearchCommand = new RelayCommand(() => { Workspace.SetContext(WorkspaceContext.SoulseekSearch); NavigateToSearch(); });
+        NavigateLibraryCommand = new RelayCommand(() => { Workspace.SetContext(WorkspaceContext.LocalLibrary); NavigateToLibrary(); });
+        NavigateProjectsCommand = new RelayCommand(() => { Workspace.SetContext(WorkspaceContext.SetDesigner); _navigationService.NavigateTo("Projects"); });
         NavigateSettingsCommand = new RelayCommand(NavigateToSettings);
         NavigateUpgradeScoutCommand = new RelayCommand(NavigateUpgradeScout);
         NavigateTheaterCommand = new RelayCommand(NavigateToTheater);
         NavigateInspectorCommand = new RelayCommand(NavigateAnalysisQueue);
         NavigateStyleLabCommand = new RelayCommand(() => _navigationService.NavigateTo("StyleLab"));
-        NavigateImportCommand = new RelayCommand(NavigateToImport); // Phase 6D
-        NavigateDawCommand = new RelayCommand(NavigateToDaw);
+        NavigateImportCommand = new RelayCommand(() => { Workspace.SetContext(WorkspaceContext.SpotifyImport); _navigationService.NavigateTo("Import"); }); 
+        NavigateDawCommand = new RelayCommand(() => { Workspace.SetContext(WorkspaceContext.SetDesigner); _navigationService.NavigateTo("DawTimeline"); });
         NavigateDJCompanionCommand = new RelayCommand(NavigateToDJCompanion);
         NavigateFlowBuilderCommand = new RelayCommand(NavigateToFlowBuilder);
         NavigateExportCommand = new RelayCommand(NavigateToExport);
@@ -228,8 +236,9 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
             CommandPaletteViewModel.IsVisible = !CommandPaletteViewModel.IsVisible;
             if (CommandPaletteViewModel.IsVisible) CommandPaletteViewModel.SearchText = "";
         });
-        ToggleZenModeCommand = new RelayCommand(ToggleZenMode);
         ToggleTopBarCommand = new RelayCommand(() => IsTopCommandBarVisible = !IsTopCommandBarVisible);
+        SetPerformanceDockModeCommand = new RelayCommand<SLSKDONET.Data.PerformanceDockMode>(mode => PerformanceDockMode = mode);
+        TogglePerformanceDockCommand = new RelayCommand(TogglePerformanceDockMode);
 
 
         // Spotify Hub Initialization (TODO: Phase 7 - Implement when needed)
@@ -583,6 +592,46 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
         }
     }
 
+    private PerformanceDockMode _performanceDockMode = PerformanceDockMode.CompactPlayer;
+    public PerformanceDockMode PerformanceDockMode
+    {
+        get => _performanceDockMode;
+        set
+        {
+            if (SetProperty(ref _performanceDockMode, value))
+            {
+                OnPropertyChanged(nameof(PerformanceDockHeight));
+                OnPropertyChanged(nameof(IsPerformanceDockVisible));
+                
+                // If switching to full designer, ensure navigation is optimized
+                if (value == PerformanceDockMode.FullDesigner)
+                {
+                    IsNavigationMini = true;
+                }
+            }
+        }
+    }
+
+    public double PerformanceDockHeight => PerformanceDockMode switch
+    {
+        PerformanceDockMode.None => 0,
+        PerformanceDockMode.CompactPlayer => 100,
+        PerformanceDockMode.FullDesigner => 350,
+        _ => 0
+    };
+
+    public bool IsPerformanceDockVisible => PerformanceDockMode != PerformanceDockMode.None;
+
+    public void TogglePerformanceDockMode()
+    {
+        PerformanceDockMode = PerformanceDockMode switch
+        {
+            PerformanceDockMode.CompactPlayer => PerformanceDockMode.FullDesigner,
+            PerformanceDockMode.FullDesigner => PerformanceDockMode.CompactPlayer,
+            _ => PerformanceDockMode.CompactPlayer
+        };
+    }
+
 
     // === Analysis Queue Status (Glass Box Architecture) ===
     
@@ -787,6 +836,8 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
     public ICommand ToggleIntelligenceCommand { get; }
     public ICommand CloseIntelligenceCommand { get; }
     public ICommand ToggleCommandPaletteCommand { get; }
+    public ICommand SetPerformanceDockModeCommand { get; }
+    public ICommand TogglePerformanceDockCommand { get; }
     public ICommand ToggleZenModeCommand { get; }
     public ICommand ToggleTopBarCommand { get; }
 
