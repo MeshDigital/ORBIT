@@ -171,6 +171,7 @@ public class UnifiedTrackViewModel : ReactiveObject, IDisplayableTrack, IDisposa
             .DisposeWith(_disposables);
 
         _eventBus.GetEvent<TrackProgressChangedEvent>()
+            .Sample(TimeSpan.FromMilliseconds(250)) // Throttle: ~4 events/sec to prevent UI thread starvation
             .ObserveOn(RxApp.MainThreadScheduler)
             .Subscribe(OnProgressChanged)
             .DisposeWith(_disposables);
@@ -946,9 +947,6 @@ public class UnifiedTrackViewModel : ReactiveObject, IDisplayableTrack, IDisposa
         }
     }
 
-    private DateTime _lastUiRefreshTime = DateTime.MinValue;
-    private static readonly TimeSpan UiThrottleInterval = TimeSpan.FromMilliseconds(250);
-
     private void OnProgressChanged(TrackProgressChangedEvent e)
     {
         if (e.TrackGlobalId != GlobalId) return;
@@ -961,11 +959,11 @@ public class UnifiedTrackViewModel : ReactiveObject, IDisplayableTrack, IDisposa
             this.RaisePropertyChanged(nameof(StalledReason));
         }
         
-         // Always update internal data (no throttling on data)
+         // Update all data + raise all properties (safe: only fires ~4x/sec via .Sample())
          Progress = e.Progress;
          _totalBytes = e.TotalBytes;
          
-         // Speed Calc (always compute, only push to UI on throttle tick)
+         // Speed Calc
          var now = DateTime.UtcNow;
          if (_lastProgressTime != DateTime.MinValue)
          {
@@ -999,17 +997,11 @@ public class UnifiedTrackViewModel : ReactiveObject, IDisplayableTrack, IDisposa
              }
          }
 
-         // THROTTLED UI REFRESH: Only push property changes at 250ms intervals
-         // Exception: always push immediately at 100% to avoid "stuck at 99%" bug
-         var timeSinceLastRefresh = now - _lastUiRefreshTime;
-         if (Progress >= 100 || timeSinceLastRefresh >= UiThrottleInterval)
-         {
-             _lastUiRefreshTime = now;
-             this.RaisePropertyChanged(nameof(StatusText));
-             this.RaisePropertyChanged(nameof(TechnicalSummary));
-             this.RaisePropertyChanged(nameof(SpeedDisplay));
-             this.RaisePropertyChanged(nameof(CurrentSpeedBytes));
-         }
+         // Raise all display properties (safe at 4Hz via .Sample())
+         this.RaisePropertyChanged(nameof(StatusText));
+         this.RaisePropertyChanged(nameof(TechnicalSummary));
+         this.RaisePropertyChanged(nameof(SpeedDisplay));
+         this.RaisePropertyChanged(nameof(CurrentSpeedBytes));
     }
 
     private async Task PerformInFlightForensicsAsync(string stage)
