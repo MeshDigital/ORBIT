@@ -10,6 +10,7 @@ using SLSKDONET.Data.Entities;
 using SLSKDONET.Models;
 using SLSKDONET.Models.Musical;
 using SLSKDONET.Services.AI;
+using SLSKDONET.Utils;
 
 namespace SLSKDONET.Services.Musical;
 
@@ -631,34 +632,9 @@ public class SonicMatchService
         return denom <= 0 ? 0.5 : dot / denom;
     }
 
-    // SIMD-accelerated cosine similarity (used by FindBridgeAsync on large embedding vectors)
+    // SIMD-accelerated cosine similarity — delegates to centralized VectorMathUtils
     public static float CalculateCosineSimilarity(float[]? vecA, float[]? vecB)
-    {
-        if (vecA == null || vecB == null || vecA.Length != vecB.Length) return 0;
-
-        float dot = 0, magA = 0, magB = 0;
-        int n = vecA.Length;
-        int vs = System.Numerics.Vector<float>.Count;
-        int i = 0;
-
-        var vDot  = System.Numerics.Vector<float>.Zero;
-        var vMagA = System.Numerics.Vector<float>.Zero;
-        var vMagB = System.Numerics.Vector<float>.Zero;
-
-        for (; i <= n - vs; i += vs)
-        {
-            var va = new System.Numerics.Vector<float>(vecA, i);
-            var vb = new System.Numerics.Vector<float>(vecB, i);
-            vDot  += va * vb;
-            vMagA += va * va;
-            vMagB += vb * vb;
-        }
-        for (int j = 0; j < vs; j++) { dot += vDot[j]; magA += vMagA[j]; magB += vMagB[j]; }
-        for (; i < n; i++) { dot += vecA[i] * vecB[i]; magA += vecA[i] * vecA[i]; magB += vecB[i] * vecB[i]; }
-
-        float denom = (float)(Math.Sqrt(magA) * Math.Sqrt(magB));
-        return denom > 0 ? dot / denom : 0;
-    }
+        => VectorMathUtils.CosineSimilarity(vecA, vecB);
 
     // ====================================================================
     // Mood Vector Builder

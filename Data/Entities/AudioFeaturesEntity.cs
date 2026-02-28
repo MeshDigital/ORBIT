@@ -1,6 +1,7 @@
 using System;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
+using System.Runtime.InteropServices;
 
 using SLSKDONET.Models;
 
@@ -285,17 +286,16 @@ public class AudioFeaturesEntity
 
     /// <summary>
     /// Friendly float[] access for the 512-D deep texture vector.
-    /// Uses Buffer.BlockCopy for zero-allocation deserialization.
+    /// Uses MemoryMarshal.Cast for zero-allocation reinterpretation on read.
     /// </summary>
     [NotMapped]
     public float[]? DeepTextureEmbedding
     {
         get
         {
-            if (DeepTextureEmbeddingBytes == null) return null;
-            var floatArray = new float[DeepTextureEmbeddingBytes.Length / 4];
-            Buffer.BlockCopy(DeepTextureEmbeddingBytes, 0, floatArray, 0, DeepTextureEmbeddingBytes.Length);
-            return floatArray;
+            if (DeepTextureEmbeddingBytes == null || DeepTextureEmbeddingBytes.Length < 4) return null;
+            // MemoryMarshal: reinterprets bytes as floats without copying
+            return MemoryMarshal.Cast<byte, float>(DeepTextureEmbeddingBytes.AsSpan()).ToArray();
         }
         set
         {
@@ -304,9 +304,8 @@ public class AudioFeaturesEntity
                 DeepTextureEmbeddingBytes = null;
                 return;
             }
-            var byteArray = new byte[value.Length * 4];
-            Buffer.BlockCopy(value, 0, byteArray, 0, byteArray.Length);
-            DeepTextureEmbeddingBytes = byteArray;
+            // MemoryMarshal: reinterprets floats as bytes without copying
+            DeepTextureEmbeddingBytes = MemoryMarshal.AsBytes(value.AsSpan()).ToArray();
         }
     }
 

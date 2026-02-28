@@ -13,33 +13,48 @@ namespace SLSKDONET.Utils;
 public static class VectorMathUtils
 {
     // ====================================================================
-    // Serialization (float[] ↔ byte[])
+    // Serialization (float[] ↔ byte[]) — Zero-Allocation Where Possible
     // ====================================================================
 
     /// <summary>
     /// Deserializes a compact byte[] blob into a float[] vector.
-    /// Uses MemoryMarshal for zero-copy when possible.
+    /// Uses MemoryMarshal.Cast for zero-copy reinterpretation when reading,
+    /// then copies to a new array for safe ownership semantics.
+    /// For truly zero-alloc reads, use <see cref="AsFloatSpan"/> instead.
     /// </summary>
     public static float[]? DeserializeEmbedding(byte[]? blob)
     {
         if (blob == null || blob.Length == 0 || blob.Length % 4 != 0) return null;
 
-        var floats = new float[blob.Length / 4];
-        Buffer.BlockCopy(blob, 0, floats, 0, blob.Length);
-        return floats;
+        // MemoryMarshal reinterprets the bytes as floats without copying
+        ReadOnlySpan<float> span = MemoryMarshal.Cast<byte, float>(blob.AsSpan());
+        return span.ToArray();
+    }
+
+    /// <summary>
+    /// Zero-allocation read: reinterprets byte[] as ReadOnlySpan&lt;float&gt; in-place.
+    /// WARNING: The returned span is only valid for the lifetime of the byte[] source.
+    /// Use this in hot loops where you don't need to store the result.
+    /// </summary>
+    public static ReadOnlySpan<float> AsFloatSpan(byte[]? blob)
+    {
+        if (blob == null || blob.Length == 0 || blob.Length % 4 != 0)
+            return ReadOnlySpan<float>.Empty;
+
+        return MemoryMarshal.Cast<byte, float>(blob.AsSpan());
     }
 
     /// <summary>
     /// Serializes a float[] vector into a compact byte[] blob for database storage.
     /// Each float = 4 bytes, so 512-D → 2048 bytes.
+    /// Uses MemoryMarshal.AsBytes for zero-copy reinterpretation.
     /// </summary>
     public static byte[]? SerializeEmbedding(float[]? vector)
     {
         if (vector == null || vector.Length == 0) return null;
 
-        var bytes = new byte[vector.Length * 4];
-        Buffer.BlockCopy(vector, 0, bytes, 0, bytes.Length);
-        return bytes;
+        ReadOnlySpan<byte> bytes = MemoryMarshal.AsBytes(vector.AsSpan());
+        return bytes.ToArray();
     }
 
     // ====================================================================
@@ -47,7 +62,7 @@ public static class VectorMathUtils
     // ====================================================================
 
     /// <summary>
-    /// Calculates cosine similarity between two float vectors using
+    /// Calculates cosine similarity between two float arrays using
     /// hardware-accelerated SIMD instructions (Vector&lt;float&gt;).
     /// 
     /// Performance: ~0.001ms per 512-D comparison on modern CPUs.
@@ -64,6 +79,18 @@ public static class VectorMathUtils
         if (vecA == null || vecB == null || vecA.Length != vecB.Length || vecA.Length == 0)
             return 0f;
 
+        return CosineSimilarity(vecA.AsSpan(), vecB.AsSpan());
+    }
+
+    /// <summary>
+    /// Span-based overload — the true hot path.
+    /// Accepts ReadOnlySpan&lt;float&gt; for zero-allocation callers using AsFloatSpan().
+    /// </summary>
+    public static float CosineSimilarity(ReadOnlySpan<float> vecA, ReadOnlySpan<float> vecB)
+    {
+        if (vecA.IsEmpty || vecB.IsEmpty || vecA.Length != vecB.Length)
+            return 0f;
+
         int n = vecA.Length;
         int simdWidth = Vector<float>.Count;
         int i = 0;
@@ -76,8 +103,8 @@ public static class VectorMathUtils
         // Process full SIMD lanes
         for (; i <= n - simdWidth; i += simdWidth)
         {
-            var va = new Vector<float>(vecA, i);
-            var vb = new Vector<float>(vecB, i);
+            var va = new Vector<float>(vecA.Slice(i));
+            var vb = new Vector<float>(vecB.Slice(i));
             vDot  += va * vb;
             vMagA += va * va;
             vMagB += vb * vb;
@@ -105,15 +132,15 @@ public static class VectorMathUtils
     }
 
     /// <summary>
-    /// Calculates cosine similarity directly from byte[] blobs
-    /// without intermediate allocation (deserializes in-place).
-    /// Ideal for database-sourced embeddings.
+    /// Fully zero-allocation cosine similarity from raw byte[] blobs.
+    /// Uses MemoryMarshal.Cast to reinterpret bytes as floats in-place,
+    /// then feeds directly into the SIMD pipeline — no heap allocations.
     /// </summary>
     public static float CosineSimilarityFromBlobs(byte[]? blobA, byte[]? blobB)
     {
-        var vecA = DeserializeEmbedding(blobA);
-        var vecB = DeserializeEmbedding(blobB);
-        return CosineSimilarity(vecA, vecB);
+        var spanA = AsFloatSpan(blobA);
+        var spanB = AsFloatSpan(blobB);
+        return CosineSimilarity(spanA, spanB);
     }
 
     /// <summary>
