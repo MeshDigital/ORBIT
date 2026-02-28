@@ -427,6 +427,9 @@ public class DownloadCenterViewModel : ReactiveObject, IDisposable
         // 1. Base Pipeline (Active vs Completed vs Failed)
         var sharedSource = _downloadsSource.Connect()
             .AutoRefresh(x => x.State) // Logic re-evaluates when State changes
+            .AutoRefresh(x => x.IsActive) // FIX: UI lists bind to IsActive etc.
+            .AutoRefresh(x => x.IsCompleted)
+            .AutoRefresh(x => x.IsFailed)
             .Publish(); // Share subscription
 
         // Active Pipeline

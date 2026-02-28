@@ -8,7 +8,6 @@
              xmlns:converters="clr-namespace:SLSKDONET.Views.Avalonia.Converters"
              mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="60"
              x:Class="SLSKDONET.Views.Avalonia.Controls.StandardTrackRow"
-             x:DataType="vm:PlaylistTrackViewModel"
              x:Name="RootControl">
              
     <UserControl.Styles>
@@ -293,41 +292,61 @@
 
             <!-- Column 3: BPM & Key (Shared) -->
             <Border Grid.Column="3" Padding="12,0" VerticalAlignment="Center" IsVisible="{Binding !IsCompact, ElementName=RootControl}">
-                <StackPanel Orientation="Horizontal" Spacing="10">
-                    <TextBlock Text="{Binding BpmDisplay}" Foreground="#AAA" FontSize="11" Width="32" TextAlignment="Right" VerticalAlignment="Center"/>
-                    <Border Background="{Binding ColorBrush}" CornerRadius="4" Padding="4,1" MinWidth="32" VerticalAlignment="Center">
-                        <TextBlock Text="{Binding CamelotDisplay}" Foreground="White" FontSize="10" FontWeight="Bold" HorizontalAlignment="Center"/>
-                    </Border>
-                </StackPanel>
+                <Panel>
+                     <!-- The Data is Present -->
+                     <StackPanel Orientation="Horizontal" Spacing="10" IsVisible="{Binding HasBpm}">
+                         <TextBlock Text="{Binding BpmDisplay}" Foreground="#AAA" FontSize="11" Width="32" TextAlignment="Right" VerticalAlignment="Center"/>
+                         <Border Background="{Binding ColorBrush}" CornerRadius="4" Padding="4,1" MinWidth="32" VerticalAlignment="Center">
+                             <TextBlock Text="{Binding CamelotDisplay}" Foreground="White" FontSize="10" FontWeight="Bold" HorizontalAlignment="Center"/>
+                         </Border>
+                     </StackPanel>
+
+                     <!-- The Data is Missing (Skeleton loading style) -->
+                     <StackPanel Orientation="Horizontal" Spacing="10" IsVisible="{Binding !HasBpm}">
+                         <Border Classes="skeleton" Width="32" Height="14" VerticalAlignment="Center"/>
+                         <Border Classes="skeleton" Width="32" Height="14" VerticalAlignment="Center" CornerRadius="4"/>
+                     </StackPanel>
+                </Panel>
             </Border>
 
             <!-- Column 4: Unified Metadata & Health (Refined Phase 3) -->
             <Border Grid.Column="4" VerticalAlignment="Center" Margin="12,0" IsVisible="{Binding !IsCompact, ElementName=RootControl}">
-                <StackPanel Spacing="4">
-                    <StackPanel Orientation="Horizontal" Spacing="8">
-                        <!-- Forensic Orbs (Refined) -->
-                        <Border Background="{StaticResource GlassThinBrush}" CornerRadius="10" Padding="6,3">
-                            <StackPanel Orientation="Horizontal" Spacing="6">
-                                <Ellipse Width="6" Height="6" Fill="{Binding BitrateLed, Converter={StaticResource LedColorConverter}}" ToolTip.Tip="Bitrate Integrity"/>
-                                <Ellipse Width="6" Height="6" Fill="{Binding KeyLed, Converter={StaticResource LedColorConverter}}" ToolTip.Tip="Key Accuracy"/>
-                                <Ellipse Width="6" Height="6" Fill="{Binding PeakLed, Converter={StaticResource LedColorConverter}}" ToolTip.Tip="Peak Levels"/>
-                            </StackPanel>
-                        </Border>
-                        
-                        <!-- Technical Bitrate/Duration -->
-                        <TextBlock Text="{Binding TechnicalSummary}" FontSize="10" Foreground="#888" VerticalAlignment="Center" Opacity="0.8"/>
+                <Panel>
+                    <!-- STATE A: Searching (Clean, No clutter) -->
+                    <StackPanel Spacing="4" IsVisible="{Binding IsSearching}">
+                        <TextBlock Text="Searching Soulseek..." Classes="pulsing" FontSize="11" Foreground="#00BCD4" FontWeight="SemiBold"/>
                     </StackPanel>
 
-                    <StackPanel Orientation="Horizontal" Spacing="6" IsVisible="{Binding !IsCompleted}">
-                         <!-- Download Status / Stalled -->
-                         <TextBlock Text="{Binding StatusText}" FontSize="10" Foreground="{Binding StatusColor}" Opacity="0.9" VerticalAlignment="Center"/>
-                         
-                         <!-- Speed -->
-                         <Border Background="{StaticResource AccentBrush}" CornerRadius="4" Padding="4,1" IsVisible="{Binding IsDownloading}">
-                             <TextBlock Text="{Binding SpeedDisplay}" FontSize="9" FontWeight="Bold" Foreground="Black"/>
-                         </Border>
+                    <!-- STATE B: Downloading / Finalized (Metrics visible) -->
+                    <StackPanel Spacing="4" IsVisible="{Binding !IsSearching}">
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                             <!-- Forensic Orbs (Refined) -->
+                             <Border Background="{StaticResource GlassThinBrush}" CornerRadius="10" Padding="6,3">
+                                 <StackPanel Orientation="Horizontal" Spacing="6">
+                                     <Ellipse Width="6" Height="6" Fill="{Binding BitrateLed, Converter={StaticResource LedColorConverter}}" ToolTip.Tip="Bitrate Integrity"/>
+                                     <Ellipse Width="6" Height="6" Fill="{Binding KeyLed, Converter={StaticResource LedColorConverter}}" ToolTip.Tip="Key Accuracy"/>
+                                     <Ellipse Width="6" Height="6" Fill="{Binding PeakLed, Converter={StaticResource LedColorConverter}}" ToolTip.Tip="Peak Levels"/>
+                                 </StackPanel>
+                             </Border>
+                             
+                             <!-- Technical Bitrate/Duration -->
+                             <TextBlock Text="{Binding TechnicalSummary}" FontSize="10" Foreground="#888" VerticalAlignment="Center" Opacity="0.8"/>
+                        </StackPanel>
+
+                        <StackPanel Orientation="Horizontal" Spacing="6" IsVisible="{Binding !IsCompleted}">
+                             <!-- Download Status / Stalled -->
+                             <TextBlock Text="{Binding DetailedStatusText}" FontSize="10" Foreground="{Binding StatusColor}" Opacity="0.9" VerticalAlignment="Center" IsVisible="{Binding !IsDownloading}"/>
+                             
+                             <!-- Speed Context -->
+                             <StackPanel Orientation="Horizontal" Spacing="6" IsVisible="{Binding IsDownloading}">
+                                 <TextBlock Text="Downloading..." FontSize="10" Foreground="Cyan" Opacity="0.9" VerticalAlignment="Center"/>
+                                 <Border Background="{StaticResource AccentBrush}" CornerRadius="4" Padding="4,1">
+                                     <TextBlock Text="{Binding SpeedDisplay}" FontSize="9" FontWeight="Bold" Foreground="Black"/>
+                                 </Border>
+                             </StackPanel>
+                        </StackPanel>
                     </StackPanel>
-                </StackPanel>
+                </Panel>
             </Border>
 
             <!-- Column 5: Badge Tray (Flexible) -->
@@ -409,22 +428,9 @@
                         <TextBlock Text="{Binding DetectedSubGenre}" FontSize="9" Foreground="White" FontWeight="Bold"/>
                     </Border>
                     <!-- Skeleton Vibe (shown when NOT completed — pulsing grey placeholder) -->
-                    <Border Background="#333" CornerRadius="10" Padding="8,1" 
+                    <Border Classes="skeleton" CornerRadius="10" Width="40" Height="14" 
                             IsVisible="{Binding !IsCompleted}"
-                            ToolTip.Tip="Analyzing vibe...">
-                        <Border.Styles>
-                            <Style Selector="Border">
-                                <Style.Animations>
-                                    <Animation Duration="0:0:1.5" IterationCount="Infinite">
-                                        <KeyFrame KeyTime="0:0:0"><Setter Property="Opacity" Value="0.3"/></KeyFrame>
-                                        <KeyFrame KeyTime="0:0:0.75"><Setter Property="Opacity" Value="0.6"/></KeyFrame>
-                                        <KeyFrame KeyTime="0:0:1.5"><Setter Property="Opacity" Value="0.3"/></KeyFrame>
-                                    </Animation>
-                                </Style.Animations>
-                            </Style>
-                        </Border.Styles>
-                        <TextBlock Text="· · ·" FontSize="9" Foreground="#666" FontWeight="Bold" HorizontalAlignment="Center"/>
-                    </Border>
+                            ToolTip.Tip="Analyzing vibe..."/>
                 </Panel>
                 
                 <!-- Mood -->

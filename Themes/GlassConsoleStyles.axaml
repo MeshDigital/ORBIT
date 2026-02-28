@@ -47,6 +47,36 @@
         </Style.Animations>
     </Style>
 
+    <!-- 1. The GPU-Accelerated Skeleton Container -->
+    <Style Selector="Border.skeleton">
+        <Setter Property="Background" Value="#1AFFFFFF"/>
+        <Setter Property="CornerRadius" Value="4"/>
+        <Style.Animations>
+            <Animation Duration="0:0:1.5" IterationCount="Infinite" PlaybackDirection="Alternate">
+                <KeyFrame Cue="0%">
+                    <Setter Property="Opacity" Value="0.1"/>
+                </KeyFrame>
+                <KeyFrame Cue="100%">
+                    <Setter Property="Opacity" Value="0.4"/>
+                </KeyFrame>
+            </Animation>
+        </Style.Animations>
+    </Style>
+
+    <!-- Text Pulse -->
+    <Style Selector="TextBlock.pulsing">
+        <Style.Animations>
+            <Animation Duration="0:0:1" IterationCount="Infinite" PlaybackDirection="Alternate">
+                 <KeyFrame Cue="0%">
+                     <Setter Property="Opacity" Value="0.3"/>
+                 </KeyFrame>
+                 <KeyFrame Cue="100%">
+                     <Setter Property="Opacity" Value="1.0"/>
+                 </KeyFrame>
+            </Animation>
+        </Style.Animations>
+    </Style>
+
     <!-- Stalled Animation Style -->
     <Style Selector="PathIcon.stalled">
         <Style.Animations>

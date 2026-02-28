@@ -365,6 +365,13 @@ public class PlaylistTrackViewModel : INotifyPropertyChanged, Library.ILibraryNo
     public bool IsStalled => State == PlaylistTrackState.Stalled;
     public string? StalledReason => Model.StalledReason;
     public bool IsOnHold => Model.Status == TrackStatus.OnHold;
+    
+    // UI Layout Bools (For clean XAML)
+    public bool IsSearching => State == PlaylistTrackState.Searching || State == PlaylistTrackState.Pending;
+    public bool IsDownloading => State == PlaylistTrackState.Downloading;
+    public bool HasBpm => BPM > 0;
+    public bool HasKey => !string.IsNullOrEmpty(MusicalKey) && MusicalKey != "—";
+    public bool HasGenre => !string.IsNullOrEmpty(DetectedSubGenre) || !string.IsNullOrEmpty(Genres) || !string.IsNullOrEmpty(PrimaryGenre);
 
     public string StatusText => State switch
     {
