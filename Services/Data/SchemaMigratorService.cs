@@ -2047,6 +2047,22 @@ public class SchemaMigratorService
                 }
             }
 
+            // 16. Phase 5: Deep DNA — 512-D Texture Embedding
+            if (TableExists("audio_features"))
+            {
+                try
+                {
+                    if (!ColumnExists("audio_features", "DeepTextureEmbedding"))
+                    {
+                        _logger.LogInformation("Patching Schema: Adding DeepTextureEmbedding to audio_features...");
+                        command.CommandText = @"ALTER TABLE ""audio_features"" ADD COLUMN ""DeepTextureEmbedding"" BLOB NULL;";
+                        await command.ExecuteNonQueryAsync();
+                        _logger.LogInformation("✅ DeepTextureEmbedding column added to audio_features");
+                    }
+                }
+                catch (Exception ex) { _logger.LogWarning(ex, "Failed to patch DeepTextureEmbedding"); }
+            }
+
             _logger.LogInformation("Schema patching completed.");
         }
         catch (Exception ex)

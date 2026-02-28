@@ -49,6 +49,14 @@ namespace SLSKDONET.Models.Musical
         /// </summary>
         public double TimbreScore { get; set; }
 
+        /// <summary>
+        /// Deep Texture / Sonic DNA similarity (Phase 5).
+        /// SIMD-accelerated Cosine Similarity between 512-D deep embeddings
+        /// from discogs-effnet model. Captures actual sonic texture rather than
+        /// genre metadata. Null/0 when embedding data unavailable.
+        /// </summary>
+        public double TextureScore { get; set; }
+
         // --------------------------------------------------------
         // Final Aggregated Confidence (0.0 – 1.0)
         // --------------------------------------------------------

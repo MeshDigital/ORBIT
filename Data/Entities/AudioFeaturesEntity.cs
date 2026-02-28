@@ -272,6 +272,44 @@ public class AudioFeaturesEntity
         }
     }
 
+    // ============================================
+    // Phase 5: Deep DNA — 512-D Texture Embedding
+    // ============================================
+
+    /// <summary>
+    /// Raw 512-D deep texture embedding from discogs-effnet model.
+    /// Stored as a compact byte[] BLOB (512 floats × 4 bytes = 2048 bytes).
+    /// </summary>
+    [Column("DeepTextureEmbedding")]
+    public byte[]? DeepTextureEmbeddingBytes { get; set; }
+
+    /// <summary>
+    /// Friendly float[] access for the 512-D deep texture vector.
+    /// Uses Buffer.BlockCopy for zero-allocation deserialization.
+    /// </summary>
+    [NotMapped]
+    public float[]? DeepTextureEmbedding
+    {
+        get
+        {
+            if (DeepTextureEmbeddingBytes == null) return null;
+            var floatArray = new float[DeepTextureEmbeddingBytes.Length / 4];
+            Buffer.BlockCopy(DeepTextureEmbeddingBytes, 0, floatArray, 0, DeepTextureEmbeddingBytes.Length);
+            return floatArray;
+        }
+        set
+        {
+            if (value == null)
+            {
+                DeepTextureEmbeddingBytes = null;
+                return;
+            }
+            var byteArray = new byte[value.Length * 4];
+            Buffer.BlockCopy(value, 0, byteArray, 0, byteArray.Length);
+            DeepTextureEmbeddingBytes = byteArray;
+        }
+    }
+
     /// <summary>
     /// Electronic subgenre from 'genre_electronic-musicnn-msd-2.pb'.
     /// Values: "DnB", "House", "Techno", "Trance", "Ambient", "Unknown"
