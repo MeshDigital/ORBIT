@@ -30,6 +30,16 @@ public class PlaylistTrackViewModel : INotifyPropertyChanged, Library.ILibraryNo
     private bool _isEnriching; // New field for metadata enrichment feedback
     private bool _isSelected;
     private List<OrbitCue> _cues = new();
+    
+    // NEW Phase 12.1: Live Console Log for granular updates
+    public System.Collections.ObjectModel.ObservableCollection<string> LiveConsoleLog { get; } = new();
+
+    private bool _isConsoleOpen;
+    public bool IsConsoleOpen
+    {
+        get => _isConsoleOpen;
+        set => SetProperty(ref _isConsoleOpen, value);
+    }
 
     public bool IsSelected
     {
@@ -611,7 +621,8 @@ public class PlaylistTrackViewModel : INotifyPropertyChanged, Library.ILibraryNo
         _ => "#E91E63"      // Pink/Red
     };
 
-    public bool IsHighRisk => Model.IsFlagged;
+    // Phase 12.1: Only show High Risk badge if it's a final heuristic score, not while searching
+    public bool IsHighRisk => Model.IsFlagged && State != PlaylistTrackState.Searching && State != PlaylistTrackState.Queued && State != PlaylistTrackState.Pending;
     public string? FlagReason => Model.FlagReason;
     
     public string LoudnessDisplay => Model.Loudness.HasValue ? $"{Model.Loudness:F1} LUFS" : "—";
@@ -1000,12 +1011,35 @@ public class PlaylistTrackViewModel : INotifyPropertyChanged, Library.ILibraryNo
              State = evt.State;
              if (evt.Error != null) ErrorMessage = evt.Error;
              OnPropertyChanged(nameof(DetailedStatusText)); // Update tooltip
+             OnPropertyChanged(nameof(IsHighRisk)); // Notify IsHighRisk changes based on state
              
              // NEW: Load file size from disk when track completes
              if (evt.State == PlaylistTrackState.Completed && FileSizeBytes == 0)
              {
                  LoadFileSizeFromDisk();
              }
+        });
+    }
+    
+    // Phase 12.1: Live Console Updates
+    internal void OnDetailedStatus(Events.TrackDetailedStatusEvent evt)
+    {
+        if (evt.TrackHash != GlobalId) return;
+        
+        Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() =>
+        {
+             // Add to log (max 100 items to prevent memory leaks)
+             if (LiveConsoleLog.Count >= 100)
+             {
+                 LiveConsoleLog.RemoveAt(0);
+             }
+             
+             string timeStamp = DateTime.Now.ToString("HH:mm:ss");
+             string prefix = evt.IsError ? "❌" : "ℹ️";
+             LiveConsoleLog.Add($"[{timeStamp}] {prefix} {evt.Message}");
+             
+             // If we get an error detailed status and we are searching, we could optionally update the main StatusText too,
+             // but staying focused on LiveConsoleLog for the granular details is preferred.
         });
     }
     

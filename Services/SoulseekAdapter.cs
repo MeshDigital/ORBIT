@@ -205,6 +205,20 @@ public class SoulseekAdapter : ISoulseekAdapter, IDisposable
 
             _logger.LogInformation("Search started for query {SearchQuery} with mode {SearchMode}, format filter {FormatFilter}, bitrate range {MinBitrate}-{MaxBitrate}",
                 query, mode, formatFilter == null ? "NONE" : string.Join(", ", formatFilter), minBitrateStr, maxBitrateStr);
+
+            // NEW Phase 12.2: Proactive Network Safety - Prevent sending banned phrases
+            var lowerQuery = query.ToLowerInvariant();
+            if (_excludedPhrases.Count > 0)
+            {
+                 foreach (var phrase in _excludedPhrases.Keys)
+                 {
+                     if (lowerQuery.Contains(phrase))
+                     {
+                         _logger.LogWarning("🚨 [NETWORK SAFETY] Aborting search to prevent soft-ban: Query '{Query}' contains banned phrase '{Phrase}'", query, phrase);
+                         return 0;
+                     }
+                 }
+            }
             
             var searchQuery = Soulseek.SearchQuery.FromText(query);
             var options = new SearchOptions(
@@ -273,22 +287,27 @@ public class SoulseekAdapter : ISoulseekAdapter, IDisposable
                                 }
                             }
 
+                            // NEW Phase 12.3: Extract Bitrate quickly to avoid allocating full Track object if it fails filters
+                            var bitrateAttr = file.Attributes?.FirstOrDefault(a => a.Type == Soulseek.FileAttributeType.BitRate);
+                            var rawBitrate = bitrateAttr?.Value ?? 0;
+                            
+                            // Apply bitrate filter BEFORE object allocation
+                            if (bitrateFilter.Min.HasValue && rawBitrate < bitrateFilter.Min.Value)
+                            {
+                                filteredByBitrate++;
+                                _logger.LogTrace("Filtered by bitrate (too low): {File} ({Bitrate} < {Min})", file.Filename, rawBitrate, bitrateFilter.Min.Value);
+                                continue;
+                            }
+                            if (bitrateFilter.Max.HasValue && rawBitrate > bitrateFilter.Max.Value && bitrateFilter.Max.Value > 0)
+                            {
+                                filteredByBitrate++;
+                                _logger.LogTrace("Filtered by bitrate (too high): {File} ({Bitrate} > {Max})", file.Filename, rawBitrate, bitrateFilter.Max.Value);
+                                continue;
+                            }
+
+                            // Memory Optimization: Only allocate Track object for files that survive the filters
                             // Use the helper method to parse metadata correctly
                             var track = ParseTrackFromFile(file, response);
-                            
-                            // Apply bitrate filter
-                            if (bitrateFilter.Min.HasValue && track.Bitrate < bitrateFilter.Min.Value)
-                            {
-                                filteredByBitrate++;
-                                _logger.LogTrace("Filtered by bitrate (too low): {File} ({Bitrate} < {Min})", file.Filename, track.Bitrate, bitrateFilter.Min.Value);
-                                continue;
-                            }
-                            if (bitrateFilter.Max.HasValue && track.Bitrate > bitrateFilter.Max.Value && bitrateFilter.Max.Value > 0)
-                            {
-                                filteredByBitrate++;
-                                _logger.LogTrace("Filtered by bitrate (too high): {File} ({Bitrate} > {Max})", file.Filename, track.Bitrate, bitrateFilter.Max.Value);
-                                continue;
-                            }
 
                             if (resultCount <= 3) // Log first 3 matches
                             {

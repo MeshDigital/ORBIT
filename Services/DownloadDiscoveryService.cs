@@ -84,6 +84,7 @@ public class DownloadDiscoveryService
 
             _logger.LogInformation("Discovery Tier {Tier} started for: {Query} (GlobalId: {Id})", tierNames[i], query, track.TrackUniqueHash);
             _forensicLogger.Info(track.TrackUniqueHash, Data.Entities.ForensicStage.Discovery, $"Tier {tierNames[i]} Search Query: \"{query}\"");
+            _eventBus.Publish(new Events.TrackDetailedStatusEvent(track.TrackUniqueHash, $"🔎 Started {tierNames[i]} search for: '{query}'..."));
 
             var result = await PerformSearchTierAsync(track, query, tierNames[i], ct, blacklistedUsers, log);
 
@@ -138,6 +139,7 @@ public class DownloadDiscoveryService
             {
                 formatsList = new List<string> { "mp3" };
                 _logger.LogInformation("🛠️ OnHold Status: Searching strictly for MP3 fallback for {Title}", track.Title);
+                _eventBus.Publish(new Events.TrackDetailedStatusEvent(track.TrackUniqueHash, "⚠️ Track is OnHold. Focusing strictly on MP3 formats."));
             }
             else
             {
@@ -202,6 +204,7 @@ public class DownloadDiscoveryService
                     blacklistedUsers.Contains(searchTrack.Username))
                 {
                     log.RejectedByBlacklist++;
+                    _eventBus.Publish(new Events.TrackDetailedStatusEvent(track.TrackUniqueHash, $"Skipping peer {searchTrack.Username} (Blacklisted)", true));
                     continue;
                 }
 
@@ -226,6 +229,7 @@ public class DownloadDiscoveryService
                         reason: safety.Reason,
                         details: safety.TechnicalDetails ?? $"Bitrate: {searchTrack.Bitrate}kbps"
                     );
+                    _eventBus.Publish(new Events.TrackDetailedStatusEvent(track.TrackUniqueHash, $"Rejected {searchTrack.Username}: {safety.Reason}", true));
                     continue; 
                 }
 
@@ -247,6 +251,7 @@ public class DownloadDiscoveryService
                         $"Quick Strike (95+): Approved {searchTrack.Username}'s file. {matchResult.ScoreBreakdown}",
                         track.TrackUniqueHash,
                         new { searchTrack.Filename, score, searchTrack.Bitrate, searchTrack.Username });
+                    _eventBus.Publish(new Events.TrackDetailedStatusEvent(track.TrackUniqueHash, $"🚀 Found high-confidence match from {searchTrack.Username} ({score:F0}/100)"));
                     return new DiscoveryResult(searchTrack, log);
                 }
 
@@ -280,7 +285,13 @@ public class DownloadDiscoveryService
                         $"Speculative Trigger (70+): 3s timeout reached. Approved {bestSilverMatch.Username}'s file. Score: {bestSilverScore}",
                         track.TrackUniqueHash,
                         new { bestSilverMatch.Filename, bestSilverScore, bestSilverMatch.Bitrate, bestSilverMatch.Username });
+                    _eventBus.Publish(new Events.TrackDetailedStatusEvent(track.TrackUniqueHash, $"⏳ 3s timeout reached. Processing silver match from {bestSilverMatch.Username}"));
                     return new DiscoveryResult(bestSilverMatch, log);
+                }
+
+                if (score < 40 && allTracks.Count < 30) // Only spam UI for the first few rejections
+                {
+                     _eventBus.Publish(new Events.TrackDetailedStatusEvent(track.TrackUniqueHash, $"Rejected {searchTrack.Username}: {matchResult.ShortReason}", true));
                 }
 
                 allTracks.Add(searchTrack);
@@ -289,6 +300,7 @@ public class DownloadDiscoveryService
             if (!allTracks.Any())
             {
                 _logger.LogWarning("No results found for {Query}", query);
+                _eventBus.Publish(new Events.TrackDetailedStatusEvent(track.TrackUniqueHash, $"❌ No results found on network for this query.", true));
                 return new DiscoveryResult(null, log);
             }
 
@@ -341,6 +353,7 @@ public class DownloadDiscoveryService
             {
                 var tier = MetadataForensicService.CalculateTier(bestMatch);
                 _logger.LogInformation("🧠 BRAIN: Unified Matcher selected: {Filename} (Tier: {Tier})", bestMatch.Filename, tier);
+                _eventBus.Publish(new Events.TrackDetailedStatusEvent(track.TrackUniqueHash, $"🧠 Selected {bestMatch.Username}'s file ({tier})"));
                 return new DiscoveryResult(bestMatch, log);
             }
 
@@ -390,6 +403,7 @@ public class DownloadDiscoveryService
             }
 
             _logger.LogWarning("🧠 BRAIN: No suitable match found for query tier. {Summary}", log.GetSummary());
+            _eventBus.Publish(new Events.TrackDetailedStatusEvent(track.TrackUniqueHash, $"❌ No acceptable match found in {tierName} tier.", true));
             return new DiscoveryResult(null, log);
         }
         catch (OperationCanceledException)

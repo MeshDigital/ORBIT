@@ -25,7 +25,24 @@
             <Setter Property="Background" Value="{DynamicResource HoverBrush}"/>
             <Setter Property="Foreground" Value="White"/>
         </Style>
-        
+        <Style Selector="ToggleButton.ActionBtn">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Padding" Value="8"/>
+            <Setter Property="CornerRadius" Value="4"/>
+            <Setter Property="Foreground" Value="{DynamicResource TextSecondaryBrush}"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+        </Style>
+        <Style Selector="ToggleButton.ActionBtn:hover">
+            <Setter Property="Background" Value="{DynamicResource HoverBrush}"/>
+            <Setter Property="Foreground" Value="White"/>
+        </Style>
+        <Style Selector="ToggleButton.ActionBtn:checked">
+            <Setter Property="Background" Value="#3300BFFF"/>
+            <Setter Property="Foreground" Value="#00BFFF"/>
+        </Style>
+
         <Style Selector="Button.pending">
             <Setter Property="Opacity" Value="0.5"/>
         </Style>
@@ -145,7 +162,7 @@
     </UserControl.Styles>
 
     <Border Classes="root" Classes.active="{Binding IsDownloading}" Classes.stalled="{Binding IsStalled}">
-        <Panel>
+        <StackPanel>
             <!-- Phase 5B: Removed waveform underlay - was visually noisy in list context -->
             
         <!-- Column 0: Art & Health, 1: Artist, 2: Title, 3: BPM/Key, 4: Badges, 5: Actions -->
@@ -446,9 +463,28 @@
                 <Button Classes="ActionBtn" Command="{Binding CancelCommand}" IsVisible="{Binding IsActive}" ToolTip.Tip="Cancel"><PathIcon Data="{StaticResource dismiss_regular}" Width="14" Height="14" Foreground="#FF6666"/></Button>
                 <Button Classes="ActionBtn" Command="{Binding $parent[UserControl].DataContext.InitiateMp3SearchCommand}" CommandParameter="{Binding}" IsVisible="{Binding IsOnHold}" ToolTip.Tip="Manual MP3 Search (On Hold)"><PathIcon Data="{StaticResource music_regular}" Width="14" Height="14" Foreground="#818CF8"/></Button>
                 <Button Classes="ActionBtn" Command="{Binding RetryCommand}" IsVisible="{Binding CanRetry}" ToolTip.Tip="Retry"><PathIcon Data="{StaticResource arrow_counterclockwise_regular}" Width="14" Height="14" Foreground="#4CAF50"/></Button>
+                
+                <!-- NEW Phase 12.1: Live Console Toggle -->
+                <ToggleButton Classes="ActionBtn" IsChecked="{Binding IsConsoleOpen}" ToolTip.Tip="Toggle Live Console">
+                    <PathIcon Data="{StaticResource text_bullet_list_square_regular}" Width="14" Height="14"/>
+                </ToggleButton>
             </StackPanel>
 
         </Grid>
-        </Panel>
+
+        <!-- Phase 12.1: Live Console Panel -->
+        <Border IsVisible="{Binding IsConsoleOpen}" Background="#0A000000" CornerRadius="4" Margin="52,0,8,8" Padding="12" BorderBrush="#1AFFFFFF" BorderThickness="1">
+            <ScrollViewer MaxHeight="200" HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto">
+                <ItemsControl ItemsSource="{Binding LiveConsoleLog}">
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate>
+                            <TextBlock Text="{Binding}" FontFamily="Consolas, SF Mono, default" FontSize="11" Foreground="#A0A0A0" TextWrapping="Wrap" Margin="0,2"/>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+            </ScrollViewer>
+        </Border>
+        
+        </StackPanel>
     </Border>
 </UserControl>
