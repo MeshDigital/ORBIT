@@ -838,7 +838,8 @@ public class DownloadManager : INotifyPropertyChanged, IDisposable
         var isSearchFailure = failureReason == DownloadFailureReason.NoSearchResults ||
                               failureReason == DownloadFailureReason.AllResultsRejectedQuality ||
                               failureReason == DownloadFailureReason.AllResultsRejectedFormat ||
-                              failureReason == DownloadFailureReason.AllResultsBlacklisted;
+                              failureReason == DownloadFailureReason.AllResultsBlacklisted ||
+                              failureReason == DownloadFailureReason.DiscoveryTimeout;
 
         // If we have search attempt logs, add the best rejection details
         if (isSearchFailure && ctx.SearchAttempts.Any())
@@ -1321,6 +1322,27 @@ public class DownloadManager : INotifyPropertyChanged, IDisposable
                     }
                 }
                 await _pathProvider.CleanupOrphanedPartFilesAsync(activePartPaths);
+
+                // Startup Orphan Sweep: catch tracks the crash journal didn't handle
+                // (e.g., tracks stuck in Searching/Downloading without journal entries)
+                List<DownloadContext> orphans;
+                lock (_collectionLock)
+                {
+                    orphans = _downloads.Where(d =>
+                        d.State == PlaylistTrackState.Searching ||
+                        d.State == PlaylistTrackState.Downloading ||
+                        d.State == PlaylistTrackState.Stalled).ToList();
+                }
+
+                if (orphans.Any())
+                {
+                    _logger.LogWarning("🧹 Orphan Sweep: Found {Count} tracks stuck in active states from previous session.", orphans.Count);
+                    foreach (var orphan in orphans)
+                    {
+                        await UpdateStateAsync(orphan, PlaylistTrackState.Failed,
+                            DownloadFailureReason.Interrupted);
+                    }
+                }
             }
             catch (Exception ex)
             {
@@ -1820,7 +1842,13 @@ public class DownloadManager : INotifyPropertyChanged, IDisposable
                     if (ctx.SearchAttempts.Any())
                     {
                         var lastAttempt = ctx.SearchAttempts.Last();
-                        if (lastAttempt.ResultsCount > 0)
+                        
+                        // Check for discovery timeout first (90s global limit)
+                        if (lastAttempt.TimedOut)
+                        {
+                            failureReason = DownloadFailureReason.DiscoveryTimeout;
+                        }
+                        else if (lastAttempt.ResultsCount > 0)
                         {
                             // Results were found but rejected - determine why
                             if (lastAttempt.RejectedByQuality > 0)

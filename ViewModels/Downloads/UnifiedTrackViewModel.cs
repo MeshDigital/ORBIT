@@ -549,6 +549,13 @@ public class UnifiedTrackViewModel : ReactiveObject, IDisplayableTrack, IDisposa
 
     public string CompletedAtDisplay => Model.CompletedAt?.ToString("g") ?? Model.AddedAt.ToString("g");
 
+    private bool _isClearedFromDownloadCenter;
+    public bool IsClearedFromDownloadCenter
+    {
+        get => _isClearedFromDownloadCenter;
+        set => this.RaiseAndSetIfChanged(ref _isClearedFromDownloadCenter, value);
+    }
+
     public string TechnicalSummary
     {
         get
@@ -880,6 +887,16 @@ public class UnifiedTrackViewModel : ReactiveObject, IDisplayableTrack, IDisposa
         FailureReason = e.Error;
         FailureEnum = e.FailureReason;
         
+        // Force-100%: Bypass throttle and ensure progress bar completes
+        if (e.State == PlaylistTrackState.Completed)
+        {
+            Progress = 100;
+            _currentSpeed = 0;
+            this.RaisePropertyChanged(nameof(StatusText));
+            this.RaisePropertyChanged(nameof(SpeedDisplay));
+            this.RaisePropertyChanged(nameof(TechnicalSummary));
+        }
+        
         // Capture Peer Name if provided in the event or available from manager
         if (e.State == PlaylistTrackState.Downloading)
         {
@@ -929,6 +946,9 @@ public class UnifiedTrackViewModel : ReactiveObject, IDisplayableTrack, IDisposa
         }
     }
 
+    private DateTime _lastUiRefreshTime = DateTime.MinValue;
+    private static readonly TimeSpan UiThrottleInterval = TimeSpan.FromMilliseconds(250);
+
     private void OnProgressChanged(TrackProgressChangedEvent e)
     {
         if (e.TrackGlobalId != GlobalId) return;
@@ -941,10 +961,11 @@ public class UnifiedTrackViewModel : ReactiveObject, IDisplayableTrack, IDisposa
             this.RaisePropertyChanged(nameof(StalledReason));
         }
         
+         // Always update internal data (no throttling on data)
          Progress = e.Progress;
          _totalBytes = e.TotalBytes;
          
-         // Speed Calc
+         // Speed Calc (always compute, only push to UI on throttle tick)
          var now = DateTime.UtcNow;
          if (_lastProgressTime != DateTime.MinValue)
          {
@@ -955,19 +976,18 @@ public class UnifiedTrackViewModel : ReactiveObject, IDisplayableTrack, IDisposa
                  if (bytesDiff > 0)
                  {
                      var instantSpeed = bytesDiff / seconds;
-                     // Simple smoothing
                      _currentSpeed = (_currentSpeed * 0.7) + (instantSpeed * 0.3); 
-                     this.RaisePropertyChanged(nameof(TechnicalSummary));
                  }
              }
          }
          _bytesReceived = e.BytesReceived;
          _lastProgressTime = now;
+         LastActivity = now;
          
-         // In-Flight Forensic Triggers
+         // In-Flight Forensic Triggers (always fire immediately)
          if (State == PlaylistTrackState.Downloading)
          {
-             if (!_hasPerformedHeadCheck5 && Progress >= 1) // Trigger early at 1%
+             if (!_hasPerformedHeadCheck5 && Progress >= 1)
              {
                  _hasPerformedHeadCheck5 = true;
                  _ = PerformInFlightForensicsAsync("Head-Check (Initial)");
@@ -979,8 +999,17 @@ public class UnifiedTrackViewModel : ReactiveObject, IDisplayableTrack, IDisposa
              }
          }
 
-         this.RaisePropertyChanged(nameof(StatusText));
-         LastActivity = DateTime.UtcNow;
+         // THROTTLED UI REFRESH: Only push property changes at 250ms intervals
+         // Exception: always push immediately at 100% to avoid "stuck at 99%" bug
+         var timeSinceLastRefresh = now - _lastUiRefreshTime;
+         if (Progress >= 100 || timeSinceLastRefresh >= UiThrottleInterval)
+         {
+             _lastUiRefreshTime = now;
+             this.RaisePropertyChanged(nameof(StatusText));
+             this.RaisePropertyChanged(nameof(TechnicalSummary));
+             this.RaisePropertyChanged(nameof(SpeedDisplay));
+             this.RaisePropertyChanged(nameof(CurrentSpeedBytes));
+         }
     }
 
     private async Task PerformInFlightForensicsAsync(string stage)

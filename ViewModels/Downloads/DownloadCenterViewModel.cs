@@ -337,8 +337,18 @@ public class DownloadCenterViewModel : ReactiveObject, IDisposable
              });
         };
         
-        ClearCompletedCommand = ReactiveCommand.Create(() => 
-            _downloadsSource.Remove(_downloadsSource.Items.Where(x => x.State == PlaylistTrackState.Completed).ToList()));
+        ClearCompletedCommand = ReactiveCommand.CreateFromTask(async () =>
+        {
+            var completedItems = _downloadsSource.Items
+                .Where(x => x.State == PlaylistTrackState.Completed && !x.IsClearedFromDownloadCenter)
+                .ToList();
+            foreach (var item in completedItems)
+            {
+                item.IsClearedFromDownloadCenter = true;
+                item.Model.IsClearedFromDownloadCenter = true;
+                await _libraryService.UpdatePlaylistTrackAsync(item.Model);
+            }
+        });
         
         ClearFailedCommand = ReactiveCommand.Create(() => 
             _downloadsSource.Remove(_downloadsSource.Items.Where(x => x.State == PlaylistTrackState.Failed).ToList()));
@@ -430,6 +440,7 @@ public class DownloadCenterViewModel : ReactiveObject, IDisposable
             .AutoRefresh(x => x.IsActive) // FIX: UI lists bind to IsActive etc.
             .AutoRefresh(x => x.IsCompleted)
             .AutoRefresh(x => x.IsFailed)
+            .AutoRefresh(x => x.IsClearedFromDownloadCenter) // Soft Clear
             .Publish(); // Share subscription
 
         // Active Pipeline
@@ -571,7 +582,7 @@ public class DownloadCenterViewModel : ReactiveObject, IDisposable
             .Select(BuildFilter);
 
         sharedSource
-            .Filter(x => x.State == PlaylistTrackState.Completed)
+            .Filter(x => x.State == PlaylistTrackState.Completed && !x.IsClearedFromDownloadCenter)
             .Filter(completedFilter)
             .SortAndBind(out _completedDownloads, SortExpressionComparer<UnifiedTrackViewModel>.Descending(x => x.Model.AddedAt))
             .Subscribe();

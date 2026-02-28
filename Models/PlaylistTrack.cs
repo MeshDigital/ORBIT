@@ -194,6 +194,12 @@ public class PlaylistTrack
     public bool IsEnriched { get; set; } = false;
     public bool IsUserPaused { get; set; } = false; // Phase 13 Hardening
     public string? StalledReason { get; set; } // [NEW] Overhaul Phase
+    
+    /// <summary>
+    /// Soft-clear flag: hides from Download Center without deleting from library.
+    /// Persisted to DB so tracks don't reappear on restart.
+    /// </summary>
+    public bool IsClearedFromDownloadCenter { get; set; } = false;
     public bool IsPrepared { get; set; } = false; // Phase 10
     public bool IsReviewNeeded { get; set; } = false; // Phase 10.4
     public string? PrimaryGenre { get; set; } // Phase 10

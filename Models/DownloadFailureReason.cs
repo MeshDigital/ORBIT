@@ -21,7 +21,9 @@ public enum DownloadFailureReason
     Timeout,
     DiskFull,
     PermissionDenied,
-    UserCancelled
+    UserCancelled,
+    Interrupted,        // App closed mid-download
+    DiscoveryTimeout    // 90s search timeout
 }
 
 /// <summary>
@@ -48,6 +50,8 @@ public static class DownloadFailureReasonExtensions
             DownloadFailureReason.DiskFull => "System error: No space left on device",
             DownloadFailureReason.PermissionDenied => "System error: Permission denied",
             DownloadFailureReason.UserCancelled => "Cancelled by user",
+            DownloadFailureReason.Interrupted => "App closed during download (Incomplete)",
+            DownloadFailureReason.DiscoveryTimeout => "Search timed out after 90s",
             _ => "Unknown failure"
         };
     }
@@ -90,6 +94,8 @@ public static class DownloadFailureReasonExtensions
             DownloadFailureReason.UserCancelled => false,
             DownloadFailureReason.DiskFull => false,
             DownloadFailureReason.PermissionDenied => false,
+            DownloadFailureReason.Interrupted => true,       // Should retry on next boot
+            DownloadFailureReason.DiscoveryTimeout => true,  // Should retry with different timing
             _ => true
         };
     }

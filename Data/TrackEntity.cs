@@ -265,6 +265,7 @@ public class PlaylistTrackEntity
     public bool IsEnriched { get; set; } = false;
     public bool IsUserPaused { get; set; } = false; // Phase 13 Hardening
     public string? StalledReason { get; set; } // [NEW] Overhaul Phase
+    public bool IsClearedFromDownloadCenter { get; set; } = false; // Soft Clear
     public bool IsPrepared { get; set; } = false; // Phase 10
     
     public AnalysisStatus AnalysisStatus { get; set; } = AnalysisStatus.None;
