@@ -22,13 +22,14 @@ public class StudioProViewModel : ReactiveObject, IDisposable
     public TransitionProberViewModel ProberViewModel { get; }
     public SLSKDONET.ViewModels.PlayerViewModel PlayerViewModel { get; }
 
-    public ObservableCollection<SLSKDONET.ViewModels.PlaylistTrackViewModel> Tracks { get; } = new();
+    // Phase 2: High-Fidelity Grid Properties
+    public ObservableCollection<IDisplayableTrack> WorkspaceTracks { get; } = new();
 
-    private SLSKDONET.ViewModels.PlaylistTrackViewModel? _selectedTrack;
-    public SLSKDONET.ViewModels.PlaylistTrackViewModel? SelectedTrack
+    private IDisplayableTrack? _selectedStudioTrack;
+    public IDisplayableTrack? SelectedStudioTrack
     {
-        get => _selectedTrack;
-        set => this.RaiseAndSetIfChanged(ref _selectedTrack, value);
+        get => _selectedStudioTrack;
+        set => this.RaiseAndSetIfChanged(ref _selectedStudioTrack, value);
     }
 
     private string _workspaceTitle = "ORBIT STUDIO";
@@ -73,7 +74,7 @@ public class StudioProViewModel : ReactiveObject, IDisposable
         _ = LoadTracksAsync();
 
         // Handle selection sync
-        this.WhenAnyValue(x => x.SelectedTrack)
+        this.WhenAnyValue(x => x.SelectedStudioTrack)
             .WhereNotNull()
             .Subscribe(track => HydrateInspectorPanels(track))
             .DisposeWith(_disposables);
@@ -88,11 +89,11 @@ public class StudioProViewModel : ReactiveObject, IDisposable
 
             await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() =>
             {
-                Tracks.Clear();
+                WorkspaceTracks.Clear();
                 foreach (var track in allTracks.Take(100))
                 {
                     var vm = new SLSKDONET.ViewModels.PlaylistTrackViewModel(track, _eventBus, _libraryService, _artworkCacheService);
-                    Tracks.Add(vm);
+                    WorkspaceTracks.Add(vm);
                 }
             });
         }
@@ -102,9 +103,12 @@ public class StudioProViewModel : ReactiveObject, IDisposable
         }
     }
 
-    private void HydrateInspectorPanels(SLSKDONET.ViewModels.PlaylistTrackViewModel track)
+    private void HydrateInspectorPanels(IDisplayableTrack track)
     {
-        _eventBus.Publish(new SLSKDONET.Models.PlayTrackRequestEvent(track));
+        if (track is SLSKDONET.ViewModels.PlaylistTrackViewModel playlistVM)
+        {
+            _eventBus.Publish(new SLSKDONET.Models.PlayTrackRequestEvent(playlistVM));
+        }
     }
 
     public void Dispose()
