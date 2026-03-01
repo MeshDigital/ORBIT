@@ -1,0 +1,54 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="clr-namespace:SLSKDONET.Features.LibrarySidebar.ViewModels"
+             xmlns:models="clr-namespace:SLSKDONET.Models"
+             xmlns:conv="clr-namespace:SLSKDONET.Converters"
+             x:Class="SLSKDONET.Views.Avalonia.Studio.StudioCueView"
+             x:DataType="vm:CueSidebarViewModel">
+
+    <UserControl.Resources>
+        <conv:PhraseTypeToColorConverter x:Key="PhraseColorConverter" />
+    </UserControl.Resources>
+
+    <Grid RowDefinitions="Auto,*">
+        <!-- AI Analysis Status (Minimalist) -->
+        <Border Grid.Row="0" Background="#121212" Padding="15,10" IsVisible="{Binding IsAnalyzing}">
+            <StackPanel Orientation="Horizontal" Spacing="10">
+                <ProgressBar IsIndeterminate="True" Height="2" Width="60" Foreground="#00FFFF" Background="#2D2D2D" VerticalAlignment="Center"/>
+                <TextBlock Text="AI ANALYZING STRUCTURE..." FontSize="10" Foreground="#00FFFF" VerticalAlignment="Center" LetterSpacing="1"/>
+            </StackPanel>
+        </Border>
+
+        <!-- Phrase List (Flat DAW Style) -->
+        <ScrollViewer Grid.Row="1">
+            <ItemsControl ItemsSource="{Binding Phrases}">
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate>
+                        <Border BorderBrush="#2D2D2D" BorderThickness="0,0,0,1" Padding="15,12">
+                            <Grid ColumnDefinitions="Auto,*,Auto">
+                                <!-- Energy Marker -->
+                                <Border Grid.Column="0" Width="4" Height="24" Background="{Binding Type, Converter={StaticResource PhraseColorConverter}}" CornerRadius="2" Margin="0,0,15,0"/>
+                                
+                                <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                    <TextBlock Text="{Binding Name}" Foreground="#E0E0E0" FontSize="12" FontWeight="SemiBold"/>
+                                    <TextBlock Text="{Binding DurationDisplay}" Foreground="#888" FontSize="10"/>
+                                </StackPanel>
+
+                                <StackPanel Grid.Column="2" VerticalAlignment="Center" HorizontalAlignment="Right">
+                                    <TextBlock Text="{Binding StartTimeDisplay}" Foreground="#00FFFF" FontSize="11" FontWeight="Bold" HorizontalAlignment="Right"/>
+                                    <TextBlock Text="START" Foreground="#444" FontSize="8" HorizontalAlignment="Right"/>
+                                </StackPanel>
+                            </Grid>
+                        </Border>
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
+        </ScrollViewer>
+
+        <!-- Empty State -->
+        <StackPanel Grid.Row="1" VerticalAlignment="Center" HorizontalAlignment="Center" IsVisible="{Binding !HasPhrases}" Opacity="0.5">
+            <PathIcon Data="{StaticResource location_pin_regular}" Width="24" Foreground="#444" Margin="0,0,0,10"/>
+            <TextBlock Text="NO CUE DATA" FontSize="10" Foreground="#444" LetterSpacing="1"/>
+        </StackPanel>
+    </Grid>
+</UserControl>

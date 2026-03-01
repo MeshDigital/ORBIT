@@ -383,6 +383,15 @@
                                     </StackPanel>
                                 </Button>
 
+                                <Button Classes="nav" Command="{Binding NavigateOrbitStudioCommand}"
+                                        ToolTip.Tip="The Studio"
+                                        Classes.selected="{Binding CurrentPageType, Converter={StaticResource EqualityConverter}, ConverterParameter={x:Static models:PageType.OrbitStudio}}">
+                                    <StackPanel Orientation="Horizontal" Spacing="12" Margin="16,0">
+                                        <TextBlock Text="🎛️" FontSize="16"/>
+                                        <TextBlock Text="The Studio" FontSize="14"/>
+                                    </StackPanel>
+                                </Button>
+
                                 <Button Classes="nav" Command="{Binding NavigateDawCommand}"
                                         ToolTip.Tip="Timeline"
                                         Classes.selected="{Binding Workspace.CurrentContext, Converter={StaticResource EqualityConverter}, ConverterParameter={x:Static models:WorkspaceContext.SetDesigner}}">

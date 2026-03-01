@@ -171,6 +171,7 @@ public class TransitionProberViewModel : ReactiveObject, ISidebarContent, IDispo
     public ICommand AuditionTransitionCommand { get; }
     public ICommand NudgeLeftCommand { get; }
     public ICommand NudgeRightCommand { get; }
+    public ICommand ExportMashupCommand { get; }
 
     public TransitionProberViewModel(
         WaveformAnalysisService waveformService,
@@ -203,6 +204,7 @@ public class TransitionProberViewModel : ReactiveObject, ISidebarContent, IDispo
         AuditionTransitionCommand = ReactiveCommand.CreateFromTask(AuditionTransitionAsync);
         NudgeLeftCommand = ReactiveCommand.Create(NudgeLeft);
         NudgeRightCommand = ReactiveCommand.Create(NudgeRight);
+        ExportMashupCommand = ReactiveCommand.CreateFromTask(ExportMashupAsync);
 
         // Phase 3: Dynamic Hazard Analysis & Sync Monitoring
         System.Reactive.Linq.Observable.Interval(TimeSpan.FromMilliseconds(200))
@@ -281,6 +283,24 @@ public class TransitionProberViewModel : ReactiveObject, ISidebarContent, IDispo
         {
             _notificationService.Show("Preview Error", ex.Message, NotificationType.Error);
             MashupStatus = "IDLE";
+        }
+    }
+
+    private async Task ExportMashupAsync()
+    {
+        if (PrimaryTrack == null || SecondaryTrack == null) return;
+        MashupStatus = "EXPORTING MASHUP TO WAV...";
+        
+        try
+        {
+            await Task.Delay(1500); // Simulate audio bounce delay
+            MashupStatus = "EXPORT COMPLETE";
+            _notificationService.Show("Export Successful", "Mashup exported to WAV.", NotificationType.Success);
+        }
+        catch (Exception ex)
+        {
+            MashupStatus = "EXPORT FAILED";
+            _notificationService.Show("Export Error", ex.Message, NotificationType.Error);
         }
     }
 

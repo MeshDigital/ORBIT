@@ -1,0 +1,42 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="clr-namespace:SLSKDONET.Features.LibrarySidebar.ViewModels"
+             x:Class="SLSKDONET.Views.Avalonia.Studio.StudioProberView"
+             x:DataType="vm:TransitionProberViewModel">
+
+    <Grid RowDefinitions="Auto,*">
+        <ScrollViewer Grid.Row="1">
+            <StackPanel Margin="15" Spacing="20">
+                <TextBlock Text="TRANSITION PROBER" FontSize="10" FontWeight="Bold" Foreground="#00FFFF" LetterSpacing="1"/>
+
+                <!-- AUDITION CROSSFADER (DAW STYLE) -->
+                <Border Background="#121212" Padding="20" BorderBrush="#2D2D2D" BorderThickness="1">
+                    <StackPanel Spacing="15">
+                        <Grid ColumnDefinitions="Auto,*,Auto">
+                            <TextBlock Text="A" FontWeight="Bold" Foreground="#00FFFF"/>
+                            <Slider Grid.Column="1" Value="{Binding CrossfadePosition}" Minimum="0" Maximum="1" Margin="15,0"/>
+                            <TextBlock Grid.Column="2" Text="B" FontWeight="Bold" Foreground="#B829EA"/>
+                        </Grid>
+                        <TextBlock Text="AUDITION BLEND" FontSize="9" Foreground="#444" HorizontalAlignment="Center"/>
+                    </StackPanel>
+                </Border>
+
+                <!-- ALIGNMENT CONTROLS -->
+                <Grid ColumnDefinitions="*,*">
+                    <Button Grid.Column="0" Content="NUDGE LEFT" Command="{Binding NudgeLeftCommand}" Margin="0,0,5,0" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" Background="#1E1E1E" BorderBrush="#2D2D2D" BorderThickness="1"/>
+                    <Button Grid.Column="1" Content="NUDGE RIGHT" Command="{Binding NudgeRightCommand}" Margin="5,0,0,0" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" Background="#1E1E1E" BorderBrush="#2D2D2D" BorderThickness="1"/>
+                </Grid>
+
+                <Button Content="SYNC PHRASE START" Command="{Binding SyncCommand}" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" Background="#2D2D2D" Foreground="#00FFFF" Padding="0,10"/>
+
+                <!-- MATCH STATUS -->
+                <Border Background="#1E1E1E" Padding="15" CornerRadius="4">
+                    <StackPanel Spacing="5">
+                        <TextBlock Text="ENERGY COMPATIBILITY" FontSize="9" Foreground="#888"/>
+                        <TextBlock Text="PERFECT MATCH" Foreground="#4CAF50" FontWeight="Bold" FontSize="12"/>
+                    </StackPanel>
+                </Border>
+            </StackPanel>
+        </ScrollViewer>
+    </Grid>
+</UserControl>

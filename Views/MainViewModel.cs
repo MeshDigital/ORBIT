@@ -64,6 +64,9 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
     // Phase 24: Stem Workspace
     public ViewModels.Stem.StemWorkspaceViewModel StemWorkspaceViewModel { get; }
     
+    // ORBIT Pro Studio Page
+    public StudioProViewModel OrbitStudioViewModel { get; }
+
     // Operation Glass Console: Unified Intelligence Center
     public IntelligenceCenterViewModel IntelligenceCenter { get; }
     public TheaterModeViewModel TheaterModeViewModel { get; }
@@ -121,6 +124,7 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
         IDialogService dialogService,
         ILibraryService libraryService,
         ViewModels.Stem.StemWorkspaceViewModel stemWorkspaceViewModel,
+        StudioProViewModel orbitStudioViewModel,
         IntelligenceCenterViewModel intelligenceCenter,
         TheaterModeViewModel theaterModeViewModel,
         ViewModels.Timeline.SetDesignerViewModel setDesignerViewModel,
@@ -162,6 +166,7 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
         AnalysisQueueViewModel = analysisQueueViewModel;
         BulkOperationViewModel = bulkOperationViewModel;
         StemWorkspaceViewModel = stemWorkspaceViewModel;
+        OrbitStudioViewModel = orbitStudioViewModel;
         IntelligenceCenter = intelligenceCenter;
         TheaterModeViewModel = theaterModeViewModel;
         SetDesignerViewModel = setDesignerViewModel;
@@ -184,6 +189,7 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
         NavigateHomeCommand = new RelayCommand(() => { Workspace.SetContext(WorkspaceContext.LocalLibrary); NavigateToHome(); }); 
         NavigateSearchCommand = new RelayCommand(() => { Workspace.SetContext(WorkspaceContext.SoulseekSearch); NavigateToSearch(); });
         NavigateLibraryCommand = new RelayCommand(() => { Workspace.SetContext(WorkspaceContext.LocalLibrary); NavigateToLibrary(); });
+        NavigateOrbitStudioCommand = new RelayCommand(() => { Workspace.SetContext(WorkspaceContext.OrbitStudio); NavigateToOrbitStudio(); });
         NavigateProjectsCommand = new RelayCommand(() => { Workspace.SetContext(WorkspaceContext.SetDesigner); _navigationService.NavigateTo("Projects"); });
         NavigateSettingsCommand = new RelayCommand(NavigateToSettings);
         NavigateUpgradeScoutCommand = new RelayCommand(NavigateUpgradeScout);
@@ -372,6 +378,7 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
         _navigationService.RegisterPage("FlowBuilder", typeof(Avalonia.FlowBuilderView));
         _navigationService.RegisterPage("Export", typeof(Avalonia.ExportManagerView));
         _navigationService.RegisterPage("DiscoveryHub", typeof(Avalonia.DiscoveryHubView));
+        _navigationService.RegisterPage("OrbitStudio", typeof(Avalonia.Studio.OrbitStudioView));
         
         // Subscribe to navigation events
         _navigationService.Navigated += OnNavigated;
@@ -420,6 +427,7 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
             HomeViewModel?.Dispose();
             AnalysisQueueViewModel?.Dispose();
             IntelligenceCenter?.Dispose();
+            OrbitStudioViewModel?.Dispose();
         }
 
         _isDisposed = true;
@@ -818,6 +826,7 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
     public ICommand NavigateStyleLabCommand { get; }
     public ICommand NavigateTheaterCommand { get; }
     public ICommand NavigateDawCommand { get; }
+    public ICommand NavigateOrbitStudioCommand { get; }
     public ICommand NavigateDJCompanionCommand { get; }
     public ICommand NavigateFlowBuilderCommand { get; }
     public ICommand NavigateExportCommand { get; }
@@ -876,6 +885,7 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
                 "TheaterModePage" => PageType.TheaterMode,
                 "FlowBuilderView" => PageType.FlowBuilder,
                 "ExportManagerView" => PageType.Export,
+                "OrbitStudioView" => PageType.OrbitStudio,
                 _ => CurrentPageType
             };
 
@@ -995,6 +1005,16 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
         if (CurrentPage is Avalonia.DiscoveryHubView page)
         {
             page.DataContext = DiscoveryHubViewModel;
+        }
+    }
+
+    private void NavigateToOrbitStudio()
+    {
+        _navigationService.NavigateTo("OrbitStudio");
+        
+        if (CurrentPage is Avalonia.Studio.OrbitStudioView page)
+        {
+            page.DataContext = OrbitStudioViewModel;
         }
     }
 

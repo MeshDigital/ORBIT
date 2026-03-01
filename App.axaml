@@ -12,6 +12,15 @@
         <x:Double x:Key="FontSizeLarge">16</x:Double>
         <x:Double x:Key="FontSizeXLarge">18</x:Double>
         
+        <!-- MIK 11 Pro Studio Workspace Colors -->
+        <SolidColorBrush x:Key="StudioBackground" Color="#121212" />
+        <SolidColorBrush x:Key="StudioPanel" Color="#1E1E1E" />
+        <SolidColorBrush x:Key="StudioSeparator" Color="#2D2D2D" />
+        <SolidColorBrush x:Key="StudioAccentCyan" Color="#00FFFF" />
+        <SolidColorBrush x:Key="StudioAccentViolet" Color="#B829EA" />
+        <SolidColorBrush x:Key="StudioTextPrimary" Color="#E0E0E0" />
+        <SolidColorBrush x:Key="StudioTextSecondary" Color="#888888" />
+        
         <!-- Like/Heart Converters -->
         <converters:BoolToHeartConverter x:Key="BoolToHeartConverter"/>
         <converters:BoolToHeartColorConverter x:Key="BoolToHeartColorConverter"/>
@@ -110,6 +119,11 @@
         <StreamGeometry x:Key="cloud_arrow_up_regular">M14,13V17H10V13H7L12,8L17,13M19.35,10.03C18.67,6.59 15.64,4 12,4C9.11,4 6.6,5.64 5.35,8.03C2.34,8.36 0,10.9 0,14A6,6 0 0,0 6,20H19A5,5 0 0,0 24,15C24,12.36 21.95,10.22 19.35,10.03Z</StreamGeometry>
         <StreamGeometry x:Key="location_pin_regular">M12,2A7,7 0 0,0 5,9C5,14.25 12,22 12,22C12,22 19,14.25 19,9A7,7 0 0,0 12,2M12,11.5A2.5,2.5 0 1,1 14.5,9A2.5,2.5 0 0,1 12,11.5Z</StreamGeometry>
         <StreamGeometry x:Key="sparkles_regular">M12,15.39L8.24,17.66L9.23,13.38L5.91,10.5L10.29,10.13L12,6.09L13.71,10.13L18.09,10.5L14.77,13.38L15.76,17.66L12,15.39M22,9.24L14.81,8.62L12,2L9.19,8.62L2,9.24L7.45,14.05L5.82,21L12,17.27L18.18,21L16.55,14.05L22,9.24Z</StreamGeometry>
+        
+        <StreamGeometry x:Key="previous_regular">M14,19V5L5,12L14,19M15,19L15,5H17V19H15Z</StreamGeometry>
+        <StreamGeometry x:Key="next_regular">M10,19V5L19,12L10,19M9,19L9,5H7V19H9Z</StreamGeometry>
+        <StreamGeometry x:Key="speaker_2_regular">M14,3.23V5.29C16.89,6.15 19,8.83 19,12C19,15.17 16.89,17.85 14,18.71V20.77C18.03,19.86 21,16.28 21,12C21,7.72 18.03,4.14 14,3.23M16.5,12C16.5,10.23 15.5,8.71 14,7.97V16.03C15.5,15.29 16.5,13.77 16.5,12M3,9V15H7L12,20V4L7,9H3Z</StreamGeometry>
+        <StreamGeometry x:Key="arrow_repeat_all_regular">M7,7H17A3,3 0 0,1 20,10V15H18V10A1,1 0 0,0 17,9H7A1,1 0 0,0 6,10V15H4V10A3,3 0 0,1 7,7M17,17H7A3,3 0 0,1 4,14V9H6V14A1,1 0 0,0 7,15H17A1,1 0 0,0 18,14V9H20V14A3,3 0 0,1 17,17Z</StreamGeometry>
     </Application.Resources>
     
     <Application.Styles>

@@ -1,0 +1,53 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="clr-namespace:SLSKDONET.ViewModels"
+             xmlns:Studio="clr-namespace:SLSKDONET.Views.Avalonia.Studio"
+             x:Class="SLSKDONET.Views.Avalonia.Studio.StudioInspectorView"
+             x:DataType="vm:StudioProViewModel">
+
+    <Grid RowDefinitions="Auto,*">
+        <!-- Inspector Header -->
+        <Border Grid.Row="0" Background="#1E1E1E" Padding="15,10" BorderBrush="#2D2D2D" BorderThickness="0,0,0,1">
+            <StackPanel Orientation="Horizontal" Spacing="10">
+                <PathIcon Data="{StaticResource info_regular}" Width="14" Foreground="#00FFFF"/>
+                <TextBlock Text="TRACK INSPECTOR" FontSize="10" FontWeight="Bold" Foreground="#00FFFF" VerticalAlignment="Center" LetterSpacing="1"/>
+            </StackPanel>
+        </Border>
+
+        <!-- Tool Selection TabControl -->
+        <TabControl Grid.Row="1" Classes="pro">
+            <TabItem Header="VERIFY KEY">
+                <ScrollViewer>
+                    <StackPanel Margin="20" Spacing="20">
+                        <TextBlock Text="KEY &amp; BPAM ANALYSIS" Foreground="#E0E0E0" FontSize="14" FontWeight="Bold"/>
+                        <Border Background="#121212" Padding="15" BorderBrush="#2D2D2D" BorderThickness="1">
+                            <Grid ColumnDefinitions="*,Auto">
+                                <StackPanel Spacing="5">
+                                    <TextBlock Text="DETECTED KEY" FontSize="10" Foreground="#888"/>
+                                    <TextBlock Text="{Binding SelectedTrack.KeyDisplay}" FontSize="24" FontWeight="Bold" Foreground="#00FFFF"/>
+                                </StackPanel>
+                                <Button Grid.Column="1" Content="RE-ANALYZE" Background="#2D2D2D" Foreground="#E0E0E0" Padding="10,5" FontSize="10"/>
+                            </Grid>
+                        </Border>
+                    </StackPanel>
+                </ScrollViewer>
+            </TabItem>
+
+            <TabItem Header="EDIT CUES">
+                 <Studio:StudioCueView DataContext="{Binding CueViewModel}" />
+            </TabItem>
+
+            <TabItem Header="MASHUP">
+                 <Studio:StudioProberView DataContext="{Binding ProberViewModel}" />
+            </TabItem>
+
+            <TabItem Header="STEMS">
+                 <Studio:StudioStemView DataContext="{Binding StemViewModel}" />
+            </TabItem>
+
+            <TabItem Header="EXPORT">
+                 <TextBlock Text="Export Center (Coming Soon)" Foreground="#444" HorizontalAlignment="Center" Margin="0,40"/>
+            </TabItem>
+        </TabControl>
+    </Grid>
+</UserControl>

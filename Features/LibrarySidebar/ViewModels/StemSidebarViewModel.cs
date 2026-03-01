@@ -65,6 +65,7 @@ public class StemSidebarViewModel : ReactiveObject, ISidebarContent, IDisposable
 
     public ICommand GenerateStemsCommand { get; }
     public ICommand ExportStemFilesCommand { get; }
+    public ICommand ExtractAcapellaCommand { get; }
 
     public StemSidebarViewModel(
         StemSeparationService separationService,
@@ -85,6 +86,10 @@ public class StemSidebarViewModel : ReactiveObject, ISidebarContent, IDisposable
 
         ExportStemFilesCommand = ReactiveCommand.CreateFromTask(
             ExportStemsAsync,
+            this.WhenAnyValue(x => x.State, s => s == StemSidebarState.Ready));
+
+        ExtractAcapellaCommand = ReactiveCommand.CreateFromTask(
+            ExtractAcapellaAsync,
             this.WhenAnyValue(x => x.State, s => s == StemSidebarState.Ready));
 
         // Initialize 4 DJ channels as per prompt
@@ -226,6 +231,33 @@ public class StemSidebarViewModel : ReactiveObject, ISidebarContent, IDisposable
         catch (Exception ex)
         {
             _notificationService.Show("Export Failed", ex.Message, SLSKDONET.Views.NotificationType.Error);
+        }
+    }
+
+    private async Task ExtractAcapellaAsync()
+    {
+        if (_currentTrack == null) return;
+        try
+        {
+            var stemPaths = _separationService.GetStemPaths(_currentTrack.GlobalId);
+            if (stemPaths.TryGetValue(StemType.Vocals, out string? vocalPath) && vocalPath != null)
+            {
+                var destinationFolder = await _dialogService.OpenFolderDialogAsync("Select Destination for Acapella");
+                if (!string.IsNullOrEmpty(destinationFolder))
+                {
+                    string dest = Path.Combine(destinationFolder, $"{_currentTrack.Artist} - {_currentTrack.Title} (Acapella).wav");
+                    File.Copy(vocalPath, dest, true);
+                    _notificationService.Show("Export Successful", $"Acapella saved to {dest}", SLSKDONET.Views.NotificationType.Success);
+                }
+            }
+            else
+            {
+                _notificationService.Show("Export Failed", "Vocal stem not found.", SLSKDONET.Views.NotificationType.Error);
+            }
+        }
+        catch(Exception ex)
+        {
+             _notificationService.Show("Export Failed", ex.Message, SLSKDONET.Views.NotificationType.Error);
         }
     }
 

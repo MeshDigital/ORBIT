@@ -7,5 +7,6 @@ public enum WorkspaceContext
     SpotifyImport,
     SetDesigner,
     Settings,
+    OrbitStudio,
     None
 }

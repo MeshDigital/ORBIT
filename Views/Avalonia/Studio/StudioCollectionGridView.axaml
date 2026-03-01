@@ -1,0 +1,140 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:vm="clr-namespace:SLSKDONET.ViewModels"
+             xmlns:dg="clr-namespace:Avalonia.Controls;assembly=Avalonia.Controls.DataGrid"
+             mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="600"
+             x:Class="SLSKDONET.Views.Avalonia.Studio.StudioCollectionGridView"
+             x:DataType="vm:StudioProViewModel">
+
+    <Grid RowDefinitions="Auto,*">
+        <!-- Grid Toolbar -->
+        <Border Grid.Row="0" Background="#1E1E1E" Padding="12,8" BorderBrush="#2D2D2D" BorderThickness="0,0,0,1">
+            <Grid ColumnDefinitions="*,Auto">
+                <StackPanel Orientation="Horizontal" Spacing="15">
+                    <PathIcon Data="{StaticResource search_regular}" Width="14" Foreground="#888"/>
+                    <TextBox Watermark="Filter collection..." 
+                             Width="280" 
+                             Background="#121212" 
+                             BorderThickness="0" 
+                             Foreground="#E0E0E0" 
+                             FontSize="12"
+                             VerticalContentAlignment="Center"
+                             Padding="8,4"/>
+                </StackPanel>
+                
+                <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="10">
+                    <Button Content="SORT BY ENERGY" FontSize="10" FontWeight="Bold" Background="Transparent" Foreground="#FFB000"/>
+                    <Button Content="REFRESH" FontSize="10" FontWeight="Bold" Background="Transparent" Foreground="#888"/>
+                </StackPanel>
+            </Grid>
+        </Border>
+
+        <!-- The MIK-Style DataGrid -->
+        <dg:DataGrid Grid.Row="1" 
+                     ItemsSource="{Binding Tracks}"
+                     SelectedItem="{Binding SelectedTrack, Mode=TwoWay}"
+                     SelectionMode="Single"
+                     CanUserReorderColumns="True"
+                     CanUserResizeColumns="True"
+                     CanUserSortColumns="True"
+                     IsReadOnly="True"
+                     Background="Transparent"
+                     BorderThickness="0"
+                     HeadersVisibility="Column"
+                     RowBackground="Transparent"
+                     GridLinesVisibility="Horizontal"
+                     HorizontalGridLinesBrush="#2D2D2D"
+                     VerticalAlignment="Stretch">
+            
+            <dg:DataGrid.Styles>
+                <!-- Header Styling -->
+                <Style Selector="dg|DataGridColumnHeader">
+                    <Setter Property="Background" Value="#1E1E1E"/>
+                    <Setter Property="Foreground" Value="#888888"/>
+                    <Setter Property="FontSize" Value="10"/>
+                    <Setter Property="FontWeight" Value="Bold"/>
+                    <Setter Property="Height" Value="32"/>
+                    <Setter Property="Padding" Value="12,0"/>
+                    <Setter Property="BorderThickness" Value="0,0,1,1"/>
+                    <Setter Property="BorderBrush" Value="#2D2D2D"/>
+                </Style>
+                
+                <!-- Row Styling -->
+                <Style Selector="dg|DataGridRow">
+                    <Setter Property="Foreground" Value="#E0E0E0"/>
+                    <Setter Property="FontSize" Value="13"/>
+                    <Setter Property="Background" Value="Transparent"/>
+                    <Setter Property="MinHeight" Value="40"/>
+                </Style>
+                
+                <!-- Selection Glow -->
+                <Style Selector="dg|DataGridRow:selected /template/ Rectangle#BackgroundRectangle">
+                    <Setter Property="Fill" Value="#2200FFFF"/> <!-- Subtle Cyan Glow -->
+                </Style>
+                <Style Selector="dg|DataGridRow:selected">
+                    <Setter Property="Foreground" Value="#00FFFF"/>
+                </Style>
+
+                <!-- Cells -->
+                <Style Selector="dg|DataGridCell">
+                    <Setter Property="Padding" Value="12,0"/>
+                    <Setter Property="VerticalAlignment" Value="Center"/>
+                </Style>
+            </dg:DataGrid.Styles>
+
+            <dg:DataGrid.Columns>
+                <dg:DataGridTemplateColumn Header="#" Width="40">
+                    <dg:DataGridTemplateColumn.CellTemplate>
+                        <DataTemplate>
+                            <TextBlock Text="{Binding Index}" 
+                                       Foreground="#444" 
+                                       FontSize="10" 
+                                       VerticalAlignment="Center" 
+                                       HorizontalAlignment="Center"/>
+                        </DataTemplate>
+                    </dg:DataGridTemplateColumn.CellTemplate>
+                </dg:DataGridTemplateColumn>
+
+                <dg:DataGridTextColumn Header="ARTIST" Binding="{Binding Artist}" Width="1.5*"/>
+                <dg:DataGridTextColumn Header="TITLE" Binding="{Binding Title}" Width="2*"/>
+                
+                <dg:DataGridTemplateColumn Header="BPM" Width="60">
+                    <dg:DataGridTemplateColumn.CellTemplate>
+                        <DataTemplate>
+                            <TextBlock Text="{Binding BPM, StringFormat={}{0:0}}" 
+                                       FontWeight="Bold" 
+                                       HorizontalAlignment="Center"
+                                       VerticalAlignment="Center"/>
+                        </DataTemplate>
+                    </dg:DataGridTemplateColumn.CellTemplate>
+                </dg:DataGridTemplateColumn>
+
+                <dg:DataGridTemplateColumn Header="KEY" Width="60">
+                    <dg:DataGridTemplateColumn.CellTemplate>
+                        <DataTemplate>
+                            <Border Background="#2D2D2D" CornerRadius="2" Padding="4,2" HorizontalAlignment="Center" VerticalAlignment="Center">
+                                <TextBlock Text="{Binding KeyDisplay}" FontSize="11" FontWeight="Bold" Foreground="#00FFFF"/>
+                            </Border>
+                        </DataTemplate>
+                    </dg:DataGridTemplateColumn.CellTemplate>
+                </dg:DataGridTemplateColumn>
+
+                <dg:DataGridTemplateColumn Header="ENERGY" Width="70">
+                    <dg:DataGridTemplateColumn.CellTemplate>
+                        <DataTemplate>
+                            <TextBlock Text="{Binding Energy}" 
+                                       Foreground="#FFB000" 
+                                       FontWeight="Bold" 
+                                       HorizontalAlignment="Center"
+                                       VerticalAlignment="Center"/>
+                        </DataTemplate>
+                    </dg:DataGridTemplateColumn.CellTemplate>
+                </dg:DataGridTemplateColumn>
+
+                <dg:DataGridTextColumn Header="TIME" Binding="{Binding DurationFormatted}" Width="60"/>
+            </dg:DataGrid.Columns>
+        </dg:DataGrid>
+    </Grid>
+</UserControl>

@@ -27,13 +27,10 @@
         </Style>
     </UserControl.Styles>
 
-    <Grid RowDefinitions="Auto,Auto,*,Auto">
-        <!-- Header -->
-        <TextBlock Text="TRANSITION PROBER" FontSize="14" FontWeight="Bold" LetterSpacing="2" Margin="20" Opacity="0.8"/>
-        
+    <Grid RowDefinitions="Auto,*,Auto">
         <!-- Mashup Sandbox Control Panel -->
-        <Border Grid.Row="1" Background="#1A000000" BorderBrush="#33FFFFFF" BorderThickness="0,1" Padding="20,15" BoxShadow="0 4 20 #1A000000">
-            <StackPanel Spacing="15">
+        <Border Grid.Row="0" Background="Transparent" BorderBrush="#2D2D2D" BorderThickness="0,0,0,1" Padding="10">
+            <StackPanel Spacing="10">
                 <Grid ColumnDefinitions="*,Auto,Auto,Auto">
                     <StackPanel Grid.Column="0">
                         <TextBlock Text="MASHUP SANDBOX" FontWeight="SemiBold" FontSize="12" Foreground="#4EC9B0"/>
@@ -112,9 +109,9 @@
         </Border>
 
         <!-- Mashup Lab (Waveform Workspace) -->
-        <Grid Grid.Row="2" RowDefinitions="*,1,*" Margin="15">
+        <Grid Grid.Row="1" RowDefinitions="*,1,*" Margin="10">
             <!-- Deck A (Lead) -->
-            <Border Grid.Row="0" Background="#080808" CornerRadius="8" BorderBrush="#33FFFFFF" BorderThickness="1" ClipToBounds="True">
+            <Border Grid.Row="0" Background="#121212" CornerRadius="4" BorderBrush="#2D2D2D" BorderThickness="1" ClipToBounds="True">
                 <Grid>
                     <controls:WaveformControl Name="LeadWaveform"
                                             WaveformData="{Binding PrimaryWaveform}"
@@ -139,10 +136,10 @@
             </Border>
 
             <!-- Alignment Gutter -->
-            <Rectangle Grid.Row="1" Fill="#22FFFFFF" Height="1"/>
+            <Rectangle Grid.Row="1" Fill="#2D2D2D" Height="1"/>
 
             <!-- Deck B (Candidate) -->
-            <Border Grid.Row="2" Background="#080808" CornerRadius="8" BorderBrush="#33FFFFFF" BorderThickness="1" ClipToBounds="True">
+            <Border Grid.Row="2" Background="#121212" CornerRadius="4" BorderBrush="#2D2D2D" BorderThickness="1" ClipToBounds="True">
                 <Grid>
                     <!-- Candidate Waveform: Pos is Offset relative to Lead -->
                     <controls:WaveformControl Name="CandidateWaveform"
@@ -184,9 +181,9 @@
         </Grid>
 
         <!-- PRO-TOOLS ACTION BAR -->
-        <Border Grid.Row="3" Background="#1A000000" BorderBrush="#33FFFFFF" BorderThickness="0,1,0,0" Padding="15">
-            <StackPanel Spacing="15">
-                <Grid ColumnDefinitions="*,Auto,*">
+        <Border Grid.Row="2" Background="Transparent" BorderBrush="#2D2D2D" BorderThickness="0,1,0,0" Padding="10">
+            <StackPanel Spacing="10">
+                <Grid ColumnDefinitions="*,Auto,*,Auto,*">
                     <Button Grid.Column="0" 
                             Command="{Binding AlignTransitionCommand}"
                             Classes="ToolButton"
@@ -208,6 +205,20 @@
                         <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Center">
                             <PathIcon Data="{StaticResource play_circle_regular}" Width="14"/>
                             <TextBlock Text="AUDITION HANDOFF" FontSize="11" FontWeight="Bold"/>
+                        </StackPanel>
+                    </Button>
+
+                    <Rectangle Grid.Column="3" Width="1" Fill="#22FFFFFF" Margin="15,0"/>
+
+                    <Button Grid.Column="4" 
+                            Command="{Binding ExportMashupCommand}"
+                            Background="#20FF4081"
+                            BorderBrush="#FF4081"
+                            Classes="ToolButton"
+                            HorizontalAlignment="Stretch">
+                        <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Center">
+                            <PathIcon Data="{StaticResource cloud_arrow_up_regular}" Width="14"/>
+                            <TextBlock Text="EXPORT MASHUP" FontSize="11" FontWeight="Bold"/>
                         </StackPanel>
                     </Button>
                 </Grid>

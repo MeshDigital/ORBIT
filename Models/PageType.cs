@@ -18,5 +18,6 @@ public enum PageType
     DawTimeline,
     FlowBuilder,
     Export,
+    OrbitStudio,
     DiscoveryHub
 }

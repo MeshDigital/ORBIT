@@ -1,0 +1,112 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:vm="clr-namespace:SLSKDONET.ViewModels"
+             xmlns:Studio="clr-namespace:SLSKDONET.Views.Avalonia.Studio"
+             mc:Ignorable="d" d:DesignWidth="1280" d:DesignHeight="800"
+             x:Class="SLSKDONET.Views.Avalonia.Studio.OrbitStudioView"
+             x:DataType="vm:StudioProViewModel"
+             Background="#121212">
+
+    <!-- GROUND-UP STUDIO STYLES -->
+    <UserControl.Styles>
+        <Style Selector="GridSplitter">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="Width" Value="4"/>
+            <Setter Property="ResizeDirection" Value="Columns"/>
+            <Setter Property="Cursor" Value="SizeWestEast"/>
+        </Style>
+
+        <!-- Segmented TabControl for Right Inspector -->
+        <Style Selector="TabControl.pro">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="Padding" Value="0"/>
+        </Style>
+        <Style Selector="TabControl.pro TabItem">
+            <Setter Property="FontSize" Value="10"/>
+            <Setter Property="FontWeight" Value="Bold"/>
+            <Setter Property="Foreground" Value="#888888"/>
+            <Setter Property="Padding" Value="15,10"/>
+            <Setter Property="Margin" Value="0"/>
+            <Setter Property="Background" Value="#1E1E1E"/>
+            <Setter Property="BorderThickness" Value="0,0,1,1"/>
+            <Setter Property="BorderBrush" Value="#2D2D2D"/>
+            <Setter Property="CornerRadius" Value="0"/>
+        </Style>
+        <Style Selector="TabControl.pro TabItem:selected">
+            <Setter Property="Foreground" Value="#00FFFF"/> <!-- Neon Cyan Accent -->
+            <Setter Property="Background" Value="#121212"/>
+            <Setter Property="BorderThickness" Value="0,2,1,0"/>
+            <Setter Property="BorderBrush" Value="#00FFFF"/>
+        </Style>
+        <Style Selector="TabControl.pro TabItem:selected /template/ Border#PART_SelectedPipe">
+            <Setter Property="IsVisible" Value="False"/>
+        </Style>
+        <Style Selector="TabControl.pro TabItem:pointerover">
+            <Setter Property="Foreground" Value="#E0E0E0"/>
+        </Style>
+    </UserControl.Styles>
+
+    <Grid RowDefinitions="40, *, 120">
+        
+        <!-- 1. TOP HEADER -->
+        <Border Grid.Row="0" Background="#1E1E1E" BorderBrush="#2D2D2D" BorderThickness="0,0,0,1">
+            <Grid ColumnDefinitions="Auto, *, Auto">
+                <!-- Title -->
+                <TextBlock Grid.Column="0" Text="{Binding WorkspaceTitle}" 
+                           Foreground="#00FFFF" FontWeight="Bold" LetterSpacing="2" 
+                           VerticalAlignment="Center" Margin="20,0"/>
+
+                <!-- Global Engine Load -->
+                <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="20" Margin="0,0,20,0" VerticalAlignment="Center">
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                        <TextBlock Text="CPU" FontSize="10" Foreground="#888888" FontWeight="Bold" VerticalAlignment="Center"/>
+                        <ProgressBar Value="{Binding CpuLoad}" Maximum="100" Width="60" Height="4" 
+                                     Foreground="#00FFFF" Background="#2D2D2D" CornerRadius="0"/>
+                    </StackPanel>
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                        <TextBlock Text="STEM ENGINE" FontSize="10" Foreground="#888888" FontWeight="Bold" VerticalAlignment="Center"/>
+                        <ProgressBar Value="{Binding StemEngineLoad}" Maximum="100" Width="60" Height="4" 
+                                     Foreground="#B829EA" Background="#2D2D2D" CornerRadius="0"/>
+                    </StackPanel>
+                </StackPanel>
+            </Grid>
+        </Border>
+
+        <!-- 2. MAIN DAWS WORKSPACE -->
+        <Grid Grid.Row="1" ColumnDefinitions="250, Auto, *, Auto, 350">
+            
+            <!-- LEFT NAVIGATION: Crates / Playlists -->
+            <Border Grid.Column="0" Background="#1E1E1E" BorderBrush="#2D2D2D" BorderThickness="0,0,1,0">
+                <StackPanel Margin="10,15" Spacing="5">
+                    <TextBlock Text="CRATES &amp; PLAYLISTS" FontSize="10" FontWeight="Bold" Foreground="#888888" LetterSpacing="1" Margin="5,0,0,10"/>
+                    <!-- Placeholder Links -->
+                    <TextBlock Text="All Tracks Directory" Foreground="#E0E0E0" FontSize="12" Padding="15,8" Background="#2D2D2D" Margin="0,0,0,5"/>
+                    <TextBlock Text="Smart Crates" Foreground="#888888" FontSize="12" Padding="15,8"/>
+                    <TextBlock Text="History" Foreground="#888888" FontSize="12" Padding="15,8"/>
+                </StackPanel>
+            </Border>
+
+            <GridSplitter Grid.Column="1"/>
+
+            <!-- CENTER CANVAS: StudioCollectionGridView -->
+            <Border Grid.Column="2" Background="#121212">
+                <Studio:StudioCollectionGridView />
+            </Border>
+
+            <GridSplitter Grid.Column="3"/>
+
+            <!-- RIGHT INSPECTOR: StudioInspectorView -->
+            <Border Grid.Column="4" Background="#1E1E1E" BorderBrush="#2D2D2D" BorderThickness="1,0,0,0">
+                <Studio:StudioInspectorView />
+            </Border>
+        </Grid>
+
+        <!-- 3. BOTTOM DOCK: StudioPlayerView -->
+        <Border Grid.Row="2" Background="#1E1E1E" BorderBrush="#2D2D2D" BorderThickness="0,1,0,0">
+            <Studio:StudioPlayerView DataContext="{Binding PlayerViewModel}" />
+        </Border>
+
+    </Grid>
+</UserControl>

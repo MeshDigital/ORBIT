@@ -749,6 +749,7 @@ public partial class App : Application
         services.AddTransient<Views.Avalonia.FlowBuilderView>();
         services.AddTransient<Views.Avalonia.DiscoveryHubView>(); // [FIX] Added missing view registration
         services.AddTransient<Views.Avalonia.DJCompanionView>(); // [FIX] Added missing view registration
+        services.AddTransient<Views.Avalonia.Studio.OrbitStudioView>();
         
         services.AddSingleton<ViewModels.TrackInspectorViewModel>();
         services.AddSingleton<ViewModels.ForensicLabViewModel>();
@@ -756,6 +757,7 @@ public partial class App : Application
         services.AddSingleton<ViewModels.DJCompanionViewModel>(); // [FIX] Added missing ViewModel registration
         services.AddSingleton<ViewModels.IntelligenceCenterViewModel>();
         services.AddSingleton<ViewModels.FlowBuilderViewModel>();
+        services.AddSingleton<ViewModels.StudioProViewModel>();
 
         // Phase 2: Surgical Editing Engine
         services.AddSingleton<ISurgicalProcessingService, SurgicalProcessingService>();
