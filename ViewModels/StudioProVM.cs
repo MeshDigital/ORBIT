@@ -1,11 +1,14 @@
 using System;
 using System.Collections.ObjectModel;
 using System.Linq;
+using System.Reactive.Concurrency;
 using System.Reactive.Disposables;
 using System.Reactive.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 using ReactiveUI;
 using SLSKDONET.Features.LibrarySidebar.ViewModels;
+using SLSKDONET.ViewModels.Studio;
 
 namespace SLSKDONET.ViewModels;
 
@@ -15,8 +18,9 @@ public class StudioProViewModel : ReactiveObject, IDisposable
     private readonly SLSKDONET.Services.IEventBus _eventBus;
     private readonly SLSKDONET.Services.ArtworkCacheService _artworkCacheService;
     private readonly CompositeDisposable _disposables = new();
+    private CancellationTokenSource? _contextCts;
 
-    // Injected AI tool ViewModels (Reuse of brains)
+    // Injected AI tool ViewModels
     public CueSidebarViewModel CueViewModel { get; }
     public StemSidebarViewModel StemViewModel { get; }
     public TransitionProberViewModel ProberViewModel { get; }
@@ -73,11 +77,58 @@ public class StudioProViewModel : ReactiveObject, IDisposable
 
         _ = LoadTracksAsync();
 
-        // Handle selection sync
+        // THE MASTER UI CASCADE: Observe selection with throttle to prevent "Arrow-Key Spam"
         this.WhenAnyValue(x => x.SelectedStudioTrack)
-            .WhereNotNull()
-            .Subscribe(track => HydrateInspectorPanels(track))
+            .Throttle(TimeSpan.FromMilliseconds(150), RxApp.TaskpoolScheduler)
+            .ObserveOn(RxApp.MainThreadScheduler)
+            .Subscribe(async track => await OnTrackSelectedAsync(track))
             .DisposeWith(_disposables);
+    }
+
+    private async Task OnTrackSelectedAsync(IDisplayableTrack? track)
+    {
+        // 1. Cancel previous pending hydrations
+        _contextCts?.Cancel();
+        _contextCts?.Dispose();
+        _contextCts = new CancellationTokenSource();
+        var token = _contextCts.Token;
+
+        try
+        {
+            if (track == null)
+            {
+                ClearAllModuleContexts();
+                return;
+            }
+
+            // 2. Parallel Hydration across all DAW panels
+            // Note: We cast to IStudioModuleViewModel for Phase 3/4 support
+            var modules = new[] 
+            { 
+                CueViewModel as IStudioModuleViewModel, 
+                StemViewModel as IStudioModuleViewModel, 
+                ProberViewModel as IStudioModuleViewModel, 
+                PlayerViewModel as IStudioModuleViewModel 
+            }.Where(m => m != null).Select(m => m!).ToList();
+
+            await Task.WhenAll(modules.Select(m => m.LoadTrackContextAsync(track, token)));
+        }
+        catch (OperationCanceledException)
+        {
+            // Expected when user is scrolling fast
+        }
+        catch (Exception ex)
+        {
+            Serilog.Log.Error(ex, "Error during Studio Track hydration cascade");
+        }
+    }
+
+    private void ClearAllModuleContexts()
+    {
+        (CueViewModel as IStudioModuleViewModel)?.ClearContext();
+        (StemViewModel as IStudioModuleViewModel)?.ClearContext();
+        (ProberViewModel as IStudioModuleViewModel)?.ClearContext();
+        (PlayerViewModel as IStudioModuleViewModel)?.ClearContext();
     }
 
     private async Task LoadTracksAsync()
@@ -103,16 +154,10 @@ public class StudioProViewModel : ReactiveObject, IDisposable
         }
     }
 
-    private void HydrateInspectorPanels(IDisplayableTrack track)
-    {
-        if (track is SLSKDONET.ViewModels.PlaylistTrackViewModel playlistVM)
-        {
-            _eventBus.Publish(new SLSKDONET.Models.PlayTrackRequestEvent(playlistVM));
-        }
-    }
-
     public void Dispose()
     {
+        _contextCts?.Cancel();
+        _contextCts?.Dispose();
         _disposables.Dispose();
     }
 }

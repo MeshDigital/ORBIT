@@ -8,6 +8,7 @@ using Microsoft.Extensions.Logging;
 using SLSKDONET.Models;
 using SLSKDONET.Services;
 using SLSKDONET.Views;
+using SLSKDONET.ViewModels.Studio;
 
 // using DraggingService; // TODO: Fix drag-drop library reference
 
@@ -21,7 +22,7 @@ namespace SLSKDONET.ViewModels
     using System.ComponentModel;
     using System.Runtime.CompilerServices;
 
-    public partial class PlayerViewModel : INotifyPropertyChanged, IDisposable, SLSKDONET.Features.LibrarySidebar.ISidebarContent
+    public partial class PlayerViewModel : INotifyPropertyChanged, IDisposable, SLSKDONET.Features.LibrarySidebar.ISidebarContent, IStudioModuleViewModel
     {
         // Sidebar Interface Implementation
         public System.Threading.Tasks.Task ActivateAsync(PlaylistTrackViewModel track) => System.Threading.Tasks.Task.CompletedTask;
@@ -203,6 +204,13 @@ namespace SLSKDONET.ViewModels
         {
             get => _hasPlaybackError;
             set => SetProperty(ref _hasPlaybackError, value);
+        }
+
+        private bool _isExtractingWaveform;
+        public bool IsExtractingWaveform
+        {
+            get => _isExtractingWaveform;
+            set => SetProperty(ref _isExtractingWaveform, value);
         }
 
         private string _playbackError = string.Empty;
@@ -1082,5 +1090,47 @@ namespace SLSKDONET.ViewModels
             }
         };
         */
+
+        public async Task LoadTrackContextAsync(IDisplayableTrack track, CancellationToken cancellationToken)
+        {
+            IsExtractingWaveform = true;
+            
+            // Immediate UI feedback for metadata
+            TrackTitle = track.Title;
+            TrackArtist = track.Artist;
+            
+            if (track is PlaylistTrackViewModel trackVM)
+            {
+                CurrentTrack = trackVM;
+            }
+
+            try
+            {
+                // Await high-resolution waveform analysis with cancellation
+                var peaks = await _waveformService.AnalyzeAsync(track.Model.ResolvedFilePath, cancellationToken);
+                WaveformData = peaks;
+            }
+            catch (OperationCanceledException)
+            {
+                // Expected when user scrolls fast - silent return
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[PlayerViewModel] Waveform Extraction Error: {ex.Message}");
+            }
+            finally
+            {
+                IsExtractingWaveform = false;
+            }
+        }
+
+        public void ClearContext()
+        {
+            CurrentTrack = null;
+            TrackTitle = "No Track Selected";
+            TrackArtist = "";
+            WaveformData = new WaveformAnalysisData();
+            IsExtractingWaveform = false;
+        }
     }
 }

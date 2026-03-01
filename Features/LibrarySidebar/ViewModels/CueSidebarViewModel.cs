@@ -16,6 +16,7 @@ using SLSKDONET.Models;
 using SLSKDONET.Services;
 using SLSKDONET.Services.Audio;
 using SLSKDONET.ViewModels;
+using SLSKDONET.ViewModels.Studio;
 
 namespace SLSKDONET.Features.LibrarySidebar.ViewModels;
 
@@ -23,7 +24,7 @@ namespace SLSKDONET.Features.LibrarySidebar.ViewModels;
 /// Orchestrator for the Cue & Phrase Inspection Panel.
 /// Handles track hydration, structure analysis triggering, and live playback synchronization.
 /// </summary>
-public class CueSidebarViewModel : ReactiveObject, ISidebarContent, IDisposable
+public class CueSidebarViewModel : ReactiveObject, ISidebarContent, IDisposable, IStudioModuleViewModel
 {
     private readonly ILibraryService _libraryService;
     private readonly SLSKDONET.Services.Audio.PhraseDetectionService _phraseDetectionService;
@@ -117,6 +118,19 @@ public class CueSidebarViewModel : ReactiveObject, ISidebarContent, IDisposable
         _currentTrack = null;
         Phrases.Clear();
         Cues.Clear();
+    }
+
+    public async Task LoadTrackContextAsync(IDisplayableTrack track, CancellationToken cancellationToken)
+    {
+        if (track is PlaylistTrackViewModel playlistVM)
+        {
+            await ActivateAsync(playlistVM);
+        }
+    }
+
+    public void ClearContext()
+    {
+        Deactivate();
     }
 
     /// <summary>

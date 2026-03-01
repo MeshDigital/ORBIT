@@ -13,6 +13,7 @@ using SLSKDONET.Models.Stem;
 using SLSKDONET.Services;
 using SLSKDONET.Services.Audio;
 using SLSKDONET.ViewModels;
+using SLSKDONET.ViewModels.Studio;
 using SLSKDONET.Views;
 
 namespace SLSKDONET.Features.LibrarySidebar.ViewModels;
@@ -28,7 +29,7 @@ public enum StemSidebarState
 /// Orchestrator for the STEMS Manipulation Sandbox.
 /// Manages separation workflow and 4-channel mixing logic.
 /// </summary>
-public class StemSidebarViewModel : ReactiveObject, ISidebarContent, IDisposable
+public class StemSidebarViewModel : ReactiveObject, ISidebarContent, IDisposable, IStudioModuleViewModel
 {
     private readonly StemSeparationService _separationService;
     private readonly RealTimeStemEngine _stemEngine;
@@ -129,6 +130,19 @@ public class StemSidebarViewModel : ReactiveObject, ISidebarContent, IDisposable
         _currentTrack = null;
         State = StemSidebarState.Unprocessed;
         _stemEngine.Pause(); // Stop engine when leaving
+    }
+
+    public async Task LoadTrackContextAsync(IDisplayableTrack track, CancellationToken cancellationToken)
+    {
+        if (track is PlaylistTrackViewModel playlistVM)
+        {
+            await ActivateAsync(playlistVM);
+        }
+    }
+
+    public void ClearContext()
+    {
+        Deactivate();
     }
 
     public void UpdateSoloStates()

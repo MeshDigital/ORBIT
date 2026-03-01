@@ -14,10 +14,11 @@ using SLSKDONET.Models;
 using SLSKDONET.Data.Entities;
 using SLSKDONET.Views;
 using SLSKDONET.ViewModels;
+using SLSKDONET.ViewModels.Studio;
 
 namespace SLSKDONET.Features.LibrarySidebar.ViewModels;
 
-public class TransitionProberViewModel : ReactiveObject, ISidebarContent, IDisposable
+public class TransitionProberViewModel : ReactiveObject, ISidebarContent, IDisposable, IStudioModuleViewModel
 {
     private readonly WaveformAnalysisService _waveformService;
     private readonly Services.Audio.PhraseDetectionService _phraseService;
@@ -151,6 +152,13 @@ public class TransitionProberViewModel : ReactiveObject, ISidebarContent, IDispo
     {
         get => _autoCrossfadeEnabled;
         set => this.RaiseAndSetIfChanged(ref _autoCrossfadeEnabled, value);
+    }
+
+    private bool _isDeckALocked;
+    public bool IsDeckALocked
+    {
+        get => _isDeckALocked;
+        set => this.RaiseAndSetIfChanged(ref _isDeckALocked, value);
     }
 
     public float CrossfaderValue
@@ -631,6 +639,77 @@ public class TransitionProberViewModel : ReactiveObject, ISidebarContent, IDispo
         PrimaryWaveform = null;
         SecondaryWaveform = null;
         _waveformCts?.Cancel();
+    }
+
+    public async Task LoadTrackContextAsync(IDisplayableTrack track, CancellationToken cancellationToken)
+    {
+        if (track is not PlaylistTrackViewModel trackVM) return;
+
+        // Rule 1: Initial Load
+        if (PrimaryTrack == null)
+        {
+            PrimaryTrack = trackVM;
+            await HydrateTrackDataAsync(trackVM, true, cancellationToken);
+            return;
+        }
+
+        // Rule 2: Unlocked Override (Replacing Deck A)
+        if (!IsDeckALocked && SecondaryTrack == null)
+        {
+            PrimaryTrack = trackVM;
+            await HydrateTrackDataAsync(trackVM, true, cancellationToken);
+            return;
+        }
+
+        // Rule 3: Comparison Mode (Loading into Deck B)
+        if (IsDeckALocked || SecondaryTrack != null)
+        {
+            SecondaryTrack = trackVM;
+            await HydrateTrackDataAsync(trackVM, false, cancellationToken);
+            
+            // Auto-align when both decks are full
+            AlignTransition();
+        }
+    }
+
+    public void ClearContext()
+    {
+        if (!IsDeckALocked)
+        {
+            PrimaryTrack = null;
+            PrimaryWaveform = null;
+            PrimaryPhrases = null;
+        }
+        
+        SecondaryTrack = null;
+        SecondaryWaveform = null;
+        SecondaryPhrases = null;
+        HandoffOffset = 0;
+        MashupStatus = "IDLE";
+    }
+
+    private async Task HydrateTrackDataAsync(PlaylistTrackViewModel track, bool isPrimary, CancellationToken ct)
+    {
+        try
+        {
+            var waveform = await _waveformService.AnalyzeAsync(track.Model.ResolvedFilePath, ct);
+            var phrases = await _phraseService.DetectPhrasesAsync(track.Model.ResolvedFilePath, ct);
+
+            if (isPrimary)
+            {
+                PrimaryWaveform = waveform;
+                PrimaryPhrases = phrases;
+            }
+            else
+            {
+                SecondaryWaveform = waveform;
+                SecondaryPhrases = phrases;
+            }
+        }
+        catch (OperationCanceledException)
+        {
+            // Expected
+        }
     }
 
     public void Dispose()
