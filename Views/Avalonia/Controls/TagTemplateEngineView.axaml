@@ -1,0 +1,64 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Class="SLSKDONET.Views.Avalonia.Controls.TagTemplateEngineView"
+             MinHeight="300" MinWidth="400">
+             
+    <Border Background="#1A1A1A" BorderBrush="#333" BorderThickness="1" CornerRadius="4" Padding="16">
+        <Grid RowDefinitions="Auto,Auto,Auto,Auto,*">
+            <!-- Header -->
+            <TextBlock Grid.Row="0" Text="ID3 Tag Template Engine" FontSize="16" FontWeight="Bold" Foreground="#4EC9B0" Margin="0,0,0,16"/>
+            
+            <!-- Description -->
+            <TextBlock Grid.Row="1" Text="Design your perfect ID3 tag structure for exported Mashups and Stems. Use wildcards to automatically inject track metadata." 
+                       Foreground="#AAA" TextWrapping="Wrap" Margin="0,0,0,16" FontSize="12"/>
+            
+            <!-- Wildcard Chips -->
+            <WrapPanel Grid.Row="2" Margin="0,0,0,12">
+                <WrapPanel.Styles>
+                    <Style Selector="Button.wildcard">
+                        <Setter Property="Background" Value="#333"/>
+                        <Setter Property="Foreground" Value="#4EC9B0"/>
+                        <Setter Property="Padding" Value="8,4"/>
+                        <Setter Property="Margin" Value="0,0,8,8"/>
+                        <Setter Property="CornerRadius" Value="4"/>
+                        <Setter Property="FontSize" Value="11"/>
+                        <Setter Property="FontFamily" Value="Consolas, Monospace"/>
+                        <Setter Property="BorderThickness" Value="1"/>
+                        <Setter Property="BorderBrush" Value="#444"/>
+                    </Style>
+                    <Style Selector="Button.wildcard:pointerover /template/ ContentPresenter">
+                        <Setter Property="Background" Value="#444"/>
+                    </Style>
+                </WrapPanel.Styles>
+                
+                <Button Classes="wildcard" Content="%ARTIST%" />
+                <Button Classes="wildcard" Content="%TITLE%" />
+                <Button Classes="wildcard" Content="%BPM%" />
+                <Button Classes="wildcard" Content="%KEY%" />
+                <Button Classes="wildcard" Content="%ENERGY%" />
+                <Button Classes="wildcard" Content="%GENRE%" />
+                <Button Classes="wildcard" Content="%YEAR%" />
+            </WrapPanel>
+            
+            <!-- Template Input -->
+            <StackPanel Grid.Row="3" Spacing="8" Margin="0,0,0,24">
+                <TextBlock Text="Filename Template:" FontWeight="Bold" Foreground="#DDD" FontSize="12"/>
+                <TextBox Text="%BPM% - %KEY% - %ARTIST% - %TITLE% (Orbit Mashup)" 
+                         Background="#252526" BorderBrush="#444" Foreground="#FFF" 
+                         FontFamily="Consolas, Monospace" FontSize="14" Padding="8"/>
+            </StackPanel>
+            
+            <!-- Live Preview -->
+            <Border Grid.Row="4" Background="#111" BorderBrush="#222" BorderThickness="1" CornerRadius="4" Padding="12" VerticalAlignment="Top">
+                <StackPanel Spacing="8">
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                        <TextBlock Text="👁️" VerticalAlignment="Center" FontSize="14"/>
+                        <TextBlock Text="Live Preview (Selected Track)" FontWeight="Bold" Foreground="#888" FontSize="12" VerticalAlignment="Center"/>
+                    </StackPanel>
+                    <TextBlock Text="126 - 8A - Daft Punk - One More Time (Orbit Mashup).wav" 
+                               Foreground="#4EC9B0" FontFamily="Consolas, Monospace" FontSize="13" TextWrapping="Wrap"/>
+                </StackPanel>
+            </Border>
+        </Grid>
+    </Border>
+</UserControl>
