@@ -33,7 +33,10 @@ public class WaveformAnalysisService
     public async Task<WaveformAnalysisData> GenerateWaveformAsync(string filePath, CancellationToken cancellationToken = default, int pointsPerSecond = 100)
     {
         if (!File.Exists(filePath))
-            throw new FileNotFoundException("File not found", filePath);
+        {
+            _logger.LogWarning("Waveform generation skipped: file not found at {FilePath}", filePath);
+            return new WaveformAnalysisData();
+        }
 
         // TRI-BAND FORENSIC EXTRACTION:
         // We use a complex filtergraph to split the audio into 3 frequency bands + 1 clean mono channel.

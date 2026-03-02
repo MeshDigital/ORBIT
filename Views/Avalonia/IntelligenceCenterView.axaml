@@ -330,8 +330,6 @@
                                                   <Setter Property="FontSize" Value="10"/>
                                                   <Setter Property="FontWeight" Value="Black"/>
                                                   <Setter Property="Foreground" Value="#444"/>
-                                                  <Setter Property="Padding" Value="16,12"/>
-                                                  <Setter Property="LetterSpacing" Value="1"/>
                                               </Style>
                                               <Style Selector="TabItem:pointerover">
                                                   <Setter Property="Foreground" Value="#888"/>

@@ -1,11 +1,13 @@
-using System.Linq;
+using System.Collections.Generic;
+using System.Threading.Tasks;
 using System.Reactive;
 using SLSKDONET.Models;
-using SLSKDONET.Services.Export;
-using SLSKDONET.Services.Notifications;
-using SLSKDONET.ViewModels;
-using SLSKDONET.Services.Dialogs;
 using SLSKDONET.Services;
+using SLSKDONET.Services.Export;
+using SLSKDONET.ViewModels;
+using SLSKDONET.Views;
+using SLSKDONET.Data; // For LibraryEntryEntity
+using ReactiveUI;
 
 namespace SLSKDONET.Features.LibrarySidebar.ViewModels;
 
@@ -67,7 +69,7 @@ public class BulkActionSidebarViewModel : ReactiveObject, ISidebarContent
                 var entries = new List<LibraryEntryEntity>();
                 foreach (var t in _activeTracks)
                 {
-                    var entry = await _libraryService.FindLibraryEntryAsync(t.GlobalId);
+                    var entry = await _libraryService.GetTrackEntityByHashAsync(t.GlobalId);
                     if (entry != null) entries.Add(entry);
                 }
 

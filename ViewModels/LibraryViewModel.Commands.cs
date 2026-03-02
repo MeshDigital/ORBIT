@@ -600,7 +600,8 @@ public partial class LibraryViewModel
                 var entries = new List<LibraryEntryEntity>();
                 foreach (var t in tracksToExport)
                 {
-                    var entry = await _libraryService.FindLibraryEntryAsync(t.GlobalId);
+                    // Use the library entry for full metadata
+                    var entry = await _libraryService.GetTrackEntityByHashAsync(t.GlobalId);
                     if (entry != null) entries.Add(entry);
                 }
 

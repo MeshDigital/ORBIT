@@ -1131,12 +1131,40 @@ namespace SLSKDONET.ViewModels
 
             try
             {
-                // Await high-fidelity structural hydration from database
+                // 1. Waveform Generation (ANLZ-first, then FFmpeg fallback)
+                var filePath = (track as PlaylistTrackViewModel)?.Model?.ResolvedFilePath;
+                if (!string.IsNullOrEmpty(filePath))
+                {
+                    cancellationToken.ThrowIfCancellationRequested();
+                    
+                    // Try Rekordbox ANLZ first (pre-analyzed, instant)
+                    var anlz = _anlzParser.TryFindAndParseAnlz(filePath);
+                    if (anlz != null && anlz.WaveformData != null && anlz.WaveformData.Length > 0)
+                    {
+                        WaveformData = new WaveformAnalysisData
+                        {
+                            PeakData = anlz.WaveformData,
+                            RmsData = anlz.WaveformData,
+                            LowData = anlz.LowData,
+                            MidData = anlz.MidData,
+                            HighData = anlz.HighData,
+                            PointsPerSecond = 100
+                        };
+                    }
+                    else
+                    {
+                        // FFmpeg high-fidelity extraction (async, cancellable)
+                        WaveformData = new WaveformAnalysisData(); // Clear old
+                        var waveform = await _waveformService.GenerateWaveformAsync(filePath, cancellationToken);
+                        WaveformData = waveform;
+                    }
+                }
+
+                // 2. Structural hydration from database (Phrases + Cues)
                 var audioFeatures = await _databaseService.GetAudioFeaturesByHashAsync(track.GlobalId);
                 
                 if (audioFeatures != null)
                 {
-                    // 1. Hydrate Phrases (Prefer JSON from features if versioned, else fallback to phrases table)
                     if (!string.IsNullOrEmpty(audioFeatures.PhraseSegmentsJson))
                     {
                         Phrases = System.Text.Json.JsonSerializer.Deserialize<List<Models.PhraseSegment>>(audioFeatures.PhraseSegmentsJson) ?? new();
@@ -1152,7 +1180,6 @@ namespace SLSKDONET.ViewModels
                         }).ToList();
                     }
 
-                    // 2. Hydrate Cues
                     if (!string.IsNullOrEmpty(audioFeatures.CuePointsJson))
                     {
                         Cues = System.Text.Json.JsonSerializer.Deserialize<List<OrbitCue>>(audioFeatures.CuePointsJson) ?? new();
@@ -1165,7 +1192,7 @@ namespace SLSKDONET.ViewModels
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"[PlayerViewModel] Waveform Extraction Error: {ex.Message}");
+                Console.WriteLine($"[PlayerViewModel] Studio hydration error: {ex.Message}");
             }
             finally
             {

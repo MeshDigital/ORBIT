@@ -109,18 +109,33 @@ public class StudioProViewModel : ReactiveObject, IDisposable
             }
 
             // 2. Parallel Hydration across all DAW panels
-            // Note: We cast to IStudioModuleViewModel for Phase 3/4 support
-            var modules = new[] 
+            // Each module is wrapped in its own try-catch to prevent a single failure
+            // (e.g. FileNotFoundException in TransitionProber) from killing all other modules.
+            var modules = new (string Name, IStudioModuleViewModel? Module)[] 
             { 
-                CueViewModel as IStudioModuleViewModel, 
-                StemViewModel as IStudioModuleViewModel, 
-                ProberViewModel as IStudioModuleViewModel, 
-                PlayerViewModel as IStudioModuleViewModel,
-                GrandPianoViewModel as IStudioModuleViewModel,
-                TagExportViewModel as IStudioModuleViewModel
-            }.Where(m => m != null).Select(m => m!).ToList();
+                ("Cues", CueViewModel as IStudioModuleViewModel), 
+                ("Stems", StemViewModel as IStudioModuleViewModel), 
+                ("Prober", ProberViewModel as IStudioModuleViewModel), 
+                ("Player", PlayerViewModel as IStudioModuleViewModel),
+                ("Piano", GrandPianoViewModel as IStudioModuleViewModel),
+                ("TagExport", TagExportViewModel as IStudioModuleViewModel)
+            };
 
-            await Task.WhenAll(modules.Select(m => m.LoadTrackContextAsync(track, token)));
+            await Task.WhenAll(modules.Where(m => m.Module != null).Select(async m =>
+            {
+                try
+                {
+                    await m.Module!.LoadTrackContextAsync(track, token);
+                }
+                catch (OperationCanceledException)
+                {
+                    // Expected when user scrolls fast — silent
+                }
+                catch (Exception ex)
+                {
+                    Serilog.Log.Warning(ex, "Studio module '{Module}' failed to hydrate for track {TrackId}", m.Name, track.GlobalId);
+                }
+            }));
         }
         catch (OperationCanceledException)
         {

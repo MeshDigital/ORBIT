@@ -260,10 +260,11 @@ public class RekordboxService
                 {
                     // Use refined color mapping from palette
                     var color = RekordboxColorPalette.GetColorForStructuralLabel(cue.Name);
-                    if (color == Models.CueColor.White && !string.IsNullOrEmpty(cue.Role))
-                        color = RekordboxColorPalette.GetColorForStructuralLabel(cue.Role);
+                    if (color == CueColor.White && cue.Role != CueRole.Custom)
+                        color = RekordboxColorPalette.GetColorForStructuralLabel(cue.Role.ToString().ToUpperInvariant());
                     
-                    int colorIndex = RekordboxColorPalette.GetColorIndex(color);
+                    var rgb = RekordboxColorPalette.GetRgbColor(color);
+                    var colorIndex = RekordboxColorPalette.GetColorIndex(color);
 
                     await writer.WriteStartElementAsync(null, "POSITION_MARK", null);
                     await writer.WriteAttributeStringAsync(null, "Name", null, XmlSanitizer.Sanitize(cue.Name));

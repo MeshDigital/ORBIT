@@ -35,7 +35,7 @@
                         WaveformData="{Binding WaveformData}"
                         Phrases="{Binding Phrases}"
                         Cues="{Binding Cues}"
-                        PlayheadPosition="{Binding Position}" />
+                        PlayheadPosition="{Binding CurrentTimeSeconds}" />
 
                     <!-- Waveform Ghosting Overlay -->
                     <Border Background="#121212" IsVisible="{Binding IsExtractingWaveform}">

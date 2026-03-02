@@ -13,6 +13,11 @@ public class StudioTagExportViewModel : ReactiveObject, IStudioModuleViewModel, 
     private readonly TagTemplateEngine _templateEngine;
     private readonly Id3MasteringService _id3Service;
     private IDisplayableTrack? _currentTrack;
+    public IDisplayableTrack? CurrentTrack
+    {
+        get => _currentTrack;
+        set => this.RaiseAndSetIfChanged(ref _currentTrack, value);
+    }
 
     private string _titleTemplate = "[{CamelotKey}] {Title}";
     public string TitleTemplate
@@ -65,7 +70,7 @@ public class StudioTagExportViewModel : ReactiveObject, IStudioModuleViewModel, 
         _id3Service = id3Service ?? throw new ArgumentNullException(nameof(id3Service));
 
         WriteTagsCommand = ReactiveCommand.CreateFromTask(OnWriteTagsAsync, 
-            this.WhenAnyValue(x => x.IsBusy, x => x._currentTrack, (busy, track) => !busy && track != null));
+            this.WhenAnyValue(x => x.IsBusy, x => x.CurrentTrack, (busy, track) => !busy && track != null));
     }
 
     private void UpdatePreview()
@@ -112,14 +117,14 @@ public class StudioTagExportViewModel : ReactiveObject, IStudioModuleViewModel, 
 
     public Task LoadTrackContextAsync(IDisplayableTrack track, CancellationToken cancellationToken)
     {
-        _currentTrack = track;
+        CurrentTrack = track;
         UpdatePreview();
         return Task.CompletedTask;
     }
 
     public void ClearContext()
     {
-        _currentTrack = null;
+        CurrentTrack = null;
         UpdatePreview();
     }
 

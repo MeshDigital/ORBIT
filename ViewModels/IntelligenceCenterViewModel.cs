@@ -14,6 +14,7 @@ using Microsoft.EntityFrameworkCore;
 using SLSKDONET.Services.Audio;
 using SLSKDONET.Services.AI;
 using SLSKDONET.Services.Analysis;
+using SLSKDONET.Services.Export;
 using SLSKDONET.Views;
 
 namespace SLSKDONET.ViewModels;
@@ -227,7 +228,7 @@ public class IntelligenceCenterViewModel : ReactiveObject, IDisposable
                 if (!string.IsNullOrEmpty(outputPath))
                 {
                     // Use the library entry for full metadata
-                    var entry = await _libraryService.FindLibraryEntryAsync(track.GlobalId);
+                    var entry = await _libraryService.GetTrackEntityByHashAsync(track.TrackUniqueHash);
                     if (entry != null)
                     {
                         await _rekordboxService.ExportTracksAsync(new[] { entry }, outputPath);

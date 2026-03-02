@@ -597,7 +597,7 @@ public class TransitionProberViewModel : ReactiveObject, ISidebarContent, IDispo
             }
         });
         
-        if (track.Model?.ResolvedFilePath != null)
+        if (!string.IsNullOrEmpty(track.Model?.ResolvedFilePath))
         {
             try
             {
@@ -692,7 +692,20 @@ public class TransitionProberViewModel : ReactiveObject, ISidebarContent, IDispo
     {
         try
         {
-            var waveform = await _waveformService.GenerateWaveformAsync(track.Model.ResolvedFilePath, ct);
+            if (string.IsNullOrEmpty(track.Model?.ResolvedFilePath))
+            {
+                // Graceful degradation: If file is missing, do not attempt FFmpeg extraction.
+                // Leave waveform as null/empty, but proceed to hydrate phrases/cues anyway since they are in the DB.
+                if (isPrimary) PrimaryWaveform = new WaveformAnalysisData();
+                else SecondaryWaveform = new WaveformAnalysisData();
+            }
+            else
+            {
+                var waveform = await _waveformService.GenerateWaveformAsync(track.Model.ResolvedFilePath, ct);
+                if (isPrimary) PrimaryWaveform = waveform;
+                else SecondaryWaveform = waveform;
+            }
+
             await _phraseService.DetectPhrasesAsync(track.Model.TrackUniqueHash);
             
             var phraseEntities = await _libraryService.GetPhrasesByHashAsync(track.Model.TrackUniqueHash);
@@ -705,12 +718,10 @@ public class TransitionProberViewModel : ReactiveObject, ISidebarContent, IDispo
 
             if (isPrimary)
             {
-                PrimaryWaveform = waveform;
                 PrimaryPhrases = phrases;
             }
             else
             {
-                SecondaryWaveform = waveform;
                 SecondaryPhrases = phrases;
             }
         }

@@ -45,6 +45,9 @@ public class StudioWaveformCanvas : Control
     protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e)
     {
         base.OnAttachedToVisualTree(e);
+        // Reset timer baseline to prevent first-tick delta-time spike
+        // (if Studio is opened 10 min after launch, deltaTime would be 600s otherwise)
+        _lastFrameTicks = _renderStopwatch.ElapsedTicks;
         _lerpTimer = new DispatcherTimer(TimeSpan.FromMilliseconds(16), DispatcherPriority.Render, OnTimerTick);
         _lerpTimer.Start();
     }
@@ -227,8 +230,9 @@ public class StudioWaveformCanvas : Control
                 }
             }
 
-            // 4. Draw Playhead
-            float playheadX = (float)(_playhead / (_data.DurationSeconds > 0 ? _data.DurationSeconds : 1.0) * width);
+            // 4. Draw Playhead (guard against DurationSeconds <= 0 to prevent NaN)
+            if (_data.DurationSeconds <= 0) return;
+            float playheadX = (float)(_playhead / _data.DurationSeconds * width);
             using var playheadPaint = new SKPaint
             {
                 Color = SKColors.White,
