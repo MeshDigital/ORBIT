@@ -25,6 +25,8 @@ public class StudioProViewModel : ReactiveObject, IDisposable
     public StemSidebarViewModel StemViewModel { get; }
     public TransitionProberViewModel ProberViewModel { get; }
     public SLSKDONET.ViewModels.PlayerViewModel PlayerViewModel { get; }
+    public StudioGrandPianoViewModel GrandPianoViewModel { get; }
+    public StudioTagExportViewModel TagExportViewModel { get; }
 
     // Phase 2: High-Fidelity Grid Properties
     public ObservableCollection<IDisplayableTrack> WorkspaceTracks { get; } = new();
@@ -74,6 +76,11 @@ public class StudioProViewModel : ReactiveObject, IDisposable
         StemViewModel = stemViewModel ?? throw new ArgumentNullException(nameof(stemViewModel));
         ProberViewModel = proberViewModel ?? throw new ArgumentNullException(nameof(proberViewModel));
         PlayerViewModel = playerViewModel ?? throw new ArgumentNullException(nameof(playerViewModel));
+        GrandPianoViewModel = new StudioGrandPianoViewModel();
+        
+        var templateEngine = new SLSKDONET.Services.Tagging.TagTemplateEngine();
+        var id3Service = new SLSKDONET.Services.Tagging.Id3MasteringService(templateEngine);
+        TagExportViewModel = new StudioTagExportViewModel(templateEngine, id3Service);
 
         _ = LoadTracksAsync();
 
@@ -108,7 +115,9 @@ public class StudioProViewModel : ReactiveObject, IDisposable
                 CueViewModel as IStudioModuleViewModel, 
                 StemViewModel as IStudioModuleViewModel, 
                 ProberViewModel as IStudioModuleViewModel, 
-                PlayerViewModel as IStudioModuleViewModel 
+                PlayerViewModel as IStudioModuleViewModel,
+                GrandPianoViewModel as IStudioModuleViewModel,
+                TagExportViewModel as IStudioModuleViewModel
             }.Where(m => m != null).Select(m => m!).ToList();
 
             await Task.WhenAll(modules.Select(m => m.LoadTrackContextAsync(track, token)));
@@ -129,6 +138,8 @@ public class StudioProViewModel : ReactiveObject, IDisposable
         (StemViewModel as IStudioModuleViewModel)?.ClearContext();
         (ProberViewModel as IStudioModuleViewModel)?.ClearContext();
         (PlayerViewModel as IStudioModuleViewModel)?.ClearContext();
+        (GrandPianoViewModel as IStudioModuleViewModel)?.ClearContext();
+        (TagExportViewModel as IStudioModuleViewModel)?.ClearContext();
     }
 
     private async Task LoadTracksAsync()
@@ -158,6 +169,11 @@ public class StudioProViewModel : ReactiveObject, IDisposable
     {
         _contextCts?.Cancel();
         _contextCts?.Dispose();
+        
+        // Dispose sub-modules
+        GrandPianoViewModel?.Dispose();
+        TagExportViewModel?.Dispose();
+        
         _disposables.Dispose();
     }
 }

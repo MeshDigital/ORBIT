@@ -1,0 +1,78 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="clr-namespace:SLSKDONET.ViewModels.Studio"
+             x:Class="SLSKDONET.Views.Avalonia.Studio.StudioTagExportView"
+             x:DataType="vm:StudioTagExportViewModel">
+
+    <ScrollViewer>
+        <StackPanel Margin="20" Spacing="25">
+            <TextBlock Text="EXPORT ANALYSIS TO FILE" Foreground="#E0E0E0" FontSize="14" FontWeight="Bold"/>
+
+            <!-- Title Template -->
+            <StackPanel Spacing="8">
+                <TextBlock Text="TITLE TEMPLATE" FontSize="9" Foreground="#888" FontWeight="Bold" LetterSpacing="1"/>
+                <TextBox Text="{Binding TitleTemplate}" 
+                         Background="#121212" 
+                         BorderBrush="#2D2D2D" 
+                         Foreground="#00FFFF"
+                         FontSize="12"
+                         Padding="10"/>
+                <StackPanel Orientation="Horizontal" Spacing="5">
+                    <TextBlock Text="Result:" FontSize="10" Foreground="#444"/>
+                    <TextBlock Text="{Binding PreviewTitle}" FontSize="10" Foreground="#888" FontStyle="Italic"/>
+                </StackPanel>
+            </StackPanel>
+
+            <!-- Comments Template -->
+            <StackPanel Spacing="8">
+                <TextBlock Text="COMMENTS TEMPLATE" FontSize="9" Foreground="#888" FontWeight="Bold" LetterSpacing="1"/>
+                <TextBox Text="{Binding CommentsTemplate}" 
+                         Background="#121212" 
+                         BorderBrush="#2D2D2D" 
+                         Foreground="#00FFFF"
+                         FontSize="12"
+                         Padding="10"/>
+                <StackPanel Orientation="Horizontal" Spacing="5">
+                    <TextBlock Text="Result:" FontSize="10" Foreground="#444"/>
+                    <TextBlock Text="{Binding PreviewComments}" FontSize="10" Foreground="#888" FontStyle="Italic"/>
+                </StackPanel>
+            </StackPanel>
+
+            <Separator Background="#2D2D2D" Height="1" Margin="0,10"/>
+
+            <!-- Summary Text -->
+            <TextBlock Text="This will physically rewrite the ID3 tags of the selected audio file. Fields updated: Title, Comment, BPM, and Initial Key." 
+                       Foreground="#666" 
+                       FontSize="10" 
+                       TextWrapping="Wrap"/>
+
+            <!-- Action Button -->
+            <Button Command="{Binding WriteTagsCommand}" 
+                    HorizontalAlignment="Stretch" 
+                    Height="45"
+                    Background="#00FFFF" 
+                    Foreground="#000"
+                    FontWeight="Bold">
+                <Grid>
+                    <TextBlock Text="WRITE TAGS TO FILE" IsVisible="{Binding !IsBusy}" VerticalAlignment="Center" HorizontalAlignment="Center"/>
+                    <StackPanel Orientation="Horizontal" Spacing="10" IsVisible="{Binding IsBusy}" VerticalAlignment="Center" HorizontalAlignment="Center">
+                        <ProgressBar IsIndeterminate="True" Width="20" Height="2" Foreground="#000"/>
+                        <TextBlock Text="WRITING..." Foreground="#000" FontSize="11" FontWeight="Bold"/>
+                    </StackPanel>
+                </Grid>
+            </Button>
+
+            <!-- Variable Help -->
+            <Border Background="#1A1A1A" Padding="15" BorderBrush="#2D2D2D" BorderThickness="1" CornerRadius="4">
+                <StackPanel Spacing="5">
+                    <TextBlock Text="AVAILABLE VARIABLES" FontSize="9" Foreground="#00FFFF" FontWeight="Bold" Margin="0,0,0,5"/>
+                    <TextBlock Text="{}{CamelotKey} - e.g. 8A" FontSize="10" Foreground="#888"/>
+                    <TextBlock Text="{}{BPM} - e.g. 124" FontSize="10" Foreground="#888"/>
+                    <TextBlock Text="{}{Title} - Original Title" FontSize="10" Foreground="#888"/>
+                    <TextBlock Text="{}{Artist} - Original Artist" FontSize="10" Foreground="#888"/>
+                    <TextBlock Text="{}{EnergyLevel} - 1 to 10" FontSize="10" Foreground="#888"/>
+                </StackPanel>
+            </Border>
+        </StackPanel>
+    </ScrollViewer>
+</UserControl>

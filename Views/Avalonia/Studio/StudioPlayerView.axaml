@@ -1,6 +1,7 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:vm="clr-namespace:SLSKDONET.ViewModels"
+             xmlns:studio="clr-namespace:SLSKDONET.Views.Avalonia.Studio"
              x:Class="SLSKDONET.Views.Avalonia.Studio.StudioPlayerView"
              x:DataType="vm:PlayerViewModel">
 
@@ -27,16 +28,23 @@
 
         <!-- 2. X-RAY WAVEFORM (THE HEART) -->
         <Grid Grid.Column="1" Margin="20,10">
-            <Border Background="#121212" BorderBrush="#2D2D2D" BorderThickness="1">
-                <!-- X-Ray Waveform Placeholder -->
-                <Canvas x:Name="WaveformCanvas" ClipToBounds="True">
-                    <!-- Progress Overlay -->
-                    <Rectangle Fill="#00FFFF" Height="40" VerticalAlignment="Center" 
-                               Width="200" HorizontalAlignment="Left" Opacity="0.1"/>
-                    
-                    <TextBlock Text="X-RAY WAVEFORM VISUALIZER" Foreground="#2D2D2D" FontSize="30" FontWeight="Bold" 
-                               HorizontalAlignment="Center" VerticalAlignment="Center" Opacity="0.2"/>
-                </Canvas>
+            <Border Background="#121212" BorderBrush="#2D2D2D" BorderThickness="1" ClipToBounds="True">
+                <Grid>
+                    <!-- Hardware Accelerated X-Ray Waveform -->
+                    <studio:StudioWaveformCanvas 
+                        WaveformData="{Binding WaveformData}"
+                        Phrases="{Binding Phrases}"
+                        Cues="{Binding Cues}"
+                        PlayheadPosition="{Binding Position}" />
+
+                    <!-- Waveform Ghosting Overlay -->
+                    <Border Background="#121212" IsVisible="{Binding IsExtractingWaveform}">
+                        <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center" Spacing="10">
+                            <ProgressBar IsIndeterminate="True" Width="200" Height="2" Foreground="#00FFFF" Background="#1E1E1E"/>
+                            <TextBlock Text="EXTRACTING X-RAY PEAKS..." Foreground="#444" FontSize="9" FontWeight="Bold" HorizontalAlignment="Center"/>
+                        </StackPanel>
+                    </Border>
+                </Grid>
             </Border>
             
             <!-- Time Display -->

@@ -265,6 +265,20 @@ namespace SLSKDONET.ViewModels
             set => SetProperty(ref _waveformData, value);
         }
 
+        private IEnumerable<Models.PhraseSegment> _phrases = Array.Empty<Models.PhraseSegment>();
+        public IEnumerable<Models.PhraseSegment> Phrases
+        {
+            get => _phrases;
+            set => SetProperty(ref _phrases, value);
+        }
+
+        private IEnumerable<OrbitCue> _cues = Array.Empty<OrbitCue>();
+        public IEnumerable<OrbitCue> Cues
+        {
+            get => _cues;
+            set => SetProperty(ref _cues, value);
+        }
+
         private double _pitch = 1.0;
         public double Pitch
         {
@@ -1106,9 +1120,33 @@ namespace SLSKDONET.ViewModels
 
             try
             {
-                // Await high-resolution waveform analysis with cancellation
-                var peaks = await _waveformService.AnalyzeAsync(track.Model.ResolvedFilePath, cancellationToken);
-                WaveformData = peaks;
+                // Await high-fidelity structural hydration from database
+                var audioFeatures = await _databaseService.GetAudioFeaturesByHashAsync(track.GlobalId);
+                
+                if (audioFeatures != null)
+                {
+                    // 1. Hydrate Phrases (Prefer JSON from features if versioned, else fallback to phrases table)
+                    if (!string.IsNullOrEmpty(audioFeatures.PhraseSegmentsJson))
+                    {
+                        Phrases = System.Text.Json.JsonSerializer.Deserialize<List<Models.PhraseSegment>>(audioFeatures.PhraseSegmentsJson) ?? new();
+                    }
+                    else
+                    {
+                        var dbPhrases = await _databaseService.GetPhrasesByHashAsync(track.GlobalId);
+                        Phrases = dbPhrases.Select(p => new Models.PhraseSegment 
+                        { 
+                            Label = p.Label ?? p.Type.ToString(),
+                            Start = p.StartTimeSeconds,
+                            Duration = p.DurationSeconds
+                        }).ToList();
+                    }
+
+                    // 2. Hydrate Cues
+                    if (!string.IsNullOrEmpty(audioFeatures.CuePointsJson))
+                    {
+                        Cues = System.Text.Json.JsonSerializer.Deserialize<List<OrbitCue>>(audioFeatures.CuePointsJson) ?? new();
+                    }
+                }
             }
             catch (OperationCanceledException)
             {

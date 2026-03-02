@@ -47,6 +47,23 @@
         <Style Selector="dg|DataGridRow:selected /template/ Rectangle#BackgroundRectangle">
             <Setter Property="Fill" Value="Transparent"/>
         </Style>
+
+        <!-- Selection Glow Pulse Animation -->
+        <Style Selector="Border.selection-glow">
+            <Style.Animations>
+                <Animation Duration="0:0:2" IterationCount="Infinite">
+                    <KeyFrame KeyTime="0:0:0">
+                        <Setter Property="Opacity" Value="0.6"/>
+                    </KeyFrame>
+                    <KeyFrame KeyTime="0:0:1">
+                        <Setter Property="Opacity" Value="1.0"/>
+                    </KeyFrame>
+                    <KeyFrame KeyTime="0:0:2">
+                        <Setter Property="Opacity" Value="0.6"/>
+                    </KeyFrame>
+                </Animation>
+            </Style.Animations>
+        </Style>
     </UserControl.Styles>
 
     <Grid RowDefinitions="Auto,*">
@@ -78,6 +95,7 @@
                     <dg:DataGridTemplateColumn.CellTemplate>
                         <DataTemplate x:DataType="vm:IDisplayableTrack">
                             <Border Width="4" HorizontalAlignment="Left" Background="#00FFFF" 
+                                    Classes="selection-glow"
                                     IsVisible="{Binding IsSelected}"/>
                         </DataTemplate>
                     </dg:DataGridTemplateColumn.CellTemplate>

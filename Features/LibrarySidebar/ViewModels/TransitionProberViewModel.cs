@@ -692,8 +692,16 @@ public class TransitionProberViewModel : ReactiveObject, ISidebarContent, IDispo
     {
         try
         {
-            var waveform = await _waveformService.AnalyzeAsync(track.Model.ResolvedFilePath, ct);
-            var phrases = await _phraseService.DetectPhrasesAsync(track.Model.ResolvedFilePath, ct);
+            var waveform = await _waveformService.GenerateWaveformAsync(track.Model.ResolvedFilePath, ct);
+            await _phraseService.DetectPhrasesAsync(track.Model.TrackUniqueHash);
+            
+            var phraseEntities = await _libraryService.GetPhrasesByHashAsync(track.Model.TrackUniqueHash);
+            var phrases = phraseEntities.Select(p => new PhraseSegment 
+            {
+                Label = p.Label ?? p.Type.ToString(),
+                Start = p.StartTimeSeconds,
+                Duration = p.DurationSeconds
+            }).ToList();
 
             if (isPrimary)
             {

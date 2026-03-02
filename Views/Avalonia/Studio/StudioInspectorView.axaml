@@ -16,19 +16,40 @@
 
         <!-- Tool Selection TabControl -->
         <TabControl Grid.Row="1" Classes="pro">
+            <TabControl.ItemsPanel>
+                <ItemsPanelTemplate>
+                    <UniformGrid Rows="1" Background="#1E1E1E"/>
+                </ItemsPanelTemplate>
+            </TabControl.ItemsPanel>
+            
+            <TabControl.Styles>
+                <Style Selector="TabControl.pro > ContentPresenter">
+                    <Setter Property="Transitions">
+                        <Transitions>
+                            <DoubleTransition Property="Opacity" Duration="0:0:0.2"/>
+                        </Transitions>
+                    </Setter>
+                </Style>
+            </TabControl.Styles>
             <TabItem Header="VERIFY KEY">
                 <ScrollViewer>
                     <StackPanel Margin="20" Spacing="20">
-                        <TextBlock Text="KEY &amp; BPAM ANALYSIS" Foreground="#E0E0E0" FontSize="14" FontWeight="Bold"/>
+                        <TextBlock Text="KEY &amp; BPM ANALYSIS" Foreground="#E0E0E0" FontSize="14" FontWeight="Bold"/>
+                        
+                        <!-- Detected Key Display -->
                         <Border Background="#121212" Padding="15" BorderBrush="#2D2D2D" BorderThickness="1">
                             <Grid ColumnDefinitions="*,Auto">
                                 <StackPanel Spacing="5">
                                     <TextBlock Text="DETECTED KEY" FontSize="10" Foreground="#888"/>
-                                    <TextBlock Text="{Binding SelectedTrack.KeyDisplay}" FontSize="24" FontWeight="Bold" Foreground="#00FFFF"/>
+                                    <TextBlock Text="{Binding SelectedStudioTrack.KeyDisplay}" FontSize="24" FontWeight="Bold" Foreground="#00FFFF"/>
                                 </StackPanel>
                                 <Button Grid.Column="1" Content="RE-ANALYZE" Background="#2D2D2D" Foreground="#E0E0E0" Padding="10,5" FontSize="10"/>
                             </Grid>
                         </Border>
+
+                        <!-- Interactive Piano Verification -->
+                        <TextBlock Text="VERIFY BY EAR" FontSize="10" Foreground="#888" Margin="0,10,0,0"/>
+                        <Studio:StudioGrandPianoView DataContext="{Binding GrandPianoViewModel}" />
                     </StackPanel>
                 </ScrollViewer>
             </TabItem>
@@ -46,7 +67,7 @@
             </TabItem>
 
             <TabItem Header="EXPORT">
-                 <TextBlock Text="Export Center (Coming Soon)" Foreground="#444" HorizontalAlignment="Center" Margin="0,40"/>
+                 <Studio:StudioTagExportView DataContext="{Binding TagExportViewModel}" />
             </TabItem>
         </TabControl>
     </Grid>

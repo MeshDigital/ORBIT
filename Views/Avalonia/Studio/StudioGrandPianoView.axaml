@@ -1,0 +1,92 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="clr-namespace:SLSKDONET.ViewModels.Studio"
+             x:Class="SLSKDONET.Views.Avalonia.Studio.StudioGrandPianoView"
+             x:DataType="vm:StudioGrandPianoViewModel">
+
+    <UserControl.Styles>
+        <!-- White Key Base Style -->
+        <Style Selector="Button.whiteKey">
+            <Setter Property="Background" Value="#1E1E1E"/>
+            <Setter Property="BorderBrush" Value="#2D2D2D"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="CornerRadius" Value="0,0,4,4"/>
+            <Setter Property="VerticalAlignment" Value="Stretch"/>
+            <Setter Property="HorizontalAlignment" Value="Stretch"/>
+            <Setter Property="Padding" Value="0"/>
+        </Style>
+        <Style Selector="Button.whiteKey:pointerover /template/ ContentPresenter">
+            <Setter Property="Background" Value="#252525"/>
+        </Style>
+        <Style Selector="Button.whiteKey.inScale">
+            <Setter Property="BorderBrush" Value="#00FFFF"/>
+            <Setter Property="BorderThickness" Value="1,1,1,2"/>
+        </Style>
+        <Style Selector="Button.whiteKey.isPressed">
+            <Setter Property="Background" Value="#00FFFF"/>
+        </Style>
+
+        <!-- Black Key Base Style -->
+        <Style Selector="Button.blackKey">
+            <Setter Property="Background" Value="#0A0A0A"/>
+            <Setter Property="BorderBrush" Value="#2D2D2D"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="CornerRadius" Value="0,0,2,2"/>
+            <Setter Property="Width" Value="24"/>
+            <Setter Property="Height" Value="80"/>
+            <Setter Property="VerticalAlignment" Value="Top"/>
+            <Setter Property="ZIndex" Value="1"/>
+        </Style>
+        <Style Selector="Button.blackKey:pointerover /template/ ContentPresenter">
+            <Setter Property="Background" Value="#151515"/>
+        </Style>
+        <Style Selector="Button.blackKey.inScale">
+            <Setter Property="BorderBrush" Value="#00FFFF"/>
+            <Setter Property="BorderThickness" Value="1,1,1,2"/>
+        </Style>
+        <Style Selector="Button.blackKey.isPressed">
+            <Setter Property="Background" Value="#00FFFF"/>
+        </Style>
+    </UserControl.Styles>
+
+    <Border Background="#121212" CornerRadius="4" Padding="10">
+        <Grid HorizontalAlignment="Center">
+            <!-- 14 White Columns (2 Octaves: C, D, E, F, G, A, B x 2) -->
+            <Grid ColumnDefinitions="30,30,30,30,30,30,30,30,30,30,30,30,30,30" Height="140">
+                
+                <!-- White Keys -->
+                <Button Grid.Column="0" Classes="whiteKey" Classes.inScale="{Binding Keys[0].IsInScale}" Classes.isPressed="{Binding Keys[0].IsPressed}" Command="{Binding Keys[0].PlayNoteCommand}"/>
+                <Button Grid.Column="1" Classes="whiteKey" Classes.inScale="{Binding Keys[2].IsInScale}" Classes.isPressed="{Binding Keys[2].IsPressed}" Command="{Binding Keys[2].PlayNoteCommand}"/>
+                <Button Grid.Column="2" Classes="whiteKey" Classes.inScale="{Binding Keys[4].IsInScale}" Classes.isPressed="{Binding Keys[4].IsPressed}" Command="{Binding Keys[4].PlayNoteCommand}"/>
+                <Button Grid.Column="3" Classes="whiteKey" Classes.inScale="{Binding Keys[5].IsInScale}" Classes.isPressed="{Binding Keys[5].IsPressed}" Command="{Binding Keys[5].PlayNoteCommand}"/>
+                <Button Grid.Column="4" Classes="whiteKey" Classes.inScale="{Binding Keys[7].IsInScale}" Classes.isPressed="{Binding Keys[7].IsPressed}" Command="{Binding Keys[7].PlayNoteCommand}"/>
+                <Button Grid.Column="5" Classes="whiteKey" Classes.inScale="{Binding Keys[9].IsInScale}" Classes.isPressed="{Binding Keys[9].IsPressed}" Command="{Binding Keys[9].PlayNoteCommand}"/>
+                <Button Grid.Column="6" Classes="whiteKey" Classes.inScale="{Binding Keys[11].IsInScale}" Classes.isPressed="{Binding Keys[11].IsPressed}" Command="{Binding Keys[11].PlayNoteCommand}"/>
+                
+                <Button Grid.Column="7" Classes="whiteKey" Classes.inScale="{Binding Keys[12].IsInScale}" Classes.isPressed="{Binding Keys[12].IsPressed}" Command="{Binding Keys[12].PlayNoteCommand}"/>
+                <Button Grid.Column="8" Classes="whiteKey" Classes.inScale="{Binding Keys[14].IsInScale}" Classes.isPressed="{Binding Keys[14].IsPressed}" Command="{Binding Keys[14].PlayNoteCommand}"/>
+                <Button Grid.Column="9" Classes="whiteKey" Classes.inScale="{Binding Keys[16].IsInScale}" Classes.isPressed="{Binding Keys[16].IsPressed}" Command="{Binding Keys[16].PlayNoteCommand}"/>
+                <Button Grid.Column="10" Classes="whiteKey" Classes.inScale="{Binding Keys[17].IsInScale}" Classes.isPressed="{Binding Keys[17].IsPressed}" Command="{Binding Keys[17].PlayNoteCommand}"/>
+                <Button Grid.Column="11" Classes="whiteKey" Classes.inScale="{Binding Keys[19].IsInScale}" Classes.isPressed="{Binding Keys[19].IsPressed}" Command="{Binding Keys[19].PlayNoteCommand}"/>
+                <Button Grid.Column="12" Classes="whiteKey" Classes.inScale="{Binding Keys[21].IsInScale}" Classes.isPressed="{Binding Keys[21].IsPressed}" Command="{Binding Keys[21].PlayNoteCommand}"/>
+                <Button Grid.Column="13" Classes="whiteKey" Classes.inScale="{Binding Keys[23].IsInScale}" Classes.isPressed="{Binding Keys[23].IsPressed}" Command="{Binding Keys[23].PlayNoteCommand}"/>
+
+                <!-- Black Keys (Octave 1) -->
+                <Button Grid.Column="0" Grid.ColumnSpan="2" HorizontalAlignment="Right" Margin="0,0,-12,0" Classes="blackKey" Classes.inScale="{Binding Keys[1].IsInScale}" Classes.isPressed="{Binding Keys[1].IsPressed}" Command="{Binding Keys[1].PlayNoteCommand}"/>
+                <Button Grid.Column="1" Grid.ColumnSpan="2" HorizontalAlignment="Right" Margin="0,0,-12,0" Classes="blackKey" Classes.inScale="{Binding Keys[3].IsInScale}" Classes.isPressed="{Binding Keys[3].IsPressed}" Command="{Binding Keys[3].PlayNoteCommand}"/>
+                
+                <Button Grid.Column="3" Grid.ColumnSpan="2" HorizontalAlignment="Right" Margin="0,0,-12,0" Classes="blackKey" Classes.inScale="{Binding Keys[6].IsInScale}" Classes.isPressed="{Binding Keys[6].IsPressed}" Command="{Binding Keys[6].PlayNoteCommand}"/>
+                <Button Grid.Column="4" Grid.ColumnSpan="2" HorizontalAlignment="Right" Margin="0,0,-12,0" Classes="blackKey" Classes.inScale="{Binding Keys[8].IsInScale}" Classes.isPressed="{Binding Keys[8].IsPressed}" Command="{Binding Keys[8].PlayNoteCommand}"/>
+                <Button Grid.Column="5" Grid.ColumnSpan="2" HorizontalAlignment="Right" Margin="0,0,-12,0" Classes="blackKey" Classes.inScale="{Binding Keys[10].IsInScale}" Classes.isPressed="{Binding Keys[10].IsPressed}" Command="{Binding Keys[10].PlayNoteCommand}"/>
+
+                <!-- Black Keys (Octave 2) -->
+                <Button Grid.Column="7" Grid.ColumnSpan="2" HorizontalAlignment="Right" Margin="0,0,-12,0" Classes="blackKey" Classes.inScale="{Binding Keys[13].IsInScale}" Classes.isPressed="{Binding Keys[13].IsPressed}" Command="{Binding Keys[13].PlayNoteCommand}"/>
+                <Button Grid.Column="8" Grid.ColumnSpan="2" HorizontalAlignment="Right" Margin="0,0,-12,0" Classes="blackKey" Classes.inScale="{Binding Keys[15].IsInScale}" Classes.isPressed="{Binding Keys[15].IsPressed}" Command="{Binding Keys[15].PlayNoteCommand}"/>
+                
+                <Button Grid.Column="10" Grid.ColumnSpan="2" HorizontalAlignment="Right" Margin="0,0,-12,0" Classes="blackKey" Classes.inScale="{Binding Keys[18].IsInScale}" Classes.isPressed="{Binding Keys[18].IsPressed}" Command="{Binding Keys[18].PlayNoteCommand}"/>
+                <Button Grid.Column="11" Grid.ColumnSpan="2" HorizontalAlignment="Right" Margin="0,0,-12,0" Classes="blackKey" Classes.inScale="{Binding Keys[20].IsInScale}" Classes.isPressed="{Binding Keys[20].IsPressed}" Command="{Binding Keys[20].PlayNoteCommand}"/>
+                <Button Grid.Column="12" Grid.ColumnSpan="2" HorizontalAlignment="Right" Margin="0,0,-12,0" Classes="blackKey" Classes.inScale="{Binding Keys[22].IsInScale}" Classes.isPressed="{Binding Keys[22].IsPressed}" Command="{Binding Keys[22].PlayNoteCommand}"/>
+            </Grid>
+        </Grid>
+    </Border>
+</UserControl>
