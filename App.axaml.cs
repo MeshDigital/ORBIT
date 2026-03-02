@@ -642,6 +642,9 @@ public partial class App : Application
         services.AddSingleton<ForensicLibrarianService>(); // Phase 6: Integrity Enforcement
 
         // Phase 10: Tagging & Mobility
+        services.AddSingleton<SLSKDONET.Services.Tagging.TagTemplateEngine>();
+        services.AddSingleton<SLSKDONET.Services.Tagging.Id3MasteringService>();
+        
         services.AddSingleton<SLSKDONET.Services.IO.SafeWriteService>();
         services.AddSingleton<SLSKDONET.Services.IO.IFileWriteService>(sp => sp.GetRequiredService<SLSKDONET.Services.IO.SafeWriteService>());
 

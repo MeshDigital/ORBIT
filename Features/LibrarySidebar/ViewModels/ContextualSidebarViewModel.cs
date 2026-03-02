@@ -166,7 +166,7 @@ public class ContextualSidebarViewModel : ReactiveObject, IDisposable
     public void AttachToSelection(IObservable<IReadOnlyList<PlaylistTrackViewModel>> selectionStream)
     {
         selectionStream
-            .Throttle(TimeSpan.FromMilliseconds(250))
+            .Throttle(TimeSpan.FromMilliseconds(150))
             .ObserveOn(RxApp.MainThreadScheduler)
             .Subscribe(async tracks => await UpdateContextAsync(tracks))
             .DisposeWith(_disposables);

@@ -5,6 +5,7 @@
              xmlns:vm="clr-namespace:SLSKDONET.ViewModels"
              xmlns:controls="clr-namespace:SLSKDONET.Views.Avalonia.Controls"
              xmlns:data="clr-namespace:SLSKDONET.Data"
+             xmlns:studio="clr-namespace:SLSKDONET.Views.Avalonia.Studio"
              mc:Ignorable="d" d:DesignWidth="1200" d:DesignHeight="100"
              x:Class="SLSKDONET.Views.Avalonia.HorizontalPlayerControl"
              x:DataType="vm:PlayerViewModel"
@@ -138,16 +139,19 @@
                            VerticalAlignment="Center"/>
                 
                 <Panel Grid.Column="1" Height="32" Margin="12,0">
-                    <!-- High-Res Waveform Background -->
-                    <controls:WaveformControl WaveformData="{Binding WaveformData}" 
-                                             LowBand="{Binding CurrentTrack.LowData}"
-                                             MidBand="{Binding CurrentTrack.MidData}"
-                                             HighBand="{Binding CurrentTrack.HighData}"
-                                             Progress="{Binding Position}" 
-                                             Background="#01000000"
-                                             PlayheadBrush="#1DB954"
+                    <!-- High-Res Studio Skia Waveform (Phase 10 Upgrade) -->
+                    <studio:StudioWaveformCanvas WaveformData="{Binding WaveformData}" 
+                                             Phrases="{Binding Phrases}"
+                                             Cues="{Binding Cues}"
+                                             PlayheadPosition="{Binding CurrentTimeSeconds}" 
                                              SeekCommand="{Binding SeekCommand}"
-                                             VerticalAlignment="Stretch"/>
+                                             VerticalAlignment="Stretch">
+                        <studio:StudioWaveformCanvas.Styles>
+                            <Style Selector="studio|StudioWaveformCanvas">
+                                <Setter Property="Cursor" Value="Hand" />
+                            </Style>
+                        </studio:StudioWaveformCanvas.Styles>
+                    </studio:StudioWaveformCanvas>
                 </Panel>
                 
                 <TextBlock Grid.Column="2" 

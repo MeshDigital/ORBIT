@@ -9,6 +9,9 @@ using SLSKDONET.Services;
 using SLSKDONET.ViewModels;
 using SLSKDONET.Models;
 using SLSKDONET.Features.LibrarySidebar;
+using SLSKDONET.Services.Tagging;
+using SLSKDONET.Models.Studio;
+using System.Threading;
 
 namespace SLSKDONET.Features.LibrarySidebar.ViewModels;
 
@@ -17,6 +20,8 @@ public class MetadataSidebarViewModel : ReactiveObject, ISidebarContent
     private readonly ILibraryService _libraryService;
     private readonly ITaggerService _taggerService;
     private readonly ISpotifyMetadataService _spotifyService;
+    private readonly Id3MasteringService _id3MasteringService;
+    private CancellationTokenSource? _loadingCts;
     
     private PlaylistTrackViewModel? _activeTrack;
     private bool _isLoading;
@@ -37,11 +42,13 @@ public class MetadataSidebarViewModel : ReactiveObject, ISidebarContent
     public MetadataSidebarViewModel(
         ILibraryService libraryService,
         ITaggerService taggerService,
-        ISpotifyMetadataService spotifyService)
+        ISpotifyMetadataService spotifyService,
+        Id3MasteringService id3MasteringService)
     {
         _libraryService = libraryService;
         _taggerService = taggerService;
         _spotifyService = spotifyService;
+        _id3MasteringService = id3MasteringService;
 
         SaveToDbCommand = ReactiveCommand.CreateFromTask(SaveToDbAsync);
         SaveToFileCommand = ReactiveCommand.CreateFromTask(SaveToFileAsync);
@@ -50,6 +57,11 @@ public class MetadataSidebarViewModel : ReactiveObject, ISidebarContent
 
     public async Task ActivateAsync(PlaylistTrackViewModel track)
     {
+        _loadingCts?.Cancel();
+        _loadingCts?.Dispose();
+        _loadingCts = new CancellationTokenSource();
+        var token = _loadingCts.Token;
+
         _activeTrack = track;
         IsLoading = true;
         Fields.Clear();
@@ -57,6 +69,7 @@ public class MetadataSidebarViewModel : ReactiveObject, ISidebarContent
         try
         {
             var dbTrack = track.Model;
+            token.ThrowIfCancellationRequested();
             // 1. Core Metadata (Editable)
             var fields = new List<MetadataFieldViewModel>
             {
@@ -88,6 +101,8 @@ public class MetadataSidebarViewModel : ReactiveObject, ISidebarContent
             if (!string.IsNullOrEmpty(track.Model.ResolvedFilePath))
             {
                 var fileTags = await _taggerService.ReadTagsAsync(track.Model.ResolvedFilePath);
+                token.ThrowIfCancellationRequested();
+
                 if (fileTags != null)
                 {
                     UpdateField("Artist", f => f.FileValue = fileTags.Artist);
@@ -122,6 +137,8 @@ public class MetadataSidebarViewModel : ReactiveObject, ISidebarContent
 
             // 4. Load Spotify Data
             var spotifyTrack = await _spotifyService.FindTrackAsync(dbTrack.Artist, dbTrack.Title);
+            token.ThrowIfCancellationRequested();
+
             if (spotifyTrack != null)
             {
                 UpdateField("Artist", f => f.SpotifyValue = spotifyTrack.Artists.FirstOrDefault()?.Name);
@@ -130,9 +147,10 @@ public class MetadataSidebarViewModel : ReactiveObject, ISidebarContent
                 UpdateField("Year", f => f.SpotifyValue = spotifyTrack.Album.ReleaseDate);
             }
         }
-        catch (Exception)
+        catch (OperationCanceledException) { /* Discarded */ }
+        catch (Exception ex)
         {
-             // Handle or log error
+             Serilog.Log.Error(ex, "Error activating Metadata Sidebar");
         }
         finally
         {
@@ -186,19 +204,16 @@ public class MetadataSidebarViewModel : ReactiveObject, ISidebarContent
         // First save to DB to ensure we have the latest
         await SaveToDbAsync();
 
-        // Then write tags using a temporary Track model (TaggerService expects Track)
-        var trackForTagging = new Track
+        // Then write tags using the high-performance Atomic Master Engine
+        var settings = new TagTemplateSettings
         {
-            Artist = _activeTrack.Model.Artist,
-            Title = _activeTrack.Model.Title,
-            Album = _activeTrack.Model.Album,
-            MusicalKey = _activeTrack.Model.MusicalKey,
-            BPM = _activeTrack.Model.BPM
+            CommentsTemplate = "{Comments} | ORBIT MASTERED"
         };
 
-        await _taggerService.TagFileAsync(trackForTagging, _activeTrack.Model.ResolvedFilePath);
+        // Use the ViewModel directly as it implements IDisplayableTrack for consistent property mapping
+        await _id3MasteringService.WriteTagsAsync(_activeTrack, settings);
         
-        // Refresh file values In UI
+        // Refresh file values in UI
         foreach (var field in Fields)
         {
             field.FileValue = field.DatabaseValue;
@@ -242,6 +257,9 @@ public class MetadataSidebarViewModel : ReactiveObject, ISidebarContent
 
     public void Deactivate()
     {
+        _loadingCts?.Cancel();
+        _loadingCts?.Dispose();
+        _loadingCts = null;
         _activeTrack = null;
         Fields.Clear();
     }

@@ -88,6 +88,13 @@ namespace SLSKDONET.ViewModels
             set => SetProperty(ref _currentTimeStr, value);
         }
 
+        private double _currentTimeSeconds;
+        public double CurrentTimeSeconds
+        {
+            get => _currentTimeSeconds;
+            set => SetProperty(ref _currentTimeSeconds, value);
+        }
+
         private string _totalTimeStr = "0:00";
         public string TotalTimeStr
         {
@@ -422,15 +429,19 @@ namespace SLSKDONET.ViewModels
                 .DisposeWith(_disposables);
 
             Observable.FromEventPattern<float>(h => _playerService.PositionChanged += h, h => _playerService.PositionChanged -= h)
-                .Sample(TimeSpan.FromMilliseconds(50)) // 20fps for progress markers
+                .Sample(TimeSpan.FromMilliseconds(16)) // ~60fps for ultra-smooth tracking
                 .ObserveOn(RxApp.MainThreadScheduler)
                 .Subscribe(e => Position = e.EventArgs)
                 .DisposeWith(_disposables);
 
             Observable.FromEventPattern<long>(h => _playerService.TimeChanged += h, h => _playerService.TimeChanged -= h)
-                .Sample(TimeSpan.FromMilliseconds(250)) // 4fps for time text is plenty
+                .Sample(TimeSpan.FromMilliseconds(16)) // ~60fps for ultra-smooth tracking
                 .ObserveOn(RxApp.MainThreadScheduler)
-                .Subscribe(e => CurrentTimeStr = TimeSpan.FromMilliseconds(e.EventArgs).ToString(@"m\:ss"))
+                .Subscribe(e => 
+                {
+                    CurrentTimeSeconds = e.EventArgs / 1000.0;
+                    CurrentTimeStr = TimeSpan.FromMilliseconds(e.EventArgs).ToString(@"m\:ss");
+                })
                 .DisposeWith(_disposables);
 
             Observable.FromEventPattern<long>(h => _playerService.LengthChanged += h, h => _playerService.LengthChanged -= h)

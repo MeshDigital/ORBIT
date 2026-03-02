@@ -29,6 +29,9 @@ public class StudioWaveformCanvas : Control
     public static readonly StyledProperty<double> PlayheadPositionProperty =
         AvaloniaProperty.Register<StudioWaveformCanvas, double>(nameof(PlayheadPosition));
 
+    public static readonly StyledProperty<System.Windows.Input.ICommand?> SeekCommandProperty =
+        AvaloniaProperty.Register<StudioWaveformCanvas, System.Windows.Input.ICommand?>(nameof(SeekCommand));
+
     private double _smoothedPlayhead;
     private readonly Stopwatch _renderStopwatch = Stopwatch.StartNew();
     private long _lastFrameTicks;
@@ -98,6 +101,26 @@ public class StudioWaveformCanvas : Control
     {
         get => GetValue(PlayheadPositionProperty);
         set => SetValue(PlayheadPositionProperty, value);
+    }
+
+    public System.Windows.Input.ICommand? SeekCommand
+    {
+        get => GetValue(SeekCommandProperty);
+        set => SetValue(SeekCommandProperty, value);
+    }
+
+    protected override void OnPointerPressed(global::Avalonia.Input.PointerPressedEventArgs e)
+    {
+        base.OnPointerPressed(e);
+        var point = e.GetPosition(this);
+        if (WaveformData != null && Bounds.Width > 0)
+        {
+            var seekPercent = (float)(point.X / Bounds.Width);
+            if (SeekCommand != null && SeekCommand.CanExecute(seekPercent))
+            {
+                SeekCommand.Execute(seekPercent);
+            }
+        }
     }
 
     public override void Render(DrawingContext context)
