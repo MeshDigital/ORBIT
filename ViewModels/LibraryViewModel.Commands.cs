@@ -54,6 +54,7 @@ public partial class LibraryViewModel
     public ICommand AnalyzeAlbumT2Command { get; set; } = null!;
     public ICommand AnalyzeAlbumT3Command { get; set; } = null!;
     public ICommand ExportPlaylistCommand { get; set; } = null!;
+    public ICommand ExportSelectedTracksCommand { get; set; } = null!;
     public ICommand AutoSortCommand { get; set; } = null!;
     public ICommand FindSonicTwinsCommand { get; set; } = null!;
     public ICommand LoadDeletedProjectsCommand { get; set; } = null!;
@@ -178,6 +179,7 @@ public partial class LibraryViewModel
         AnalyzeAlbumT2Command = new AsyncRelayCommand<PlaylistJob>(p => ExecuteAnalyzeAlbumTierAsync(p, AnalysisTier.Tier2));
         AnalyzeAlbumT3Command = new AsyncRelayCommand<PlaylistJob>(p => ExecuteAnalyzeAlbumTierAsync(p, AnalysisTier.Tier3));
         ExportPlaylistCommand = new AsyncRelayCommand<PlaylistJob>(ExecuteExportPlaylistAsync);
+        ExportSelectedTracksCommand = new AsyncRelayCommand<object>(ExecuteExportSelectedTracksAsync);
         AutoSortCommand = new AsyncRelayCommand(ExecuteAutoSortAsync);
         FindSonicTwinsCommand = new AsyncRelayCommand<PlaylistTrackViewModel>(async t => await ExecuteFindSonicTwinsAsync(t));
         HardwareExportCommand = new AsyncRelayCommand(ExecuteHardwareExportAsync, () => SelectedProject != null);
@@ -548,11 +550,12 @@ public partial class LibraryViewModel
             try 
             {
                 var tracks = await _libraryService.LoadPlaylistTracksAsync(project.Id);
-                var outputPath = await _dialogService.SaveFileAsync("Export Rekordbox XML", "rekordbox.xml", "xml");
+                var defaultFileName = $"ORBIT_{project.SourceTitle.Replace(" ", "_")}_rekordbox.xml";
+                var outputPath = await _dialogService.SaveFileAsync("Export Rekordbox XML", defaultFileName, "xml");
                 if (!string.IsNullOrEmpty(outputPath))
                 {
                     await _rekordboxService.ExportPlaylistAsync(project, outputPath);
-                    _notificationService.Show("Export Successful", project.SourceTitle, NotificationType.Success);
+                    _notificationService.Show("Export Successful", $"Playlist '{project.SourceTitle}' exported to {System.IO.Path.GetFileName(outputPath)}", NotificationType.Success);
                 }
             }
             catch (Exception ex)
@@ -560,6 +563,61 @@ public partial class LibraryViewModel
                 _logger.LogError(ex, "Export failed");
                 _notificationService.Show("Export Failed", ex.Message, NotificationType.Error);
             }
+        }
+    }
+
+    private async Task ExecuteExportSelectedTracksAsync(object? param)
+    {
+        var tracksToExport = new List<PlaylistTrackViewModel>();
+        
+        if (param is PlaylistTrackViewModel trackVM)
+        {
+            tracksToExport.Add(trackVM);
+        }
+        else if (param is System.Collections.IEnumerable enumerable)
+        {
+            tracksToExport.AddRange(enumerable.Cast<PlaylistTrackViewModel>());
+        }
+        else
+        {
+            tracksToExport.AddRange(Tracks.SelectedTracks);
+        }
+
+        if (!tracksToExport.Any())
+        {
+            _notificationService.Show("Export Tracks", "No tracks selected for export.", NotificationType.Warning);
+            return;
+        }
+
+        try
+        {
+            var defaultFileName = $"ORBIT_Selected_{DateTime.Now:yyyyMMdd_HHmm}.xml";
+            var outputPath = await _dialogService.SaveFileAsync("Export Rekordbox XML", defaultFileName, "xml");
+            
+            if (!string.IsNullOrEmpty(outputPath))
+            {
+                // Load actual entities from DB to ensure we have all metadata
+                var entries = new List<LibraryEntryEntity>();
+                foreach (var t in tracksToExport)
+                {
+                    var entry = await _libraryService.FindLibraryEntryAsync(t.GlobalId);
+                    if (entry != null) entries.Add(entry);
+                }
+
+                if (!entries.Any())
+                {
+                    _notificationService.Show("Export Tracks", "No valid library records found for selected tracks.", NotificationType.Error);
+                    return;
+                }
+
+                await _rekordboxService.ExportTracksAsync(entries, outputPath);
+                _notificationService.Show("Export Successful", $"{entries.Count} tracks exported to Rekordbox XML.", NotificationType.Success);
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Bulk track export failed");
+            _notificationService.Show("Export Failed", ex.Message, NotificationType.Error);
         }
     }
 

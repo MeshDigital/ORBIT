@@ -66,6 +66,14 @@ public class RekordboxService
     /// <summary>
     /// Exports a raw list of tracks to a Rekordbox XML file.
     /// </summary>
+    public async Task<int> ExportTracksAsync(IEnumerable<LibraryEntryEntity> tracks, string outputPath)
+    {
+        return await WriteLibraryEntriesXmlAsync(tracks.ToList(), "ORBIT Selected Tracks", outputPath);
+    }
+
+    /// <summary>
+    /// Exports a raw list of tracks to a Rekordbox XML file.
+    /// </summary>
     public async Task<int> ExportPlaylistAsync(List<PlaylistTrack> tracks, string collectionName, string outputPath)
     {
         return await WriteXmlAsync(tracks, collectionName, outputPath);
@@ -250,11 +258,21 @@ public class RekordboxService
                 // Export Cue Points (Phase 11.5)
                 foreach (var cue in t.CuePoints)
                 {
+                    // Use refined color mapping from palette
+                    var color = RekordboxColorPalette.GetColorForStructuralLabel(cue.Name);
+                    if (color == Models.CueColor.White && !string.IsNullOrEmpty(cue.Role))
+                        color = RekordboxColorPalette.GetColorForStructuralLabel(cue.Role);
+                    
+                    int colorIndex = RekordboxColorPalette.GetColorIndex(color);
+
                     await writer.WriteStartElementAsync(null, "POSITION_MARK", null);
                     await writer.WriteAttributeStringAsync(null, "Name", null, XmlSanitizer.Sanitize(cue.Name));
                     await writer.WriteAttributeStringAsync(null, "Type", null, "0"); // 0 = Hot Cue
                     await writer.WriteAttributeStringAsync(null, "Start", null, cue.Timestamp.ToString("F3", CultureInfo.InvariantCulture));
                     await writer.WriteAttributeStringAsync(null, "Num", null, cue.SlotIndex >= 0 ? cue.SlotIndex.ToString() : "-1");
+                    await writer.WriteAttributeStringAsync(null, "Red", null, RekordboxColorPalette.GetRgbColor(color).R.ToString());
+                    await writer.WriteAttributeStringAsync(null, "Green", null, RekordboxColorPalette.GetRgbColor(color).G.ToString());
+                    await writer.WriteAttributeStringAsync(null, "Blue", null, RekordboxColorPalette.GetRgbColor(color).B.ToString());
                     await writer.WriteEndElementAsync(); // POSITION_MARK
                 }
                 

@@ -15,10 +15,37 @@
         
         <!-- Action list will go here in Phase 3 -->
         <ScrollViewer Grid.Row="1">
-            <StackPanel Margin="16" Spacing="10">
-                <Button HorizontalAlignment="Stretch" Content="Analyze Selected" Classes="danger"/>
-                <Button HorizontalAlignment="Stretch" Content="Move to Folder..."/>
-                <Button HorizontalAlignment="Stretch" Content="Remove from Library" Classes="danger"/>
+            <StackPanel Margin="16" Spacing="20">
+                <StackPanel Spacing="10">
+                    <TextBlock Text="CORE ACTIONS" FontSize="11" FontWeight="Bold" Foreground="#666"/>
+                    <Button HorizontalAlignment="Stretch" Content="Analyze Selected" Classes="danger"/>
+                    <Button HorizontalAlignment="Stretch" Content="Move to Folder..."/>
+                    <Button HorizontalAlignment="Stretch" Content="Remove from Library" Classes="danger"/>
+                </StackPanel>
+
+                <Separator Background="#333"/>
+
+                <StackPanel Spacing="10">
+                    <TextBlock Text="EXPORT ENGINE" FontSize="11" FontWeight="Bold" Foreground="#666"/>
+                    <Border Background="#2A2A2D" BorderBrush="#3E3E3E" BorderThickness="1" CornerRadius="8" Padding="12">
+                        <StackPanel Spacing="8">
+                            <TextBlock Text="Rekordbox XML" FontWeight="Bold" FontSize="13"/>
+                            <TextBlock Text="Export selected tracks into a Pioneer-compatible XML including all AI cues, keys, and energy levels." 
+                                       TextWrapping="Wrap" FontSize="11" Foreground="#AAA"/>
+                            
+                            <Button HorizontalAlignment="Stretch" 
+                                    Command="{Binding ExportCommand}"
+                                    Margin="0,8,0,0"
+                                    Classes="primary"
+                                    Height="40">
+                                <StackPanel Orientation="Horizontal" Spacing="10">
+                                    <TextBlock Text="📂" VerticalAlignment="Center"/>
+                                    <TextBlock Text="Export Selected Tracks" FontWeight="Bold" VerticalAlignment="Center"/>
+                                </StackPanel>
+                            </Button>
+                        </StackPanel>
+                    </Border>
+                </StackPanel>
             </StackPanel>
         </ScrollViewer>
     </Grid>

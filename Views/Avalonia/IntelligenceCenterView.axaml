@@ -323,38 +323,96 @@
                                   </Border>
 
                                  <!-- Right: Metadata & Cues -->
-                                 <Border Grid.Column="2" Background="#111" CornerRadius="12" Padding="20">
-                                      <StackPanel Spacing="15">
-                                           <TextBlock Text="TECHNICAL BREADCRUMBS" FontSize="10" FontWeight="Black" Foreground="#444" LetterSpacing="1"/>
-                                           <ScrollViewer>
-                                                <ItemsControl ItemsSource="{Binding Inspector.Cues}">
-                                                    <ItemsControl.ItemTemplate>
-                                                        <DataTemplate>
-                                                            <Button Background="Transparent" BorderThickness="0" Padding="0" HorizontalAlignment="Stretch"
-                                                                    Command="{Binding $parent[UserControl].DataContext.SeekToCueCommand}"
-                                                                    CommandParameter="{Binding}">
-                                                                <Button.Styles>
-                                                                    <Style Selector="Button:pointerover Border#CueMain">
-                                                                        <Setter Property="Background" Value="#2A2A2A"/>
-                                                                        <Setter Property="BorderBrush" Value="#444"/>
-                                                                    </Style>
-                                                                </Button.Styles>
-                                                                <Border x:Name="CueMain" Background="#1A1A1A" CornerRadius="6" Padding="12,8" Margin="0,0,0,8" BorderBrush="#222" BorderThickness="1">
-                                                                     <Grid ColumnDefinitions="Auto,*,Auto">
-                                                                        <Border Width="4" Height="24" Background="{Binding Color}" CornerRadius="2" Margin="0,0,12,0"/>
-                                                                        <StackPanel Grid.Column="1" VerticalAlignment="Center" Margin="0,0,12,0">
-                                                                             <TextBlock Text="{Binding Name}" FontSize="12" FontWeight="Bold" Foreground="White"/>
-                                                                             <TextBlock Text="{Binding Role}" FontSize="9" Foreground="#666" TextTrimming="CharacterEllipsis"/>
-                                                                        </StackPanel>
-                                                                        <TextBlock Grid.Column="2" Text="{Binding Timestamp, StringFormat='{}{0:F1}s'}" FontSize="11" Foreground="#4EC9B0" VerticalAlignment="Center" FontFamily="{StaticResource CodeFont}"/>
-                                                                     </Grid>
-                                                                </Border>
-                                                            </Button>
-                                                        </DataTemplate>
-                                                    </ItemsControl.ItemTemplate>
-                                                </ItemsControl>
-                                           </ScrollViewer>
-                                      </StackPanel>
+                                 <Border Grid.Column="2" Background="#111" CornerRadius="12" Padding="0">
+                                      <TabControl Background="Transparent" BorderThickness="0">
+                                          <TabControl.Styles>
+                                              <Style Selector="TabItem">
+                                                  <Setter Property="FontSize" Value="10"/>
+                                                  <Setter Property="FontWeight" Value="Black"/>
+                                                  <Setter Property="Foreground" Value="#444"/>
+                                                  <Setter Property="Padding" Value="16,12"/>
+                                                  <Setter Property="LetterSpacing" Value="1"/>
+                                              </Style>
+                                              <Style Selector="TabItem:pointerover">
+                                                  <Setter Property="Foreground" Value="#888"/>
+                                              </Style>
+                                              <Style Selector="TabItem:selected">
+                                                  <Setter Property="Foreground" Value="#4EC9B0"/>
+                                              </Style>
+                                          </TabControl.Styles>
+                                          
+                                          <TabItem Header="CUES">
+                                              <StackPanel Spacing="15" Margin="20">
+                                                   <ScrollViewer Height="500">
+                                                        <ItemsControl ItemsSource="{Binding Inspector.Cues}">
+                                                            <ItemsControl.ItemTemplate>
+                                                                <DataTemplate>
+                                                                    <Button Background="Transparent" BorderThickness="0" Padding="0" HorizontalAlignment="Stretch"
+                                                                            Command="{Binding $parent[UserControl].DataContext.SeekToCueCommand}"
+                                                                            CommandParameter="{Binding}">
+                                                                        <Button.Styles>
+                                                                            <Style Selector="Button:pointerover Border#CueMain">
+                                                                                <Setter Property="Background" Value="#2A2A2A"/>
+                                                                                <Setter Property="BorderBrush" Value="#444"/>
+                                                                            </Style>
+                                                                        </Button.Styles>
+                                                                        <Border x:Name="CueMain" Background="#1A1A1A" CornerRadius="6" Padding="12,8" Margin="0,0,0,8" BorderBrush="#222" BorderThickness="1">
+                                                                             <Grid ColumnDefinitions="Auto,*,Auto">
+                                                                                <Border Width="4" Height="24" Background="{Binding Color}" CornerRadius="2" Margin="0,0,12,0"/>
+                                                                                <StackPanel Grid.Column="1" VerticalAlignment="Center" Margin="0,0,12,0">
+                                                                                     <TextBlock Text="{Binding Name}" FontSize="12" FontWeight="Bold" Foreground="White"/>
+                                                                                     <TextBlock Text="{Binding Role}" FontSize="9" Foreground="#666" TextTrimming="CharacterEllipsis"/>
+                                                                                </StackPanel>
+                                                                                <TextBlock Grid.Column="2" Text="{Binding Timestamp, StringFormat='{}{0:F1}s'}" FontSize="11" Foreground="#4EC9B0" VerticalAlignment="Center" FontFamily="{StaticResource CodeFont}"/>
+                                                                             </Grid>
+                                                                        </Border>
+                                                                    </Button>
+                                                                </DataTemplate>
+                                                            </ItemsControl.ItemTemplate>
+                                                        </ItemsControl>
+                                                   </ScrollViewer>
+                                              </StackPanel>
+                                          </TabItem>
+                                          
+                                          <TabItem Header="EXPORT">
+                                              <StackPanel Spacing="25" Margin="24">
+                                                  <Border Background="#2A1A1A" BorderBrush="#442222" BorderThickness="1" CornerRadius="8" Padding="16">
+                                                      <StackPanel Spacing="12">
+                                                          <TextBlock Text="REKORDBOX XML" FontWeight="Bold" FontSize="14" Foreground="White"/>
+                                                          <TextBlock Text="Inject AI-generated cues, analyzed keys, and energy scores directly into a Pioneer-standard XML file." 
+                                                                     TextWrapping="Wrap" FontSize="11" Foreground="#AAA" LineHeight="16"/>
+                                                          
+                                                          <Separator Background="#333" Margin="0,8"/>
+                                                          
+                                                          <Grid ColumnDefinitions="Auto,*" RowDefinitions="Auto,Auto" Margin="0,4">
+                                                              <TextBlock Text="CUES:" FontSize="9" FontWeight="Bold" Foreground="#666" VerticalAlignment="Center" Margin="0,0,12,4"/>
+                                                              <TextBlock Grid.Column="1" Text="{Binding Inspector.Cues.Count}" FontSize="11" Foreground="#4EC9B0" FontWeight="Bold" Margin="0,0,0,4"/>
+                                                              
+                                                              <TextBlock Grid.Row="1" Text="ENERGY:" FontSize="9" FontWeight="Bold" Foreground="#666" VerticalAlignment="Center" Margin="0,0,12,0"/>
+                                                              <TextBlock Grid.Row="1" Grid.Column="1" Text="{Binding EnergyScore}" FontSize="11" Foreground="#FF5252" FontWeight="Bold"/>
+                                                          </Grid>
+
+                                                          <Button Command="{Binding ExportToRekordboxCommand}" 
+                                                                  Classes="primary" 
+                                                                  HorizontalAlignment="Stretch" 
+                                                                  Height="44" 
+                                                                  Margin="0,12,0,0">
+                                                              <StackPanel Orientation="Horizontal" Spacing="10">
+                                                                  <TextBlock Text="📂" VerticalAlignment="Center"/>
+                                                                  <TextBlock Text="GENERATE MISSION XML" FontWeight="Black" VerticalAlignment="Center"/>
+                                                              </StackPanel>
+                                                          </Button>
+                                                      </StackPanel>
+                                                  </Border>
+
+                                                  <StackPanel Spacing="8">
+                                                      <TextBlock Text="HINT" FontSize="9" FontWeight="Bold" Foreground="#444"/>
+                                                      <TextBlock Text="Import this XML into Rekordbox via File -> Import -> Library to see these cues on your CDJ/XDJ player."
+                                                                 TextWrapping="Wrap" FontSize="10" Foreground="#666" FontStyle="Italic"/>
+                                                  </StackPanel>
+                                              </StackPanel>
+                                          </TabItem>
+                                      </TabControl>
                                  </Border>
                               </Grid>
                         </Grid>

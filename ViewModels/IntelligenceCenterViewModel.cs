@@ -40,6 +40,8 @@ public class IntelligenceCenterViewModel : ReactiveObject, IDisposable
     private readonly IAudioIntelligenceService _intelligenceService;
     private readonly StemSeparationService _separationService;
     private readonly SetlistStressTestService _stressTestService;
+    private readonly RekordboxService _rekordboxService;
+    private readonly IDialogService _dialogService;
     private readonly CompositeDisposable _disposables = new();
 
     private IntelligenceViewState _viewState = IntelligenceViewState.Closed;
@@ -134,6 +136,8 @@ public class IntelligenceCenterViewModel : ReactiveObject, IDisposable
         IAudioIntelligenceService intelligenceService,
         StemSeparationService separationService,
         SetlistStressTestService stressTestService,
+        RekordboxService rekordboxService,
+        IDialogService dialogService,
         INotificationService notificationService,
         ILogger<IntelligenceCenterViewModel> logger)
     {
@@ -146,6 +150,8 @@ public class IntelligenceCenterViewModel : ReactiveObject, IDisposable
         _intelligenceService = intelligenceService;
         _separationService = separationService;
         _stressTestService = stressTestService;
+        _rekordboxService = rekordboxService;
+        _dialogService = dialogService;
         
         Inspector = inspector;
         Lab = lab;
@@ -207,7 +213,37 @@ public class IntelligenceCenterViewModel : ReactiveObject, IDisposable
                 _notificationService.Show("Commit Failed", "Failed to sync metadata. Check logs.", NotificationType.Error);
             }
         });
+
+        ExportToRekordboxCommand = ReactiveCommand.CreateFromTask(async () =>
+        {
+            if (SelectedTrackHash == null || Inspector.Track == null) return;
+
+            try
+            {
+                var track = Inspector.Track;
+                var defaultFileName = $"ORBIT_{track.Artist}_{track.Title}_rekordbox.xml".Replace(" ", "_");
+                var outputPath = await _dialogService.SaveFileAsync("Export Rekordbox XML", defaultFileName, "xml");
+
+                if (!string.IsNullOrEmpty(outputPath))
+                {
+                    // Use the library entry for full metadata
+                    var entry = await _libraryService.FindLibraryEntryAsync(track.GlobalId);
+                    if (entry != null)
+                    {
+                        await _rekordboxService.ExportTracksAsync(new[] { entry }, outputPath);
+                        _notificationService.Show("Export Successful", $"{track.Title} exported to Rekordbox XML.", NotificationType.Success);
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Individual track export failed");
+                _notificationService.Show("Export Failed", ex.Message, NotificationType.Error);
+            }
+        });
     }
+
+    public System.Windows.Input.ICommand ExportToRekordboxCommand { get; }
 
     public System.Windows.Input.ICommand CommitMetadataCommand { get; }
 

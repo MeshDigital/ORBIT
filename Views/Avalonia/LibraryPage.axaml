@@ -43,6 +43,9 @@
         
         <!-- Ctrl+Alt+N: Toggle Library Navigation -->
         <KeyBinding Gesture="Ctrl+Alt+N" Command="{Binding ToggleNavigationCommand}"/>
+        
+        <!-- Ctrl+Shift+E: Export Selected to Rekordbox -->
+        <KeyBinding Gesture="Ctrl+Shift+E" Command="{Binding ExportSelectedTracksCommand}"/>
     </UserControl.KeyBindings>
 
     <Grid>
@@ -500,6 +503,13 @@
                                                     <MenuItem.Icon><TextBlock Text="⏱️"/></MenuItem.Icon>
                                                 </MenuItem>
                                                 <MenuItem Header="Create Independent Physical Copy" Command="{Binding $parent[UserControl].DataContext.Operations.CloneTrackCommand}" CommandParameter="{Binding}" ToolTip.Tip="Create a physical copy of this file with independent cues"><MenuItem.Icon><TextBlock Text="📄"/></MenuItem.Icon></MenuItem>
+                                                <Separator/>
+                                                <MenuItem Header="Export Selected to Rekordbox XML" 
+                                                          Command="{Binding $parent[UserControl].DataContext.ExportSelectedTracksCommand}" 
+                                                          CommandParameter="{Binding}"
+                                                          InputGesture="Ctrl+Shift+E">
+                                                    <MenuItem.Icon><TextBlock Text="📂"/></MenuItem.Icon>
+                                                </MenuItem>
                                                 <Separator/>
                                                 <MenuItem Header="Retry Download" Command="{Binding $parent[UserControl].DataContext.Operations.HardRetryCommand}" CommandParameter="{Binding}" IsVisible="{Binding CanHardRetry}"><MenuItem.Icon><TextBlock Text="🔄"/></MenuItem.Icon></MenuItem>
                                                 <MenuItem Header="Manual MP3 Search (On Hold)" Command="{Binding $parent[UserControl].DataContext.InitiateMp3SearchCommand}" CommandParameter="{Binding}" IsVisible="{Binding Model.Status, Converter={StaticResource EnumToBoolConverter}, ConverterParameter={x:Static models:TrackStatus.OnHold}}">
