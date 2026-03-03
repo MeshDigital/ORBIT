@@ -203,16 +203,28 @@ namespace SLSKDONET.Services.Musical
             }
 
             // Generate full forensic reasoning
-            // Calculate vocal conflict once here to pass to builder
             var vocalReport = CheckVocalConflict(trackA, trackB, 0); 
-            var simpleVocalCheck = CheckVocalConflict(trackA, trackB, 0); 
             
-            // Calculate optimal transition time using Phrase Alignment Service
+            // 3. Optimal Moment & Alignment
             var optimization = _phraseAlignmentService.DetermineOptimalTransitionTime(trackA, trackB, suggestion.Archetype);
             suggestion.OptimalTransitionTime = optimization?.Time;
             suggestion.OptimalTransitionReason = optimization?.Reason;
 
-            suggestion.Reasoning = TransitionReasoningBuilder.BuildReasoning(trackA, trackB, suggestion, simpleVocalCheck);
+            // 4. Energy Leveling (Phase 5)
+            double energyA = trackA.Energy ?? trackA.AudioFeatures?.Energy ?? 0.5;
+            double energyB = trackB.Energy ?? trackB.AudioFeatures?.Energy ?? 0.5;
+            double energyDelta = energyA - energyB;
+
+            if (energyDelta > 0.4)
+            {
+                suggestion.EnergyAdvice = "⚠️ LARGE ENERGY DROP: Consider a breakdown transition to reset the dancefloor.";
+            }
+            else if (energyDelta < -0.4)
+            {
+                suggestion.EnergyAdvice = "🔥 LARGE ENERGY BOOST: Perfect for peak-hour energy injection.";
+            }
+
+            suggestion.Reasoning = TransitionReasoningBuilder.BuildReasoning(trackA, trackB, suggestion, vocalReport);
 
             return suggestion;
         }

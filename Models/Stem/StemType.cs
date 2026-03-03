@@ -6,5 +6,6 @@ public enum StemType
     Drums,
     Bass,
     Piano,
-    Other
+    Other,
+    Instrumental
 }

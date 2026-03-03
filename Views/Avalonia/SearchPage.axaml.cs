@@ -3,6 +3,12 @@ using Avalonia.Input;
 using System.Linq;
 using SLSKDONET.Views;
 using SLSKDONET.ViewModels;
+using System;
+using System.Threading;
+using Avalonia.VisualTree;
+using Avalonia;
+using Avalonia.Controls.Primitives;
+using Avalonia.Threading;
 
 namespace SLSKDONET.Views.Avalonia
 {
@@ -49,6 +55,9 @@ namespace SLSKDONET.Views.Avalonia
                         }
                     }
                 };
+
+                grid.PointerMoved += OnGridPointerMoved;
+                grid.PointerExited += (s, e) => HidePreview();
             }
 
             // Enable Drag & Drop
@@ -126,6 +135,56 @@ namespace SLSKDONET.Views.Avalonia
                     // vm.BrowseCsvCommand.Execute(null); 
                 }
             }
+        }
+
+        private Timer? _hoverTimer;
+        private AnalyzedSearchResultViewModel? _hoveredItem;
+
+        private void OnGridPointerMoved(object? sender, PointerEventArgs e)
+        {
+            var grid = sender as DataGrid;
+            if (grid == null) return;
+
+            var point = e.GetCurrentPoint(grid);
+            var visual = grid.InputHitTest(point.Position) as Visual;
+            var row = visual?.GetVisualAncestors().OfType<DataGridRow>().FirstOrDefault();
+
+            if (row != null && row.DataContext is AnalyzedSearchResultViewModel item)
+            {
+                if (_hoveredItem != item)
+                {
+                    _hoverTimer?.Dispose();
+                    _hoveredItem = item;
+                    _hoverTimer = new Timer(_ => global::Avalonia.Threading.Dispatcher.UIThread.Post(() => ShowPreview(item)), null, 800, Timeout.Infinite);
+                }
+            }
+            else
+            {
+                HidePreview();
+            }
+        }
+
+        private void ShowPreview(AnalyzedSearchResultViewModel item)
+        {
+            var popup = this.FindControl<Popup>("QuickLookPopup");
+            if (popup == null) return;
+
+            this.FindControl<TextBlock>("PreviewTitle").Text = item.Title;
+            this.FindControl<TextBlock>("PreviewArtist").Text = item.Artist;
+            this.FindControl<ProgressBar>("VocalDensityBar").Value = (item.Model?.Energy ?? 0.5) * 100;
+            this.FindControl<TextBlock>("EnergyValue").Text = $"{(item.Model?.Energy ?? 0.5):P0}";
+
+            popup.IsOpen = true;
+        }
+
+        private void HidePreview()
+        {
+            _hoverTimer?.Dispose();
+            _hoverTimer = null;
+            _hoveredItem = null;
+            
+            var popup = this.FindControl<Popup>("QuickLookPopup");
+            if (popup != null) popup.IsOpen = false;
         }
     }
 }

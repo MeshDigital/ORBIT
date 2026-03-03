@@ -9,6 +9,7 @@ using ReactiveUI;
 using SLSKDONET.Services;
 using SLSKDONET.ViewModels;
 using SLSKDONET.Models;
+using SLSKDONET.Services.AI;
 
 namespace SLSKDONET.Features.LibrarySidebar.ViewModels;
 
@@ -30,6 +31,7 @@ public class VibeSidebarViewModel : ReactiveObject, ISidebarContent, IDisposable
     private readonly ILibraryService _libraryService;
     private readonly IEventBus _eventBus;
     private readonly ArtworkCacheService _artworkCacheService;
+    private readonly ISonicMatchService _sonicMatchService;
 
     private List<VibeTrackDto>? _libraryProjection;
     public List<VibeTrackDto>? LibraryProjection => _libraryProjection;
@@ -38,8 +40,14 @@ public class VibeSidebarViewModel : ReactiveObject, ISidebarContent, IDisposable
     public PlaylistTrackViewModel? PrimaryTrack
     {
         get => _primaryTrack;
-        set => this.RaiseAndSetIfChanged(ref _primaryTrack, value);
+        set {
+            this.RaiseAndSetIfChanged(ref _primaryTrack, value);
+            if (value != null) _ = UpdateSonicTwinsAsync(value.GlobalId);
+        }
     }
+
+    private readonly ObservableCollection<VibeTrackDto> _sonicTwins = new();
+    public ObservableCollection<VibeTrackDto> SonicTwins => _sonicTwins;
 
     private PlaylistTrackViewModel? _secondaryTrack;
     public PlaylistTrackViewModel? SecondaryTrack
@@ -59,20 +67,27 @@ public class VibeSidebarViewModel : ReactiveObject, ISidebarContent, IDisposable
     }
 
     public ICommand FindTracksNearCoordinateCommand { get; }
+    public ICommand ApplyVibeConsensusCommand { get; }
+    public ICommand ApplyVibePresetCommand { get; }
 
     public VibeSidebarViewModel(
         DatabaseService databaseService,
         ILibraryService libraryService,
         IEventBus eventBus,
-        ArtworkCacheService artworkCacheService)
+        ArtworkCacheService artworkCacheService,
+        ISonicMatchService sonicMatchService)
     {
         _databaseService = databaseService;
         _libraryService = libraryService;
         _eventBus = eventBus;
         _artworkCacheService = artworkCacheService;
+        _sonicMatchService = sonicMatchService;
 
         FindTracksNearCoordinateCommand = ReactiveCommand.CreateFromTask<(float Valence, float Arousal)>(async coord => 
             await FindTracksNearCoordinateAsync(coord.Valence, coord.Arousal));
+            
+        ApplyVibeConsensusCommand = ReactiveCommand.CreateFromTask(ApplyVibeConsensusAsync);
+        ApplyVibePresetCommand = ReactiveCommand.CreateFromTask<string>(ApplyVibePresetAsync);
     }
 
     public async Task ActivateAsync(PlaylistTrackViewModel track)
@@ -106,14 +121,13 @@ public class VibeSidebarViewModel : ReactiveObject, ISidebarContent, IDisposable
             var tracks = await _libraryService.GetAllPlaylistTracksAsync();
             
             _libraryProjection = tracks
-                .Where(t => t.Valence.HasValue && t.Energy.HasValue)
                 .Select(t => new VibeTrackDto
                 {
                     GlobalId = t.TrackUniqueHash,
                     Title = t.Title,
                     Artist = t.Artist,
-                    Valence = t.Valence ?? 0.5,
-                    Arousal = t.Energy ?? 0.5
+                    Valence = Normalize(t.Valence, 5.0),
+                    Arousal = Normalize(t.Energy, 0.5) // Prefer Energy for arousal axis in this view
                 })
                 .ToList();
             
@@ -127,6 +141,36 @@ public class VibeSidebarViewModel : ReactiveObject, ISidebarContent, IDisposable
         {
             IsLoading = false;
         }
+    }
+
+    private double Normalize(double? value, double fallback)
+    {
+        // If it's the 1-9 scale, normalize to 0-1
+        var val = value ?? fallback;
+        if (val > 1.0) return (val - 1.0) / 8.0;
+        return val;
+    }
+
+    private async Task UpdateSonicTwinsAsync(string trackHash)
+    {
+        try 
+        {
+            var matches = await _sonicMatchService.FindSonicMatchesAsync(trackHash, 5);
+            _sonicTwins.Clear();
+            foreach (var m in matches)
+            {
+                _sonicTwins.Add(new VibeTrackDto
+                {
+                    GlobalId = m.TrackUniqueHash,
+                    Title = m.Title,
+                    Artist = m.Artist,
+                    Valence = Normalize(m.Valence, 5.0),
+                    Arousal = Normalize(m.Arousal, 5.0)
+                });
+            }
+            this.RaisePropertyChanged(nameof(SonicTwins));
+        }
+        catch { /* Ignore */ }
     }
 
     public async Task FindTracksNearCoordinateAsync(float targetValence, float targetArousal)
@@ -155,6 +199,52 @@ public class VibeSidebarViewModel : ReactiveObject, ISidebarContent, IDisposable
     public void SetSecondaryTrack(PlaylistTrackViewModel? track)
     {
         SecondaryTrack = track;
+    }
+
+    public async Task ApplyVibeConsensusAsync()
+    {
+        if (PrimaryTrack == null) return;
+        
+        var matches = await _sonicMatchService.FindSonicMatchesAsync(PrimaryTrack.GlobalId, 10);
+        var tags = matches
+            .Where(m => !string.IsNullOrEmpty(m.MoodTag))
+            .GroupBy(m => m.MoodTag)
+            .OrderByDescending(g => g.Count())
+            .FirstOrDefault();
+            
+        if (tags != null && tags.Count() >= 3)
+        {
+            PrimaryTrack.MoodTag = tags.Key;
+            // Offer to save to DB (assuming VM has access or publishes event)
+            _eventBus.Publish(new TrackUpdatedEvent(PrimaryTrack));
+        }
+    }
+
+    public async Task ApplyVibePresetAsync(string presetName)
+    {
+        if (PrimaryTrack == null) return;
+        
+        // Map preset name to coordinates and tags
+        switch (presetName.ToLower())
+        {
+            case "peak hour":
+                PrimaryTrack.Energy = 0.9f;
+                PrimaryTrack.Valence = 0.8f;
+                PrimaryTrack.MoodTag = "Euphoric";
+                break;
+            case "sunset":
+                PrimaryTrack.Energy = 0.4f;
+                PrimaryTrack.Valence = 0.7f;
+                PrimaryTrack.MoodTag = "Chill";
+                break;
+            case "dark room":
+                PrimaryTrack.Energy = 0.7f;
+                PrimaryTrack.Valence = 0.2f;
+                PrimaryTrack.MoodTag = "Dark";
+                break;
+        }
+        
+        _eventBus.Publish(new TrackUpdatedEvent(PrimaryTrack));
     }
 
     public void Dispose()

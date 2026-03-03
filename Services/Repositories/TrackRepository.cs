@@ -1232,4 +1232,101 @@ public class TrackRepository : ITrackRepository
             _writeSemaphore.Release();
         }
     }
+
+    /// <summary>
+    /// Checks if a track exists using a 2-tier database/memory approach to prevent duplicate downloads.
+    /// </summary>
+    public async Task<bool> TrackExistsAsync(string artist, string title, CancellationToken ct = default)
+    {
+        if (string.IsNullOrWhiteSpace(artist) || string.IsNullOrWhiteSpace(title))
+            return false;
+
+        var lowerArtist = artist.ToLower().Trim();
+        var lowerTitle = title.ToLower().Trim();
+
+        using var _dbContext = new AppDbContext();
+
+        // TIER 1: STRICT SQL MATCH (Fastest)
+        // Check for exact case-insensitive match by pushing the evaluation down to SQLite
+        bool strictMatch = await _dbContext.Tracks.AsNoTracking()
+            .AnyAsync(t => t.Artist.ToLower() == lowerArtist && t.Title.ToLower() == lowerTitle, ct);
+
+        if (strictMatch)
+            return true;
+
+        // TIER 2: IN-MEMORY FUZZY MATCH (Catch minor discrepancies like "feat." or "Remix")
+        // Pull all titles for the given artist into RAM (small dataset) to run C# string distance
+        var existingTitles = await _dbContext.Tracks.AsNoTracking()
+            .Where(t => t.Artist.ToLower() == lowerArtist)
+            .Select(t => t.Title)
+            .ToListAsync(ct);
+
+        foreach (var existingTitle in existingTitles)
+        {
+            // Simple subset check first (e.g. "Titanium (feat. Sia)" vs "Titanium")
+            if (existingTitle.Contains(title, StringComparison.OrdinalIgnoreCase) || 
+                title.Contains(existingTitle, StringComparison.OrdinalIgnoreCase))
+            {
+                return true;
+            }
+
+            // High-confidence fuzzy match
+            double similarity = Utils.StringDistanceUtils.GetNormalizedMatchScore(title, existingTitle);
+            if (similarity > 0.85) // 85% confidence threshold
+            {
+                _logger.LogTrace("Fuzzy duplicate prevented: {Artist} - '{Incoming}' matched local '{Existing}' (Score: {Score:F2})", 
+                    artist, title, existingTitle, similarity);
+                return true;
+            }
+        }
+
+        // Both tiers failed, track is completely new
+        return false;
+    }
+
+    public async Task AddPlayHistoryAsync(string hash, double playDurationSeconds)
+    {
+        await _writeSemaphore.WaitAsync();
+        try
+        {
+            using var context = new AppDbContext();
+            
+            // 1. Update Master Track PlayCount and LastPlayedAt
+            var track = await context.Tracks.FindAsync(hash);
+            if (track != null)
+            {
+                track.PlayCount++;
+                track.LastPlayedAt = DateTime.UtcNow;
+            }
+
+            // 2. Update LibraryEntry PlayCount
+            var libraryEntry = await context.LibraryEntries.FindAsync(hash);
+            if (libraryEntry != null)
+            {
+                libraryEntry.PlayCount++;
+                libraryEntry.LastPlayedAt = DateTime.UtcNow;
+            }
+            
+            // 3. Update all PlaylistTracks PlayCount
+            var playlistTracks = await context.PlaylistTracks
+                .Where(pt => pt.TrackUniqueHash == hash)
+                .ToListAsync();
+            
+            foreach (var pt in playlistTracks)
+            {
+                pt.PlayCount++;
+                pt.LastPlayedAt = DateTime.UtcNow;
+            }
+
+            await context.SaveChangesAsync();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to update play history for {Hash}", hash);
+        }
+        finally
+        {
+            _writeSemaphore.Release();
+        }
+    }
 }

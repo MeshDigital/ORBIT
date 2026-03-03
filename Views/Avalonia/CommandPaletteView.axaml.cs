@@ -1,3 +1,4 @@
+using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Markup.Xaml;
 using Avalonia.ReactiveUI;
@@ -11,6 +12,15 @@ namespace SLSKDONET.Views.Avalonia
         public CommandPaletteView()
         {
             InitializeComponent();
+            
+            this.GetObservable(IsVisibleProperty).Subscribe(visible =>
+            {
+                if (visible)
+                {
+                    var textbox = this.FindControl<TextBox>("SearchTextBox");
+                    textbox?.Focus();
+                }
+            });
         }
 
         private void InitializeComponent()

@@ -23,6 +23,7 @@ public class TransitionProberViewModel : ReactiveObject, ISidebarContent, IDispo
     private readonly WaveformAnalysisService _waveformService;
     private readonly Services.Audio.PhraseDetectionService _phraseService;
     private readonly ITransitionPreviewPlayer _transitionPlayer;
+    private readonly HarmonicMatchService _harmonicService;
     private readonly Services.Audio.RealTimeStemEngine _stemEngine;
     private readonly Services.StemSeparationService _separationService;
     private readonly Services.Musical.VocalIntelligenceService _vocalService;
@@ -142,6 +143,13 @@ public class TransitionProberViewModel : ReactiveObject, ISidebarContent, IDispo
         set => this.RaiseAndSetIfChanged(ref _isSyncing, value);
     }
 
+    private bool _isHarmonicallyCompatible;
+    public bool IsHarmonicallyCompatible
+    {
+        get => _isHarmonicallyCompatible;
+        set => this.RaiseAndSetIfChanged(ref _isHarmonicallyCompatible, value);
+    }
+
     public bool AutoResolveEnabled
     {
         get => _autoResolveEnabled;
@@ -191,7 +199,8 @@ public class TransitionProberViewModel : ReactiveObject, ISidebarContent, IDispo
         Services.IAudioPlayerService playerService,
         INotificationService notificationService,
         Services.Audio.StemPreferenceService preferenceService,
-        ILibraryService libraryService)
+        ILibraryService libraryService,
+        HarmonicMatchService harmonicService)
     {
         _waveformService = waveformService;
         _phraseService = phraseService;
@@ -203,6 +212,7 @@ public class TransitionProberViewModel : ReactiveObject, ISidebarContent, IDispo
         _notificationService = notificationService;
         _preferenceService = preferenceService;
         _libraryService = libraryService;
+        _harmonicService = harmonicService;
 
         ToggleAuditionCommand = ReactiveCommand.CreateFromTask(ToggleAuditionAsync);
         ResolveClashCommand = ReactiveCommand.Create(ResolveVocalClash);
@@ -609,6 +619,8 @@ public class TransitionProberViewModel : ReactiveObject, ISidebarContent, IDispo
                 SecondaryWaveform = waveform;
                 MashupStatus = "READY";
                 
+                UpdateHarmonicCompatibility();
+                
                 // Auto-align upon loading if both tracks have phrases
                 AlignTransition();
             }
@@ -667,6 +679,8 @@ public class TransitionProberViewModel : ReactiveObject, ISidebarContent, IDispo
             SecondaryTrack = trackVM;
             await HydrateTrackDataAsync(trackVM, false, cancellationToken);
             
+            UpdateHarmonicCompatibility();
+
             // Auto-align when both decks are full
             AlignTransition();
         }
@@ -729,6 +743,60 @@ public class TransitionProberViewModel : ReactiveObject, ISidebarContent, IDispo
         {
             // Expected
         }
+    }
+
+    private void UpdateHarmonicCompatibility()
+    {
+        if (PrimaryTrack == null || SecondaryTrack == null)
+        {
+            IsHarmonicallyCompatible = false;
+            return;
+        }
+
+        var keyA = PrimaryTrack.Model.Key;
+        var keyB = SecondaryTrack.Model.Key;
+
+        if (string.IsNullOrEmpty(keyA) || string.IsNullOrEmpty(keyB))
+        {
+            IsHarmonicallyCompatible = false;
+            return;
+        }
+
+        // Use the wheel logic from HarmonicMatchService (indirectly or check direct match first)
+        // For visual "glowing link", we usually look for Camelot adjacent or perfect
+        var camelotA = PrimaryTrack.Model.MusicalKey;
+        var camelotB = SecondaryTrack.Model.MusicalKey;
+
+        if (string.IsNullOrEmpty(camelotA) || string.IsNullOrEmpty(camelotB))
+        {
+            IsHarmonicallyCompatible = false;
+            return;
+        }
+
+        // Logic from HarmonicMatchService.GetKeyRelationship
+        IsHarmonicallyCompatible = camelotA == camelotB || IsAdjacentCamelot(camelotA, camelotB);
+    }
+
+    private bool IsAdjacentCamelot(string a, string b)
+    {
+        // Simple 1D adjacency on the wheel (1-12 A/B)
+        if (a.Length < 2 || b.Length < 2) return false;
+        
+        char letterA = a[^1];
+        char letterB = b[^1];
+        if (!int.TryParse(a[..^1], out int numA) || !int.TryParse(b[..^1], out int numB)) return false;
+
+        // Same letter, ±1 distance (modular 12)
+        if (letterA == letterB)
+        {
+            int diff = Math.Abs(numA - numB);
+            return diff == 1 || diff == 11;
+        }
+        
+        // Same number, different letter (Relative Major/Minor)
+        if (numA == numB) return true;
+
+        return false;
     }
 
     public void Dispose()

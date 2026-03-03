@@ -61,17 +61,9 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
     public BulkOperationViewModel BulkOperationViewModel { get; }
     public MissionControlViewModel MissionControl { get; }
     
-    // Phase 24: Stem Workspace
-    public ViewModels.Stem.StemWorkspaceViewModel StemWorkspaceViewModel { get; }
-    
-    // ORBIT Pro Studio Page
-    public StudioProViewModel OrbitStudioViewModel { get; }
-
     // Operation Glass Console: Unified Intelligence Center
     public IntelligenceCenterViewModel IntelligenceCenter { get; }
     public TheaterModeViewModel TheaterModeViewModel { get; }
-    public ViewModels.Timeline.SetDesignerViewModel SetDesignerViewModel { get; }
-    public FlowBuilderViewModel FlowBuilderViewModel { get; }
     public ExportManagerViewModel ExportManagerViewModel { get; }
     public CommandPaletteViewModel CommandPaletteViewModel { get; }
     public Features.LibrarySidebar.ViewModels.ContextualSidebarViewModel Sidebar { get; }
@@ -123,12 +115,8 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
         NativeDependencyHealthService dependencyHealthService,
         IDialogService dialogService,
         ILibraryService libraryService,
-        ViewModels.Stem.StemWorkspaceViewModel stemWorkspaceViewModel,
-        StudioProViewModel orbitStudioViewModel,
         IntelligenceCenterViewModel intelligenceCenter,
         TheaterModeViewModel theaterModeViewModel,
-        ViewModels.Timeline.SetDesignerViewModel setDesignerViewModel,
-        FlowBuilderViewModel flowBuilderViewModel,
         ExportManagerViewModel exportManagerViewModel,
         DiscoveryHubViewModel discoveryHubViewModel,
         Features.LibrarySidebar.ViewModels.ContextualSidebarViewModel sidebar,
@@ -165,17 +153,13 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
         
         AnalysisQueueViewModel = analysisQueueViewModel;
         BulkOperationViewModel = bulkOperationViewModel;
-        StemWorkspaceViewModel = stemWorkspaceViewModel;
-        OrbitStudioViewModel = orbitStudioViewModel;
         IntelligenceCenter = intelligenceCenter;
         TheaterModeViewModel = theaterModeViewModel;
-        SetDesignerViewModel = setDesignerViewModel;
-        FlowBuilderViewModel = flowBuilderViewModel;
         ExportManagerViewModel = exportManagerViewModel;
         DiscoveryHubViewModel = discoveryHubViewModel;
         Sidebar = sidebar;
         MissionControl = missionControl;
-        CommandPaletteViewModel = new CommandPaletteViewModel(navigationService);
+        CommandPaletteViewModel = new CommandPaletteViewModel(navigationService, libraryService, activeWorkspace, QueueToTopCommand);
 
         Sidebar.PropertyChanged += (s, e) => 
         {
@@ -189,17 +173,11 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
         NavigateHomeCommand = new RelayCommand(() => { Workspace.SetContext(WorkspaceContext.LocalLibrary); NavigateToHome(); }); 
         NavigateSearchCommand = new RelayCommand(() => { Workspace.SetContext(WorkspaceContext.SoulseekSearch); NavigateToSearch(); });
         NavigateLibraryCommand = new RelayCommand(() => { Workspace.SetContext(WorkspaceContext.LocalLibrary); NavigateToLibrary(); });
-        NavigateOrbitStudioCommand = new RelayCommand(() => { Workspace.SetContext(WorkspaceContext.OrbitStudio); NavigateToOrbitStudio(); });
-        NavigateProjectsCommand = new RelayCommand(() => { Workspace.SetContext(WorkspaceContext.SetDesigner); _navigationService.NavigateTo("Projects"); });
+        NavigateDownloadCenterCommand = new RelayCommand(() => { Workspace.SetContext(WorkspaceContext.SetDesigner); NavigateToDownloadCenter(); });
         NavigateSettingsCommand = new RelayCommand(NavigateToSettings);
         NavigateUpgradeScoutCommand = new RelayCommand(NavigateUpgradeScout);
         NavigateTheaterCommand = new RelayCommand(NavigateToTheater);
         NavigateInspectorCommand = new RelayCommand(NavigateAnalysisQueue);
-        NavigateStyleLabCommand = new RelayCommand(() => _navigationService.NavigateTo("StyleLab"));
-        NavigateImportCommand = new RelayCommand(() => { Workspace.SetContext(WorkspaceContext.SpotifyImport); _navigationService.NavigateTo("Import"); }); 
-        NavigateDawCommand = new RelayCommand(() => { Workspace.SetContext(WorkspaceContext.SetDesigner); _navigationService.NavigateTo("DawTimeline"); });
-        NavigateDJCompanionCommand = new RelayCommand(NavigateToDJCompanion);
-        NavigateFlowBuilderCommand = new RelayCommand(NavigateToFlowBuilder);
         NavigateExportCommand = new RelayCommand(NavigateToExport);
         NavigateDiscoveryHubCommand = new RelayCommand(NavigateToDiscoveryHub);
         ToggleNavigationCommand = new RelayCommand(() => 
@@ -227,9 +205,6 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
         ResetZoomCommand = new RelayCommand(ResetZoom);
         ToggleAnalysisPauseCommand = new RelayCommand(ToggleAnalysisPause);
         
-        // Phase 24: Stem Workspace Toggle
-        ToggleStemWorkspaceCommand = new RelayCommand(() => StemWorkspaceViewModel.IsVisible = !StemWorkspaceViewModel.IsVisible);
-        
         // Operation Glass Console Toggles
         ToggleIntelligenceCommand = new RelayCommand(() => 
         {
@@ -245,6 +220,14 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
         ToggleTopBarCommand = new RelayCommand(() => IsTopCommandBarVisible = !IsTopCommandBarVisible);
         SetPerformanceDockModeCommand = new RelayCommand<SLSKDONET.Data.PerformanceDockMode>(mode => PerformanceDockMode = mode);
         TogglePerformanceDockCommand = new RelayCommand(TogglePerformanceDockMode);
+        QueueToTopCommand = new RelayCommand(() => 
+        {
+            if (Workspace.SelectedTrack is PlaylistTrackViewModel ptvm)
+            {
+                _downloadManager.QueueTracks(new List<PlaylistTrack> { ptvm.Model });
+                _eventBus.Publish(new SLSKDONET.Services.NotificationEvent("Queued to Top", $"{ptvm.Title} priority boosted."));
+            }
+        });
 
 
         // Spotify Hub Initialization (TODO: Phase 7 - Implement when needed)
@@ -294,18 +277,6 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
             });
         }));
 
-        // Phase 24: Stem Workspace Navigation
-        _disposables.Add(_eventBus.GetEvent<OpenStemWorkspaceRequestEvent>().Subscribe(evt =>
-        {
-            Dispatcher.UIThread.Post(() =>
-            {
-               // Show Workspace Overlay
-               StemWorkspaceViewModel.IsVisible = true;
-               // Load the requested track
-                _ = StemWorkspaceViewModel.LoadTrackAsync(evt.TrackGlobalId);
-            });
-        }));
-
         _disposables.Add(_eventBus.GetEvent<RequestTheaterModeEvent>().Subscribe(_ =>
         {
             Dispatcher.UIThread.Post(NavigateToTheater);
@@ -326,7 +297,7 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
         {
              OnPropertyChanged(nameof(SuccessfulCount));
              OnPropertyChanged(nameof(FailedCount));
-             OnPropertyChanged(nameof(TodoCount));
+             OnPropertyChanged(nameof(ActiveDownloadsCount));
              OnPropertyChanged(nameof(DownloadProgressPercentage));
         };
         
@@ -378,7 +349,6 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
         _navigationService.RegisterPage("FlowBuilder", typeof(Avalonia.FlowBuilderView));
         _navigationService.RegisterPage("Export", typeof(Avalonia.ExportManagerView));
         _navigationService.RegisterPage("DiscoveryHub", typeof(Avalonia.DiscoveryHubView));
-        _navigationService.RegisterPage("OrbitStudio", typeof(Avalonia.Studio.OrbitStudioView));
         
         // Subscribe to navigation events
         _navigationService.Navigated += OnNavigated;
@@ -427,7 +397,6 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
             HomeViewModel?.Dispose();
             AnalysisQueueViewModel?.Dispose();
             IntelligenceCenter?.Dispose();
-            OrbitStudioViewModel?.Dispose();
         }
 
         _isDisposed = true;
@@ -763,7 +732,7 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
     // Computed property to drive the global activity spinner
     public bool IsGlobalActivityActive 
     {
-        get => (TodoCount > 0) || (AnalysisQueueCount > 0) || IsInitializing;
+        get => (ActiveDownloadsCount > 0) || (AnalysisQueueCount > 0) || IsInitializing;
     }
 
     // Phase 7: Spotify Hub Properties
@@ -819,19 +788,13 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
     public ICommand NavigateHomeCommand { get; } // Phase 6D
     public ICommand NavigateSearchCommand { get; }
     public ICommand NavigateLibraryCommand { get; }
-    public ICommand NavigateProjectsCommand { get; }
+    public ICommand NavigateDownloadCenterCommand { get; }
     public ICommand NavigateSettingsCommand { get; }
     public ICommand NavigateUpgradeScoutCommand { get; }
     public ICommand NavigateInspectorCommand { get; }
-    public ICommand NavigateStyleLabCommand { get; }
     public ICommand NavigateTheaterCommand { get; }
-    public ICommand NavigateDawCommand { get; }
-    public ICommand NavigateOrbitStudioCommand { get; }
-    public ICommand NavigateDJCompanionCommand { get; }
-    public ICommand NavigateFlowBuilderCommand { get; }
     public ICommand NavigateExportCommand { get; }
     public ICommand NavigateDiscoveryHubCommand { get; }
-    public ICommand NavigateImportCommand { get; } // Phase 6D
     public ICommand ToggleNavigationCommand { get; }
     public ICommand TogglePlayerCommand { get; }
     public ICommand TogglePlayerLocationCommand { get; }
@@ -843,6 +806,7 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
     public ICommand RetryAllFailedDownloadsCommand { get; }
     public ICommand ToggleStemWorkspaceCommand { get; }
     public ICommand ToggleIntelligenceCommand { get; }
+    public ICommand QueueToTopCommand { get; }
     public ICommand CloseIntelligenceCommand { get; }
     public ICommand ToggleCommandPaletteCommand { get; }
     public ICommand SetPerformanceDockModeCommand { get; }
@@ -876,16 +840,11 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
                 "LibraryPage" => PageType.Library,
                 "DownloadsPage" => PageType.Projects,
                 "SettingsPage" => PageType.Settings,
-                "ImportPage" => PageType.Import,
-                "ImportPreviewPage" => PageType.Import, // Map preview to Import category
                 "UpgradeScoutView" => PageType.UpgradeScout,
                 "InspectorPage" => PageType.Inspector,
                 "AnalysisQueuePage" => PageType.AnalysisQueue,
-                "StyleLabPage" => PageType.StyleLab,
                 "TheaterModePage" => PageType.TheaterMode,
-                "FlowBuilderView" => PageType.FlowBuilder,
                 "ExportManagerView" => PageType.Export,
-                "OrbitStudioView" => PageType.OrbitStudio,
                 _ => CurrentPageType
             };
 
@@ -941,81 +900,9 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
         _navigationService.NavigateTo("Library");
     }
 
-    private void NavigateToProjects()
+    private void NavigateToDownloadCenter()
     {
         _navigationService.NavigateTo("Projects");
-    }
-
-    private void NavigateUpgradeScout()
-    {
-        _navigationService.NavigateTo("UpgradeScout");
-    }
-
-    private void NavigateAnalysisQueue()
-    {
-        // FIX: Use NavigationService to ensure View is loaded
-        _navigationService.NavigateTo("AnalysisQueue");
-        
-        if (CurrentPage is Avalonia.AnalysisQueuePage page)
-        {
-             page.DataContext = AnalysisQueueViewModel;
-        }
-    }
-
-    private void NavigateToImport()
-    {
-        _navigationService.NavigateTo("Import");
-    }
-
-    private void NavigateToTheater()
-    {
-        _navigationService.NavigateTo("Theater");
-        
-        if (CurrentPage is Avalonia.TheaterModePage page)
-        {
-            page.DataContext = TheaterModeViewModel;
-        }
-    }
-
-    private void NavigateToFlowBuilder()
-    {
-        _navigationService.NavigateTo("FlowBuilder");
-        
-        if (CurrentPage is Avalonia.FlowBuilderView page)
-        {
-            page.DataContext = FlowBuilderViewModel;
-        }
-    }
-
-    private void NavigateToExport()
-    {
-        _navigationService.NavigateTo("Export");
-        
-        if (CurrentPage is Avalonia.ExportManagerView page)
-        {
-            page.DataContext = ExportManagerViewModel;
-            _ = ExportManagerViewModel.LoadSetsCommand.ExecuteAsync(null);
-        }
-    }
-
-    private void NavigateToDiscoveryHub()
-    {
-        _navigationService.NavigateTo("DiscoveryHub");
-        
-        if (CurrentPage is Avalonia.DiscoveryHubView page)
-        {
-            page.DataContext = DiscoveryHubViewModel;
-        }
-    }
-
-    private void NavigateToOrbitStudio()
-    {
-        _navigationService.NavigateTo("OrbitStudio");
-        
-        if (CurrentPage is Avalonia.Studio.OrbitStudioView page)
-        {
-            page.DataContext = OrbitStudioViewModel;
-        }
     }
 
 
@@ -1041,7 +928,7 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
     // Download Progress Properties (computed from AllGlobalTracks)
     public int SuccessfulCount => AllGlobalTracks.Count(t => t.State == PlaylistTrackState.Completed);
     public int FailedCount => AllGlobalTracks.Count(t => t.State == PlaylistTrackState.Failed);
-    public int TodoCount => AllGlobalTracks.Count(t => t.State == PlaylistTrackState.Pending);
+    public int ActiveDownloadsCount => AllGlobalTracks.Count(t => t.State == PlaylistTrackState.Pending);
     
     // In OnTrackUpdated, TodoCount changes will now also notify IsGlobalActivityActive
     public double DownloadProgressPercentage
@@ -1063,7 +950,7 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
         {
             OnPropertyChanged(nameof(SuccessfulCount));
             OnPropertyChanged(nameof(FailedCount));
-            OnPropertyChanged(nameof(TodoCount));
+            OnPropertyChanged(nameof(ActiveDownloadsCount));
             OnPropertyChanged(nameof(DownloadProgressPercentage));
             OnPropertyChanged(nameof(IsGlobalActivityActive)); // Notify unified activity
         });
@@ -1298,15 +1185,50 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
         }
     }
 
-    private void NavigateToDaw()
+    private void NavigateUpgradeScout()
     {
-        CurrentPageType = PageType.DawTimeline;
-        _navigationService.NavigateTo(PageType.DawTimeline);
+        _navigationService.NavigateTo("UpgradeScout");
     }
 
-    private void NavigateToDJCompanion()
+    private void NavigateAnalysisQueue()
     {
-        CurrentPageType = PageType.DJCompanion;
-        _navigationService.NavigateTo("DJCompanion");
+        // FIX: Use NavigationService to ensure View is loaded
+        _navigationService.NavigateTo("AnalysisQueue");
+        
+        if (CurrentPage is Avalonia.AnalysisQueuePage page)
+        {
+             page.DataContext = AnalysisQueueViewModel;
+        }
+    }
+
+    private void NavigateToTheater()
+    {
+        _navigationService.NavigateTo("Theater");
+        
+        if (CurrentPage is Avalonia.TheaterModePage page)
+        {
+            page.DataContext = TheaterModeViewModel;
+        }
+    }
+
+    private void NavigateToExport()
+    {
+        _navigationService.NavigateTo("Export");
+        
+        if (CurrentPage is Avalonia.ExportManagerView page)
+        {
+            page.DataContext = ExportManagerViewModel;
+            _ = ExportManagerViewModel.LoadSetsCommand.ExecuteAsync(null);
+        }
+    }
+
+    private void NavigateToDiscoveryHub()
+    {
+        _navigationService.NavigateTo("DiscoveryHub");
+        
+        if (CurrentPage is Avalonia.DiscoveryHubView page)
+        {
+            page.DataContext = DiscoveryHubViewModel;
+        }
     }
 }

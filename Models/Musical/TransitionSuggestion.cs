@@ -12,5 +12,6 @@ namespace SLSKDONET.Models.Musical
         public double? OptimalTransitionDuration { get; set; }
         public double? OptimalTransitionTime { get; set; }
         public string? OptimalTransitionReason { get; set; }
+        public string? EnergyAdvice { get; set; }
     }
 }

@@ -38,7 +38,7 @@ namespace SLSKDONET.ViewModels
         private readonly DatabaseService _databaseService;
         private readonly IEventBus _eventBus;
         private readonly CompositeDisposable _disposables = new();
-        private readonly RekordboxXmlExporter _rekordboxExporter;
+        private readonly Services.Export.RekordboxXmlExporter _rekordboxExporter;
         private readonly IFileInteractionService _fileService;
         private readonly Services.Export.IHardwareExportService _hardwareExportService;
         private readonly ILogger<DJCompanionViewModel> _logger;
@@ -301,7 +301,7 @@ namespace SLSKDONET.ViewModels
             DatabaseService databaseService,
             PlayerViewModel playerViewModel,
             IEventBus eventBus,
-            RekordboxXmlExporter rekordboxExporter,
+            Services.Export.RekordboxXmlExporter rekordboxExporter,
             IFileInteractionService fileService,
             Services.Export.IHardwareExportService hardwareExportService,
             ILogger<DJCompanionViewModel> logger,
@@ -1111,19 +1111,19 @@ namespace SLSKDONET.ViewModels
                 return;
             }
 
-            var firstTrack = CurrentSetlistTracks.FirstOrDefault()?.Track;
-            if (firstTrack == null) return;
-
             var savePath = await _fileService.SaveFileDialogAsync("Export Rekordbox XML", "rekordbox.xml", "xml");
             if (string.IsNullOrEmpty(savePath)) return;
 
-            HelpText = "Exporting to Rekordbox...";
+            HelpText = "Exporting to Rekordbox (Preview functionality pending Step 3)...";
             
             try
             {
-                var job = new PlaylistJob { Id = firstTrack.PlaylistId, SourceTitle = "Set Curator Export" };
-                await _rekordboxExporter.ExportAsync(job, savePath);
-                HelpText = $"Successfully exported to {Path.GetFileName(savePath)}";
+                // Stub implementation to fix compile errors after Step 2 migration.
+                // The actual logic is planned for ExportManagerViewModel in Step 3.
+                var emptyTracks = new System.Collections.Generic.List<SLSKDONET.Data.TrackEntity>();
+                await _rekordboxExporter.ExportToXmlAsync(emptyTracks, savePath);
+                
+                HelpText = $"Successfully stubbed export to {System.IO.Path.GetFileName(savePath)}";
             }
             catch (Exception ex)
             {

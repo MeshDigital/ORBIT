@@ -49,19 +49,23 @@ Prevents "broken" exports by checking:
 
 ## 🧠 Intelligence Mapping Logic
 
-| ORBIT Feature | Rekordbox Equivalent | Type | Target Color |
-| :--- | :--- | :--- | :--- |
-| **Intro / Outro** | Structural Marker | Memory Cue | Green |
-| **Drop** | Energy Landmark | Memory Cue | Red |
-| **Build** | Transition Zone | Memory Cue | Orange |
-| **Breakdown** | Mid-section | Memory Cue | Yellow |
-| **User Cues** | Trigger Points | Hot Cue | Custom (Blue/Purple) |
-| **Mix-In Point** | Set Alignment | Hot Cue (Slot 7) | Purple |
+| ORBIT Feature     | Rekordbox Equivalent | Type             | Target Color         |
+| :---------------- | :------------------- | :--------------- | :------------------- |
+| **Intro / Outro** | Structural Marker    | Memory Cue       | Green                |
+| **Drop**          | Energy Landmark      | Memory Cue       | Red                  |
+| **Build**         | Transition Zone      | Memory Cue       | Orange               |
+| **Breakdown**     | Mid-section          | Memory Cue       | Yellow               |
+| **User Cues**     | Trigger Points       | Hot Cue          | Custom (Blue/Purple) |
+| **Mix-In Point**  | Set Alignment        | Hot Cue (Slot 7) | Purple               |
 
-## 🛠️ Data Flow
+## 🛠️ Data Flow & Production Hardening
 
-1. **Validation**: `ExportValidator` checks all chosen tracks/sets.
-2. **Translation**: `MapToExportTrack` creates normalized export models.
-3. **Encoding**: `MetadataFormatter` and `PathNormalizer` prepare strings for XML.
-4. **Serialization**: `RekordboxExportService` generates the final `COLLECTION` and `PLAYLISTS` XML nodes.
-5. **Assembly**: `ExportPackOrganizer` creates the folder structure, copies audio (if required), and writes the XML + README.
+1. **Validation**: `ExportValidator` checks all chosen tracks/sets for physical file existence and mandatory BPM/Key metadata.
+2. **Translation**: `MapToExportTrack` creates normalized export models, merging ORBIT cues with detected segments.
+3. **Pioneer XOR Encryption**: The `XorService` and `AnlzFileParser` handle the proprietary Pioneer binary structure for cue point persistence, ensuring compatibility with CDJ hardware.
+4. **Memory-Safe Serialization**: Unlike standard XML DOM manipulation, ORBIT utilizes `XmlWriter` to stream nodes directly to disk. This ensures that a 50,000-track master library can be exported on hardware with as little as 4GB of RAM without memory exhaustion.
+5. **Windows Path Normalization**: Resolved the critical `%3A` colon bug. ORBIT correctly restores the local file URI format (`file://localhost/C:`) during serialization, preventing Rekordbox from failing silent imports on Windows systems.
+6. **Assembly**: `ExportPackOrganizer` manages the final folder structure, copying audio assets and writing the `COLLECTION.xml`.
+
+## 🎨 Aesthetic Integration
+The Export View utilizes the **Pioneer Cyan** (`#00E5FF`) palette to provide visual context that the user is now interacting with external DJ hardware ecosystem.

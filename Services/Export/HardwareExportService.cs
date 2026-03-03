@@ -144,20 +144,26 @@ public class HardwareExportService : IHardwareExportService
             // Generate Rekordbox XML on the drive root
             string xmlPath = Path.Combine(targetDrive.RootPath, "rekordbox_export.xml");
             
-            // Map original paths to final paths on the USB
-            await _rekordboxExporter.ExportAsync(project, xmlPath, originalPath => 
+            // Map tracks to new XML Streamer format using Hardware Paths
+            var xmlTracks = tracks.Select(t => 
             {
-                var track = tracks.FirstOrDefault(t => t.ResolvedFilePath == originalPath);
-                if (track == null) return originalPath;
+                string artistStr = SanitizeForFat32(t.Artist ?? "Unknown Artist");
+                string albumStr = SanitizeForFat32(t.Album ?? "Unknown Album");
+                string fileStr = SanitizeForFat32(Path.GetFileName(t.ResolvedFilePath ?? "Unknown.mp3"));
+                string hwPath = $"/Contents/{artistStr}/{albumStr}/{fileStr}";
 
-                string artist = SanitizeForFat32(track.Artist ?? "Unknown Artist");
-                string album = SanitizeForFat32(track.Album ?? "Unknown Album");
-                string fileName = SanitizeForFat32(Path.GetFileName(track.ResolvedFilePath));
+                return new SLSKDONET.Data.TrackEntity
+                {
+                    GlobalId = t.Id.ToString(),
+                    Title = t.Title,
+                    Artist = t.Artist,
+                    BPM = t.BPM,
+                    MusicalKey = t.MusicalKey,
+                    Filename = hwPath
+                };
+            }).ToList();
 
-                // Path on the hardware: /Contents/Artist/Album/File.mp3
-                // We use '/' for Rekordbox cross-platform compatibility
-                return $"/Contents/{artist}/{album}/{fileName}";
-            });
+            await _rekordboxExporter.ExportToXmlAsync(xmlTracks, xmlPath);
 
             _logger.LogInformation("Rekordbox XML generated at {Path}", xmlPath);
         }

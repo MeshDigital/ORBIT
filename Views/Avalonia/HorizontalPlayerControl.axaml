@@ -12,6 +12,17 @@
              Background="#252526">
 
     <Grid ColumnDefinitions="350,*,350" Margin="20,10">
+        <Grid.Styles>
+            <Style Selector="Grid">
+                <Setter Property="Background" Value="Transparent"/>
+            </Style>
+        </Grid.Styles>
+        <Border Grid.ColumnSpan="3" 
+                BorderBrush="{Binding CurrentTrack.CamelotKey, Converter={StaticResource CamelotToColorConverter}}" 
+                BorderThickness="0,1,0,0" 
+                VerticalAlignment="Top" 
+                Margin="-20,-10,-20,0"
+                IsVisible="{Binding CurrentTrack, Converter={x:Static ObjectConverters.IsNotNull}}"/>
         <!-- Column 0: Track Info -->
         <Grid Grid.Column="0" ColumnDefinitions="Auto,*" VerticalAlignment="Center">
             <!-- Mini Album Art -->

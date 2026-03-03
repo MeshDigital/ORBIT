@@ -14,6 +14,7 @@
         xmlns:timeline="clr-namespace:SLSKDONET.Views.Avalonia.Timeline"
         xmlns:vmCore="clr-namespace:SLSKDONET.ViewModels"
         xmlns:data="clr-namespace:SLSKDONET.Data"
+        xmlns:converters="clr-namespace:SLSKDONET.Views.Avalonia.Converters"
         mc:Ignorable="d" d:DesignWidth="1400" d:DesignHeight="900"
         x:Class="SLSKDONET.Views.Avalonia.MainWindow"
         x:DataType="vm:MainViewModel"
@@ -69,8 +70,8 @@
         <!-- Ctrl+L: Go to Library -->
         <KeyBinding Gesture="Ctrl+L" Command="{Binding NavigateLibraryCommand}"/>
         
-        <!-- Ctrl+D: Go to Projects -->
-        <KeyBinding Gesture="Ctrl+D" Command="{Binding NavigateProjectsCommand}"/>
+        <!-- Ctrl+D: Go to Download Center -->
+        <KeyBinding Gesture="Ctrl+D" Command="{Binding NavigateDownloadCenterCommand}"/>
         
         <!-- Ctrl+Shift+S: Go to Settings (Ctrl+S conflicts with save) -->
         <KeyBinding Gesture="Ctrl+Shift+S" Command="{Binding NavigateSettingsCommand}"/>
@@ -86,6 +87,16 @@
 
         <!-- Ctrl+K: Command Palette -->
         <KeyBinding Gesture="Ctrl+K" Command="{Binding ToggleCommandPaletteCommand}"/>
+
+        <!-- Global Navigation -->
+        <KeyBinding Gesture="Ctrl+D1" Command="{Binding NavigateHomeCommand}"/>
+        <KeyBinding Gesture="Ctrl+D2" Command="{Binding NavigateLibraryCommand}"/>
+        <KeyBinding Gesture="Ctrl+D3" Command="{Binding NavigateSearchCommand}"/>
+        <KeyBinding Gesture="Ctrl+D4" Command="{Binding NavigateDiscoveryHubCommand}"/>
+        <KeyBinding Gesture="Ctrl+D5" Command="{Binding NavigateDownloadCenterCommand}"/>
+        <KeyBinding Gesture="Ctrl+D6" Command="{Binding NavigateImportCommand}"/>
+        <KeyBinding Gesture="Ctrl+D7" Command="{Binding NavigateInspectorCommand}"/>
+        <KeyBinding Gesture="Ctrl+D8" Command="{Binding NavigateExportCommand}"/>
 
         <!-- F10: Zen Mode -->
         <KeyBinding Gesture="F10" Command="{Binding ToggleZenModeCommand}"/>
@@ -187,10 +198,67 @@
                 <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center" Spacing="16">
                     <!-- Activity Monitor Group -->
                     <StackPanel Orientation="Horizontal" Spacing="12">
+                        
+                        <!-- AI Stem Extraction (Acapella Factory) -->
+                        <Grid IsVisible="{Binding MissionControl.IsStemQueueActive}" VerticalAlignment="Center">
+                            <Grid.Styles>
+                                <Style Selector="Grid">
+                                    <Setter Property="Transitions">
+                                        <Transitions>
+                                            <DoubleTransition Property="Opacity" Duration="0:0:0.3"/>
+                                        </Transitions>
+                                    </Setter>
+                                </Style>
+                            </Grid.Styles>
+                            <StackPanel Orientation="Horizontal" Spacing="8">
+                                <TextBlock Text="✨ STEM ENGINE ACTIVE" 
+                                           FontSize="11" 
+                                           FontWeight="Bold" 
+                                           Foreground="#B829EA" 
+                                           VerticalAlignment="Center">
+                                    <TextBlock.Styles>
+                                        <Style Selector="TextBlock">
+                                            <Style.Animations>
+                                                <Animation Duration="0:0:1.5" IterationCount="Infinite">
+                                                    <KeyFrame Cue="0%"><Setter Property="Opacity" Value="1.0"/></KeyFrame>
+                                                    <KeyFrame Cue="50%"><Setter Property="Opacity" Value="0.4"/></KeyFrame>
+                                                    <KeyFrame Cue="100%"><Setter Property="Opacity" Value="1.0"/></KeyFrame>
+                                                </Animation>
+                                            </Style.Animations>
+                                        </Style>
+                                    </TextBlock.Styles>
+                                </TextBlock>
+                                <TextBlock Text="{Binding MissionControl.StemQueueStatusText}" 
+                                           FontFamily="Inter, Roboto, sans-serif" 
+                                           FontWeight="Bold" 
+                                           FontSize="11" 
+                                           Foreground="#B829EA" 
+                                           VerticalAlignment="Center"/>
+                                <ProgressBar Value="{Binding MissionControl.StemQueueProgress}" 
+                                             Maximum="1.0" 
+                                             Height="4" 
+                                             Width="80" 
+                                             Foreground="#B829EA" 
+                                             VerticalAlignment="Center"
+                                             CornerRadius="2"/>
+
+                                <Button Command="{Binding MissionControl.CancelStemQueueCommand}"
+                                        Background="Transparent"
+                                        BorderThickness="0"
+                                        Padding="4"
+                                        ToolTip.Tip="Cancel Stem Extraction"
+                                        VerticalAlignment="Center">
+                                    <TextBlock Text="✕" FontSize="11" Foreground="#B829EA" Opacity="0.8"/>
+                                </Button>
+                                
+                                <Rectangle Width="1" Height="16" Fill="#333" Margin="8,0,0,0"/>
+                            </StackPanel>
+                        </Grid>
+
                         <!-- Downloads -->
                         <StackPanel Orientation="Horizontal" Spacing="6" ToolTip.Tip="Downloads: In Progress / Completed / Failed">
                             <TextBlock Text="📥" FontSize="12" VerticalAlignment="Center"/>
-                            <TextBlock Text="{Binding TodoCount}" Foreground="#4EC9B0" FontWeight="Bold" FontSize="12" VerticalAlignment="Center"/>
+                            <TextBlock Text="{Binding ActiveDownloadsCount}" Foreground="#4EC9B0" FontWeight="Bold" FontSize="12" VerticalAlignment="Center"/>
                             <TextBlock Text="✓" FontSize="10" Foreground="#AAA" Margin="4,0,0,0" VerticalAlignment="Center"/>
                             <TextBlock Text="{Binding SuccessfulCount}" Foreground="#AAA" FontSize="11" VerticalAlignment="Center"/>
                             
@@ -301,13 +369,13 @@
                                         <TextBlock Text="Discovery Hub" FontSize="14"/>
                                     </StackPanel>
                                 </Button>
-
-                                <Button Classes="nav" Command="{Binding NavigateProjectsCommand}"
-                                        ToolTip.Tip="Inbox"
-                                        Classes.selected="{Binding Workspace.CurrentContext, Converter={StaticResource EqualityConverter}, ConverterParameter={x:Static models:WorkspaceContext.SetDesigner}}">
+                                
+                                <Button Classes="nav" Command="{Binding NavigateDownloadCenterCommand}"
+                                        ToolTip.Tip="Download Center"
+                                        Classes.selected="{Binding CurrentPageType, Converter={StaticResource EqualityConverter}, ConverterParameter={x:Static models:PageType.Projects}}">
                                     <StackPanel Orientation="Horizontal" Spacing="12" Margin="16,0">
                                         <TextBlock Text="📥" FontSize="16"/>
-                                        <TextBlock Text="Inbox" FontSize="14"/>
+                                        <TextBlock Text="Download Center" FontSize="14"/>
                                     </StackPanel>
                                 </Button>
 
@@ -330,29 +398,11 @@
 
                             <StackPanel Spacing="2">
                                 <Button Classes="nav" Command="{Binding NavigateInspectorCommand}"
-                                        ToolTip.Tip="The Processor"
+                                        ToolTip.Tip="Engine Stats"
                                         Classes.selected="{Binding CurrentPageType, Converter={StaticResource EqualityConverter}, ConverterParameter={x:Static models:PageType.AnalysisQueue}}">
                                     <StackPanel Orientation="Horizontal" Spacing="12" Margin="16,0">
                                         <TextBlock Text="🧠" FontSize="16"/>
-                                        <TextBlock Text="The Processor" FontSize="14"/>
-                                    </StackPanel>
-                                </Button>
-
-                                <Button Classes="nav" Command="{Binding NavigateStyleLabCommand}"
-                                        ToolTip.Tip="Style Lab"
-                                        Classes.selected="{Binding CurrentPageType, Converter={StaticResource EqualityConverter}, ConverterParameter={x:Static models:PageType.StyleLab}}">
-                                    <StackPanel Orientation="Horizontal" Spacing="12" Margin="16,0">
-                                        <TextBlock Text="🧪" FontSize="16"/>
-                                        <TextBlock Text="Style Lab" FontSize="14"/>
-                                    </StackPanel>
-                                </Button>
-
-                                <Button Classes="nav" Command="{Binding ToggleStemWorkspaceCommand}"
-                                        ToolTip.Tip="Stems"
-                                        Classes.selected="{Binding StemWorkspaceViewModel.IsVisible}">
-                                    <StackPanel Orientation="Horizontal" Spacing="12" Margin="16,0">
-                                        <TextBlock Text="🧬" FontSize="16"/>
-                                        <TextBlock Text="Stems" FontSize="14"/>
+                                        <TextBlock Text="Engine Stats" FontSize="14"/>
                                     </StackPanel>
                                 </Button>
                             </StackPanel>
@@ -365,39 +415,12 @@
                             </Border>
 
                             <StackPanel Spacing="2">
-                                <Button Classes="nav" Command="{Binding NavigateDJCompanionCommand}"
-                                        ToolTip.Tip="DJ Companion"
-                                        Classes.selected="{Binding CurrentPageType, Converter={StaticResource EqualityConverter}, ConverterParameter={x:Static models:PageType.DJCompanion}}">
+                                <Button Classes="nav" Command="{Binding NavigateExportCommand}"
+                                        ToolTip.Tip="Export Manager"
+                                        Classes.selected="{Binding CurrentPageType, Converter={StaticResource EqualityConverter}, ConverterParameter={x:Static models:PageType.Export}}">
                                     <StackPanel Orientation="Horizontal" Spacing="12" Margin="16,0">
-                                        <TextBlock Text="🎧" FontSize="16"/>
-                                        <TextBlock Text="DJ Companion" FontSize="14"/>
-                                    </StackPanel>
-                                </Button>
-
-                                <Button Classes="nav" Command="{Binding NavigateFlowBuilderCommand}"
-                                        ToolTip.Tip="Flow Builder"
-                                        Classes.selected="{Binding CurrentPageType, Converter={StaticResource EqualityConverter}, ConverterParameter={x:Static models:PageType.FlowBuilder}}">
-                                    <StackPanel Orientation="Horizontal" Spacing="12" Margin="16,0">
-                                        <TextBlock Text="🌊" FontSize="16"/>
-                                        <TextBlock Text="Flow Builder" FontSize="14"/>
-                                    </StackPanel>
-                                </Button>
-
-                                <Button Classes="nav" Command="{Binding NavigateOrbitStudioCommand}"
-                                        ToolTip.Tip="The Studio"
-                                        Classes.selected="{Binding CurrentPageType, Converter={StaticResource EqualityConverter}, ConverterParameter={x:Static models:PageType.OrbitStudio}}">
-                                    <StackPanel Orientation="Horizontal" Spacing="12" Margin="16,0">
-                                        <TextBlock Text="🎛️" FontSize="16"/>
-                                        <TextBlock Text="The Studio" FontSize="14"/>
-                                    </StackPanel>
-                                </Button>
-
-                                <Button Classes="nav" Command="{Binding NavigateDawCommand}"
-                                        ToolTip.Tip="Timeline"
-                                        Classes.selected="{Binding Workspace.CurrentContext, Converter={StaticResource EqualityConverter}, ConverterParameter={x:Static models:WorkspaceContext.SetDesigner}}">
-                                    <StackPanel Orientation="Horizontal" Spacing="12" Margin="16,0">
-                                        <TextBlock Text="⏱️" FontSize="16"/>
-                                        <TextBlock Text="Timeline" FontSize="14"/>
+                                        <TextBlock Text="🚀" FontSize="16"/>
+                                        <TextBlock Text="Export Manager" FontSize="14"/>
                                     </StackPanel>
                                 </Button>
                             </StackPanel>
@@ -487,7 +510,15 @@
             <GridSplitter Grid.Column="3" Background="Transparent" Width="4" HorizontalAlignment="Stretch"/>
 
             <!-- Zone 5: Inspector (Right Sidebar) -->
-            <Border Grid.Column="4" Background="#252526" BorderBrush="#3E3E3E" BorderThickness="1,0,0,0" Width="350">
+            <Border Grid.Column="4" 
+                    Background="#252526" 
+                    BorderBrush="#3E3E3E" 
+                    BorderThickness="1,0,0,0" 
+                    Width="320"
+                    BoxShadow="{Binding Player.CurrentTrack.CamelotKey, Converter={StaticResource CamelotToGlowConverter}}">
+                <Border.Resources>
+                    <converters:EnumToBooleanConverter x:Key="NotPlayerModeConverter" Negate="True" />
+                </Border.Resources>
                 <Grid RowDefinitions="Auto,*">
                     <Border Grid.Row="0" Padding="8,4" Background="#1E1E1E" BorderBrush="#3E3E3E" BorderThickness="0,0,0,1">
                         <StackPanel>
@@ -502,7 +533,8 @@
                             </Grid>
                             
                             <!-- DAW Intelligence Tabs -->
-                            <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled">
+                            <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled"
+                                          IsVisible="{Binding Sidebar.ActiveMode, Converter={StaticResource NotPlayerModeConverter}, ConverterParameter={x:Static sidebarData:LibrarySidebarMode.Player}}">
                                 <StackPanel Orientation="Horizontal" Spacing="2" Margin="0,0,0,4">
                                     <Button Classes="tab" Command="{Binding Sidebar.SetModeCommand}" CommandParameter="{x:Static sidebarData:LibrarySidebarMode.Similarity}" ToolTip.Tip="Similarity Discovery">
                                         <TextBlock Text="🎯" Opacity="{Binding Sidebar.ActiveMode, Converter={StaticResource EnumToOpacityConverter}, ConverterParameter={x:Static sidebarData:LibrarySidebarMode.Similarity}}"/>

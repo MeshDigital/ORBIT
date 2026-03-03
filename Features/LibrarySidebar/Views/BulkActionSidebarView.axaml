@@ -26,6 +26,32 @@
                 <Separator Background="#333"/>
 
                 <StackPanel Spacing="10">
+                    <TextBlock Text="AI STEM EXTRACTION" FontSize="11" FontWeight="Bold" Foreground="#666"/>
+                    <Border Background="#1E1E1E" BorderBrush="#3E3E3E" BorderThickness="1" CornerRadius="8" Padding="12">
+                        <StackPanel Spacing="8">
+                            <TextBlock Text="Acapella Factory" FontWeight="Bold" FontSize="13" Foreground="#B829EA"/>
+                            <TextBlock Text="Process selected tracks through the ONNX AI engine to extract 16-bit PCM Acapellas and Instrumentals." 
+                                       TextWrapping="Wrap" FontSize="11" Foreground="#AAA"/>
+                            
+                            <Button HorizontalAlignment="Stretch" 
+                                    Command="{Binding ExtractStemsCommand}"
+                                    Margin="0,8,0,0"
+                                    Height="40"
+                                    Background="#301040"
+                                    BorderBrush="#B829EA"
+                                    BorderThickness="1">
+                                <StackPanel Orientation="Horizontal" Spacing="10" HorizontalAlignment="Center">
+                                    <TextBlock Text="✨" VerticalAlignment="Center" Foreground="#B829EA"/>
+                                    <TextBlock Text="Extract Acapellas &amp; Instrumentals" FontWeight="Bold" VerticalAlignment="Center" Foreground="#B829EA"/>
+                                </StackPanel>
+                            </Button>
+                        </StackPanel>
+                    </Border>
+                </StackPanel>
+
+                <Separator Background="#333"/>
+
+                <StackPanel Spacing="10">
                     <TextBlock Text="EXPORT ENGINE" FontSize="11" FontWeight="Bold" Foreground="#666"/>
                     <Border Background="#2A2A2D" BorderBrush="#3E3E3E" BorderThickness="1" CornerRadius="8" Padding="12">
                         <StackPanel Spacing="8">

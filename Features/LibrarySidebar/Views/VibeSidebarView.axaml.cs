@@ -39,6 +39,15 @@ public class RadarRenderControl : Control
         IsAntialias = true,
         ImageFilter = SKImageFilter.CreateDropShadow(0, 0, 8, 8, SKColors.Orange)
     };
+    
+    private readonly SKPaint _twinPointPaint = new()
+    {
+        Style = SKPaintStyle.Fill,
+        Color = SKColors.Cyan.WithAlpha(60),
+        IsAntialias = true
+    };
+
+    public float PulsePhase { get; set; } = 1.0f;
 
     public VibeSidebarViewModel? ViewModel { get; set; }
 
@@ -47,7 +56,7 @@ public class RadarRenderControl : Control
         base.Render(context);
         if (ViewModel != null)
         {
-            context.Custom(new RadarCustomDrawOperation(Bounds, ViewModel, _bgPointPaint, _primaryPointPaint, _secondaryPointPaint));
+            context.Custom(new RadarCustomDrawOperation(Bounds, ViewModel, _bgPointPaint, _primaryPointPaint, _secondaryPointPaint, _twinPointPaint, PulsePhase));
         }
     }
 
@@ -58,14 +67,18 @@ public class RadarRenderControl : Control
         private readonly SKPaint _bgPointPaint;
         private readonly SKPaint _primaryPointPaint;
         private readonly SKPaint _secondaryPointPaint;
+        private readonly SKPaint _twinPointPaint;
+        private readonly float _pulsePhase;
 
-        public RadarCustomDrawOperation(Rect bounds, VibeSidebarViewModel vm, SKPaint bgPointPaint, SKPaint primaryPointPaint, SKPaint secondaryPointPaint)
+        public RadarCustomDrawOperation(Rect bounds, VibeSidebarViewModel vm, SKPaint bgPointPaint, SKPaint primaryPointPaint, SKPaint secondaryPointPaint, SKPaint twinPointPaint, float pulsePhase)
         {
             _bounds = bounds;
             _vm = vm;
             _bgPointPaint = bgPointPaint;
             _primaryPointPaint = primaryPointPaint;
             _secondaryPointPaint = secondaryPointPaint;
+            _twinPointPaint = twinPointPaint;
+            _pulsePhase = pulsePhase;
         }
 
         public void Dispose() { }
@@ -97,7 +110,15 @@ public class RadarRenderControl : Control
                 }
             }
 
-            // 2. Draw Secondary Track (behind primary)
+            // 2. Draw Sonic Twins
+            foreach (var twin in _vm.SonicTwins)
+            {
+                float x = (float)(twin.Valence * width);
+                float y = (float)((1.0 - twin.Arousal) * height);
+                skCanvas.DrawCircle(x, y, 4, _twinPointPaint);
+            }
+
+            // 3. Draw Secondary Track (behind primary)
             if (_vm.SecondaryTrack != null)
             {
                 float x = (float)(_vm.SecondaryTrack.Valence * width);
@@ -105,12 +126,14 @@ public class RadarRenderControl : Control
                 skCanvas.DrawCircle(x, y, 5, _secondaryPointPaint);
             }
 
-            // 3. Draw Primary Track
+            // 4. Draw Primary Track
             if (_vm.PrimaryTrack != null)
             {
                 float x = (float)(_vm.PrimaryTrack.Valence * width);
                 float y = (float)((1.0 - _vm.PrimaryTrack.Energy) * height);
-                skCanvas.DrawCircle(x, y, 6, _primaryPointPaint);
+                
+                float pulseRadius = 6 + (2 * _pulsePhase);
+                skCanvas.DrawCircle(x, y, pulseRadius, _primaryPointPaint);
             }
         }
     }
@@ -119,6 +142,8 @@ public class RadarRenderControl : Control
 public partial class VibeSidebarView : UserControl
 {
     private RadarRenderControl? _radarRenderer;
+    private DispatcherTimer? _animationTimer;
+    private double _startTime;
 
     public VibeSidebarView()
     {
@@ -131,6 +156,26 @@ public partial class VibeSidebarView : UserControl
             radarContainer.Content = _radarRenderer;
             radarContainer.PointerPressed += OnRadarPointerPressed;
         }
+
+        _startTime = DateTime.UtcNow.TimeOfDay.TotalMilliseconds;
+        _animationTimer = new DispatcherTimer
+        {
+            Interval = TimeSpan.FromMilliseconds(33) // ~30fps for pulse
+        };
+        _animationTimer.Tick += (s, e) => {
+            if (_radarRenderer != null && _radarRenderer.ViewModel?.PrimaryTrack != null)
+            {
+                var bpm = _radarRenderer.ViewModel.PrimaryTrack.BPM;
+                if (bpm <= 0) bpm = 120.0;
+                var beatDuration = 60000.0 / bpm;
+                var elapsed = DateTime.UtcNow.TimeOfDay.TotalMilliseconds - _startTime;
+                
+                // Sin wave synced to BPM
+                _radarRenderer.PulsePhase = (float)Math.Abs(Math.Sin(Math.PI * elapsed / beatDuration));
+                _radarRenderer.InvalidateVisual();
+            }
+        };
+        _animationTimer.Start();
     }
 
     private void InitializeComponent()
@@ -156,7 +201,8 @@ public partial class VibeSidebarView : UserControl
         if (sender is VibeSidebarViewModel vm && 
             (e.PropertyName == nameof(VibeSidebarViewModel.LibraryProjection) ||
              e.PropertyName == nameof(VibeSidebarViewModel.PrimaryTrack) ||
-             e.PropertyName == nameof(VibeSidebarViewModel.SecondaryTrack)))
+             e.PropertyName == nameof(VibeSidebarViewModel.SecondaryTrack) ||
+             e.PropertyName == nameof(VibeSidebarViewModel.SonicTwins)))
         {
             Dispatcher.UIThread.InvokeAsync(() => _radarRenderer?.InvalidateVisual());
         }

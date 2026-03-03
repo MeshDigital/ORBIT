@@ -4,6 +4,7 @@ using System.ComponentModel.DataAnnotations.Schema;
 using System.Runtime.InteropServices;
 
 using SLSKDONET.Models;
+using SLSKDONET.Models.Musical;
 
 namespace SLSKDONET.Data.Entities;
 

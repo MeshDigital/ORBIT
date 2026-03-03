@@ -23,6 +23,10 @@ namespace SLSKDONET.ViewModels
         private readonly SetListService _setListService;
         private readonly IDialogService _dialogService;
         private readonly IGigBagService _gigBagService;
+        private readonly SLSKDONET.Services.Export.RekordboxXmlExporter _rekordboxExporter;
+        private readonly ILibraryService _libraryService;
+        private readonly IFileInteractionService _fileService;
+        private readonly INotificationService _notificationService;
 
         public event PropertyChangedEventHandler? PropertyChanged;
 
@@ -145,25 +149,77 @@ namespace SLSKDONET.ViewModels
         public AsyncRelayCommand ExportCommand { get; }
         public AsyncRelayCommand ValidateCommand { get; }
         public AsyncRelayCommand UpdatePreviewCommand { get; }
+        public AsyncRelayCommand ExportToRekordboxCommand { get; }
 
         public ExportManagerViewModel(
             ILogger<ExportManagerViewModel> logger,
             IRekordboxExportService exportService,
             SetListService setListService,
             IDialogService dialogService,
-            IGigBagService gigBagService)
+            IGigBagService gigBagService,
+            SLSKDONET.Services.Export.RekordboxXmlExporter rekordboxExporter,
+            ILibraryService libraryService,
+            IFileInteractionService fileService,
+            INotificationService notificationService)
         {
             _logger = logger;
             _exportService = exportService;
             _setListService = setListService;
             _dialogService = dialogService;
             _gigBagService = gigBagService;
+            _rekordboxExporter = rekordboxExporter;
+            _libraryService = libraryService;
+            _fileService = fileService;
+            _notificationService = notificationService;
 
             LoadSetsCommand = new AsyncRelayCommand(LoadSetsAsync);
             BrowseCommand = new AsyncRelayCommand(BrowseAsync);
             ExportCommand = new AsyncRelayCommand(ExportAsync, () => SelectedSet != null && !string.IsNullOrEmpty(DestinationPath) && !IsExporting);
             ValidateCommand = new AsyncRelayCommand(ValidateAsync, () => SelectedSet != null && !IsExporting);
             UpdatePreviewCommand = new AsyncRelayCommand(UpdatePreviewAsync);
+            ExportToRekordboxCommand = new AsyncRelayCommand(ExecuteExportToRekordboxAsync, () => !IsExporting);
+        }
+
+        private async Task ExecuteExportToRekordboxAsync()
+        {
+            IsExporting = true;
+            try
+            {
+                var path = await _fileService.SaveFileDialogAsync("Rekordbox Export", "orbit_library.xml", "xml");
+                if (string.IsNullOrEmpty(path)) return;
+
+                StatusMessage = "Fetching library tracks...";
+                
+                var libraryEntries = await _libraryService.LoadAllLibraryEntriesAsync();
+                var tracks = libraryEntries.Select(e => new SLSKDONET.Data.TrackEntity
+                {
+                    GlobalId = e.Id.ToString(),
+                    Title = e.Title,
+                    Artist = e.Artist,
+                    Size = 0,
+                    CanonicalDuration = e.DurationSeconds,
+                    Bitrate = e.Bitrate,
+                    BPM = e.BPM,
+                    MusicalKey = e.MusicalKey,
+                    Filename = e.FilePath
+                }).ToList();
+
+                StatusMessage = "Generating Rekordbox XML...";
+                await _rekordboxExporter.ExportToXmlAsync(tracks, path);
+
+                _notificationService.Show("Export Complete", $"Successfully exported {tracks.Count} tracks to Rekordbox XML.", SLSKDONET.Views.NotificationType.Success);
+                StatusMessage = "✓ Rekordbox XML generated successfully";
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to export Rekordbox XML");
+                _notificationService.Show("Export Failed", "Failed to generate Rekordbox XML.", SLSKDONET.Views.NotificationType.Error);
+                StatusMessage = "Export failed.";
+            }
+            finally
+            {
+                IsExporting = false;
+            }
         }
 
         private async Task LoadSetsAsync()

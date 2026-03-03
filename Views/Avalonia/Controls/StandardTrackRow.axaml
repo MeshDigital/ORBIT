@@ -5,7 +5,7 @@
              xmlns:vm="clr-namespace:SLSKDONET.ViewModels"
              xmlns:views="clr-namespace:SLSKDONET.Views.Avalonia"
              xmlns:controls="clr-namespace:SLSKDONET.Views.Avalonia.Controls"
-             xmlns:converters="clr-namespace:SLSKDONET.Views.Avalonia.Converters"
+             xmlns:conv="clr-namespace:SLSKDONET.Views.Avalonia.Converters"
              mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="60"
              x:Class="SLSKDONET.Views.Avalonia.Controls.StandardTrackRow"
              x:Name="RootControl">
@@ -133,15 +133,28 @@
             <Setter Property="VerticalAlignment" Value="Center"/>
         </Style>
 
+        <!-- Active Track Glow -->
+        <Style Selector="Border.root.playing">
+            <Setter Property="Background" Value="#1A1DB954"/>
+            <Setter Property="BorderBrush" Value="#401DB954"/>
+            <Setter Property="BorderThickness" Value="1"/>
+        </Style>
+
         <Style Selector="Border.root.active">
             <Setter Property="BorderBrush" Value="#00BCD4"/>
             <Setter Property="BorderThickness" Value="1"/>
             <Setter Property="BoxShadow" Value="0 0 15 0 #2000BCD4"/>
             <Style.Animations>
-                <Animation Duration="0:0:3" IterationCount="Infinite">
-                    <KeyFrame KeyTime="0:0:0"><Setter Property="Opacity" Value="1.0" /></KeyFrame>
-                    <KeyFrame KeyTime="0:0:1.5"><Setter Property="Opacity" Value="0.85" /></KeyFrame>
-                    <KeyFrame KeyTime="0:0:3"><Setter Property="Opacity" Value="1.0" /></KeyFrame>
+                <Animation Duration="0:0:1.5" IterationCount="Infinite">
+                    <KeyFrame KeyTime="0:0:0">
+                        <Setter Property="Opacity" Value="0.8"/>
+                    </KeyFrame>
+                    <KeyFrame KeyTime="0:0:0.75">
+                        <Setter Property="Opacity" Value="1.0"/>
+                    </KeyFrame>
+                    <KeyFrame KeyTime="0:0:1.5">
+                        <Setter Property="Opacity" Value="0.8"/>
+                    </KeyFrame>
                 </Animation>
             </Style.Animations>
         </Style>
@@ -160,7 +173,13 @@
 
     </UserControl.Styles>
 
-    <Border Classes="root" Classes.active="{Binding IsDownloading}" Classes.stalled="{Binding IsStalled}">
+    <Border x:Name="RootBorder" 
+            Classes="root"
+            Padding="8,4"
+            Margin="0,2"
+            Classes.downloading="{Binding IsDownloading}"
+            Classes.active="{Binding IsSelected}"
+            Classes.playing="{Binding IsCurrentlyPlaying}">
         <StackPanel>
             <!-- Phase 5B: Removed waveform underlay - was visually noisy in list context -->
             
@@ -177,98 +196,39 @@
             </Grid.ColumnDefinitions>
             
             <!-- Column 0: Album Art / Status / Health -->
-            <Border Grid.Column="0" Width="44" Height="44" Margin="6,4,8,4" CornerRadius="4" ClipToBounds="True" Background="{DynamicResource SurfaceBrush}" VerticalAlignment="Center">
-                <Panel>
-                    <Image Source="{Binding Artwork.Image}" Stretch="UniformToFill" RenderOptions.BitmapInterpolationMode="MediumQuality" IsVisible="{Binding Artwork.Image, Converter={x:Static ObjectConverters.IsNotNull}}"/>
-                    <PathIcon Data="{StaticResource music_regular}" Foreground="#333" Width="20" Height="20" IsVisible="{Binding Artwork.Image, Converter={x:Static ObjectConverters.IsNull}}"/>
-                    
-                    <!-- Progress Overlay -->
-                    <Arc Width="36" Height="36" StartAngle="-90" SweepAngle="{Binding Progress, Converter={StaticResource PercentageToAngleConverter}}" Stroke="#00BFFF" StrokeThickness="2" IsVisible="{Binding IsActive}" Opacity="0.8"/>
-                    
-                    <!-- Activity Icons (Phase 11.1 Gating) -->
-                    <Border Background="#66000000" IsVisible="{Binding IsActive}" CornerRadius="4">
-                        <Panel>
-                             <TextBlock Text="🔍" FontSize="16" HorizontalAlignment="Center" VerticalAlignment="Center" IsVisible="{Binding IsSearching}">
-                                 <TextBlock.Styles>
-                                     <Style Selector="TextBlock">
-                                         <Style.Animations>
-                                             <Animation Duration="0:0:1.5" IterationCount="Infinite">
-                                                 <KeyFrame KeyTime="0:0:0"><Setter Property="Opacity" Value="1"/></KeyFrame>
-                                                 <KeyFrame KeyTime="0:0:0.75"><Setter Property="Opacity" Value="0.3"/></KeyFrame>
-                                                 <KeyFrame KeyTime="0:0:1.5"><Setter Property="Opacity" Value="1"/></KeyFrame>
-                                             </Animation>
-                                         </Style.Animations>
-                                     </Style>
-                                 </TextBlock.Styles>
-                             </TextBlock>
-                             <TextBlock Text="📥" FontSize="16" HorizontalAlignment="Center" VerticalAlignment="Center" IsVisible="{Binding IsDownloading}"/>
-                        </Panel>
-                    </Border>
-                    
-                    <!-- Enrichment Progress (Phase 2.1) -->
-                    <Arc Stroke="#C586C0" StrokeThickness="2" StartAngle="0" SweepAngle="300" Width="42" Height="42" IsVisible="{Binding IsAnalyzing}">
-                        <Arc.RenderTransform>
-                            <RotateTransform Angle="0"/>
-                        </Arc.RenderTransform>
-                        <Arc.Styles>
-                            <Style Selector="Arc">
-                                <Style.Animations>
-                                    <Animation Duration="0:0:1.5" IterationCount="Infinite">
-                                        <KeyFrame KeyTime="0:0:0">
-                                            <Setter Property="RotateTransform.Angle" Value="0"/>
-                                        </KeyFrame>
-                                        <KeyFrame KeyTime="0:0:1.5">
-                                            <Setter Property="RotateTransform.Angle" Value="360"/>
-                                        </KeyFrame>
-                                    </Animation>
-                                </Style.Animations>
-                            </Style>
-                        </Arc.Styles>
-                    </Arc>
-
-                    <!-- Spotify/MB Enrichment Progress (Phase 2.1) -->
-                    <Arc Stroke="#1DB954" StrokeThickness="2" StartAngle="180" SweepAngle="120" Width="48" Height="48" IsVisible="{Binding IsEnriching}">
-                        <Arc.RenderTransform>
-                            <RotateTransform Angle="0"/>
-                        </Arc.RenderTransform>
-                        <Arc.Styles>
-                            <Style Selector="Arc">
-                                <Style.Animations>
-                                    <Animation Duration="0:0:2" IterationCount="Infinite">
-                                        <KeyFrame KeyTime="0:0:0">
-                                            <Setter Property="RotateTransform.Angle" Value="360"/>
-                                        </KeyFrame>
-                                        <KeyFrame KeyTime="0:0:2">
-                                            <Setter Property="RotateTransform.Angle" Value="0"/>
-                                        </KeyFrame>
-                                    </Animation>
-                                </Style.Animations>
-                            </Style>
-                        </Arc.Styles>
-                    </Arc>
-
-                    <!-- Phase 12.3: Bulk Selection Overlay -->
-                    <Border Background="#40000000" IsVisible="{Binding IsSelected}" VerticalAlignment="Stretch" HorizontalAlignment="Stretch"/>
-                    <CheckBox IsChecked="{Binding IsSelected}" 
-                              HorizontalAlignment="Left" VerticalAlignment="Top" 
-                              Margin="-2,-2,0,0">
-                         <CheckBox.Styles>
-                             <Style Selector="CheckBox">
-                                 <Setter Property="Opacity" Value="0"/> 
-                                 <Setter Property="Background" Value="#222"/>
-                                 <Setter Property="BorderBrush" Value="#666"/>
-                             </Style>
-                             <Style Selector="CheckBox:pointerover">
-                                 <Setter Property="Opacity" Value="1"/>
-                             </Style>
-                             <Style Selector="CheckBox:checked">
-                                 <Setter Property="Opacity" Value="1"/>
-                                 <Setter Property="Background" Value="#00BFFF"/>
-                             </Style>
-                         </CheckBox.Styles>
-                    </CheckBox>
-                </Panel>
-            </Border>
+            <Border Width="36" Height="36" CornerRadius="4" ClipToBounds="True" Background="#2A2A2A">
+                    <Panel>
+                        <Image Source="{Binding ArtworkBitmap}" Stretch="UniformToFill">
+                            <Image.Transitions>
+                                <Transitions>
+                                    <DoubleTransition Property="Opacity" Duration="0:0:0.3"/>
+                                </Transitions>
+                            </Image.Transitions>
+                        </Image>
+                        
+                        <!-- Equalizer Animation (Playing) -->
+                        <StackPanel Orientation="Horizontal" Spacing="1" VerticalAlignment="Bottom" HorizontalAlignment="Center" Margin="0,0,0,4"
+                                    IsVisible="{Binding IsCurrentlyPlaying}">
+                            <Rectangle Width="2" Fill="#1DB954" VerticalAlignment="Bottom">
+                                <Rectangle.Transitions><Transitions><DoubleTransition Property="Height" Duration="0:0:0.2"/></Transitions></Rectangle.Transitions>
+                                <Rectangle.Styles><Style Selector="Rectangle"><Style.Animations><Animation Duration="0:0:0.5" IterationCount="Infinite"><KeyFrame KeyTime="0:0:0"><Setter Property="Height" Value="4"/></KeyFrame><KeyFrame KeyTime="0:0:0.25"><Setter Property="Height" Value="12"/></KeyFrame><KeyFrame KeyTime="0:0:0.5"><Setter Property="Height" Value="4"/></KeyFrame></Animation></Style.Animations></Style></Rectangle.Styles>
+                            </Rectangle>
+                            <Rectangle Width="2" Fill="#1DB954" VerticalAlignment="Bottom">
+                                <Rectangle.Styles><Style Selector="Rectangle"><Style.Animations><Animation Duration="0:0:0.7" IterationCount="Infinite"><KeyFrame KeyTime="0:0:0"><Setter Property="Height" Value="6"/></KeyFrame><KeyFrame KeyTime="0:0:0.35"><Setter Property="Height" Value="14"/></KeyFrame><KeyFrame KeyTime="0:0:0.7"><Setter Property="Height" Value="6"/></KeyFrame></Animation></Style.Animations></Style></Rectangle.Styles>
+                            </Rectangle>
+                            <Rectangle Width="2" Fill="#1DB954" VerticalAlignment="Bottom">
+                                <Rectangle.Styles><Style Selector="Rectangle"><Style.Animations><Animation Duration="0:0:0.4" IterationCount="Infinite"><KeyFrame KeyTime="0:0:0"><Setter Property="Height" Value="3"/></KeyFrame><KeyFrame KeyTime="0:0:0.2"><Setter Property="Height" Value="10"/></KeyFrame><KeyFrame KeyTime="0:0:0.4"><Setter Property="Height" Value="3"/></KeyFrame></Animation></Style.Animations></Style></Rectangle.Styles>
+                            </Rectangle>
+                            <Rectangle Width="2" Fill="#1DB954" VerticalAlignment="Bottom">
+                                <Rectangle.Styles><Style Selector="Rectangle"><Style.Animations><Animation Duration="0:0:0.6" IterationCount="Infinite"><KeyFrame KeyTime="0:0:0"><Setter Property="Height" Value="5"/></KeyFrame><KeyFrame KeyTime="0:0:0.3"><Setter Property="Height" Value="13"/></KeyFrame><KeyFrame KeyTime="0:0:0.6"><Setter Property="Height" Value="5"/></KeyFrame></Animation></Style.Animations></Style></Rectangle.Styles>
+                            </Rectangle>
+                        </StackPanel>
+                        
+                        <Border IsVisible="{Binding IsDownloading}" Background="#80000000">
+                             <Arc Width="20" Height="20" Stroke="Cyan" StrokeThickness="2" SweepAngle="{Binding Progress, Converter={StaticResource PercentageToAngleConverter}}"/>
+                        </Border>
+                    </Panel>
+                </Border>
             
             <!-- Health Bar -->
             <Rectangle Grid.Column="0" Width="3" HorizontalAlignment="Left" Fill="{Binding QualityColor}" RadiusX="1.5" RadiusY="1.5" Margin="2,8">
@@ -293,61 +253,46 @@
             <!-- Column 3: BPM & Key (Shared) -->
             <Border Grid.Column="3" Padding="12,0" VerticalAlignment="Center" IsVisible="{Binding !IsCompact, ElementName=RootControl}">
                 <Panel>
-                     <!-- The Data is Present -->
-                     <StackPanel Orientation="Horizontal" Spacing="10" IsVisible="{Binding HasBpm}">
-                         <TextBlock Text="{Binding BpmDisplay}" Foreground="#AAA" FontSize="11" Width="32" TextAlignment="Right" VerticalAlignment="Center"/>
-                         <Border Background="{Binding ColorBrush}" CornerRadius="4" Padding="4,1" MinWidth="32" VerticalAlignment="Center">
-                             <TextBlock Text="{Binding CamelotDisplay}" Foreground="White" FontSize="10" FontWeight="Bold" HorizontalAlignment="Center"/>
-                         </Border>
-                     </StackPanel>
+                     <!-- BPM and Key Pills -->
+                    <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center" Margin="16,0" IsVisible="{Binding HasBpm}">
+                        <TextBlock Text="{Binding BpmDisplay}" Foreground="#AAA" FontSize="12" FontWeight="Bold" Width="30" TextAlignment="Right"/>
+                        
+                        <!-- Key Pill -->
+                        <Border Background="{Binding ColorBrush}" CornerRadius="10" Padding="8,2" Width="45">
+                            <TextBlock Text="{Binding CamelotDisplay}" Foreground="White" FontSize="10" FontWeight="Bold" HorizontalAlignment="Center"/>
+                        </Border>
+                        
+                        <!-- Energy Pill -->
+                        <Border Background="{Binding EnergyColor}" CornerRadius="10" Padding="8,2" Width="35" IsVisible="{Binding Energy, Converter={StaticResource ObjectConverters.IsNotNull}}">
+                            <TextBlock Text="{Binding EnergyRating}" Foreground="White" FontSize="10" FontWeight="Bold" HorizontalAlignment="Center"/>
+                        </Border>
+                    </StackPanel>
 
-                     <!-- The Data is Missing (Skeleton loading style) -->
-                     <StackPanel Orientation="Horizontal" Spacing="10" IsVisible="{Binding !HasBpm}">
-                         <Border Classes="skeleton" Width="32" Height="14" VerticalAlignment="Center"/>
-                         <Border Classes="skeleton" Width="32" Height="14" VerticalAlignment="Center" CornerRadius="4"/>
-                     </StackPanel>
+                    <!-- The Data is Missing (Skeleton loading style) -->
+                    <StackPanel Orientation="Horizontal" Spacing="10" IsVisible="{Binding !HasBpm}">
+                        <Border Classes="skeleton" Width="32" Height="14" VerticalAlignment="Center"/>
+                        <Border Classes="skeleton" Width="32" Height="14" VerticalAlignment="Center" CornerRadius="4"/>
+                    </StackPanel>
                 </Panel>
             </Border>
 
             <!-- Column 4: Unified Metadata & Health (Refined Phase 3) -->
-            <Border Grid.Column="4" VerticalAlignment="Center" Margin="12,0" IsVisible="{Binding !IsCompact, ElementName=RootControl}">
-                <Panel>
-                    <!-- STATE A: Searching (Clean, No clutter) -->
-                    <StackPanel Spacing="4" IsVisible="{Binding IsSearching}">
-                        <TextBlock Text="Searching Soulseek..." Classes="pulsing" FontSize="11" Foreground="#00BCD4" FontWeight="SemiBold"/>
+            <StackPanel Grid.Column="4" VerticalAlignment="Center" Spacing="2">
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                    <TextBlock Text="{Binding TechnicalSummary}" Foreground="#666" FontSize="11"/>
+                    
+                    <!-- Vocal Density Indicator -->
+                    <StackPanel Orientation="Horizontal" Spacing="1" VerticalAlignment="Center" ToolTip.Tip="{Binding VocalDensity, StringFormat='Vocal Density: {0}'}">
+                        <Border Width="6" Height="3" Background="{Binding VocalDensityLevel, Converter={StaticResource VocalDensityLevelToBrushConverter}, ConverterParameter=1}" CornerRadius="1"/>
+                        <Border Width="6" Height="3" Background="{Binding VocalDensityLevel, Converter={StaticResource VocalDensityLevelToBrushConverter}, ConverterParameter=2}" CornerRadius="1"/>
+                        <Border Width="6" Height="3" Background="{Binding VocalDensityLevel, Converter={StaticResource VocalDensityLevelToBrushConverter}, ConverterParameter=3}" CornerRadius="1"/>
                     </StackPanel>
-
-                    <!-- STATE B: Downloading / Finalized (Metrics visible) -->
-                    <StackPanel Spacing="4" IsVisible="{Binding !IsSearching}">
-                        <StackPanel Orientation="Horizontal" Spacing="8">
-                             <!-- Forensic Orbs (Refined) -->
-                             <Border Background="{StaticResource GlassThinBrush}" CornerRadius="10" Padding="6,3">
-                                 <StackPanel Orientation="Horizontal" Spacing="6">
-                                     <Ellipse Width="6" Height="6" Fill="{Binding BitrateLed, Converter={StaticResource LedColorConverter}}" ToolTip.Tip="Bitrate Integrity"/>
-                                     <Ellipse Width="6" Height="6" Fill="{Binding KeyLed, Converter={StaticResource LedColorConverter}}" ToolTip.Tip="Key Accuracy"/>
-                                     <Ellipse Width="6" Height="6" Fill="{Binding PeakLed, Converter={StaticResource LedColorConverter}}" ToolTip.Tip="Peak Levels"/>
-                                 </StackPanel>
-                             </Border>
-                             
-                             <!-- Technical Bitrate/Duration -->
-                             <TextBlock Text="{Binding TechnicalSummary}" FontSize="10" Foreground="#888" VerticalAlignment="Center" Opacity="0.8"/>
-                        </StackPanel>
-
-                        <StackPanel Orientation="Horizontal" Spacing="6" IsVisible="{Binding !IsCompleted}">
-                             <!-- Download Status / Stalled -->
-                             <TextBlock Text="{Binding DetailedStatusText}" FontSize="10" Foreground="{Binding StatusColor}" Opacity="0.9" VerticalAlignment="Center" IsVisible="{Binding !IsDownloading}"/>
-                             
-                             <!-- Speed Context -->
-                             <StackPanel Orientation="Horizontal" Spacing="6" IsVisible="{Binding IsDownloading}">
-                                 <TextBlock Text="Downloading..." FontSize="10" Foreground="Cyan" Opacity="0.9" VerticalAlignment="Center"/>
-                                 <Border Background="{StaticResource AccentBrush}" CornerRadius="4" Padding="4,1">
-                                     <TextBlock Text="{Binding SpeedDisplay}" FontSize="9" FontWeight="Bold" Foreground="Black"/>
-                                 </Border>
-                             </StackPanel>
-                        </StackPanel>
-                    </StackPanel>
-                </Panel>
-            </Border>
+                </StackPanel>
+                
+                <Grid IsVisible="{Binding IsDownloading}" Height="4">
+                    <ProgressBar Value="{Binding Progress}" Maximum="100" Height="4" Background="#222" Foreground="#00BFFF" CornerRadius="2"/>
+                </Grid>
+            </StackPanel>
 
             <!-- Column 5: Badge Tray (Flexible) -->
             <StackPanel Grid.Column="5" Orientation="Horizontal" VerticalAlignment="Center" Spacing="6" Margin="8,0" IsVisible="{Binding !IsCompact, ElementName=RootControl}">
@@ -372,7 +317,7 @@
                 </Border>
 
                 <!-- Curation/Confidence (Glow Pill) -->
-                <Border IsVisible="{Binding MatchConfidence, Converter={x:Static converters:NumericConverters.GreaterThan}, ConverterParameter=0}"
+                <Border IsVisible="{Binding MatchConfidence, Converter={x:Static conv:NumericConverters.GreaterThan}, ConverterParameter=0}"
                         Background="{StaticResource GlassBrush}" BorderBrush="{Binding MatchConfidenceColor}" BorderThickness="1"
                         CornerRadius="10" Padding="8,1" Margin="0,0,4,0">
                     <StackPanel Orientation="Horizontal" Spacing="4">
@@ -444,7 +389,7 @@
                 </Border>
                 <!-- Instrumental -->
                 <Border Background="#2000CED1" BorderBrush="#00CED1" BorderThickness="1" CornerRadius="10" Padding="8,1" Margin="0,0,4,0"
-                        IsVisible="{Binding InstrumentalProbability, Converter={x:Static converters:NumericConverters.GreaterThan}, ConverterParameter=0.8}">
+                        IsVisible="{Binding InstrumentalProbability, Converter={x:Static conv:NumericConverters.GreaterThan}, ConverterParameter=0.8}">
                     <TextBlock Text="INSTR" FontSize="9" Foreground="#00CED1" FontWeight="Bold"/>
                 </Border>
                 

@@ -42,6 +42,7 @@ public partial class SearchViewModel : ReactiveObject, IDisposable
     private readonly SearchOrchestrationService _searchOrchestration;
     private readonly IBulkOperationCoordinator _bulkCoordinator;
     private readonly ISonicMatchService _sonicMatchService; // Phase 18.2
+    private readonly ILibraryService _libraryService; // Phase 4
     private readonly ActiveWorkspace _activeWorkspace;
 
     private readonly FileNameFormatter _fileNameFormatter;
@@ -224,7 +225,8 @@ public partial class SearchViewModel : ReactiveObject, IDisposable
         IEventBus eventBus,
         IBulkOperationCoordinator bulkCoordinator,
         ISonicMatchService sonicMatchService,
-        ActiveWorkspace activeWorkspace) // <--- Injected
+        ILibraryService libraryService, // Phase 4
+        ActiveWorkspace activeWorkspace)
     {
         _logger = logger;
         _soulseek = soulseek;
@@ -241,6 +243,7 @@ public partial class SearchViewModel : ReactiveObject, IDisposable
         _fileNameFormatter = fileNameFormatter;
         _bulkCoordinator = bulkCoordinator;
         _sonicMatchService = sonicMatchService;
+        _libraryService = libraryService; // Phase 4
         _activeWorkspace = activeWorkspace;
 
         // Reactive Status Updates
@@ -366,6 +369,18 @@ public partial class SearchViewModel : ReactiveObject, IDisposable
                     continue;
                 }
 
+                // Phase 4: Vocal Density Operator (v:low, v:med, v:high)
+                if (lower.StartsWith("v:") || lower.StartsWith("vocal:"))
+                {
+                    var val = lower.Split(':').Last();
+                    if (val == "low" || val == "med" || val == "high")
+                    {
+                        FilterViewModel.VocalDensityFilter = val;
+                        filtersModified = true;
+                        continue;
+                    }
+                }
+
                 processedQuery.Add(token);
             }
         });
@@ -454,8 +469,19 @@ public partial class SearchViewModel : ReactiveObject, IDisposable
                 IsSearching = false;
                 if (totalFound > 0)
                 {
-                    ApplyPercentileScoring(); // Updated for AnalyzedSearchResultViewModel
+                    ApplyPercentileScoring(); 
                     StatusText = $"Found {totalFound} items";
+                    
+                    // Phase 4: Sonic Match Suggestions
+                    // If we found high-confidence results, check for sonic twins in the library
+                    if (!IsAlbumSearch)
+                    {
+                        var topMatch = _searchResults.Items.OrderByDescending(r => r.MatchConfidence).FirstOrDefault();
+                        if (topMatch != null && topMatch.MatchConfidence > 85)
+                        {
+                            await AppendSonicSuggestionsAsync(topMatch);
+                        }
+                    }
                 }
                 else StatusText = "No results found";
             }
@@ -736,6 +762,47 @@ public partial class SearchViewModel : ReactiveObject, IDisposable
                 IsSearching = false;
             }
         });
+    }
+
+    private async Task AppendSonicSuggestionsAsync(AnalyzedSearchResultViewModel topMatch)
+    {
+        try
+        {
+            // 1. Check if track exists in library by hash
+            var entry = await _libraryService.FindLibraryEntryAsync(topMatch.RawResult.Model.UniqueHash);
+            if (entry == null) return;
+
+            // 2. Get sonic matches for this local track
+            var matches = await _sonicMatchService.FindSonicMatchesAsync(entry.UniqueHash, limit: 5);
+            if (!matches.Any()) return;
+
+            // 3. Inject into results with special label
+            var viewModels = matches.Select(m => 
+            {
+                var t = new Models.Track
+                {
+                    Artist = m.Artist,
+                    Title = m.Title,
+                    MatchReason = "Twin Vibe", // This triggers a special badge in the UI
+                    Energy = (double)m.Arousal,
+                    Valence = (double)m.Valence,
+                    Danceability = (double)m.Danceability,
+                    BPM = m.Bpm
+                };
+
+                var sr = new SearchResult(t);
+                sr.Status = TrackStatus.Downloaded; // It's in library
+                sr.Model.CurrentRank = m.SimilarityPercent;
+                
+                return new AnalyzedSearchResultViewModel(sr);
+            }).ToList();
+
+            await RunOnUiThreadAsync(() => _searchResults.AddRange(viewModels));
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Failed to append sonic suggestions during search");
+        }
     }
 
     public void Dispose()

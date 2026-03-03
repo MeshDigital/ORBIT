@@ -1,9 +1,11 @@
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading.Tasks;
 using System.Reactive;
 using SLSKDONET.Models;
 using SLSKDONET.Services;
 using SLSKDONET.Services.Export;
+using SLSKDONET.Services.Audio;
 using SLSKDONET.ViewModels;
 using SLSKDONET.Views;
 using SLSKDONET.Data; // For LibraryEntryEntity
@@ -17,23 +19,31 @@ public class BulkActionSidebarViewModel : ReactiveObject, ISidebarContent
     private readonly ILibraryService _libraryService;
     private readonly IDialogService _dialogService;
     private readonly INotificationService _notificationService;
+    private readonly BatchStemExportService _batchStemExportService;
+    private readonly IEventBus _eventBus;
     private IReadOnlyList<PlaylistTrackViewModel> _activeTracks = System.Array.Empty<PlaylistTrackViewModel>();
 
     public BulkActionSidebarViewModel(
         RekordboxService rekordboxService,
         ILibraryService libraryService,
         IDialogService dialogService,
-        INotificationService notificationService)
+        INotificationService notificationService,
+        BatchStemExportService batchStemExportService,
+        IEventBus eventBus)
     {
         _rekordboxService = rekordboxService;
         _libraryService = libraryService;
         _dialogService = dialogService;
         _notificationService = notificationService;
+        _batchStemExportService = batchStemExportService;
+        _eventBus = eventBus;
 
         ExportCommand = ReactiveCommand.CreateFromTask(ExecuteExportAsync);
+        ExtractStemsCommand = ReactiveCommand.Create(ExecuteExtractStems);
     }
 
     public ReactiveCommand<Unit, Unit> ExportCommand { get; }
+    public ReactiveCommand<Unit, Unit> ExtractStemsCommand { get; }
 
     public int SelectedCount => _activeTracks.Count;
 
@@ -53,6 +63,17 @@ public class BulkActionSidebarViewModel : ReactiveObject, ISidebarContent
     {
         _activeTracks = System.Array.Empty<PlaylistTrackViewModel>();
         this.RaisePropertyChanged(nameof(SelectedCount));
+    }
+
+    private void ExecuteExtractStems()
+    {
+        if (!_activeTracks.Any()) return;
+
+        int count = _activeTracks.Count;
+        _batchStemExportService.EnqueueBatch(_activeTracks, acapellaOnly: false);
+        _notificationService.Show("Acapella Factory", $"Queued {count} tracks for Stem Extraction.", NotificationType.Information);
+        
+        Deactivate();
     }
 
     private async Task ExecuteExportAsync()

@@ -15,27 +15,31 @@ namespace SLSKDONET.Services.Export
         /// Windows: file://localhost/C:/path/to/file.wav
         /// macOS: file://localhost/Users/path/to/file.wav
         /// </summary>
-        public static string ToRekordboxUri(string filePath)
+        public static string ToRekordboxUri(string absolutePath)
         {
-            if (string.IsNullOrEmpty(filePath))
+            if (string.IsNullOrEmpty(absolutePath))
                 return string.Empty;
 
             // Ensure absolute path
-            string absolutePath = Path.GetFullPath(filePath);
+            string fullPath = Path.GetFullPath(absolutePath);
 
+            string normalized = fullPath.Replace('\\', '/');
+            
             if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
             {
-                // Windows: C:\path\to\file.wav → file://localhost/C:/path/to/file.wav
-                // Windows: C:\path\to\file.wav → file:///C:/path/to/file.wav (which Rekordbox accepts via file://localhost/ workaround)
-                string normalized = absolutePath.Replace('\\', '/');
                 if (!normalized.StartsWith("/")) normalized = "/" + normalized;
-                return $"file://localhost{normalized.Replace(" ", "%20")}"; // Manual space escaping for Rekordbox localhost format
             }
-            else
+
+            // URL-encode special characters but preserve the slashes
+            var parts = normalized.Split('/');
+            for (int i = 0; i < parts.Length; i++)
             {
-                // macOS/Linux: /Users/path/to/file.wav → file://localhost/Users/path/to/file.wav
-                return $"file://localhost{absolutePath.Replace(" ", "%20")}";
+                // EscapeDataString safely URL-encodes special characters (&, space, #, etc.)
+                // Then restore the ':' for the Windows drive letter.
+                parts[i] = Uri.EscapeDataString(parts[i]).Replace("%3A", ":");
             }
+
+            return $"file://localhost{string.Join("/", parts)}";
         }
 
         /// <summary>

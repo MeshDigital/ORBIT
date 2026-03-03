@@ -635,6 +635,8 @@ public class SettingsViewModel : INotifyPropertyChanged, IDisposable
 
     public string FfmpegBorderColor => IsFfmpegInstalled ? "#1DB954" : "#FFA500";
 
+    public SpotifySyncSettingsViewModel SpotifySyncSettingsVM { get; }
+
     public SettingsViewModel(
         ILogger<SettingsViewModel> logger,
         AppConfig config,
@@ -644,8 +646,10 @@ public class SettingsViewModel : INotifyPropertyChanged, IDisposable
         ISpotifyMetadataService spotifyMetadataService,
         DatabaseService databaseService,
         LibraryFolderScannerService libraryFolderScannerService,
-        IEventBus eventBus)
+        IEventBus eventBus,
+        SpotifySyncSettingsViewModel spotifySyncSettingsVM)
     {
+        SpotifySyncSettingsVM = spotifySyncSettingsVM;
         _logger = logger;
         _config = config;
         _configManager = configManager;

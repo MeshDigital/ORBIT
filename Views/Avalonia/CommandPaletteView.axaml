@@ -8,43 +8,64 @@
              x:DataType="vm:CommandPaletteViewModel"
              IsVisible="{Binding IsVisible}">
     
-    <Grid Background="#AA000000">
-        <Border Background="#252526" BorderBrush="#FF4081" BorderThickness="1"
-                CornerRadius="8" Width="500" VerticalAlignment="Top" Margin="0,100,0,0"
-                BoxShadow="0 10 20 0 #55000000">
-            <Grid RowDefinitions="Auto,*">
-                <!-- Search Box -->
-                <TextBox Grid.Row="0" Watermark="Type a command..."
-                         Text="{Binding SearchText, Mode=TwoWay}"
-                         Background="Transparent" BorderThickness="0"
-                         FontSize="18" Padding="12"
-                         Foreground="White"
-                         CaretBrush="#FF4081"/>
-                
-                <Border Grid.Row="0" BorderBrush="#333" BorderThickness="0,0,0,1" Margin="0,45,0,0"/>
+    <Grid Background="#77000000">
+        <ExperimentalAcrylicBorder Width="500" VerticalAlignment="Top" Margin="0,100,0,0" CornerRadius="12">
+            <ExperimentalAcrylicBorder.Material>
+                <ExperimentalAcrylicMaterial BackgroundSource="Digger" TintColor="#1E1E1E" TintOpacity="0.95" MaterialOpacity="0.95" />
+            </ExperimentalAcrylicBorder.Material>
+            
+            <Border BorderBrush="#FF4081" BorderThickness="1.5" CornerRadius="12"
+                    BoxShadow="0 10 40 5 #AA000000, 0 0 10 0 #33FF4081" ClipToBounds="True">
+                <Grid RowDefinitions="Auto,*">
+                    <!-- Search Box -->
+                    <TextBox Name="SearchTextBox" Grid.Row="0" Watermark="Type a command or track..."
+                             Text="{Binding SearchText, Mode=TwoWay}"
+                             Background="Transparent" BorderThickness="0"
+                             FontSize="18" Padding="15"
+                             Foreground="White"
+                             CaretBrush="#FF4081">
+                        <TextBox.Styles>
+                            <Style Selector="TextBox /template/ Border#PART_BorderElement">
+                                <Setter Property="BorderThickness" Value="0" />
+                            </Style>
+                        </TextBox.Styles>
+                    </TextBox>
+                    
+                    <Separator Grid.Row="0" Height="1" VerticalAlignment="Bottom" Background="#333" Margin="0"/>
 
-                <!-- Results List -->
-                <ListBox Grid.Row="1" ItemsSource="{Binding FilteredCommands}"
-                         Background="Transparent" MaxHeight="300"
-                         ScrollViewer.HorizontalScrollBarVisibility="Disabled">
-                    <ListBox.ItemTemplate>
-                        <DataTemplate>
-                            <Border Background="Transparent" Padding="8" CornerRadius="4">
-                                <Grid ColumnDefinitions="*,Auto">
-                                    <TextBlock Grid.Column="0" Text="{Binding Name}" FontSize="14" Foreground="#EEE"/>
-                                    <Border Grid.Column="1" Background="#333" CornerRadius="4" Padding="6,2">
-                                        <TextBlock Text="{Binding Category}" FontSize="10" Foreground="#AAA"/>
-                                    </Border>
-                                </Grid>
-                            </Border>
-                        </DataTemplate>
-                    </ListBox.ItemTemplate>
-                </ListBox>
-            </Grid>
-        </Border>
+                    <!-- Results List -->
+                    <ListBox Grid.Row="1" ItemsSource="{Binding FilteredCommands}"
+                             Background="Transparent" MaxHeight="400"
+                             BorderThickness="0"
+                             ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+                        <ListBox.Styles>
+                            <Style Selector="ListBoxItem">
+                                <Setter Property="Padding" Value="0"/>
+                                <Setter Property="Background" Value="Transparent"/>
+                            </Style>
+                        </ListBox.Styles>
+                        <ListBox.ItemTemplate>
+                            <DataTemplate>
+                                <Border Background="Transparent" Padding="12,10" CornerRadius="0">
+                                    <Grid ColumnDefinitions="*,Auto">
+                                        <StackPanel Grid.Column="0" VerticalAlignment="Center">
+                                            <TextBlock Text="{Binding Name}" FontSize="14" Foreground="#EEE" FontWeight="SemiBold"/>
+                                        </StackPanel>
+                                        <Border Grid.Column="1" Background="#2A2A2A" CornerRadius="4" Padding="6,2">
+                                            <TextBlock Text="{Binding Category}" FontSize="10" Foreground="#888" FontWeight="Bold"/>
+                                        </Border>
+                                    </Grid>
+                                </Border>
+                            </DataTemplate>
+                        </ListBox.ItemTemplate>
+                    </ListBox>
+                </Grid>
+            </Border>
+        </ExperimentalAcrylicBorder>
         
         <!-- Close on click outside -->
         <Button Command="{Binding CloseCommand}" Background="Transparent" 
+                BorderThickness="0" Padding="0"
                 HorizontalAlignment="Stretch" VerticalAlignment="Stretch"
                 ZIndex="-1"/>
     </Grid>

@@ -124,6 +124,20 @@ namespace SLSKDONET.Views.Avalonia.Converters
         }
     }
 
+    public class PlayingRowBrushConverter : IValueConverter
+    {
+        public object? Convert(object? value, Type targetType, object? parameter, CultureInfo culture)
+        {
+            if (value is bool isPlaying && isPlaying)
+            {
+                return new SolidColorBrush(Color.FromArgb(25, 29, 185, 84)); // ~10% Spotify Green
+            }
+            return Brushes.Transparent;
+        }
+
+        public object? ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture) => throw new NotImplementedException();
+    }
+
     public class BooleanToBrushConverter : IValueConverter
     {
         public object? Convert(object? value, Type targetType, object? parameter, CultureInfo culture)
@@ -245,6 +259,21 @@ namespace SLSKDONET.Views.Avalonia.Converters
             throw new NotImplementedException();
         }
     }
+
+    public class VocalDensityLevelToBrushConverter : IValueConverter
+    {
+        public object? Convert(object? value, Type targetType, object? parameter, CultureInfo culture)
+        {
+            if (value is int level && parameter is string targetLevelStr && int.TryParse(targetLevelStr, out int target))
+            {
+                return level >= target ? Brushes.MediumPurple : new SolidColorBrush(Color.Parse("#333333"));
+            }
+            return Brushes.Transparent;
+        }
+
+        public object? ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture) => throw new NotImplementedException();
+    }
+
     public class BoolBlurConverter : IValueConverter
     {
         public object? Convert(object? value, Type targetType, object? parameter, CultureInfo culture)

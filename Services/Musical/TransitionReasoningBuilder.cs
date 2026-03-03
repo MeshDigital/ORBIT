@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Text;
 using SLSKDONET.Data.Entities;
+using SLSKDONET.Models;
 using SLSKDONET.Models.Musical;
 
 namespace SLSKDONET.Services.Musical
@@ -131,7 +132,7 @@ namespace SLSKDONET.Services.Musical
                 builder.AddDetail($"Conflict Intensity: {vocalReport.ConflictIntensity:P0} — Safety Score: {vocalReport.VocalSafetyScore:P0}");
                 verdictParts.Add("⚠ vocal clash");
             }
-            else if (trackA.VocalType != SLSKDONET.Models.VocalType.Instrumental && trackB.VocalType == SLSKDONET.Models.VocalType.Instrumental)
+            else if (trackA.VocalType != SLSKDONET.Models.Musical.VocalType.Instrumental && trackB.VocalType == SLSKDONET.Models.Musical.VocalType.Instrumental)
             {
                 builder.AddSuccess("Vocals clearing into instrumental");
                 builder.AddDetail("Excellent spot to let the beat ride");
@@ -141,6 +142,14 @@ namespace SLSKDONET.Services.Musical
             {
                 builder.AddSuccess("No vocal conflict detected");
                 verdictParts.Add("vocals safe");
+            }
+
+            // Phase 5: Vocal Density Context
+            if (!string.IsNullOrEmpty(trackA.AudioFeatures?.VocalDensityCurveJson))
+            {
+                // This would ideally pull named segments like "Verse 1", but for now we note the profile
+                if (trackA.VocalType == VocalType.FullLyrics)
+                    builder.AddDetail("Track A has constant lyrical pressure—requires clean Instrumental in B.");
             }
         }
 
@@ -158,6 +167,12 @@ namespace SLSKDONET.Services.Musical
             else
             {
                 builder.AddSuccess($"Energy stable: {energyA:P0} → {energyB:P0}");
+            }
+
+            // Phase 5: Energy Advice
+            if (!string.IsNullOrEmpty(suggestion.EnergyAdvice))
+            {
+                builder.AddBullet(suggestion.EnergyAdvice);
             }
 
             if (suggestion.BpmDrift > (trackA.Bpm * 0.03))

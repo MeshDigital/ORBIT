@@ -357,7 +357,7 @@
                         <Grid ColumnDefinitions="*,Auto" Grid.Row="0">
                             <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="16" VerticalAlignment="Center">
                                 <TextBlock Text="⬇️ Downloads" FontWeight="Bold" FontSize="14" Foreground="White"/>
-                                <Border Background="#333" CornerRadius="10" Padding="8,2"><TextBlock FontSize="12"><Run Text="{Binding MainViewModel.TodoCount}" Foreground="#4EC9B0" FontWeight="Bold"/><Run Text=" active" Foreground="#AAA"/></TextBlock></Border>
+                                <Border Background="#333" CornerRadius="10" Padding="8,2"><TextBlock FontSize="12"><Run Text="{Binding MainViewModel.ActiveDownloadsCount}" Foreground="#4EC9B0" FontWeight="Bold"/><Run Text=" active" Foreground="#AAA"/></TextBlock></Border>
                                 <Border Background="#333" CornerRadius="10" Padding="8,2" IsVisible="{Binding MainViewModel.FailedCount}"><TextBlock FontSize="12"><Run Text="{Binding MainViewModel.FailedCount}" Foreground="#F44336" FontWeight="Bold"/><Run Text=" failed" Foreground="#AAA"/></TextBlock></Border>
                                 <TextBlock Text="{Binding MainViewModel.DownloadProgressPercentage, StringFormat='{}{0:F0}%'}" Foreground="#888" VerticalAlignment="Center" FontSize="12"/>
                             </StackPanel>
@@ -822,11 +822,6 @@
                          <PathIcon Data="{StaticResource arrow_sync_regular}" Width="20" Height="20"/>
                     </ToggleButton>
 
-                    <!-- Stems -->
-                    <ToggleButton ToolTip.Tip="STEMS Sidebar" 
-                                  IsChecked="{Binding Sidebar.ActiveMode, Converter={StaticResource EnumToBoolConverter}, ConverterParameter={x:Static libSidebar:LibrarySidebarMode.Stems}}">
-                         <PathIcon Data="{StaticResource mixer_regular}" Width="20" Height="20"/>
-                    </ToggleButton>
                     
                     <!-- Metadata Alignment (NEW) -->
                     <ToggleButton ToolTip.Tip="Metadata Alignment" 

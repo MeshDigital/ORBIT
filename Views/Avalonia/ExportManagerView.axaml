@@ -7,7 +7,7 @@
              x:DataType="vm:ExportManagerViewModel"
              x:Class="SLSKDONET.Views.Avalonia.ExportManagerView">
 
-    <Grid RowDefinitions="Auto, *, Auto" Margin="30">
+    <Grid RowDefinitions="Auto, *, Auto, Auto" Margin="30">
         <!-- Header -->
         <StackPanel Grid.Row="0" Spacing="5" Margin="0,0,0,30">
             <TextBlock Text="REKORDBOX EXPORT MANAGER" 
@@ -180,8 +180,33 @@
             </Border>
         </Grid>
 
+        <!-- PIONEER DJ CLUB INTEGRATION -->
+        <Border Grid.Row="2" Background="#1E1E1E" BorderBrush="#2D2D2D" BorderThickness="1" CornerRadius="0" Padding="24" Margin="0,20,0,0">
+            <StackPanel Spacing="0">
+                <TextBlock Text="CLUB INTEGRATION // PIONEER DJ" Foreground="#00E5FF" FontWeight="Bold" LetterSpacing="1" />
+                <TextBlock Foreground="#888888" TextWrapping="Wrap" Margin="0,8,0,24"
+                           Text="Generate a gig-ready rekordbox.xml file containing your entire ORBIT library, complete with AI-detected Camelot Keys, precise BPMs, and perfectly aligned Hot Cues (Drop, Break, Intro)." />
+                
+                <Button Command="{Binding ExportToRekordboxCommand}" HorizontalAlignment="Left" Padding="24,12" BorderBrush="#00E5FF" BorderThickness="1" CornerRadius="3">
+                    <Button.Styles>
+                        <Style Selector="Button:pointerover /template/ ContentPresenter">
+                            <Setter Property="BorderBrush" Value="#00E5FF"/>
+                            <Setter Property="Background" Value="#1A00E5FF"/>
+                        </Style>
+                    </Button.Styles>
+                    <Panel>
+                        <TextBlock Text="GENERATE REKORDBOX XML" FontWeight="SemiBold" Foreground="#00E5FF" IsVisible="{Binding !IsExporting}" />
+                        <StackPanel Orientation="Horizontal" Spacing="8" IsVisible="{Binding IsExporting}">
+                            <ProgressBar IsIndeterminate="True" Width="16" Height="16" Classes="circular" />
+                            <TextBlock Text="GENERATING..." FontWeight="SemiBold" Foreground="#00E5FF" VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </Panel>
+                </Button>
+            </StackPanel>
+        </Border>
+
         <!-- Footer / Progress Pipeline -->
-        <Border Grid.Row="2" Background="{DynamicResource SukiBackground}" CornerRadius="12" Padding="25" Margin="0,20,0,0" BorderBrush="#333" BorderThickness="0,1,0,0">
+        <Border Grid.Row="3" Background="{DynamicResource SukiBackground}" CornerRadius="12" Padding="25" Margin="0,20,0,0" BorderBrush="#333" BorderThickness="0,1,0,0">
             <StackPanel Spacing="20">
                 <Grid ColumnDefinitions="*, Auto">
                     <StackPanel Spacing="5">

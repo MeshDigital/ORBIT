@@ -1010,27 +1010,13 @@ public class TrackListViewModel : ReactiveObject, IDisposable
                 return;
             }
 
-            // Show folder picker dialog
-            var folderTask = Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(async () =>
-            {
-                var dialog = new Avalonia.Platform.Storage.FolderPickerOpenOptions
-                {
-                    Title = acapellaOnly ? "Select destination for Acapellas" : "Select destination for Instrumentals",
-                    AllowMultiple = false
-                };
-
-                var mainWindow = (Avalonia.Application.Current?.ApplicationLifetime as Avalonia.Controls.ApplicationLifetimes.IClassicDesktopStyleApplicationLifetime)?.MainWindow;
-                if (mainWindow == null) return null;
-
-                var result = await mainWindow.StorageProvider.OpenFolderPickerAsync(dialog);
-                return result?.FirstOrDefault()?.Path.LocalPath;
-            });
-
-            var targetFolder = await folderTask;
-            if (string.IsNullOrEmpty(targetFolder)) return;
-
-            // Run via service
-            await _stemExportService.ExportBatchAsync(selectedTracks, targetFolder, acapellaOnly);
+            // Run via newly refactored service that auto-resolves Stems directory
+            _stemExportService.EnqueueBatch(selectedTracks, acapellaOnly);
+            
+            // Unselect so the user sees the action was taken
+            SelectedTracks.Clear();
+            
+            await Task.CompletedTask;
         }
         catch (Exception ex)
         {

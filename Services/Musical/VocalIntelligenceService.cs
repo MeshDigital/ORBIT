@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using SLSKDONET.Models;
+using SLSKDONET.Models.Musical;
 
 namespace SLSKDONET.Services.Musical
 {

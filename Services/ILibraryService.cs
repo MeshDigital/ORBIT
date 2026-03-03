@@ -258,4 +258,10 @@ public interface ILibraryService
     /// Phase 2: Structural - Persists detected structural segments.
     /// </summary>
     Task SavePhrasesAsync(List<TrackPhraseEntity> phrases);
+
+    /// <summary>
+    /// Acapella Factory: Promotes a generated stem directly into the local ORBIT database.
+    /// Copies metadata (BPM, Key) from the parent to avoid redundant AI analysis.
+    /// </summary>
+    Task ImportGeneratedStemAsync(TrackEntity parentTrack, string newFilePath, SLSKDONET.Models.Stem.StemType type);
 }

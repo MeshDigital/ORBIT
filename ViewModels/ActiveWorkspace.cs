@@ -32,6 +32,8 @@ public partial class ActiveWorkspace : ReactiveObject
         set => this.RaiseAndSetIfChanged(ref _selectedTrack, value);
     }
 
+    public System.Windows.Input.ICommand? ToggleAnalysisCommand { get; set; }
+
     public void SetContext(WorkspaceContext context)
     {
         CurrentContext = context;

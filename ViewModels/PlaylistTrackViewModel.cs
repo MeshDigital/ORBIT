@@ -5,6 +5,8 @@ using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Threading.Tasks;
 using System.Windows.Input; // For ICommand
+using ReactiveUI;
+using System.Reactive.Disposables;
 using SLSKDONET.Models;
 using SLSKDONET.Services;
 using SLSKDONET.Views; // For RelayCommand
@@ -39,6 +41,13 @@ public class PlaylistTrackViewModel : INotifyPropertyChanged, Library.ILibraryNo
     {
         get => _isConsoleOpen;
         set => SetProperty(ref _isConsoleOpen, value);
+    }
+
+    private bool _isCurrentlyPlaying;
+    public bool IsCurrentlyPlaying
+    {
+        get => _isCurrentlyPlaying;
+        set => SetProperty(ref _isCurrentlyPlaying, value);
     }
 
     public bool IsSelected
@@ -253,7 +262,15 @@ public class PlaylistTrackViewModel : INotifyPropertyChanged, Library.ILibraryNo
         Model.InstrumentalProbability ?? 0.0);
     
     public double InstrumentalProbability => Model.InstrumentalProbability ?? 0.0;
-    
+
+    public string VocalDensity => Model.VocalDensityCurve != null && Model.VocalDensityCurve.Length > 0
+        ? (Model.VocalDensityCurve.Average() > 0.6 ? "High" : Model.VocalDensityCurve.Average() > 0.3 ? "Med" : "Low")
+        : "N/A";
+
+    public int VocalDensityLevel => Model.VocalDensityCurve != null && Model.VocalDensityCurve.Length > 0
+        ? (Model.VocalDensityCurve.Average() > 0.6 ? 3 : Model.VocalDensityCurve.Average() > 0.3 ? 2 : 1)
+        : 0;
+
     public double BPM => Model.BPM ?? 0.0;
     public string MusicalKey => Model.MusicalKey ?? "—";
     
@@ -634,6 +651,14 @@ public class PlaylistTrackViewModel : INotifyPropertyChanged, Library.ILibraryNo
         _ => "#E91E63"      // Pink/Red
     };
 
+    public string EnergyColor => Energy switch
+    {
+        >= 0.8 => "#FF4081", // High (Vibrant Pink)
+        >= 0.5 => "#FFD700", // Mid (Gold)
+        > 0 => "#00BCD4",    // Low (Cyan)
+        _ => "#333333"
+    };
+
     // Phase 12.1: Only show High Risk badge if it's a final heuristic score, not while searching
     public bool IsHighRisk => Model.IsFlagged && State != PlaylistTrackState.Searching && State != PlaylistTrackState.Queued && State != PlaylistTrackState.Pending;
     public string? FlagReason => Model.FlagReason;
@@ -798,6 +823,17 @@ public class PlaylistTrackViewModel : INotifyPropertyChanged, Library.ILibraryNo
         _libraryService = libraryService;
         _artworkCacheService = artworkCacheService;
         Model = track;
+
+        if (_eventBus != null)
+        {
+            _eventBus.GetEvent<TrackPlaybackStartedEvent>()
+                .Subscribe(evt => IsCurrentlyPlaying = (evt.FilePath == Model.ResolvedFilePath))
+                .DisposeWith(_disposables);
+
+            _eventBus.GetEvent<TrackPlaybackStoppedEvent>()
+                .Subscribe(_ => IsCurrentlyPlaying = false)
+                .DisposeWith(_disposables);
+        }
         SourceId = track.PlaylistId;
         GlobalId = track.TrackUniqueHash;
         Artist = track.Artist;

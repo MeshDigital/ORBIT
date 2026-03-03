@@ -414,6 +414,9 @@
                 </StackPanel>
             </Border>
 
+            <!-- Phase 3: The UI Configuration Widget (Spotify Sync Engine) -->
+            <controls:SpotifySyncConfigView DataContext="{Binding SpotifySyncSettingsVM}" />
+
             <!-- Phase 8: Self-Healing Library (Upgrade Scout) -->
             <Border Background="#252526" CornerRadius="8" Padding="20" BorderBrush="#3E3E3E" BorderThickness="1">
                 <StackPanel Spacing="16">

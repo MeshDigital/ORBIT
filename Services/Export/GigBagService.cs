@@ -184,10 +184,10 @@ namespace SLSKDONET.Services.Export
                     // Map vocal type to tag
                     track.VocalTag = libraryTrack.VocalType switch
                     {
-                        SLSKDONET.Models.VocalType.Instrumental => "INST",
-                        SLSKDONET.Models.VocalType.SparseVocals => "SPARSE",
-                        SLSKDONET.Models.VocalType.HookOnly => "HOOK",
-                        SLSKDONET.Models.VocalType.FullLyrics => "DENSE",
+                        SLSKDONET.Models.Musical.VocalType.Instrumental => "INST",
+                        SLSKDONET.Models.Musical.VocalType.SparseVocals => "SPARSE",
+                        SLSKDONET.Models.Musical.VocalType.HookOnly => "HOOK",
+                        SLSKDONET.Models.Musical.VocalType.FullLyrics => "DENSE",
                         _ => "—"
                     };
                     

@@ -292,6 +292,19 @@ public partial class App : Application
                         var lockdownService = Services.GetRequiredService<IForensicLockdownService>();
                         _ = Task.Run(() => lockdownService.MonitorSystemHealthAsync());
 
+                        // Path C Phase 2: Spotify Crate Sync Daemon
+                        try
+                        {
+                            var spotifySyncManager = Services.GetRequiredService<SpotifySyncManager>();
+                            await spotifySyncManager.LoadJobsAsync();
+                            spotifySyncManager.StartDaemon();
+                            Serilog.Log.Information("✅ Spotify Crate Sync Daemon started");
+                        }
+                        catch (Exception ex)
+                        {
+                            Serilog.Log.Error(ex, "Failed to start Spotify Crate Sync Daemon");
+                        }
+
                         // Phase 2A: Initialize Crash Recovery Journal
                         try
                         {
@@ -523,7 +536,7 @@ public partial class App : Application
         // Rekordbox export service
         services.AddSingleton<Services.Rekordbox.XorService>();
         services.AddSingleton<Services.Rekordbox.AnlzFileParser>();
-        services.AddSingleton<RekordboxXmlExporter>();
+        services.AddSingleton<SLSKDONET.Services.Export.RekordboxXmlExporter>();
         services.AddSingleton<Services.Export.RekordboxService>();
         services.AddSingleton<Services.Export.IRekordboxExportService, Services.Export.RekordboxExportService>();
         services.AddSingleton<Services.Export.ExportValidator>();
@@ -566,6 +579,9 @@ public partial class App : Application
         
         services.AddSingleton<DownloadManager>();
         services.AddSingleton<DownloadHealthMonitor>(); // Phase 3B: Active Health Monitor
+        services.AddSingleton<SpotifyCrateSyncService>();
+        services.AddSingleton<SpotifySyncManager>();
+        services.AddSingleton<ViewModels.SpotifySyncSettingsViewModel>();
         
         // Phase 2.5: Download Center ViewModel (singleton observer)
         services.AddSingleton<ViewModels.Downloads.DownloadCenterViewModel>();
@@ -650,33 +666,12 @@ public partial class App : Application
 
         services.AddSingleton<SLSKDONET.Services.Tagging.ISeratoMarkerService, SLSKDONET.Services.Tagging.SeratoMarkerService>();
         services.AddSingleton<SLSKDONET.Services.Tagging.IUniversalCueService, SLSKDONET.Services.Tagging.UniversalCueService>();
-
-        // Phase 15: Style Lab (Sonic Taxonomy)
-        services.AddSingleton<Services.AI.IStyleClassifierService, Services.AI.StyleClassifierService>();
-        services.AddTransient<ViewModels.StyleLabViewModel>();
-
-        // Phase 16: Applied Intelligence (Autonomy)
-        services.AddSingleton<Services.Library.SmartSorterService>();
-        services.AddTransient<ViewModels.Tools.SortPreviewViewModel>();
-
+        
         // Phase 20: Smart Playlists 2.0
         services.AddSingleton<ISmartPlaylistService, SmartPlaylistService>();
         
         // Phase 23: Smart Crates (Dynamic AI Playlists)
         services.AddSingleton<SmartCrateService>();
-        
-        // Phase 24: Stem Workspace (Stem Separation & Remixing)
-        services.AddSingleton<StemSeparationService>();
-        services.AddSingleton<BatchStemExportService>();
-        services.AddSingleton<StemProjectService>();
-        services.AddSingleton<Services.Audio.StemPreferenceService>();
-        services.AddTransient<Services.Audio.RealTimeStemEngine>();
-        services.AddSingleton<ViewModels.Stem.StemWorkspaceViewModel>(); // Root VM for workspace
-        
-        // Phase 4: Set Designer (DAW)
-        services.AddSingleton<Services.Audio.MultiTrackEngine>();
-        services.AddSingleton<Services.Audio.TransitionEngine>();
-        services.AddSingleton<ViewModels.Timeline.SetDesignerViewModel>();
         
         // Sprint 5: Transition Preview Engine
         services.AddSingleton<Services.Audio.TransitionPreviewService>();
@@ -716,10 +711,6 @@ public partial class App : Application
         services.AddSingleton<Features.LibrarySidebar.ViewModels.ContextualSidebarViewModel>();
 
         services.AddSingleton<LibraryViewModel>();
-        services.AddSingleton<ImportPreviewViewModel>();
-        services.AddSingleton<ImportHistoryViewModel>();
-        services.AddSingleton<SpotifyImportViewModel>();
-        services.AddSingleton<ViewModels.LibrarySourcesViewModel>();
         services.AddSingleton<TheaterModeViewModel>();
         services.AddSingleton<ViewModels.Discovery.DiscoveryHubViewModel>(); // Discovery Hub
         services.AddSingleton<Services.Import.AutoCleanerService>();
@@ -741,25 +732,16 @@ public partial class App : Application
         services.AddTransient<Views.Avalonia.LibraryPage>();
         services.AddTransient<Views.Avalonia.DownloadsPage>();
         services.AddTransient<Views.Avalonia.SettingsPage>();
-        services.AddTransient<Views.Avalonia.ImportPage>();
-        services.AddTransient<Views.Avalonia.ImportPreviewPage>();
         services.AddTransient<Views.Avalonia.UpgradeScoutView>();
         services.AddTransient<Views.Avalonia.InspectorPage>();
         services.AddTransient<Views.Avalonia.AnalysisQueuePage>();
-        services.AddTransient<Views.Avalonia.StyleLabPage>();
         services.AddTransient<Views.Avalonia.TheaterModePage>();
-        services.AddTransient<Views.Avalonia.Timeline.SetDesignerView>();
-        services.AddTransient<Views.Avalonia.FlowBuilderView>();
         services.AddTransient<Views.Avalonia.DiscoveryHubView>(); // [FIX] Added missing view registration
-        services.AddTransient<Views.Avalonia.DJCompanionView>(); // [FIX] Added missing view registration
-        services.AddTransient<Views.Avalonia.Studio.OrbitStudioView>();
         
         services.AddSingleton<ViewModels.TrackInspectorViewModel>();
         services.AddSingleton<ViewModels.ForensicLabViewModel>();
         services.AddSingleton<ViewModels.ForensicUnifiedViewModel>();
-        services.AddSingleton<ViewModels.DJCompanionViewModel>(); // [FIX] Added missing ViewModel registration
         services.AddSingleton<ViewModels.IntelligenceCenterViewModel>();
-        services.AddSingleton<ViewModels.FlowBuilderViewModel>();
         services.AddSingleton<ViewModels.StudioProViewModel>();
 
         // Phase 2: Surgical Editing Engine

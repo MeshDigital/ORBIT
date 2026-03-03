@@ -49,6 +49,14 @@ public class SearchFilterViewModel : ReactiveObject
         set => this.RaiseAndSetIfChanged(ref _hideSuspects, value);
     }
 
+    // Phase 4: Vocal Density
+    private string? _vocalDensityFilter;
+    public string? VocalDensityFilter
+    {
+        get => _vocalDensityFilter;
+        set => this.RaiseAndSetIfChanged(ref _vocalDensityFilter, value);
+    }
+
     // Phase 19: The Bouncer
     private BouncerMode _bouncerMode = BouncerMode.Standard;
     public BouncerMode BouncerMode
@@ -124,14 +132,15 @@ public class SearchFilterViewModel : ReactiveObject
             x => x.MinBitrate,
             x => x.UseHighReliability,
             x => x.HideSuspects,
-            x => x.BouncerMode) // Phase 19
+            x => x.BouncerMode,
+            x => x.VocalDensityFilter) // Phase 4
             .Throttle(TimeSpan.FromMilliseconds(200), RxApp.MainThreadScheduler)
             .Merge(
                 Observable.FromEventPattern<NotifyCollectionChangedEventHandler, NotifyCollectionChangedEventArgs>(
                     h => SelectedFormats.CollectionChanged += h, 
                     h => SelectedFormats.CollectionChanged -= h)
                 .Select(_ => System.Reactive.Unit.Default)
-                .Select(_ => (MinBitrate, UseHighReliability, HideSuspects, BouncerMode)) // Updated tuple
+                .Select(_ => (MinBitrate, UseHighReliability, HideSuspects, BouncerMode, VocalDensityFilter)) // Updated tuple
             )
             .Select(_ => GetFilterPredicate());
 
@@ -144,6 +153,7 @@ public class SearchFilterViewModel : ReactiveObject
         var highReliability = UseHighReliability;
         var hideSuspects = HideSuspects; // Phase 12.6: Curation quality
         var bouncerMode = BouncerMode; // Phase 19: The Bouncer
+        var vocalFilter = VocalDensityFilter?.ToLowerInvariant(); // Phase 4
         
         // Return a single optimized function
         return result => 
@@ -202,6 +212,17 @@ public class SearchFilterViewModel : ReactiveObject
                         return false;
                     }
                 }
+            }
+
+            // 5. Vocal Density Filter (Phase 4)
+            if (!string.IsNullOrEmpty(vocalFilter))
+            {
+                // We use Energy as a proxy if VocalDensity data isn't available for the search result
+                double density = result.Model.Energy ?? 0.5; 
+                
+                if (vocalFilter == "low" && density > 0.35) return false;
+                if (vocalFilter == "med" && (density < 0.35 || density > 0.7)) return false;
+                if (vocalFilter == "high" && density < 0.7) return false;
             }
 
             return true;

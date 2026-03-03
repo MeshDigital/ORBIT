@@ -11,6 +11,7 @@ namespace SLSKDONET.ViewModels
     {
         private readonly SearchResult _result;
         public Models.SearchTier Tier { get; } // Phase 19
+        public Models.Track Model => _result.Model;
 
 
 

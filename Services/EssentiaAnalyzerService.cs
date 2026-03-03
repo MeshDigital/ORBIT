@@ -9,6 +9,7 @@ using SLSKDONET.Data.Entities;
 using SLSKDONET.Data.Essentia;
 using SLSKDONET.Services.Musical;
 using SLSKDONET.Models;
+using SLSKDONET.Models.Musical;
 
 namespace SLSKDONET.Services;
 
@@ -351,7 +352,7 @@ public class EssentiaAnalyzerService : IAudioIntelligenceService, IDisposable
                 // Phase 5.0: Vocal Density — windowed patch analysis
                 // Derives VocalDensity (0‒1 ratio of patches > 0.6 voice prob) and classification.
                 // Runs from ExtensionData frame array when available, or from globalVoiceProb otherwise.
-                (float vocalDensity, VocalType vocalType) = CalculateVocalDensity(
+                (float vocalDensity, SLSKDONET.Models.Musical.VocalType vocalType) = CalculateVocalDensity(
                     voiceProb, data.HighLevel?.ExtensionData);
 
                 // DEBUG: Log extracted data to verify what Essentia produced
@@ -660,7 +661,7 @@ public class EssentiaAnalyzerService : IAudioIntelligenceService, IDisposable
     ///   density 0.05–0.35 → VocalChops
     ///   density ≥ 0.35  → LeadVocal
     /// </summary>
-    private static (float density, VocalType type) CalculateVocalDensity(
+    private static (float density, SLSKDONET.Models.Musical.VocalType type) CalculateVocalDensity(
         float globalVoiceProb,
         Dictionary<string, System.Text.Json.JsonElement>? extensionData)
     {
@@ -711,11 +712,11 @@ public class EssentiaAnalyzerService : IAudioIntelligenceService, IDisposable
         return (approxDensity, ClassifyVocalDensity(approxDensity));
     }
 
-    private static VocalType ClassifyVocalDensity(float density)
+    private static SLSKDONET.Models.Musical.VocalType ClassifyVocalDensity(float density)
     {
-        if (density < 0.05f) return VocalType.Instrumental;
-        if (density < 0.35f) return VocalType.VocalChops;
-        return VocalType.LeadVocal;
+        if (density < 0.05f) return SLSKDONET.Models.Musical.VocalType.Instrumental;
+        if (density < 0.35f) return SLSKDONET.Models.Musical.VocalType.VocalChops;
+        return SLSKDONET.Models.Musical.VocalType.LeadVocal;
     }
 
     // ============================================

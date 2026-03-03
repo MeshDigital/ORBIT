@@ -238,6 +238,74 @@ public class LibraryService : ILibraryService
         }
     }
 
+    public async Task ImportGeneratedStemAsync(TrackEntity parentTrack, string newFilePath, SLSKDONET.Models.Stem.StemType type)
+    {
+        try
+        {
+            _logger.LogInformation("Importing stem {Type} for {Title} from {Path}", type, parentTrack.Title, newFilePath);
+
+            // 1. Fresh Deterministic Hash
+            var hash = SLSKDONET.Utils.GuidGenerator.CreateFromUrl(newFilePath).ToString();
+            
+            // 2. Map inherited properties to new TrackEntity
+            var newTrack = new TrackEntity
+            {
+                GlobalId = hash,
+                Artist = parentTrack.Artist,
+                Title = $"{parentTrack.Title} ({(type == SLSKDONET.Models.Stem.StemType.Vocals ? "Acapella" : "Instrumental")})",
+                Filename = System.IO.Path.GetFileName(newFilePath),
+                State = "Completed",
+                Size = new System.IO.FileInfo(newFilePath).Exists ? new System.IO.FileInfo(newFilePath).Length : 0,
+                AddedAt = DateTime.UtcNow,
+                CompletedAt = DateTime.UtcNow,
+
+                // Essential Inheritance
+                BPM = parentTrack.BPM,
+                MusicalKey = parentTrack.MusicalKey,
+                Energy = parentTrack.Energy,
+                PrimaryGenre = parentTrack.PrimaryGenre,
+                DetectedSubGenre = parentTrack.DetectedSubGenre,
+                ReleaseDate = parentTrack.ReleaseDate,
+                
+                // Core Directives to Bypass Analysis Queue
+                IsEnriched = true,
+                Comments = $"[OrbitStemParent:{parentTrack.GlobalId}]"
+            };
+
+            // 3. Persist physically to the Tracks table
+            await _databaseService.SaveTrackAsync(newTrack).ConfigureAwait(false);
+
+            // 4. Also register cleanly in the main LibraryEntry system to be shown in UI
+            var trackModel = new SLSKDONET.Models.PlaylistTrack
+            {
+                Id = Guid.NewGuid(),
+                TrackUniqueHash = newTrack.GlobalId,
+                Artist = newTrack.Artist,
+                Title = newTrack.Title,
+                Status = SLSKDONET.Models.TrackStatus.Downloaded,
+                ResolvedFilePath = newFilePath,
+                AddedAt = newTrack.AddedAt,
+                BPM = newTrack.BPM ?? 0,
+                MusicalKey = newTrack.MusicalKey,
+                Energy = newTrack.Energy ?? 0,
+                PrimaryGenre = newTrack.PrimaryGenre,
+                DetectedSubGenre = newTrack.DetectedSubGenre,
+                Comments = newTrack.Comments
+            };
+            
+            await AddTrackToLibraryIndexAsync(trackModel, newFilePath).ConfigureAwait(false);
+
+            // 5. Fire global UI event to un-ghost the new file instantly
+            _eventBus.Publish(new SLSKDONET.Models.TrackAddedEvent(trackModel, SLSKDONET.Models.PlaylistTrackState.Completed));
+            
+            _logger.LogInformation("Stem metadata injection complete -> {Hash}", hash);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to import stem {Path} back into the parent TrackEntity", newFilePath);
+        }
+    }
+
     public async Task AddTrackToLibraryIndexAsync(PlaylistTrack track, string finalPath)
     {
         try

@@ -55,8 +55,14 @@ public interface ITrackRepository
     /// </summary>
     Task UpdateLikeStatusAsync(string trackHash, bool isLiked);
     Task UpdateRatingAsync(string trackHash, int rating);
-
+    Task AddPlayHistoryAsync(string hash, double playDurationSeconds);
+    
     /// <summary>
+    /// Checks if a track exists in the library using a fast 2-tier validation (Strict SQL -> Fuzzy RAM).
+    /// </summary>
+    Task<bool> TrackExistsAsync(string artist, string title, CancellationToken ct = default);
+    
+    // Playlistsummary>
     /// Searches tracks across all playlists.
     /// </summary>
     Task<List<PlaylistTrackEntity>> SearchPlaylistTracksAsync(string query, int limit = 50);

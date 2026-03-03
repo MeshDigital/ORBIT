@@ -3,10 +3,18 @@
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              xmlns:vm="clr-namespace:SLSKDONET.ViewModels"
+             xmlns:conv="clr-namespace:SLSKDONET.Converters"
+             xmlns:converters="clr-namespace:SLSKDONET.Views.Avalonia.Converters"
              xmlns:dg="clr-namespace:Avalonia.Controls;assembly=Avalonia.Controls.DataGrid"
              mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450"
              x:Class="SLSKDONET.Views.Avalonia.UnifiedTrackGridView"
              x:DataType="vm:ActiveWorkspace">
+    <UserControl.Resources>
+        <conv:CamelotToColorConverter x:Key="CamelotToColorConverter" />
+        <converters:PlayingRowBrushConverter x:Key="PlayingRowBrushConverter" />
+        <converters:VocalDensityLevelToBrushConverter x:Key="VocalDensityLevelToBrushConverter" />
+    </UserControl.Resources>
+
     <Grid>
         <dg:DataGrid Name="UnifiedGrid"
                    ItemsSource="{Binding CurrentGridItems}"
@@ -20,39 +28,88 @@
                    BorderThickness="0"
                    HeadersVisibility="Column"
                    GridLinesVisibility="Horizontal"
-                   HorizontalGridLinesBrush="#1AFFFFFF">
+                   HorizontalGridLinesBrush="#1AFFFFFF"
+                   RowHeight="38"
+                   FrozenColumnCount="2">
             <dg:DataGrid.Styles>
                 <Style Selector="dg|DataGridColumnHeader">
-                    <Setter Property="Background" Value="#252526"/>
+                    <Setter Property="Background" Value="#1A1A1A"/>
                     <Setter Property="Foreground" Value="#AAA"/>
                     <Setter Property="FontSize" Value="11"/>
                     <Setter Property="FontWeight" Value="SemiBold"/>
                     <Setter Property="Padding" Value="12,10"/>
                     <Setter Property="BorderThickness" Value="0,0,1,1"/>
-                    <Setter Property="BorderBrush" Value="#3E3E3E"/>
+                    <Setter Property="BorderBrush" Value="#333333"/>
                 </Style>
+                <Style Selector="dg|DataGridRow">
+                    <Setter Property="Background" Value="{Binding IsCurrentlyPlaying, Converter={StaticResource PlayingRowBrushConverter}}"/>
+                    <Setter Property="Transitions">
+                        <Transitions>
+                            <BrushTransition Property="Background" Duration="0:0:0.2"/>
+                        </Transitions>
+                    </Setter>
+                </Style>
+                
+                <!-- Explicit playing class for additional flexibility -->
+                <Style Selector="dg|DataGridRow.playing">
+                    <Setter Property="Background" Value="#1A1DB954"/>
+                </Style>
+                
                 <Style Selector="dg|DataGridRow:selected /template/ Rectangle#BackgroundRectangle">
                     <Setter Property="Fill" Value="#334EC9B0"/>
                 </Style>
                 <Style Selector="dg|DataGridRow:selected">
                     <Setter Property="Foreground" Value="#4EC9B0"/>
                 </Style>
+                
+                <!-- Helper for Soft Fade Truncation with Deferred Tooltip -->
+                <Style Selector="TextBlock.FadingText">
+                    <Setter Property="VerticalAlignment" Value="Center"/>
+                    <Setter Property="FontSize" Value="13"/>
+                    <Setter Property="ToolTip.ShowDelay" Value="500"/>
+                    <Setter Property="ToolTip.Tip" Value="{Binding RelativeSource={RelativeSource Self}, Path=Text}"/>
+                    <Setter Property="OpacityMask">
+                        <Setter.Value>
+                            <LinearGradientBrush StartPoint="0%,0%" EndPoint="100%,0%">
+                                <GradientStop Offset="0.85" Color="Black" />
+                                <GradientStop Offset="1.0" Color="Transparent" />
+                            </LinearGradientBrush>
+                        </Setter.Value>
+                    </Setter>
+                </Style>
             </dg:DataGrid.Styles>
+            
             <dg:DataGrid.Columns>
                 <!-- Artwork -->
                 <dg:DataGridTemplateColumn Header="Art" Width="50">
                     <dg:DataGridTemplateColumn.CellTemplate>
                         <DataTemplate x:DataType="vm:IDisplayableTrack">
                             <Border Width="32" Height="32" CornerRadius="4" ClipToBounds="True" Background="#333" HorizontalAlignment="Center" VerticalAlignment="Center">
-                                <Image Source="{Binding Artwork}" Stretch="UniformToFill"/>
+                                <Panel>
+                                    <Image Source="{Binding Artwork}" Stretch="UniformToFill"/>
+                                    <!-- Equalizer animation would go here if playing -->
+                                </Panel>
                             </Border>
                         </DataTemplate>
                     </dg:DataGridTemplateColumn.CellTemplate>
                 </dg:DataGridTemplateColumn>
 
                 <!-- Metadata -->
-                <dg:DataGridTextColumn Header="Artist" Binding="{Binding Artist}" Width="1.5*"/>
-                <dg:DataGridTextColumn Header="Title" Binding="{Binding Title}" Width="2*"/>
+                <dg:DataGridTemplateColumn Header="Artist" Width="1.5*">
+                    <dg:DataGridTemplateColumn.CellTemplate>
+                        <DataTemplate x:DataType="vm:IDisplayableTrack">
+                            <TextBlock Text="{Binding Artist}" Classes="FadingText" Margin="12,0"/>
+                        </DataTemplate>
+                    </dg:DataGridTemplateColumn.CellTemplate>
+                </dg:DataGridTemplateColumn>
+
+                <dg:DataGridTemplateColumn Header="Title" Width="2*">
+                    <dg:DataGridTemplateColumn.CellTemplate>
+                        <DataTemplate x:DataType="vm:IDisplayableTrack">
+                            <TextBlock Text="{Binding Title}" Classes="FadingText" Margin="12,0"/>
+                        </DataTemplate>
+                    </dg:DataGridTemplateColumn.CellTemplate>
+                </dg:DataGridTemplateColumn>
                 
                 <!-- Musicality -->
                 <dg:DataGridTemplateColumn Header="BPM" Width="60">
@@ -60,7 +117,7 @@
                         <DataTemplate x:DataType="vm:IDisplayableTrack">
                             <TextBlock Text="{Binding Bpm, StringFormat={}{0:F0}}" 
                                      VerticalAlignment="Center" HorizontalAlignment="Center" 
-                                     FontWeight="Bold" Foreground="#4EC9B0"/>
+                                     FontWeight="Bold" Foreground="#4EC9B0" FontSize="12"/>
                         </DataTemplate>
                     </dg:DataGridTemplateColumn.CellTemplate>
                 </dg:DataGridTemplateColumn>
@@ -68,8 +125,10 @@
                 <dg:DataGridTemplateColumn Header="Key" Width="70">
                     <dg:DataGridTemplateColumn.CellTemplate>
                         <DataTemplate x:DataType="vm:IDisplayableTrack">
-                            <Border Background="#333" CornerRadius="4" Padding="4,2" HorizontalAlignment="Center" VerticalAlignment="Center">
-                                <TextBlock Text="{Binding Key}" Foreground="White" FontSize="11" FontWeight="Bold"/>
+                            <Border Background="{Binding Key, Converter={StaticResource CamelotToColorConverter}}" 
+                                    CornerRadius="12" Padding="8,2" 
+                                    Width="45" HorizontalAlignment="Center" VerticalAlignment="Center">
+                                <TextBlock Text="{Binding Key}" Foreground="White" FontSize="11" FontWeight="Bold" HorizontalAlignment="Center"/>
                             </Border>
                         </DataTemplate>
                     </dg:DataGridTemplateColumn.CellTemplate>
@@ -79,7 +138,7 @@
                 <dg:DataGridTemplateColumn Header="Sonic" Width="80">
                     <dg:DataGridTemplateColumn.CellTemplate>
                         <DataTemplate x:DataType="vm:IDisplayableTrack">
-                            <Grid ColumnDefinitions="Auto,*">
+                            <Grid ColumnDefinitions="Auto,*" Margin="8,0">
                                 <TextBlock Text="🧬" FontSize="10" VerticalAlignment="Center" Margin="0,0,4,0"/>
                                 <ProgressBar Grid.Column="1" Value="{Binding DeepDNAScore}" Maximum="100" Height="4" VerticalAlignment="Center" Foreground="#1DB954" Background="#222"/>
                             </Grid>
@@ -88,7 +147,13 @@
                 </dg:DataGridTemplateColumn>
 
                 <!-- Status -->
-                <dg:DataGridTextColumn Header="Status" Binding="{Binding Status}" Width="150"/>
+                <dg:DataGridTemplateColumn Header="Status" Width="150">
+                    <dg:DataGridTemplateColumn.CellTemplate>
+                        <DataTemplate x:DataType="vm:IDisplayableTrack">
+                            <TextBlock Text="{Binding Status}" VerticalAlignment="Center" FontSize="12" Foreground="#888" Margin="8,0"/>
+                        </DataTemplate>
+                    </dg:DataGridTemplateColumn.CellTemplate>
+                </dg:DataGridTemplateColumn>
             </dg:DataGrid.Columns>
         </dg:DataGrid>
     </Grid>

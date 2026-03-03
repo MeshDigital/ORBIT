@@ -398,6 +398,22 @@ public partial class LibraryViewModel : INotifyPropertyChanged, IDisposable
         });
     }
 
+    public void JumpToTrack(string query)
+    {
+        if (string.IsNullOrEmpty(query)) return;
+        
+        var match = Tracks.CurrentProjectTracks.FirstOrDefault(t => 
+            t.Title.StartsWith(query, StringComparison.OrdinalIgnoreCase) || 
+            t.Artist.StartsWith(query, StringComparison.OrdinalIgnoreCase));
+            
+        if (match != null)
+        {
+            foreach (var t in Tracks.CurrentProjectTracks) t.IsSelected = false;
+            match.IsSelected = true;
+            _eventBus.Publish(new TrackSelectionChangedEvent(match.Model));
+        }
+    }
+
     private async Task InitializeColumnsAsync()
     {
         var columns = await _columnConfigService.LoadConfigurationAsync();

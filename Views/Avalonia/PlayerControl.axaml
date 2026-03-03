@@ -8,17 +8,17 @@
              mc:Ignorable="d" d:DesignWidth="300" d:DesignHeight="800"
              x:Class="SLSKDONET.Views.Avalonia.PlayerControl"
              x:DataType="vm:PlayerViewModel"
-             Background="#252526">
+             Background="#121212">
     
     <!-- Vertical Player for Right Sidebar -->
     <Grid RowDefinitions="Auto,Auto,*,Auto">
         
         <!-- Header -->
         <Border Grid.Row="0" 
-                Background="#2D2D2D" 
+                Background="#1A1A1A" 
                 Padding="16,12"
-                BorderBrush="#3E3E3E"
-                BorderThickness="0,0,0,1">
+                BorderBrush="{Binding CurrentTrack.CamelotKey, Converter={StaticResource CamelotToColorConverter}}"
+                BorderThickness="0,0,0,2">
             <TextBlock Text="Now Playing" 
                        FontSize="14" 
                        FontWeight="SemiBold"
@@ -29,7 +29,7 @@
         <StackPanel Grid.Row="1" Margin="16,20,16,16" Spacing="16">
             <!-- Album Art -->
             <Border x:Name="PlayNowZone" 
-                    Width="260" Height="260" 
+                    Width="220" Height="220" 
                     Background="#1E1E1E" 
                     CornerRadius="8"
                     HorizontalAlignment="Center"
@@ -45,7 +45,7 @@
                         <!-- VU Meter Left -->
                         <Border Grid.Column="0" VerticalAlignment="Bottom" 
                                 Background="#1DB954" Width="4"
-                                Height="{Binding VuLeft, Converter={StaticResource VuHeightConverter}, ConverterParameter=250}"/>
+                                Height="{Binding VuLeft, Converter={StaticResource VuHeightConverter}, ConverterParameter=210}"/>
                                 
                         <!-- Dynamic Album Artwork -->
                         <Image Grid.Column="1" Source="{Binding CurrentTrack.ArtworkBitmap}" 
@@ -55,14 +55,14 @@
                         <!-- VU Meter Right -->
                         <Border Grid.Column="2" VerticalAlignment="Bottom" 
                                 Background="#1DB954" Width="4"
-                                Height="{Binding VuRight, Converter={StaticResource VuHeightConverter}, ConverterParameter=250}"/>
+                                Height="{Binding VuRight, Converter={StaticResource VuHeightConverter}, ConverterParameter=210}"/>
                     </Grid>
                     
                     <!-- Professional fallback with Path geometry instead of emoji -->
                     <Path Data="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 14.5v-9l6 4.5-6 4.5z" 
                           Fill="#404040" 
                           Stretch="Uniform"
-                          Width="80" Height="80"
+                          Width="60" Height="60"
                           HorizontalAlignment="Center"
                           VerticalAlignment="Center"
                           IsVisible="{Binding CurrentTrack.ArtworkBitmap, Converter={x:Static ObjectConverters.IsNull}}"/>
@@ -130,7 +130,7 @@
         <Border Grid.Row="2"/>
         
         <!-- Controls Section -->
-        <StackPanel x:Name="QueueZone" Grid.Row="3" Spacing="16" Margin="16,0,16,20" DragDrop.AllowDrop="True">
+        <StackPanel x:Name="QueueZone" Grid.Row="3" Spacing="12" Margin="16,0,16,20" DragDrop.AllowDrop="True">
             
             <!-- Waveform Seekbar -->
             <StackPanel Spacing="8">
@@ -163,10 +163,30 @@
                 </Grid>
             </StackPanel>
             
-            <!-- Playback Controls -->
+            <!-- Consolidated Playback Controls -->
             <StackPanel Orientation="Horizontal" 
                         HorizontalAlignment="Center" 
-                        Spacing="16">
+                        Spacing="12"
+                        VerticalAlignment="Center">
+                
+                <!-- Shuffle -->
+                <Button Command="{Binding ToggleShuffleCommand}"
+                        Background="Transparent"
+                        BorderThickness="0"
+                        Width="32" Height="32"
+                        ToolTip.Tip="Shuffle">
+                    <Button.Styles>
+                        <Style Selector="Button:pointerover">
+                            <Setter Property="Background" Value="#2D2D2D"/>
+                        </Style>
+                    </Button.Styles>
+                    <TextBlock Text="🔀" 
+                               FontSize="14" 
+                               Foreground="{Binding IsShuffling, Converter={StaticResource BoolToColorConverter}}"
+                               HorizontalAlignment="Center"
+                               VerticalAlignment="Center"/>
+                </Button>
+
                 <!-- Previous -->
                 <Button Command="{Binding PreviousTrackCommand}"
                         Background="Transparent"
@@ -178,7 +198,7 @@
                             <Setter Property="Background" Value="#2D2D2D"/>
                         </Style>
                     </Button.Styles>
-                    <TextBlock Text="⏮️" FontSize="20"/>
+                    <TextBlock Text="⏮️" FontSize="18" HorizontalAlignment="Center" VerticalAlignment="Center"/>
                 </Button>
                 
                 <!-- Play/Pause -->
@@ -211,36 +231,14 @@
                             <Setter Property="Background" Value="#2D2D2D"/>
                         </Style>
                     </Button.Styles>
-                    <TextBlock Text="⏭️" FontSize="20"/>
+                    <TextBlock Text="⏭️" FontSize="18" HorizontalAlignment="Center" VerticalAlignment="Center"/>
                 </Button>
-            </StackPanel>
-            
-            <!-- Shuffle & Repeat Controls -->
-            <StackPanel Orientation="Horizontal" 
-                        HorizontalAlignment="Center" 
-                        Spacing="16"
-                        Margin="0,12,0,0">
-                <!-- Shuffle -->
-                <Button Command="{Binding ToggleShuffleCommand}"
-                        Background="Transparent"
-                        BorderThickness="0"
-                        Width="36" Height="36"
-                        ToolTip.Tip="Shuffle">
-                    <Button.Styles>
-                        <Style Selector="Button:pointerover">
-                            <Setter Property="Background" Value="#2D2D2D"/>
-                        </Style>
-                    </Button.Styles>
-                    <TextBlock Text="🔀" 
-                               FontSize="16" 
-                               Foreground="{Binding IsShuffling, Converter={StaticResource BoolToColorConverter}}"/>
-                </Button>
-                
+
                 <!-- Repeat -->
                 <Button Command="{Binding ToggleRepeatCommand}"
                         Background="Transparent"
                         BorderThickness="0"
-                        Width="36" Height="36"
+                        Width="32" Height="32"
                         ToolTip.Tip="{Binding RepeatMode}">
                     <Button.Styles>
                         <Style Selector="Button:pointerover">
@@ -248,8 +246,10 @@
                         </Style>
                     </Button.Styles>
                     <TextBlock Text="{Binding RepeatMode, Converter={StaticResource RepeatModeIconConverter}}" 
-                               FontSize="16" 
-                               Foreground="{Binding RepeatMode, Converter={StaticResource RepeatModeColorConverter}}"/>
+                               FontSize="14" 
+                               Foreground="{Binding RepeatMode, Converter={StaticResource RepeatModeColorConverter}}"
+                               HorizontalAlignment="Center"
+                               VerticalAlignment="Center"/>
                 </Button>
             </StackPanel>
             

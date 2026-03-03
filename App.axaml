@@ -6,8 +6,12 @@
              RequestedThemeVariant="Dark">
     
     <Application.Resources>
-        <!-- Dynamic Font Sizes for UI Scaling -->
-        <x:Double x:Key="FontSizeSmall">12</x:Double>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+            </ResourceDictionary.MergedDictionaries>
+            
+            <!-- Dynamic Font Sizes for UI Scaling -->
+            <x:Double x:Key="FontSizeSmall">12</x:Double>
         <x:Double x:Key="FontSizeMedium">14</x:Double>
         <x:Double x:Key="FontSizeLarge">16</x:Double>
         <x:Double x:Key="FontSizeXLarge">18</x:Double>
@@ -82,12 +86,16 @@
         <!-- Phase 18: Sonic Match Visual Converters -->
         <conv_root:EnergyToColorConverter x:Key="EnergyToColorConverter"/>
         <conv_root:OpacityMultiplierConverter x:Key="OpacityMultiplierConverter"/>
+        <conv_root:CamelotToColorConverter x:Key="CamelotToColorConverter"/>
+        <conv_root:CamelotToGlowConverter x:Key="CamelotToGlowConverter"/>
         <converters:LedColorConverter x:Key="LedColorConverter"/>
         
         <!-- Alias EqualityConverter as StringEqualsConverter for semantic clarity in XAML -->
         <converters:EqualityConverter x:Key="StringEqualsConverter"/>
         <converters:FraudColorConverter x:Key="FraudColorConverter"/>
         <converters:StringConcatConverter x:Key="StringConcatConverter"/>
+        <converters:PlayingRowBrushConverter x:Key="PlayingRowBrushConverter"/>
+        <converters:VocalDensityLevelToBrushConverter x:Key="VocalDensityLevelToBrushConverter"/>
 
 
         <!-- Icons -->
@@ -124,11 +132,13 @@
         <StreamGeometry x:Key="next_regular">M10,19V5L19,12L10,19M9,19L9,5H7V19H9Z</StreamGeometry>
         <StreamGeometry x:Key="speaker_2_regular">M14,3.23V5.29C16.89,6.15 19,8.83 19,12C19,15.17 16.89,17.85 14,18.71V20.77C18.03,19.86 21,16.28 21,12C21,7.72 18.03,4.14 14,3.23M16.5,12C16.5,10.23 15.5,8.71 14,7.97V16.03C15.5,15.29 16.5,13.77 16.5,12M3,9V15H7L12,20V4L7,9H3Z</StreamGeometry>
         <StreamGeometry x:Key="arrow_repeat_all_regular">M7,7H17A3,3 0 0,1 20,10V15H18V10A1,1 0 0,0 17,9H7A1,1 0 0,0 6,10V15H4V10A3,3 0 0,1 7,7M17,17H7A3,3 0 0,1 4,14V9H6V14A1,1 0 0,0 7,15H17A1,1 0 0,0 18,14V9H20V14A3,3 0 0,1 17,17Z</StreamGeometry>
+        </ResourceDictionary>
     </Application.Resources>
     
     <Application.Styles>
         <FluentTheme/>
         <StyleInclude Source="avares://Avalonia.Controls.DataGrid/Themes/Fluent.xaml"/>
+        <StyleInclude Source="avares://ORBIT/Views/Avalonia/Controls/GridStyles.axaml"/>
         <StyleInclude Source="avares://Avalonia.Controls.TreeDataGrid/Themes/Fluent.axaml"/>
         <StyleInclude Source="avares://ORBIT/Themes/AvaloniaTheme.axaml"/>
         <StyleInclude Source="avares://ORBIT/Themes/GlassConsoleStyles.axaml"/>

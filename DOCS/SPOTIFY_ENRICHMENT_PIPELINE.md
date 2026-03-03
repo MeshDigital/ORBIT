@@ -54,13 +54,13 @@ This pipeline transforms the application from a simple downloader into a "Smart"
 ## Data Schema
 
 ### `LibraryEntryEntity` / `TrackEntity`
-| Field | Type | Purpose |
-| :--- | :--- | :--- |
-| `SpotifyTrackId` | `string` | Canonical link to Spotify ecosystem. |
-| `BPM` | `double` | Tempo (e.g., 128.0). Critical for Smart Matching. |
-| `Energy` | `double` | 0.0-1.0. Used for "Vibe" sorting. |
-| `Valence` | `double` | 0.0-1.0. Used for "Mood" sorting. |
-| `IsEnriched` | `bool` | Flag to prevent re-processing. |
+| Field            | Type     | Purpose                                           |
+| :--------------- | :------- | :------------------------------------------------ |
+| `SpotifyTrackId` | `string` | Canonical link to Spotify ecosystem.              |
+| `BPM`            | `double` | Tempo (e.g., 128.0). Critical for Smart Matching. |
+| `Energy`         | `double` | 0.0-1.0. Used for "Vibe" sorting.                 |
+| `Valence`        | `double` | 0.0-1.0. Used for "Mood" sorting.                 |
+| `IsEnriched`     | `bool`   | Flag to prevent re-processing.                    |
 
 ---
 
@@ -79,6 +79,27 @@ This pipeline transforms the application from a simple downloader into a "Smart"
 2.  **Observe**: Watch the "Metadata" column in the Library.
     *   ⏳ -> 🆔 -> ✨
 3.  **Download**: Right-click -> Download. The log will show "Smart Match Active" if metadata is present.
+
+---
+
+## 🛰️ Spotify Crate Sync Engine (The Auto-Mixer)
+
+The Crate Sync Engine is an autonomous background daemon that monitors remote Spotify playlists and ensures ORBIT's local library remains in perfect alignment.
+
+### Synchronization Logic
+*   **The Daemon**: A `PeriodicTimer` based loop runs every **1 hour**.
+*   **Threshold**: It triggers a sync for any job where the `LastSyncedAt` value is > **12 hours** old.
+*   **Persistence**: Sync jobs (URLs, monitored state, last sync time) are stored in `spotify_syncs.json` using a lightweight JSON manager, bypassing EF Core to maintain high performance for background state tracking.
+
+### 🛡️ 2-Tier Deduplication Barrier
+To prevent the "Duplicate Avalanche," the sync engine utilizes a multi-layered check before queuing a download:
+1.  **Tier 1: SQL Strict Match**: A case-insensitive database query (Artist + Title) checks for an exact record.
+2.  **Tier 2: In-Memory Fuzzy Search**: If SQL fails, the engine pulls candidate tracks and performs a `StringDistanceUtils` match. This handles variations like `"(feat. Sia)"` or `"- Extended Mix"` gracefully.
+
+### Ghost Analysis Integration
+Imported tracks that don't yet exist locally are tagged `[SYNC] {PlaylistName}`. The engine sets a placeholder `Duration=0`, which instructs the **Sonic Integrity Service** to skip costly audio feature extraction (BPM/Key detection) until the physical file is actually downloaded.
+
+---
 
 ## Error Handling & Reliability
 

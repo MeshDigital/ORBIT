@@ -227,7 +227,6 @@ public partial class LibraryViewModel
         SetViewModeCommand = new RelayCommand<TrackViewMode>(mode => ViewSettings.ViewMode = mode);
         ToggleColumnCommand = new RelayCommand<ColumnDefinition>(ExecuteToggleColumn);
         ResetViewCommand = new AsyncRelayCommand(ExecuteResetViewAsync);
-        AddToTimelineCommand = new RelayCommand<object>(ExecuteAddToTimeline);
         RunForensicScanCommand = new AsyncRelayCommand(ExecuteRunForensicScanAsync);
         InitiateMp3SearchCommand = new AsyncRelayCommand<object>(ExecuteInitiateMp3SearchAsync);
     }
@@ -237,7 +236,8 @@ public partial class LibraryViewModel
     private async Task ExecuteViewHistoryAsync()
     {
         await _importHistoryViewModel.LoadHistoryAsync();
-        _navigationService.NavigateTo(PageType.Import);
+        // Conceptually merged into Search - for now just stay on current or navigate to Search
+        _navigationService.NavigateTo("Search");
     }
 
     private async Task ExecutePlayTrackAsync(object? param)
