@@ -25,6 +25,7 @@ public class ContextualSidebarViewModel : ReactiveObject, IDisposable
     private readonly StemSidebarViewModel _stemVm;
     private readonly VibeSidebarViewModel _vibeVm;
     private readonly TransitionProberViewModel _transitionVm;
+    private readonly RescueCenterViewModel _rescueVm;
     private readonly CompositeDisposable _disposables = new();
 
     public ForensicSidebarViewModel ForensicVm => _forensicVm;
@@ -110,7 +111,8 @@ public class ContextualSidebarViewModel : ReactiveObject, IDisposable
         CueSidebarViewModel cueVm,
         StemSidebarViewModel stemVm,
         VibeSidebarViewModel vibeVm,
-        TransitionProberViewModel transitionVm)
+        TransitionProberViewModel transitionVm,
+        RescueCenterViewModel rescueVm)
     {
         _similarityVm = similarityVm;
         _bulkVm = bulkVm;
@@ -121,6 +123,7 @@ public class ContextualSidebarViewModel : ReactiveObject, IDisposable
         _stemVm = stemVm;
         _vibeVm = vibeVm;
         _transitionVm = transitionVm;
+        _rescueVm = rescueVm;
 
         HideCommand = ReactiveCommand.Create(Hide);
         ShowPlayerCommand = ReactiveCommand.CreateFromTask(() => ShowModeInternalAsync(LibrarySidebarMode.Player, null, null));
@@ -294,6 +297,11 @@ public class ContextualSidebarViewModel : ReactiveObject, IDisposable
                 ModeIcon = "🔄";
                 if (leadTrack != null) await _transitionVm.ActivateAsync(leadTrack);
                 if (SecondarySelection != null) _transitionVm.SetSecondaryTrack(SecondarySelection);
+                break;
+            case LibrarySidebarMode.RescueCenter:
+                ActiveContent = _rescueVm;
+                ModeLabel = "Rescue Artist";
+                ModeIcon = "🚑";
                 break;
         }
     }

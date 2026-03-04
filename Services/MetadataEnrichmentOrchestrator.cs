@@ -60,6 +60,8 @@ public class MetadataEnrichmentOrchestrator : IDisposable
 
         // Subscribe to metadata updates (Phase 0.1: Antigravity)
         _eventBus.GetEvent<TrackMetadataUpdatedEvent>().Subscribe(OnTrackMetadataUpdated);
+        // Phase 6: Cloud-Hybrid Sync Request
+        _eventBus.GetEvent<SyncCloudToLocalRequestEvent>().Subscribe(OnSyncCloudToLocalRequest);
     }
 
     public void Start()
@@ -156,6 +158,26 @@ public class MetadataEnrichmentOrchestrator : IDisposable
                 Title = trackEntity.Title,
                 SpotifyTrackId = trackEntity.SpotifyTrackId
             };
+
+            // Phase 6: Cloud-Hybrid Metadata Layer
+            // If the track is physically downloaded, read its local ID3 tags first
+            if (trackEntity.State == "Downloaded" && !string.IsNullOrEmpty(trackEntity.Filename) && System.IO.File.Exists(trackEntity.Filename))
+            {
+                try
+                {
+                    var localTags = await _taggerService.ReadTagsAsync(trackEntity.Filename);
+                    if (localTags != null)
+                    {
+                        if (!string.IsNullOrEmpty(localTags.Album)) model.Album = localTags.Album;
+                        if (localTags.ReleaseDate.HasValue) model.ReleaseDate = localTags.ReleaseDate.Value;
+                        if (!string.IsNullOrEmpty(localTags.Label)) model.Label = localTags.Label;
+                    }
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex, "Failed to read local tags for hybrid enrichment: {Path}", trackEntity.Filename);
+                }
+            }
 
             // C. Execute Enrichment (Search or Direct Lookup)
             bool enriched = await _metadataService.EnrichTrackAsync(model);
@@ -320,6 +342,40 @@ public class MetadataEnrichmentOrchestrator : IDisposable
         catch (ObjectDisposedException) { /* Already disposed */ }
         
         _cts.Dispose();
+    }
+
+    private void OnSyncCloudToLocalRequest(SyncCloudToLocalRequestEvent e)
+    {
+        _ = ApplyCloudToLocalAsync(e.TrackGlobalId);
+    }
+
+    private async Task ApplyCloudToLocalAsync(string trackHash)
+    {
+        try
+        {
+            var entry = await _databaseService.FindLibraryEntryAsync(trackHash);
+            if (entry == null || string.IsNullOrEmpty(entry.FilePath) || !System.IO.File.Exists(entry.FilePath)) return;
+            
+            // Map Entity to Track model for the TaggerService
+            var trackModel = new Track
+            {
+                Artist = entry.Artist,
+                Title = entry.Title,
+                Album = entry.Album,
+                Genres = entry.Genres,
+                BPM = entry.BPM,
+                MusicalKey = entry.MusicalKey,
+                ReleaseDate = entry.ReleaseDate,
+                Label = entry.Label
+            };
+
+            await _taggerService.TagFileAsync(trackModel, entry.FilePath);
+            _logger.LogInformation("☁️ Applied Cloud metadata to Local file: {Path}", entry.FilePath);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to apply cloud metadata to local file for Hash {TrackHash}", trackHash);
+        }
     }
 }
 

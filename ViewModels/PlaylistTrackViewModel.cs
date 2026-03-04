@@ -158,10 +158,26 @@ public class PlaylistTrackViewModel : INotifyPropertyChanged, Library.ILibraryNo
     public string IntegrityBadge => Model.Integrity switch
     {
         Data.IntegrityLevel.Gold => "🥇",
-        Data.IntegrityLevel.Verified => "🛡️",
-        Data.IntegrityLevel.Suspicious => "📉",
-        _ => ""
+        Data.IntegrityLevel.Verified => "✔️",
+        Data.IntegrityLevel.Suspicious => "⚠️",
+        _ => "❓"
     };
+
+    public string MetadataSourceDisplay
+    {
+        get
+        {
+            if (Model == null) return "RAW";
+            
+            if (!string.IsNullOrEmpty(Model.SpotifyTrackId))
+                return "SPOTIFY";
+                
+            if (!string.IsNullOrEmpty(Model.ResolvedFilePath) && System.IO.File.Exists(Model.ResolvedFilePath))
+                return "ID3 TAG";
+                
+            return "DATABASE";
+        }
+    }
 
     public string IntegrityColor => Model.Integrity switch
     {
@@ -804,6 +820,7 @@ public class PlaylistTrackViewModel : INotifyPropertyChanged, Library.ILibraryNo
     public ICommand RevealFileCommand { get; }
     public ICommand AddToProjectCommand { get; }
     public ICommand ToggleLikeCommand { get; }
+    public ICommand SyncCloudToLocalCommand { get; }
 
     private readonly IEventBus? _eventBus;
     private readonly ILibraryService? _libraryService;
@@ -865,6 +882,7 @@ public class PlaylistTrackViewModel : INotifyPropertyChanged, Library.ILibraryNo
         ForceStartCommand = new RelayCommand(ForceStart, () => CanForceStart);
         BumpToTopCommand = new RelayCommand(BumpToTop, () => CanBumpToTop);
         ToggleLikeCommand = new RelayCommand(() => IsLiked = !IsLiked);
+        SyncCloudToLocalCommand = new RelayCommand(() => _eventBus?.Publish(new Models.SyncCloudToLocalRequestEvent(GlobalId)), () => IsCompleted && !string.IsNullOrEmpty(Model.SpotifyTrackId));
         
         // REMOVED: 8000+ redundant event listeners eliminated.
         // Centralized dispatch moved to VirtualizedTrackCollection.

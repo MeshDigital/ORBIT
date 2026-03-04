@@ -774,6 +774,9 @@
                             <DataTemplate DataType="vmSidebar:TransitionProberViewModel">
                                 <sidebar:TransitionProberView/>
                             </DataTemplate>
+                            <DataTemplate DataType="vmSidebar:RescueCenterViewModel">
+                                <sidebar:RescueCenterView/>
+                            </DataTemplate>
                             <DataTemplate DataType="vm:PlayerViewModel">
                                 <views:PlayerControl/>
                             </DataTemplate>
@@ -833,6 +836,12 @@
                     <ToggleButton ToolTip.Tip="Forensic Lab" 
                                   IsChecked="{Binding Sidebar.ActiveMode, Converter={StaticResource EnumToBoolConverter}, ConverterParameter={x:Static libSidebar:LibrarySidebarMode.Forensic}}">
                          <PathIcon Data="{StaticResource radar_regular}" Width="20" Height="20"/>
+                    </ToggleButton>
+
+                    <!-- Rescue Artist (NEW) -->
+                    <ToggleButton ToolTip.Tip="Rescue Artist" 
+                                  IsChecked="{Binding Sidebar.ActiveMode, Converter={StaticResource EnumToBoolConverter}, ConverterParameter={x:Static libSidebar:LibrarySidebarMode.RescueCenter}}">
+                         <PathIcon Data="{StaticResource warning_regular}" Width="20" Height="20" Foreground="#FF6B6B"/>
                     </ToggleButton>
 
                     <Separator Height="1" Background="#3E3E3E" Margin="8,4"/>

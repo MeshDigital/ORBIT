@@ -284,6 +284,10 @@ public partial class App : Application
                         var orchestrator = Services.GetRequiredService<MetadataEnrichmentOrchestrator>();
                         orchestrator.Start();
 
+                        // Phase 6: Start SnapSync (Library Backups)
+                        var backupService = Services.GetRequiredService<LibraryBackupService>();
+                        backupService.Start();
+
                         // Start Mission Control (Phase 0A)
                         var missionControl = Services.GetRequiredService<MissionControlService>();
                         missionControl.Start();
@@ -519,11 +523,11 @@ public partial class App : Application
         services.AddSingleton<Services.LibraryActions.ILibraryAction, Services.LibraryActions.RemoveFromPlaylistAction>();
         services.AddSingleton<Services.LibraryActions.ILibraryAction, Services.LibraryActions.DeletePlaylistAction>();
 
-        // Download logging and library management
         services.AddSingleton<DownloadLogService>();
         services.AddSingleton<LibraryService>();
         services.AddSingleton<ILibraryService>(provider => provider.GetRequiredService<LibraryService>());
         services.AddSingleton<ColumnConfigurationService>();
+        services.AddSingleton<SLSKDONET.Services.Library.SmartSorterService>();
 
         // Audio Player
         services.AddSingleton<IAudioPlayerService, AudioPlayerService>();
@@ -616,6 +620,13 @@ public partial class App : Application
         services.AddSingleton<BulkOperationViewModel>();
         services.AddSingleton<MissionControlViewModel>();
         services.AddSingleton<ExportManagerViewModel>();
+        services.AddSingleton<SLSKDONET.ViewModels.Stem.StemWorkspaceViewModel>();
+        services.AddSingleton<SLSKDONET.Services.StemSeparationService>();
+        services.AddSingleton<SLSKDONET.Services.Audio.RealTimeStemEngine>();
+        services.AddSingleton<SLSKDONET.Services.StemProjectService>();
+        services.AddTransient<ViewModels.ImportPreviewViewModel>();
+        services.AddTransient<ViewModels.ImportHistoryViewModel>();
+        services.AddTransient<ViewModels.LibrarySourcesViewModel>();
 
         // [NEW] Library Scanning
         services.AddSingleton<LibraryFolderScannerService>();
@@ -627,6 +638,7 @@ public partial class App : Application
         services.AddSingleton<DownloadDiscoveryService>();
         services.AddSingleton<SearchResultMatcher>(); // Phase 3.1
         services.AddSingleton<MetadataEnrichmentOrchestrator>(); // Phase 3.1
+        services.AddSingleton<LibraryBackupService>(); // Phase 6: SnapSync
         services.AddSingleton<SonicIntegrityService>(); // Phase 8: Sonic Integrity
 
         services.AddTransient<IAudioAnalysisService, AudioAnalysisService>(); // Phase 3: Local Audio Analysis
@@ -634,6 +646,10 @@ public partial class App : Application
 
         services.AddSingleton<LibraryUpgradeScout>(); // Phase 8: Self-Healing Library
         services.AddSingleton<UpgradeScoutViewModel>();
+        services.AddSingleton<SLSKDONET.Services.StemSeparationService>();
+        services.AddSingleton<SLSKDONET.Services.Audio.RealTimeStemEngine>();
+        services.AddSingleton<SLSKDONET.Services.Audio.BatchStemExportService>();
+        services.AddSingleton<SLSKDONET.Services.Audio.StemPreferenceService>();
         services.AddSingleton<Services.Export.RekordboxService>(); // Phase 4: DJ Export
         services.AddSingleton<Services.Export.IHardwareExportService, Services.Export.HardwareExportService>(); // Phase 9: Hardware Export
         
@@ -655,6 +671,7 @@ public partial class App : Application
         services.AddSingleton<SonicIntegrityService>();
         services.AddSingleton<SLSKDONET.Services.AI.PersonalClassifierService>();
         services.AddSingleton<SLSKDONET.Services.AI.TensorFlowModelPool>();
+        services.AddSingleton<SLSKDONET.Services.AI.IStyleClassifierService, SLSKDONET.Services.AI.StyleClassifierService>();
         services.AddSingleton<ForensicLibrarianService>(); // Phase 6: Integrity Enforcement
 
         // Phase 10: Tagging & Mobility
@@ -708,6 +725,7 @@ public partial class App : Application
         services.AddSingleton<Features.LibrarySidebar.ViewModels.StemSidebarViewModel>();
         services.AddSingleton<Features.LibrarySidebar.ViewModels.VibeSidebarViewModel>();
         services.AddSingleton<Features.LibrarySidebar.ViewModels.TransitionProberViewModel>();
+        services.AddSingleton<Features.LibrarySidebar.ViewModels.RescueCenterViewModel>();
         services.AddSingleton<Features.LibrarySidebar.ViewModels.ContextualSidebarViewModel>();
 
         services.AddSingleton<LibraryViewModel>();

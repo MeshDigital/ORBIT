@@ -14,6 +14,7 @@ using System.Collections.Generic; // Added this using directive
 using SLSKDONET.Models;
 using SpotifyAPI.Web; // For SimplePlaylist
 using SLSKDONET.ViewModels.Discovery;
+using SLSKDONET.ViewModels.Stem;
 using SLSKDONET.Services.ImportProviders; // Added for SpotifyLikedSongsImportProvider
 using System.Reactive.Disposables;
 using System.Reactive.Linq;
@@ -66,6 +67,7 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
     public TheaterModeViewModel TheaterModeViewModel { get; }
     public ExportManagerViewModel ExportManagerViewModel { get; }
     public CommandPaletteViewModel CommandPaletteViewModel { get; }
+    public StemWorkspaceViewModel StemWorkspaceViewModel { get; }
     public Features.LibrarySidebar.ViewModels.ContextualSidebarViewModel Sidebar { get; }
     public ActiveWorkspace Workspace => _activeWorkspace;
 
@@ -121,6 +123,7 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
         DiscoveryHubViewModel discoveryHubViewModel,
         Features.LibrarySidebar.ViewModels.ContextualSidebarViewModel sidebar,
         MissionControlViewModel missionControl,
+        StemWorkspaceViewModel stemWorkspaceViewModel,
         ActiveWorkspace activeWorkspace)
 
     {
@@ -159,6 +162,7 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
         DiscoveryHubViewModel = discoveryHubViewModel;
         Sidebar = sidebar;
         MissionControl = missionControl;
+        StemWorkspaceViewModel = stemWorkspaceViewModel;
         CommandPaletteViewModel = new CommandPaletteViewModel(navigationService, libraryService, activeWorkspace, QueueToTopCommand);
 
         Sidebar.PropertyChanged += (s, e) => 
@@ -204,6 +208,7 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
         ZoomOutCommand = new RelayCommand(ZoomOut);
         ResetZoomCommand = new RelayCommand(ResetZoom);
         ToggleAnalysisPauseCommand = new RelayCommand(ToggleAnalysisPause);
+        ToggleStemWorkspaceCommand = new RelayCommand(() => StemWorkspaceViewModel.IsVisible = !StemWorkspaceViewModel.IsVisible);
         
         // Operation Glass Console Toggles
         ToggleIntelligenceCommand = new RelayCommand(() => 

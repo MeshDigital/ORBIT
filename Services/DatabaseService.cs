@@ -324,6 +324,15 @@ public class DatabaseService
             .ToListAsync();
     }
 
+    public async Task<List<LibraryEntryEntity>> LoadAllLibraryEntriesAsync()
+    {
+        using var context = new AppDbContext();
+        return await context.LibraryEntries
+            .AsNoTracking()
+            .Include(e => e.AudioFeatures)
+            .ToListAsync();
+    }
+
 
     public async Task<List<LibraryEntryEntity>> GetLibraryEntriesNeedingEnrichmentAsync(int limit)
     {

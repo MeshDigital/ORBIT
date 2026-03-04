@@ -1,0 +1,145 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:vm="clr-namespace:SLSKDONET.Features.LibrarySidebar.ViewModels"
+             mc:Ignorable="d" d:DesignWidth="400" d:DesignHeight="800"
+             x:Class="SLSKDONET.Features.LibrarySidebar.Views.RescueCenterView"
+             x:DataType="vm:RescueCenterViewModel">
+    
+    <UserControl.Styles>
+        <Style Selector="Button.RescueBtn">
+            <Setter Property="Background" Value="#33FF6B6B"/>
+            <Setter Property="Foreground" Value="#FF6B6B"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Padding" Value="10,6"/>
+            <Setter Property="CornerRadius" Value="6"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="BorderBrush" Value="#66FF6B6B"/>
+            <Setter Property="Transitions">
+                <Transitions>
+                    <BrushTransition Property="Background" Duration="0:0:0.2"/>
+                    <BrushTransition Property="Foreground" Duration="0:0:0.2"/>
+                </Transitions>
+            </Setter>
+        </Style>
+        <Style Selector="Button.RescueBtn:pointerover">
+            <Setter Property="Background" Value="#FF6B6B"/>
+            <Setter Property="Foreground" Value="White"/>
+        </Style>
+
+        <Style Selector="Button.AutoRelinkBtn">
+            <Setter Property="Background" Value="#334EC9B0"/>
+            <Setter Property="Foreground" Value="#4EC9B0"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Padding" Value="10,6"/>
+            <Setter Property="CornerRadius" Value="6"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="BorderBrush" Value="#554EC9B0"/>
+            <Setter Property="Transitions">
+                <Transitions>
+                    <BrushTransition Property="Background" Duration="0:0:0.2"/>
+                    <BrushTransition Property="Foreground" Duration="0:0:0.2"/>
+                </Transitions>
+            </Setter>
+        </Style>
+        <Style Selector="Button.AutoRelinkBtn:pointerover">
+            <Setter Property="Background" Value="#4EC9B0"/>
+            <Setter Property="Foreground" Value="#1A1A1A"/>
+        </Style>
+    </UserControl.Styles>
+
+    <Grid RowDefinitions="Auto,Auto,*" Margin="16">
+        <!-- Header Section -->
+        <Border Grid.Row="0" Background="#1A1A1A" CornerRadius="8" Padding="16" Margin="0,0,0,16"
+                BorderBrush="#333" BorderThickness="1">
+            <StackPanel Spacing="8">
+                <Grid ColumnDefinitions="*,Auto">
+                    <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                        <PathIcon Data="{StaticResource warning_regular}" Foreground="#FF6B6B" Width="20" Height="20"/>
+                        <TextBlock Text="RESCUE ARTIST" FontSize="16" FontWeight="Bold" Foreground="White" VerticalAlignment="Center" LetterSpacing="1"/>
+                    </StackPanel>
+                    
+                    <Button Grid.Column="1" Classes="ActionBtn" Command="{Binding ScanLibraryCommand}" ToolTip.Tip="Rescan Library">
+                        <PathIcon Data="{StaticResource arrow_counterclockwise_regular}" Width="16" Height="16"/>
+                    </Button>
+                </Grid>
+                
+                <TextBlock Text="Automatically detect and resolve missing files to protect your library."
+                           Foreground="#888" FontSize="13" TextWrapping="Wrap"/>
+                           
+                <!-- Status Banner -->
+                <Border Background="#222" CornerRadius="4" Padding="10,6" Margin="0,4,0,0">
+                    <Grid ColumnDefinitions="Auto,*">
+                        <ProgressBar Grid.Column="0" IsIndeterminate="True" IsVisible="{Binding IsScanning}" 
+                                     Width="80" Height="4" Margin="0,0,10,0" Foreground="#4EC9B0"/>
+                        <TextBlock Grid.Column="1" Text="{Binding StatusText}" Foreground="#CCC" FontSize="12" VerticalAlignment="Center"/>
+                    </Grid>
+                </Border>
+            </StackPanel>
+        </Border>
+
+        <!-- Missing Count Subheader -->
+        <TextBlock Grid.Row="1" Text="{Binding MissingTracks.Count, StringFormat='{}MISSING TRACKS ({0})'}" 
+                   FontSize="12" FontWeight="SemiBold" Foreground="#666" Margin="4,0,0,8" LetterSpacing="0.5"/>
+
+        <!-- Missing Tracks List -->
+        <ListBox Grid.Row="2" ItemsSource="{Binding MissingTracks}" 
+                 Background="Transparent" BorderThickness="0"
+                 ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+            <ListBox.ItemTemplate>
+                <DataTemplate>
+                    <Border Background="#1A1A1A" CornerRadius="8" Padding="12" Margin="0,0,0,8" BorderBrush="#333" BorderThickness="1">
+                        <Grid RowDefinitions="Auto,Auto,Auto" ColumnDefinitions="*,Auto">
+                            
+                            <!-- Track Info -->
+                            <StackPanel Grid.Row="0" Grid.Column="0" Grid.ColumnSpan="2" Margin="0,0,0,8">
+                                <TextBlock Text="{Binding Title}" FontSize="14" FontWeight="SemiBold" Foreground="White" TextTrimming="CharacterEllipsis"/>
+                                <TextBlock Text="{Binding Artist}" FontSize="12" Foreground="#888" TextTrimming="CharacterEllipsis"/>
+                            </StackPanel>
+
+                            <!-- Path Info -->
+                            <Border Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="2" Background="#0A0A0A" CornerRadius="4" Padding="8,6" Margin="0,0,0,12">
+                                <TextBlock Text="{Binding ResolvedPath}" FontSize="10" Foreground="#555" TextTrimming="CharacterEllipsis" FontFamily="Consolas, source-code-pro, monospace"/>
+                            </Border>
+
+                            <!-- Action Buttons -->
+                            <StackPanel Grid.Row="2" Grid.Column="0" Grid.ColumnSpan="2" Orientation="Horizontal" Spacing="8" HorizontalAlignment="Right">
+                                <Button Classes="AutoRelinkBtn" Content="Smart Relink" 
+                                        Command="{Binding $parent[UserControl].((vm:RescueCenterViewModel)DataContext).SmartRelinkCommand}"
+                                        CommandParameter="{Binding .}"
+                                        ToolTip.Tip="Search Library folders for a matching file"/>
+                                        
+                                <Button Classes="RescueBtn" Content="Soulseek" 
+                                        Command="{Binding $parent[UserControl].((vm:RescueCenterViewModel)DataContext).RescueViaSoulseekCommand}"
+                                        CommandParameter="{Binding .}"
+                                        ToolTip.Tip="Find a new copy on Soulseek"/>
+                            </StackPanel>
+                        </Grid>
+                    </Border>
+                </DataTemplate>
+            </ListBox.ItemTemplate>
+            <ListBox.Styles>
+                <Style Selector="ListBoxItem">
+                    <Setter Property="Padding" Value="0"/>
+                    <Setter Property="Margin" Value="0"/>
+                    <Setter Property="Background" Value="Transparent"/>
+                </Style>
+                <Style Selector="ListBoxItem:selected /template/ ContentPresenter">
+                    <Setter Property="Background" Value="Transparent"/>
+                </Style>
+                <Style Selector="ListBoxItem:pointerover /template/ ContentPresenter">
+                    <Setter Property="Background" Value="Transparent"/>
+                </Style>
+            </ListBox.Styles>
+        </ListBox>
+        
+        <!-- Empty State -->
+        <StackPanel Grid.Row="2" IsVisible="{Binding !MissingTracks.Count}" 
+                    VerticalAlignment="Center" HorizontalAlignment="Center" Spacing="16">
+            <PathIcon Data="{StaticResource checkmark_regular}" Width="48" Height="48" Foreground="#334EC9B0"/>
+            <TextBlock Text="LIBRARY IS HEALTHY" FontSize="16" FontWeight="Bold" Foreground="#4EC9B0" LetterSpacing="2" TextAlignment="Center"/>
+            <TextBlock Text="All tracks are safely linked to physical files." FontSize="13" Foreground="#666" TextAlignment="Center"/>
+        </StackPanel>
+    </Grid>
+</UserControl>

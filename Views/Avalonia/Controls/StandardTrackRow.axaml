@@ -247,6 +247,15 @@
                 <StackPanel Orientation="Horizontal" Spacing="6">
                     <TextBlock Text="{Binding TrackTitle}" Foreground="{DynamicResource TextBrush}" FontSize="13" TextTrimming="CharacterEllipsis"/>
                     <TextBlock Text="❤️" IsVisible="{Binding IsLiked}" FontSize="11" VerticalAlignment="Center"/>
+                    
+                    <!-- Phase 6: Metadata Source Indicator -->
+                    <Border Background="#11FFFFFF" BorderBrush="#33FFFFFF" BorderThickness="1" CornerRadius="4" Padding="4,2" VerticalAlignment="Center" ToolTip.Tip="Primary Metadata Source">
+                        <TextBlock Text="{Binding MetadataSourceDisplay}" FontSize="8" Foreground="#888" FontWeight="SemiBold"/>
+                    </Border>
+                    <!-- Cloud Sync Button -->
+                    <Button Classes="ActionBtn" Command="{Binding SyncCloudToLocalCommand}" IsVisible="{Binding IsCompleted}" Padding="2" ToolTip.Tip="Apply Cloud to Local">
+                        <PathIcon Data="{StaticResource cloud_download_regular}" Width="12" Height="12" Foreground="#00BFFF"/>
+                    </Button>
                 </StackPanel>
             </Border>
 
@@ -263,7 +272,7 @@
                         </Border>
                         
                         <!-- Energy Pill -->
-                        <Border Background="{Binding EnergyColor}" CornerRadius="10" Padding="8,2" Width="35" IsVisible="{Binding Energy, Converter={StaticResource ObjectConverters.IsNotNull}}">
+                        <Border Background="{Binding EnergyColor}" CornerRadius="10" Padding="8,2" Width="35" IsVisible="{Binding Energy, Converter={x:Static avaloniaConv:ObjectConverters.IsNotNull}}">
                             <TextBlock Text="{Binding EnergyRating}" Foreground="White" FontSize="10" FontWeight="Bold" HorizontalAlignment="Center"/>
                         </Border>
                     </StackPanel>

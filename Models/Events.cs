@@ -97,6 +97,9 @@ public record AutoDownloadTrackEvent(string TrackGlobalId, Track BestMatch);
 public record AutoDownloadUpgradeEvent(string TrackGlobalId, Track BestMatch);
 public record UpgradeAvailableEvent(string TrackGlobalId, Track BestMatch);
 
+// Phase 6: Cloud-Hybrid Sync
+public record SyncCloudToLocalRequestEvent(string TrackGlobalId);
+
 // Phase 2A: Crash Recovery Events
 public record RecoveryCompletedEvent(
     int ResumedCount,

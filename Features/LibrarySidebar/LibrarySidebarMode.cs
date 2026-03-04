@@ -11,5 +11,6 @@ public enum LibrarySidebarMode
     Cues,
     Stems,
     VibeLab,
-    TransitionProber
+    TransitionProber,
+    RescueCenter
 }

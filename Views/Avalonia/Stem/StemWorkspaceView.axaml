@@ -6,7 +6,7 @@
              mc:Ignorable="d" d:DesignWidth="1200" d:DesignHeight="800"
              x:Class="SLSKDONET.Views.Avalonia.Stem.StemWorkspaceView">
 
-    <Grid RowDefinitions="Auto,*">
+    <Grid RowDefinitions="Auto,*" Background="#121212">
         
         <!-- Header -->
         <Border Grid.Row="0" Height="70" Background="#111" BorderBrush="#333" BorderThickness="0,0,0,1" Padding="20,10">
