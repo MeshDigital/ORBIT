@@ -6,6 +6,7 @@
              xmlns:views="clr-namespace:SLSKDONET.Views.Avalonia"
              xmlns:controls="clr-namespace:SLSKDONET.Views.Avalonia.Controls"
              xmlns:conv="clr-namespace:SLSKDONET.Views.Avalonia.Converters"
+             xmlns:avaloniaConv="clr-namespace:Avalonia.Data.Converters;assembly=Avalonia.Base"
              mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="60"
              x:Class="SLSKDONET.Views.Avalonia.Controls.StandardTrackRow"
              x:Name="RootControl">
