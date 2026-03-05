@@ -155,8 +155,8 @@ public class HardwareExportService : IHardwareExportService
                 return new SLSKDONET.Data.TrackEntity
                 {
                     GlobalId = t.Id.ToString(),
-                    Title = t.Title,
-                    Artist = t.Artist,
+                    Title = t.Title ?? "Unknown Title",
+                    Artist = t.Artist ?? "Unknown Artist",
                     BPM = t.BPM,
                     MusicalKey = t.MusicalKey,
                     Filename = hwPath

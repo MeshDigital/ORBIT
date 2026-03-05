@@ -248,9 +248,9 @@ public class PlaylistTrackViewModel : INotifyPropertyChanged, Library.ILibraryNo
 
     public string DropDisplay => DropTimestamp.HasValue ? TimeSpan.FromSeconds(DropTimestamp.Value).ToString(@"mm\:ss") : "—";
 
-    public double Valence
+    public double? Valence
     {
-        get => Model.Valence ?? 0.0;
+        get => Model.Valence;
         set
         {
             Model.Valence = value;
@@ -274,7 +274,7 @@ public class PlaylistTrackViewModel : INotifyPropertyChanged, Library.ILibraryNo
 
     public Models.SonicProfileData SonicProfile => new Models.SonicProfileData(
         Energy ?? 0.0, 
-        Valence, 
+        Valence ?? 0.0, 
         Model.InstrumentalProbability ?? 0.0);
     
     public double InstrumentalProbability => Model.InstrumentalProbability ?? 0.0;

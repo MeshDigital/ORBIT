@@ -121,16 +121,16 @@ public class RadarRenderControl : Control
             // 3. Draw Secondary Track (behind primary)
             if (_vm.SecondaryTrack != null)
             {
-                float x = (float)(_vm.SecondaryTrack.Valence * width);
-                float y = (float)((1.0 - _vm.SecondaryTrack.Energy) * height);
+                float x = (float)((_vm.SecondaryTrack.Valence ?? 0.5) * width);
+                float y = (float)((1.0 - (_vm.SecondaryTrack.Energy ?? 0.5)) * height);
                 skCanvas.DrawCircle(x, y, 5, _secondaryPointPaint);
             }
 
             // 4. Draw Primary Track
             if (_vm.PrimaryTrack != null)
             {
-                float x = (float)(_vm.PrimaryTrack.Valence * width);
-                float y = (float)((1.0 - _vm.PrimaryTrack.Energy) * height);
+                float x = (float)((_vm.PrimaryTrack.Valence ?? 0.5) * width);
+                float y = (float)((1.0 - (_vm.PrimaryTrack.Energy ?? 0.5)) * height);
                 
                 float pulseRadius = 6 + (2 * _pulsePhase);
                 skCanvas.DrawCircle(x, y, pulseRadius, _primaryPointPaint);

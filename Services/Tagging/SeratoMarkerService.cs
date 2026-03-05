@@ -24,9 +24,9 @@ namespace SLSKDONET.Services.Tagging
     public class SeratoMarkerService : ISeratoMarkerService
     {
         private readonly ILogger<SeratoMarkerService> _logger;
-        private readonly SafeWriteService _safeWrite;
+        private readonly IFileWriteService _safeWrite;
 
-        public SeratoMarkerService(ILogger<SeratoMarkerService> logger, SafeWriteService safeWrite)
+        public SeratoMarkerService(ILogger<SeratoMarkerService> logger, IFileWriteService safeWrite)
         {
             _logger = logger;
             _safeWrite = safeWrite;

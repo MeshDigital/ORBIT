@@ -28,6 +28,18 @@ namespace SLSKDONET.Views.Avalonia
 
             // Global Keyboard Shortcuts
             this.KeyDown += OnKeyDown;
+            this.KeyUp += OnKeyUp;
+        }
+
+        private void OnKeyUp(object? sender, global::Avalonia.Input.KeyEventArgs e)
+        {
+            if (DataContext is MainViewModel vm)
+            {
+                if (e.Key == global::Avalonia.Input.Key.LeftAlt || e.Key == global::Avalonia.Input.Key.RightAlt)
+                {
+                    vm.IsAltPressed = false;
+                }
+            }
         }
 
         private void OnKeyDown(object? sender, global::Avalonia.Input.KeyEventArgs e)
@@ -39,6 +51,11 @@ namespace SLSKDONET.Views.Avalonia
             {
                 switch (e.Key)
                 {
+                    case global::Avalonia.Input.Key.LeftAlt:
+                    case global::Avalonia.Input.Key.RightAlt:
+                        vm.IsAltPressed = true;
+                        break;
+
                     case global::Avalonia.Input.Key.LeftShift:
                     case global::Avalonia.Input.Key.RightShift:
                         // ... existing Shift logic ...

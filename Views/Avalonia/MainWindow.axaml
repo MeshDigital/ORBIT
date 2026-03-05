@@ -22,43 +22,137 @@
         Width="1400" Height="900"
         MinWidth="360" MinHeight="500"
         FontSize="{Binding BaseFontSize}"
-        Background="#1E1E1E">
+        Background="#1E1E1E"
+        Classes.alt="{Binding IsAltPressed}">
+
+    <Window.Resources>
+        <converters:NavIndexToMarginConverter x:Key="NavIndexToMarginConverter"/>
+    </Window.Resources>
 
     <Window.Styles>
         <StyleInclude Source="/Themes/AvaloniaTheme.axaml"/>
         
-        <!-- Navigation Sidebar Styles -->
+        <!-- Professional 48px Navigation Rail Styles -->
         <Style Selector="Border.nav-sidebar">
-            <Setter Property="Width" Value="220"/>
-            <Setter Property="Background" Value="{StaticResource DeepBackgroundBrush}"/>
+            <Setter Property="Width" Value="48"/>
+            <Setter Property="Background" Value="#161616"/>
+            <Setter Property="BorderThickness" Value="0,0,1,0"/>
+            <Setter Property="BorderBrush" Value="#222"/>
             <Setter Property="Transitions">
                 <Transitions>
-                    <DoubleTransition Property="Width" Duration="0:0:0.25" Easing="QuarticEaseOut"/>
+                    <DoubleTransition Property="Width" Duration="0:0:0.2" Easing="QuarticEaseOut"/>
+                </Transitions>
+            </Setter>
+        </Style>
+
+        <Style Selector="Button.nav-rail">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="Width" Value="48"/>
+            <Setter Property="Height" Value="48"/>
+            <Setter Property="Padding" Value="0"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="HorizontalAlignment" Value="Stretch"/>
+            <Setter Property="VerticalAlignment" Value="Top"/>
+        </Style>
+
+        <Style Selector="Button.nav-rail PathIcon">
+            <Setter Property="Width" Value="18"/>
+            <Setter Property="Height" Value="18"/>
+            <Setter Property="Foreground" Value="#888"/>
+            <Setter Property="Transitions">
+                <Transitions>
+                    <BrushTransition Property="Foreground" Duration="0:0:0.15"/>
+                </Transitions>
+            </Setter>
+        </Style>
+
+        <Style Selector="Button.nav-rail:pointerover PathIcon">
+            <Setter Property="Foreground" Value="#DDD"/>
+        </Style>
+
+        <Style Selector="Button.nav-rail.selected PathIcon">
+            <Setter Property="Foreground" Value="#2196F3"/>
+        </Style>
+
+        <!-- Active Indicator -->
+        <Style Selector="Button.nav-rail Border.indicator">
+            <Setter Property="Width" Value="3"/>
+            <Setter Property="Height" Value="2"/>
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="HorizontalAlignment" Value="Left"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+            <Setter Property="Transitions">
+                <Transitions>
+                    <DoubleTransition Property="Height" Duration="0:0:0.4" Easing="BackEaseOut"/>
+                    <BrushTransition Property="Background" Duration="0:0:0.2"/>
+                </Transitions>
+            </Setter>
+        </Style>
+
+        <Style Selector="Button.nav-rail.selected Border.indicator">
+            <Setter Property="Opacity" Value="0"/> <!-- Hide per-button indicators in favor of single sliding bar -->
+        </Style>
+
+        <!-- Single Sliding Indicator Bar -->
+        <Style Selector="Border.sliding-indicator">
+            <Setter Property="Width" Value="3"/>
+            <Setter Property="Height" Value="24"/>
+            <Setter Property="Background" Value="#2196F3"/>
+            <Setter Property="HorizontalAlignment" Value="Left"/>
+            <Setter Property="VerticalAlignment" Value="Top"/>
+            <Setter Property="ClipToBounds" Value="False"/>
+            <Setter Property="Transitions">
+                <Transitions>
+                    <ThicknessTransition Property="Margin" Duration="0:0:0.4" Easing="BackEaseOut"/>
+                </Transitions>
+            </Setter>
+        </Style>
+
+        <!-- HotKey Overlay -->
+        <Style Selector="Button.nav-rail TextBlock.hotkey">
+            <Setter Property="FontSize" Value="10"/>
+            <Setter Property="FontWeight" Value="Black"/>
+            <Setter Property="Foreground" Value="#2196F3"/>
+            <Setter Property="HorizontalAlignment" Value="Right"/>
+            <Setter Property="VerticalAlignment" Value="Bottom"/>
+            <Setter Property="Margin" Value="0,0,4,4"/>
+            <Setter Property="Opacity" Value="0"/>
+            <Setter Property="Transitions">
+                <Transitions>
                     <DoubleTransition Property="Opacity" Duration="0:0:0.2"/>
                 </Transitions>
             </Setter>
         </Style>
-        <Style Selector="Border.nav-sidebar.mini">
-            <Setter Property="Width" Value="56"/>
+        
+        <Style Selector="Window.alt Button.nav-rail TextBlock.hotkey">
+            <Setter Property="Opacity" Value="1"/>
         </Style>
-        <Style Selector="Border.nav-sidebar.mini TextBlock:nth-child(2)">
-            <Setter Property="Opacity" Value="0"/>
-            <Setter Property="IsVisible" Value="False"/>
+
+        <Style Selector="Button.nav-rail:pointerover PathIcon">
+             <Setter Property="Opacity" Value="1"/>
         </Style>
-        <Style Selector="Border.nav-sidebar.mini Border.GroupHeader">
-            <Setter Property="Opacity" Value="0"/>
-            <Setter Property="IsVisible" Value="False"/>
+        <!-- Library Health LED -->
+        <Style Selector="Ellipse.health-led">
+            <Setter Property="Width" Value="8"/>
+            <Setter Property="Height" Value="8"/>
+            <Setter Property="Margin" Value="0,12"/>
+            <Setter Property="Transitions">
+                <Transitions>
+                    <BrushTransition Property="Fill" Duration="0:0:0.5"/>
+                </Transitions>
+            </Setter>
         </Style>
-        <Style Selector="Border.nav-sidebar.mini Button.nav StackPanel">
-            <Setter Property="HorizontalAlignment" Value="Center"/>
-            <Setter Property="Spacing" Value="0"/>
-            <Setter Property="Margin" Value="0"/>
+        <Style Selector="Ellipse.health-led.ok">
+            <Setter Property="Fill" Value="#4CAF50"/> <!-- Green -->
+            <Setter Property="ToolTip.Tip" Value="Library Healthy"/>
         </Style>
-        <Style Selector="Border.nav-sidebar.mini Button.nav">
-            <Setter Property="Width" Value="40"/>
-            <Setter Property="Height" Value="40"/>
-            <Setter Property="Padding" Value="0"/>
-            <Setter Property="HorizontalAlignment" Value="Center"/>
+        <Style Selector="Ellipse.health-led.drift">
+            <Setter Property="Fill" Value="#FFC107"/> <!-- Amber -->
+            <Setter Property="ToolTip.Tip" Value="Metadata Drift Detected (Hybrid Sync Ready)"/>
+        </Style>
+        <Style Selector="Ellipse.health-led.error">
+            <Setter Property="Fill" Value="#F44336"/> <!-- Red -->
+            <Setter Property="ToolTip.Tip" Value="Missing/Corrupt Files Detected (Rescue Artist Needed)"/>
         </Style>
     </Window.Styles>
     
@@ -325,177 +419,146 @@
         <!-- Main Content Area: 4-Zone DAW Layout -->
         <Grid Grid.Row="1" ColumnDefinitions="Auto,4,*,4,Auto">
             
-            <!-- Zone 1: Navigator (Left Sidebar) -->
-            <Border Grid.Column="0" 
-                    Background="{StaticResource DeepBackgroundBrush}" 
-                    BorderBrush="{StaticResource BorderBrush}" 
-                    Classes="nav-sidebar"
-                    Classes.mini="{Binding IsNavigationMini}">
-                <Border.ContextMenu>
-                    <ContextMenu>
-                        <MenuItem Header="Show ACQUIRE" IsChecked="{Binding IsAcquireVisible}" ToggleType="CheckBox"/>
-                        <MenuItem Header="Show ENRICH" IsChecked="{Binding IsEnrichVisible}" ToggleType="CheckBox"/>
-                        <MenuItem Header="Show CURATE" IsChecked="{Binding IsCurateVisible}" ToggleType="CheckBox"/>
-                        <MenuItem Header="Show DELIVER" IsChecked="{Binding IsDeliverVisible}" ToggleType="CheckBox"/>
-                        <MenuItem Header="Show SYSTEM" IsChecked="{Binding IsSystemVisible}" ToggleType="CheckBox"/>
-                        <Separator/>
-                        <MenuItem Header="Zen Mode (F10)" IsChecked="{Binding IsZenMode}" ToggleType="CheckBox"/>
-                    </ContextMenu>
-                </Border.ContextMenu>
-                <ScrollViewer>
-                    <StackPanel Margin="0,16,0,0" Spacing="8">
+            <!-- Zone 1: Navigator (48px Pro Rail) -->
+            <Border Grid.Column="0" Classes="nav-sidebar" BorderBrush="#222" BorderThickness="0,0,1,0">
+                <Grid RowDefinitions="*,Auto">
+                    <!-- Single Sliding Indicator Layer -->
+                    <Canvas Grid.Row="0" Width="3" HorizontalAlignment="Left" IsHitTestVisible="False">
+                        <Border Classes="sliding-indicator" 
+                                Margin="{Binding SelectedNavIndex, Converter={StaticResource NavIndexToMarginConverter}}"/>
+                    </Canvas>
+
+                    <StackPanel Grid.Row="0" Spacing="4" Margin="0,8">
                         
-                        <!-- ACQUIRE -->
-                        <StackPanel IsVisible="{Binding IsAcquireVisible}">
-                            <Border Classes="GroupHeader" Padding="16,8,0,4">
-                                <TextBlock Text="ACQUIRE" Classes="GroupTitle" FontSize="11" FontWeight="Bold" Foreground="#666" LetterSpacing="1"/>
-                            </Border>
-                            
-                            <StackPanel Spacing="2">
-                                <Button Classes="nav" Command="{Binding NavigateSearchCommand}"
-                                        ToolTip.Tip="Search"
-                                        Classes.selected="{Binding Workspace.CurrentContext, Converter={StaticResource EqualityConverter}, ConverterParameter={x:Static models:WorkspaceContext.SoulseekSearch}}">
-                                    <StackPanel Orientation="Horizontal" Spacing="12" Margin="16,0">
-                                        <TextBlock Text="🔍" FontSize="16"/>
-                                        <TextBlock Text="Search" FontSize="14"/>
-                                    </StackPanel>
-                                </Button>
+                        <!-- Dashboard -->
+                        <Button Classes="nav-rail" Command="{Binding NavigateHomeCommand}" ToolTip.Tip="Dashboard"
+                                Classes.selected="{Binding CurrentPageType, Converter={StaticResource EqualityConverter}, ConverterParameter={x:Static models:PageType.Home}}">
+                            <Grid>
+                                <Border Classes="indicator"/>
+                                <PathIcon Data="{StaticResource home_regular}"/>
+                                <TextBlock Text="1" Classes="hotkey"/>
+                            </Grid>
+                        </Button>
 
-                                <Button Classes="nav" Command="{Binding NavigateDiscoveryHubCommand}"
-                                        ToolTip.Tip="Discovery Hub"
-                                        Classes.selected="{Binding CurrentPageType, Converter={StaticResource EqualityConverter}, ConverterParameter={x:Static models:PageType.DiscoveryHub}}">
-                                    <StackPanel Orientation="Horizontal" Spacing="12" Margin="16,0">
-                                        <TextBlock Text="🛸" FontSize="16"/>
-                                        <TextBlock Text="Discovery Hub" FontSize="14"/>
-                                    </StackPanel>
-                                </Button>
-                                
-                                <Button Classes="nav" Command="{Binding NavigateDownloadCenterCommand}"
-                                        ToolTip.Tip="Download Center"
-                                        Classes.selected="{Binding CurrentPageType, Converter={StaticResource EqualityConverter}, ConverterParameter={x:Static models:PageType.Projects}}">
-                                    <StackPanel Orientation="Horizontal" Spacing="12" Margin="16,0">
-                                        <TextBlock Text="📥" FontSize="16"/>
-                                        <TextBlock Text="Download Center" FontSize="14"/>
-                                    </StackPanel>
-                                </Button>
+                        <!-- Search -->
+                        <Button Classes="nav-rail" Command="{Binding NavigateSearchCommand}" ToolTip.Tip="Search"
+                                Classes.selected="{Binding Workspace.CurrentContext, Converter={StaticResource EqualityConverter}, ConverterParameter={x:Static models:WorkspaceContext.SoulseekSearch}}">
+                            <Grid>
+                                <Border Classes="indicator"/>
+                                <PathIcon Data="{StaticResource search_regular}"/>
+                                <TextBlock Text="2" Classes="hotkey"/>
+                            </Grid>
+                        </Button>
 
-                                <Button Classes="nav" Command="{Binding NavigateImportCommand}"
-                                        ToolTip.Tip="Import"
-                                        Classes.selected="{Binding Workspace.CurrentContext, Converter={StaticResource EqualityConverter}, ConverterParameter={x:Static models:WorkspaceContext.SpotifyImport}}">
-                                    <StackPanel Orientation="Horizontal" Spacing="12" Margin="16,0">
-                                        <TextBlock Text="🔗" FontSize="16"/>
-                                        <TextBlock Text="Import" FontSize="14"/>
-                                    </StackPanel>
-                                </Button>
-                            </StackPanel>
-                        </StackPanel>
+                        <!-- Library / All Music -->
+                        <Button Classes="nav-rail" Command="{Binding NavigateLibraryCommand}" ToolTip.Tip="Library"
+                                Classes.selected="{Binding CurrentPageType, Converter={StaticResource EqualityConverter}, ConverterParameter={x:Static models:PageType.Library}}">
+                            <Grid>
+                                <Border Classes="indicator"/>
+                                <PathIcon Data="{StaticResource library_regular}"/>
+                                <TextBlock Text="3" Classes="hotkey"/>
+                            </Grid>
+                        </Button>
 
-                        <!-- ENRICH -->
-                        <StackPanel IsVisible="{Binding IsEnrichVisible}">
-                            <Border Classes="GroupHeader" Padding="16,8,0,4">
-                                <TextBlock Text="ENRICH" Classes="GroupTitle" FontSize="11" FontWeight="Bold" Foreground="#666" LetterSpacing="1"/>
-                            </Border>
+                        <Separator Height="1" Background="#222" Margin="12,4"/>
 
-                            <StackPanel Spacing="2">
-                                <Button Classes="nav" Command="{Binding NavigateInspectorCommand}"
-                                        ToolTip.Tip="Engine Stats"
-                                        Classes.selected="{Binding CurrentPageType, Converter={StaticResource EqualityConverter}, ConverterParameter={x:Static models:PageType.AnalysisQueue}}">
-                                    <StackPanel Orientation="Horizontal" Spacing="12" Margin="16,0">
-                                        <TextBlock Text="🧠" FontSize="16"/>
-                                        <TextBlock Text="Engine Stats" FontSize="14"/>
-                                    </StackPanel>
-                                </Button>
-                            </StackPanel>
-                        </StackPanel>
+                        <!-- STUDIO (Restored) -->
+                        <Button Classes="nav-rail" Command="{Binding NavigateToStudioCommand}" ToolTip.Tip="Studio"
+                                Classes.selected="{Binding Workspace.CurrentContext, Converter={StaticResource EqualityConverter}, ConverterParameter={x:Static models:WorkspaceContext.SetDesigner}}">
+                            <Grid>
+                                <Border Classes="indicator"/>
+                                <PathIcon Data="{StaticResource Icon_Studio}"/>
+                                <TextBlock Text="S" Classes="hotkey"/>
+                            </Grid>
+                        </Button>
 
-                        <!-- CURATE -->
-                        <StackPanel IsVisible="{Binding IsCurateVisible}">
-                            <Border Classes="GroupHeader" Padding="16,8,0,4">
-                                <TextBlock Text="CURATE" Classes="GroupTitle" FontSize="11" FontWeight="Bold" Foreground="#666" LetterSpacing="1"/>
-                            </Border>
+                        <!-- STYLE LAB (Restored) -->
+                        <Button Classes="nav-rail" Command="{Binding NavigateToStyleLabCommand}" ToolTip.Tip="Style Lab"
+                                Classes.selected="{Binding CurrentPageType, Converter={StaticResource EqualityConverter}, ConverterParameter={x:Static models:PageType.StyleLab}}">
+                            <Grid>
+                                <Border Classes="indicator"/>
+                                <PathIcon Data="{StaticResource Icon_StyleLab}"/>
+                                <TextBlock Text="L" Classes="hotkey"/>
+                            </Grid>
+                        </Button>
 
-                            <StackPanel Spacing="2">
-                                <Button Classes="nav" Command="{Binding NavigateExportCommand}"
-                                        ToolTip.Tip="Export Manager"
-                                        Classes.selected="{Binding CurrentPageType, Converter={StaticResource EqualityConverter}, ConverterParameter={x:Static models:PageType.Export}}">
-                                    <StackPanel Orientation="Horizontal" Spacing="12" Margin="16,0">
-                                        <TextBlock Text="🚀" FontSize="16"/>
-                                        <TextBlock Text="Export Manager" FontSize="14"/>
-                                    </StackPanel>
-                                </Button>
-                            </StackPanel>
-                        </StackPanel>
+                        <Separator Height="1" Background="#222" Margin="12,4"/>
 
-                        <!-- DELIVER -->
-                        <StackPanel IsVisible="{Binding IsDeliverVisible}">
-                            <Border Classes="GroupHeader" Padding="16,8,0,4">
-                                <TextBlock Text="DELIVER" Classes="GroupTitle" FontSize="11" FontWeight="Bold" Foreground="#666" LetterSpacing="1"/>
-                            </Border>
+                        <!-- Projects / Downloads -->
+                        <Button Classes="nav-rail" Command="{Binding NavigateDownloadCenterCommand}" ToolTip.Tip="Projects &amp; Downloads"
+                                Classes.selected="{Binding CurrentPageType, Converter={StaticResource EqualityConverter}, ConverterParameter={x:Static models:PageType.Projects}}">
+                            <Grid>
+                                <Border Classes="indicator"/>
+                                <PathIcon Data="{StaticResource archive_regular}"/>
+                                <TextBlock Text="5" Classes="hotkey"/>
+                            </Grid>
+                        </Button>
 
-                            <StackPanel Spacing="2">
-                                <Button Classes="nav" Command="{Binding NavigateExportCommand}"
-                                        ToolTip.Tip="Export Manager"
-                                        Classes.selected="{Binding CurrentPageType, Converter={StaticResource EqualityConverter}, ConverterParameter={x:Static models:PageType.Export}}">
-                                    <StackPanel Orientation="Horizontal" Spacing="12" Margin="16,0">
-                                        <TextBlock Text="🚀" FontSize="16"/>
-                                        <TextBlock Text="Export Manager" FontSize="14"/>
-                                    </StackPanel>
-                                </Button>
-                            </StackPanel>
-                        </StackPanel>
+                        <!-- Import -->
+                        <Button Classes="nav-rail" Command="{Binding NavigateImportCommand}" ToolTip.Tip="Import"
+                                Classes.selected="{Binding Workspace.CurrentContext, Converter={StaticResource EqualityConverter}, ConverterParameter={x:Static models:WorkspaceContext.SpotifyImport}}">
+                            <Grid>
+                                <Border Classes="indicator"/>
+                                <PathIcon Data="{StaticResource Icon_Import}"/>
+                                <TextBlock Text="6" Classes="hotkey"/>
+                            </Grid>
+                        </Button>
 
-                        <Border Height="1" Background="#333" Margin="12,12"/>
+                        <Separator Height="1" Background="#222" Margin="12,4"/>
 
-                        <!-- SYSTEM UTILITIES -->
-                        <StackPanel IsVisible="{Binding IsSystemVisible}">
-                            <Border Classes="GroupHeader" Padding="16,8,0,4">
-                                <TextBlock Text="SYSTEM" Classes="GroupTitle" FontSize="11" FontWeight="Bold" Foreground="#666" LetterSpacing="1"/>
-                            </Border>
+                        <!-- Discovery Hub -->
+                        <Button Classes="nav-rail" Command="{Binding NavigateDiscoveryHubCommand}" ToolTip.Tip="Discovery Hub"
+                                Classes.selected="{Binding CurrentPageType, Converter={StaticResource EqualityConverter}, ConverterParameter={x:Static models:PageType.DiscoveryHub}}">
+                            <Grid>
+                                <Border Classes="indicator"/>
+                                <PathIcon Data="{StaticResource radar_regular}"/>
+                                <TextBlock Text="4" Classes="hotkey"/>
+                            </Grid>
+                        </Button>
 
-                            <StackPanel Spacing="2">
-                                 <Button Classes="nav" Command="{Binding NavigateHomeCommand}"
-                                        ToolTip.Tip="Dashboard"
-                                        Classes.selected="{Binding Workspace.CurrentContext, Converter={StaticResource EqualityConverter}, ConverterParameter={x:Static models:WorkspaceContext.LocalLibrary}}">
-                                    <StackPanel Orientation="Horizontal" Spacing="12" Margin="16,0">
-                                        <TextBlock Text="🏠" FontSize="16"/>
-                                        <TextBlock Text="Dashboard" FontSize="14"/>
-                                    </StackPanel>
-                                </Button>
+                        <!-- Upgrade Scout -->
+                        <Button Classes="nav-rail" Command="{Binding NavigateUpgradeScoutCommand}" ToolTip.Tip="Upgrade Scout"
+                                Classes.selected="{Binding CurrentPageType, Converter={StaticResource EqualityConverter}, ConverterParameter={x:Static models:PageType.UpgradeScout}}">
+                            <Grid>
+                                <Border Classes="indicator"/>
+                                <PathIcon Data="{StaticResource diamond_regular}"/>
+                                <TextBlock Text="U" Classes="hotkey"/>
+                            </Grid>
+                        </Button>
 
-                                <Button Classes="nav" Command="{Binding NavigateLibraryCommand}"
-                                        ToolTip.Tip="Library"
-                                        Classes.selected="{Binding Workspace.CurrentContext, Converter={StaticResource EqualityConverter}, ConverterParameter={x:Static models:WorkspaceContext.LocalLibrary}}">
-                                    <StackPanel Orientation="Horizontal" Spacing="12" Margin="16,0">
-                                        <TextBlock Text="📚" FontSize="16"/>
-                                        <TextBlock Text="Library" FontSize="14"/>
-                                    </StackPanel>
-                                </Button>
+                        <Separator Height="1" Background="#222" Margin="12,4"/>
 
-                                <Button Classes="nav" Command="{Binding NavigateUpgradeScoutCommand}"
-                                        ToolTip.Tip="Upgrades"
-                                        Classes.selected="{Binding CurrentPageType, Converter={StaticResource EqualityConverter}, ConverterParameter={x:Static models:PageType.UpgradeScout}}">
-                                    <StackPanel Orientation="Horizontal" Spacing="12" Margin="16,0">
-                                        <TextBlock Text="💎" FontSize="16"/>
-                                        <TextBlock Text="Upgrades" FontSize="14"/>
-                                    </StackPanel>
-                                </Button>
-
-                                <Button Classes="nav" Command="{Binding NavigateSettingsCommand}"
-                                        ToolTip.Tip="Settings"
-                                        Classes.selected="{Binding CurrentPageType, Converter={StaticResource EqualityConverter}, ConverterParameter={x:Static models:PageType.Settings}}">
-                                    <StackPanel Orientation="Horizontal" Spacing="12" Margin="16,0">
-                                        <TextBlock Text="⚙️" FontSize="16"/>
-                                        <TextBlock Text="Settings" FontSize="14"/>
-                                    </StackPanel>
-                                </Button>
-                            </StackPanel>
-                        </StackPanel>
+                        <!-- Engine Stats (Inspector) -->
+                        <Button Classes="nav-rail" Command="{Binding NavigateInspectorCommand}" ToolTip.Tip="Engine Stats"
+                                Classes.selected="{Binding CurrentPageType, Converter={StaticResource EqualityConverter}, ConverterParameter={x:Static models:PageType.AnalysisQueue}}">
+                            <Grid>
+                                <Border Classes="indicator"/>
+                                <PathIcon Data="{StaticResource Icon_Engine}"/>
+                                <TextBlock Text="7" Classes="hotkey"/>
+                            </Grid>
+                        </Button>
                     </StackPanel>
-                </ScrollViewer>
+
+                    <!-- Bottom Actions -->
+                    <StackPanel Grid.Row="1" Spacing="4" Margin="0,8">
+                        <!-- Library Health LED (Phase 6) -->
+                        <Ellipse Classes="health-led"
+                                 Classes.ok="{Binding LibraryHealth, Converter={StaticResource EqualityConverter}, ConverterParameter={x:Static models:LibraryHealthStatus.Healthy}}"
+                                 Classes.drift="{Binding LibraryHealth, Converter={StaticResource EqualityConverter}, ConverterParameter={x:Static models:LibraryHealthStatus.Drifted}}"
+                                 Classes.error="{Binding LibraryHealth, Converter={StaticResource EqualityConverter}, ConverterParameter={x:Static models:LibraryHealthStatus.Missing}}"/>
+
+                        <Button Classes="nav-rail" Command="{Binding NavigateSettingsCommand}" ToolTip.Tip="Settings">
+                            <Grid>
+                                <Border Classes="indicator"/>
+                                <PathIcon Data="{StaticResource bolt_regular}"/>
+                            </Grid>
+                        </Button>
+                    </StackPanel>
+                </Grid>
             </Border>
 
-            <!-- Zone 2: Navigator Splitter -->
-            <GridSplitter Grid.Column="1" Background="Transparent" Width="4" HorizontalAlignment="Stretch"/>
+            <!-- Zone 2: Navigator Splitter (Disabled for Rail) -->
+            <Rectangle Grid.Column="1" Width="0"/>
 
             <!-- Zone 3: Canvas (Center Content Area) -->
             <Border Grid.Column="2" Background="#1E1E1E">

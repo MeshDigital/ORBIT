@@ -6,6 +6,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using SLSKDONET.Data;
 using SLSKDONET.Data.Entities;
+using SLSKDONET.Models;
 
 namespace SLSKDONET.Services;
 
@@ -36,6 +37,56 @@ public class CueGenerationService
         public string Color { get; set; } = "#FF0000";
         public PhraseType SourcePhrase { get; set; }
         public float Confidence { get; set; }
+    }
+
+    /// <summary>
+    /// Phase 7: Generates smart cue points based on detected TrackPhrases.
+    /// </summary>
+    public List<OrbitCue> GenerateSmartCuesFromPhrases(IEnumerable<TrackPhraseEntity> phrases, float bpm)
+    {
+        var cues = new List<OrbitCue>();
+        var sortedPhrases = phrases.OrderBy(p => p.StartTimeSeconds).ToList();
+        if (sortedPhrases.Count == 0) return cues;
+
+        float barDuration = bpm > 0 ? (60f / bpm) * 4 : 2f;
+
+        // 1. Intro Start
+        var intro = sortedPhrases.FirstOrDefault(p => p.Label != null && p.Label.Contains("Intro", StringComparison.OrdinalIgnoreCase));
+        if (intro != null)
+        {
+            cues.Add(new OrbitCue { Name = "INTRO", Role = CueRole.Intro, Timestamp = intro.StartTimeSeconds, Color = "#00FF00" });
+        }
+
+        // 2. Main Drop
+        var drop = sortedPhrases.FirstOrDefault(p => p.Label != null && p.Label.Contains("Drop", StringComparison.OrdinalIgnoreCase));
+        if (drop != null)
+        {
+            // Drop Start
+            cues.Add(new OrbitCue { Name = "DROP", Role = CueRole.Drop, Timestamp = drop.StartTimeSeconds, Color = "#FF0000" });
+            
+            // 16 Bars before Drop (Build-up warning)
+            float buildStart = drop.StartTimeSeconds - (barDuration * 16);
+            if (buildStart > 0 && (intro == null || buildStart > intro.StartTimeSeconds + 5))
+            {
+                cues.Add(new OrbitCue { Name = "BUILD-16", Role = CueRole.Build, Timestamp = buildStart, Color = "#FFFF00" });
+            }
+        }
+
+        // 3. Breakdown
+        var breakdown = sortedPhrases.FirstOrDefault(p => p.Label != null && p.Label.Contains("Break", StringComparison.OrdinalIgnoreCase));
+        if (breakdown != null)
+        {
+            cues.Add(new OrbitCue { Name = "BREAK", Role = CueRole.Breakdown, Timestamp = breakdown.StartTimeSeconds, Color = "#9C27B0" });
+        }
+
+        // 4. Outro / Mix-out
+        var outro = sortedPhrases.LastOrDefault(p => p.Label != null && p.Label.Contains("Outro", StringComparison.OrdinalIgnoreCase));
+        if (outro != null)
+        {
+            cues.Add(new OrbitCue { Name = "OUTRO", Role = CueRole.Outro, Timestamp = outro.StartTimeSeconds, Color = "#0000FF" });
+        }
+
+        return cues;
     }
 
     /// <summary>

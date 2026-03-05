@@ -38,7 +38,7 @@ public class SettingsViewModel : INotifyPropertyChanged, IDisposable
     private readonly SpotifyAuthService _spotifyAuthService;
     private readonly ISpotifyMetadataService _spotifyMetadataService;
     private readonly DatabaseService _databaseService;
-    private readonly LibraryFolderScannerService _libraryFolderScannerService;
+    private readonly ILibraryFolderScannerService _libraryFolderScannerService;
     private readonly IEventBus _eventBus;
 
     // Hardcoded public client ID provided by user/project
@@ -645,7 +645,7 @@ public class SettingsViewModel : INotifyPropertyChanged, IDisposable
         SpotifyAuthService spotifyAuthService,
         ISpotifyMetadataService spotifyMetadataService,
         DatabaseService databaseService,
-        LibraryFolderScannerService libraryFolderScannerService,
+        ILibraryFolderScannerService libraryFolderScannerService,
         IEventBus eventBus,
         SpotifySyncSettingsViewModel spotifySyncSettingsVM)
     {

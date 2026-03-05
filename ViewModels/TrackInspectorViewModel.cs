@@ -38,6 +38,7 @@ namespace SLSKDONET.ViewModels
         private readonly Services.TrackForensicLogger _forensicLogger;
         private readonly Services.AI.ISonicMatchService _sonicMatchService;
         private readonly Services.IMusicBrainzService _musicBrainzService;
+        private readonly Services.Audio.ISurgicalProcessingService _surgicalService;
         private readonly TrackOperationsViewModel _trackOperations; // Phase 11.6
         private readonly ILogger<TrackInspectorViewModel> _logger;
         private readonly CompositeDisposable _disposables = new();
@@ -63,8 +64,11 @@ namespace SLSKDONET.ViewModels
         public AudioFeaturesEntity? AudioFeatures => _audioFeatures;
         private Data.Entities.AudioFeaturesEntity? _audioFeatures; // Phase 4: Musical Intelligence
         
+        public double TotalDurationSeconds => (Track?.CanonicalDuration ?? 0) / 1000.0;
+
         private void OnTrackChanged()
         {
+             OnPropertyChanged(nameof(TotalDurationSeconds));
              // Trigger async Pro DJ load
              _ = LoadProDjFeaturesAsync();
              // Phase 21: Load analysis history
@@ -250,6 +254,36 @@ namespace SLSKDONET.ViewModels
 
         public float Bpm => AudioFeatures?.Bpm ?? (float)(Track?.BPM ?? 0.0);
 
+        // Phase 6: Metadata Ghosting Properties
+        private string? _ghostTitle;
+        public string? GhostTitle { get => _ghostTitle; set => SetProperty(ref _ghostTitle, value); }
+        
+        private string? _ghostArtist;
+        public string? GhostArtist { get => _ghostArtist; set => SetProperty(ref _ghostArtist, value); }
+
+        private string? _ghostGenres;
+        public string? GhostGenres { get => _ghostGenres; set => SetProperty(ref _ghostGenres, value); }
+        
+        private string? _ghostLabel;
+        public string? GhostLabel { get => _ghostLabel; set => SetProperty(ref _ghostLabel, value); }
+        
+        private double? _ghostBpm;
+        public double? GhostBpm { get => _ghostBpm; set => SetProperty(ref _ghostBpm, value); }
+        
+        private string? _ghostKey;
+        public string? GhostKey { get => _ghostKey; set => SetProperty(ref _ghostKey, value); }
+
+        public bool IsGenresDrifted => !string.IsNullOrEmpty(GhostGenres) && GhostGenres != Track?.Genres;
+        public bool IsLabelDrifted => !string.IsNullOrEmpty(GhostLabel) && GhostLabel != Track?.Label;
+        public bool IsBpmDrifted => GhostBpm.HasValue && Math.Abs(GhostBpm.Value - (Track?.BPM ?? 0)) > 0.1;
+        public bool IsKeyDrifted => !string.IsNullOrEmpty(GhostKey) && GhostKey != Track?.Key;
+        public bool IsTitleDrifted => !string.IsNullOrEmpty(GhostTitle) && GhostTitle != Track?.Title;
+        public bool IsArtistDrifted => !string.IsNullOrEmpty(GhostArtist) && GhostArtist != Track?.Artist;
+
+        public bool HasAnyDrift => IsGenresDrifted || IsLabelDrifted || IsBpmDrifted || IsKeyDrifted || IsTitleDrifted || IsArtistDrifted;
+
+        public ICommand SyncGhostToLocalCommand { get; }
+
         public TrackInspectorViewModel(
             Services.IAudioAnalysisService audioAnalysisService, 
             Services.AnalysisQueueService analysisQueue,
@@ -262,6 +296,7 @@ namespace SLSKDONET.ViewModels
             Services.TrackForensicLogger forensicLogger,
             Services.AI.ISonicMatchService sonicMatchService,
             Services.IMusicBrainzService musicBrainzService,
+            Services.Audio.ISurgicalProcessingService surgicalService,
             TrackOperationsViewModel trackOperations,
             ILogger<TrackInspectorViewModel> logger)
         {
@@ -276,6 +311,7 @@ namespace SLSKDONET.ViewModels
             _forensicLogger = forensicLogger;
             _sonicMatchService = sonicMatchService;
             _musicBrainzService = musicBrainzService;
+            _surgicalService = surgicalService;
             _logger = logger;
             _trackOperations = trackOperations;
 
@@ -300,10 +336,28 @@ namespace SLSKDONET.ViewModels
 
             SurgicalRenderCommand = ReactiveCommand.CreateFromTask(async () =>
             {
-                if (Track == null) return;
+                if (Track == null || !StructuralPhraseSegments.Any()) return;
+                
                 _logger.LogInformation("🚀 Initiating Surgical Render for {Path}", Track.ResolvedFilePath);
-                // TODO: Call SurgicalProcessingService
-                await Task.Delay(1000); 
+                
+                try 
+                {
+                    var resultPath = await _surgicalService.CutAndCombineSegmentsAsync(Track.ResolvedFilePath!, StructuralPhraseSegments);
+                    if (!string.IsNullOrEmpty(resultPath))
+                    {
+                        _eventBus.Publish(new Models.UserNotificationEvent("Surgical Render Complete", $"New file created: {Path.GetFileName(resultPath)}", SLSKDONET.Views.NotificationType.Success));
+                        // In Phase 8, we'll auto-import this. For now, we notify.
+                    }
+                    else
+                    {
+                        _eventBus.Publish(new Models.UserNotificationEvent("Surgical Render Failed", "FFmpeg encountered an error during stitching.", SLSKDONET.Views.NotificationType.Error));
+                    }
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Surgical Render Pipeline Crashed");
+                    _eventBus.Publish(new Models.UserNotificationEvent("Surgical Error", ex.Message, SLSKDONET.Views.NotificationType.Error));
+                }
             });
 
             OpenStemWorkspaceCommand = ReactiveCommand.Create(() =>
@@ -590,6 +644,15 @@ namespace SLSKDONET.ViewModels
             });
 
             DeleteCueCommand = ReactiveCommand.Create<OrbitCue>(cue => Cues.Remove(cue));
+
+            SyncGhostToLocalCommand = ReactiveCommand.CreateFromTask(async () => 
+            {
+                if (Track == null) return;
+                _eventBus.Publish(new SLSKDONET.Models.SyncCloudToLocalRequestEvent(Track.TrackUniqueHash));
+                // Refresh ghosts after small delay to allow service to work
+                await Task.Delay(500);
+                await DetectDriftAsync();
+            });
         }
 
         private async Task LoadProDjFeaturesAsync()
@@ -664,6 +727,31 @@ namespace SLSKDONET.ViewModels
             {
                 _logger.LogError(ex, "Failed to load Pro DJ features");
             }
+
+            await DetectDriftAsync();
+        }
+
+        private async Task DetectDriftAsync()
+        {
+            if (Track == null) return;
+
+            // Simple Drift Detection: Compare what's in our memory (likely from DB) 
+            // with "Cloud" data if we had a way to fetch it fresh.
+            // For now, we use the Spotify-specific fields as the "Cloud" truth.
+            GhostTitle = Track.Title; // In a real sync this would differ if "Ghosted"
+            GhostArtist = Track.Artist;
+            GhostGenres = Track.Genres; 
+            GhostLabel = Track.Label;
+            GhostBpm = Track.SpotifyBPM;
+            GhostKey = Track.SpotifyKey;
+
+            OnPropertyChanged(nameof(IsGenresDrifted));
+            OnPropertyChanged(nameof(IsLabelDrifted));
+            OnPropertyChanged(nameof(IsBpmDrifted));
+            OnPropertyChanged(nameof(IsKeyDrifted));
+            OnPropertyChanged(nameof(IsTitleDrifted));
+            OnPropertyChanged(nameof(IsArtistDrifted));
+            OnPropertyChanged(nameof(HasAnyDrift));
         }
         
         // Phase 21: Analysis Run Tracking

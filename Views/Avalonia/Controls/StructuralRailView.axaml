@@ -1,0 +1,58 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:models="clr-namespace:SLSKDONET.Models"
+             xmlns:controls="clr-namespace:SLSKDONET.Views.Avalonia.Controls"
+             xmlns:converters="using:SLSKDONET.Converters"
+             mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="40"
+             x:Class="SLSKDONET.Views.Avalonia.Controls.StructuralRailView">
+
+    <UserControl.Resources>
+        <converters:ProportionalValueConverter x:Key="ProportionalConverter" />
+    </UserControl.Resources>
+
+    <Border x:Name="RailContainer" Height="32" Background="#1A1A1A" CornerRadius="4" ClipToBounds="True" BorderBrush="#333" BorderThickness="1">
+        <ItemsControl ItemsSource="{Binding Segments, RelativeSource={RelativeSource AncestorType=controls:StructuralRailView}}">
+            <ItemsControl.ItemsPanel>
+                <ItemsPanelTemplate>
+                    <Canvas Background="Transparent" VerticalAlignment="Stretch" HorizontalAlignment="Stretch" />
+                </ItemsPanelTemplate>
+            </ItemsControl.ItemsPanel>
+            <ItemsControl.ItemTemplate>
+                <DataTemplate x:DataType="models:PhraseSegment">
+                    <Border Background="{Binding Color}" 
+                            Height="32"
+                            ToolTip.Tip="{Binding Label}">
+                        <Border.Width>
+                            <MultiBinding Converter="{StaticResource ProportionalConverter}">
+                                <Binding Path="Duration" />
+                                <Binding Path="TotalDuration" RelativeSource="{RelativeSource AncestorType=controls:StructuralRailView}" />
+                                <Binding Path="#RailContainer.Bounds.Width" />
+                            </MultiBinding>
+                        </Border.Width>
+                        <TextBlock Text="{Binding Label}" 
+                                   VerticalAlignment="Center" 
+                                   HorizontalAlignment="Center"
+                                   FontSize="10"
+                                   FontWeight="Bold"
+                                   Foreground="White"
+                                   IsHitTestVisible="False"/>
+                    </Border>
+                </DataTemplate>
+            </ItemsControl.ItemTemplate>
+            
+            <ItemsControl.Styles>
+                <Style Selector="ItemsControl > ContentPresenter">
+                    <Setter Property="Canvas.Left">
+                        <MultiBinding Converter="{StaticResource ProportionalConverter}">
+                            <Binding Path="Start" />
+                            <Binding Path="TotalDuration" RelativeSource="{RelativeSource AncestorType=controls:StructuralRailView}" />
+                            <Binding Path="#RailContainer.Bounds.Width" />
+                        </MultiBinding>
+                    </Setter>
+                </Style>
+            </ItemsControl.Styles>
+        </ItemsControl>
+    </Border>
+</UserControl>

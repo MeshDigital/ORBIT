@@ -12,5 +12,6 @@ public enum PageType
     AnalysisQueue,
     TheaterMode,
     Export,
-    DiscoveryHub
+    DiscoveryHub,
+    StyleLab
 }

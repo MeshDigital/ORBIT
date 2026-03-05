@@ -59,6 +59,7 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
     public HomeViewModel HomeViewModel { get; }
     public StatusBarViewModel StatusBar { get; }
     public AnalysisQueueViewModel AnalysisQueueViewModel { get; }
+    private bool _isInitializing;
     public BulkOperationViewModel BulkOperationViewModel { get; }
     public MissionControlViewModel MissionControl { get; }
     
@@ -163,6 +164,15 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
         Sidebar = sidebar;
         MissionControl = missionControl;
         StemWorkspaceViewModel = stemWorkspaceViewModel;
+        QueueToTopCommand = new RelayCommand(() => 
+        {
+            if (Workspace.SelectedTrack is PlaylistTrackViewModel ptvm)
+            {
+                _downloadManager.QueueTracks(new List<PlaylistTrack> { ptvm.Model });
+                _eventBus.Publish(new SLSKDONET.Services.NotificationEvent("Queued to Top", $"{ptvm.Title} priority boosted."));
+            }
+        });
+
         CommandPaletteViewModel = new CommandPaletteViewModel(navigationService, libraryService, activeWorkspace, QueueToTopCommand);
 
         Sidebar.PropertyChanged += (s, e) => 
@@ -174,41 +184,29 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
         };
 
         // Initialize commands
-        NavigateHomeCommand = new RelayCommand(() => { Workspace.SetContext(WorkspaceContext.LocalLibrary); NavigateToHome(); }); 
-        NavigateSearchCommand = new RelayCommand(() => { Workspace.SetContext(WorkspaceContext.SoulseekSearch); NavigateToSearch(); });
-        NavigateLibraryCommand = new RelayCommand(() => { Workspace.SetContext(WorkspaceContext.LocalLibrary); NavigateToLibrary(); });
-        NavigateDownloadCenterCommand = new RelayCommand(() => { Workspace.SetContext(WorkspaceContext.SetDesigner); NavigateToDownloadCenter(); });
+        NavigateHomeCommand = new RelayCommand(() => { SelectedNavIndex = 0; Workspace.SetContext(WorkspaceContext.LocalLibrary); NavigateToHome(); }); 
+        NavigateSearchCommand = new RelayCommand(() => { SelectedNavIndex = 1; Workspace.SetContext(WorkspaceContext.SoulseekSearch); NavigateToSearch(); });
+        NavigateLibraryCommand = new RelayCommand(() => { SelectedNavIndex = 2; Workspace.SetContext(WorkspaceContext.LocalLibrary); NavigateToLibrary(); });
+        NavigateToStudioCommand = new RelayCommand(() => { SelectedNavIndex = 3; NavigateToStudio(); });
+        NavigateToStyleLabCommand = new RelayCommand(() => { SelectedNavIndex = 4; NavigateToStyleLab(); });
+        NavigateDownloadCenterCommand = new RelayCommand(() => { SelectedNavIndex = 5; Workspace.SetContext(WorkspaceContext.SetDesigner); NavigateToDownloadCenter(); });
+        NavigateImportCommand = new RelayCommand(() => { SelectedNavIndex = 6; Workspace.SetContext(WorkspaceContext.SpotifyImport); NavigateToImport(); });
+        NavigateDiscoveryHubCommand = new RelayCommand(() => { SelectedNavIndex = 7; NavigateToDiscoveryHub(); });
+        NavigateUpgradeScoutCommand = new RelayCommand(() => { SelectedNavIndex = 8; NavigateUpgradeScout(); });
+        NavigateInspectorCommand = new RelayCommand(() => { SelectedNavIndex = 9; NavigateAnalysisQueue(); });
+        
         NavigateSettingsCommand = new RelayCommand(NavigateToSettings);
-        NavigateUpgradeScoutCommand = new RelayCommand(NavigateUpgradeScout);
         NavigateTheaterCommand = new RelayCommand(NavigateToTheater);
-        NavigateInspectorCommand = new RelayCommand(NavigateAnalysisQueue);
         NavigateExportCommand = new RelayCommand(NavigateToExport);
-        NavigateDiscoveryHubCommand = new RelayCommand(NavigateToDiscoveryHub);
-        ToggleNavigationCommand = new RelayCommand(() => 
-        {
-            if (!IsNavigationMini && !IsNavigationCollapsed)
-            {
-                IsNavigationMini = true;
-                IsNavigationCollapsed = false;
-            }
-            else if (IsNavigationMini)
-            {
-                IsNavigationMini = false;
-                IsNavigationCollapsed = true;
-            }
-            else
-            {
-                IsNavigationMini = false;
-                IsNavigationCollapsed = false;
-            }
-        });
+
+        ToggleNavigationCommand = new RelayCommand(() => IsNavigationCollapsed = !IsNavigationCollapsed);
         TogglePlayerCommand = new RelayCommand(() => IsPlayerSidebarVisible = !IsPlayerSidebarVisible);
         TogglePlayerLocationCommand = new RelayCommand(() => IsPlayerAtBottom = !IsPlayerAtBottom);
-        ZoomInCommand = new RelayCommand(ZoomIn);
-        ZoomOutCommand = new RelayCommand(ZoomOut);
-        ResetZoomCommand = new RelayCommand(ResetZoom);
-        ToggleAnalysisPauseCommand = new RelayCommand(ToggleAnalysisPause);
-        ToggleStemWorkspaceCommand = new RelayCommand(() => StemWorkspaceViewModel.IsVisible = !StemWorkspaceViewModel.IsVisible);
+        ZoomInCommand = new RelayCommand(() => BaseFontSize += 1);
+        ZoomOutCommand = new RelayCommand(() => BaseFontSize = Math.Max(10, BaseFontSize - 1));
+        ResetZoomCommand = new RelayCommand(() => BaseFontSize = 14);
+        ToggleAnalysisPauseCommand = new RelayCommand(() => _analysisQueue.IsPaused = !_analysisQueue.IsPaused);
+        ToggleStemWorkspaceCommand = new RelayCommand(() => NavigateToStudio());
         
         // Operation Glass Console Toggles
         ToggleIntelligenceCommand = new RelayCommand(() => 
@@ -222,17 +220,10 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
             CommandPaletteViewModel.IsVisible = !CommandPaletteViewModel.IsVisible;
             if (CommandPaletteViewModel.IsVisible) CommandPaletteViewModel.SearchText = "";
         });
+        ToggleZenModeCommand = new RelayCommand(ToggleZenMode);
         ToggleTopBarCommand = new RelayCommand(() => IsTopCommandBarVisible = !IsTopCommandBarVisible);
         SetPerformanceDockModeCommand = new RelayCommand<SLSKDONET.Data.PerformanceDockMode>(mode => PerformanceDockMode = mode);
         TogglePerformanceDockCommand = new RelayCommand(TogglePerformanceDockMode);
-        QueueToTopCommand = new RelayCommand(() => 
-        {
-            if (Workspace.SelectedTrack is PlaylistTrackViewModel ptvm)
-            {
-                _downloadManager.QueueTracks(new List<PlaylistTrack> { ptvm.Model });
-                _eventBus.Publish(new SLSKDONET.Services.NotificationEvent("Queued to Top", $"{ptvm.Title} priority boosted."));
-            }
-        });
 
 
         // Spotify Hub Initialization (TODO: Phase 7 - Implement when needed)
@@ -354,6 +345,8 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
         _navigationService.RegisterPage("FlowBuilder", typeof(Avalonia.FlowBuilderView));
         _navigationService.RegisterPage("Export", typeof(Avalonia.ExportManagerView));
         _navigationService.RegisterPage("DiscoveryHub", typeof(Avalonia.DiscoveryHubView));
+        _navigationService.RegisterPage("Studio", typeof(Avalonia.Studio.OrbitStudioView));
+        _navigationService.RegisterPage("StyleLab", typeof(Avalonia.StyleLabPage));
         
         // Subscribe to navigation events
         _navigationService.Navigated += OnNavigated;
@@ -444,6 +437,13 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
     }
 
     // UI State
+    private bool _isAltPressed;
+    public bool IsAltPressed
+    {
+        get => _isAltPressed;
+        set => SetProperty(ref _isAltPressed, value);
+    }
+
     private bool _isNavigationCollapsed;
     public bool IsNavigationCollapsed
     {
@@ -522,6 +522,13 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
     {
         get => _isSystemVisible;
         set => SetProperty(ref _isSystemVisible, value);
+    }
+
+    private bool _isLibraryVisible = true;
+    public bool IsLibraryVisible
+    {
+        get => _isLibraryVisible;
+        set => SetProperty(ref _isLibraryVisible, value);
     }
 
     private bool _isPlayerSidebarVisible = true;
@@ -721,7 +728,6 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
         set => SetProperty(ref _applicationVersion, value);
     }
 
-    private bool _isInitializing = true;
     public bool IsInitializing
     {
         get => _isInitializing;
@@ -732,6 +738,21 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
                 OnPropertyChanged(nameof(IsGlobalActivityActive));
             }
         }
+    }
+
+    // Phase 6: Library Health & Rail Navigation
+    private LibraryHealthStatus _libraryHealth = LibraryHealthStatus.Healthy;
+    public LibraryHealthStatus LibraryHealth
+    {
+        get => _libraryHealth;
+        set => SetProperty(ref _libraryHealth, value);
+    }
+
+    private int _selectedNavIndex = 0;
+    public int SelectedNavIndex
+    {
+        get => _selectedNavIndex;
+        set => SetProperty(ref _selectedNavIndex, value);
     }
     
     // Computed property to drive the global activity spinner
@@ -800,6 +821,7 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
     public ICommand NavigateTheaterCommand { get; }
     public ICommand NavigateExportCommand { get; }
     public ICommand NavigateDiscoveryHubCommand { get; }
+    public ICommand NavigateImportCommand { get; }
     public ICommand ToggleNavigationCommand { get; }
     public ICommand TogglePlayerCommand { get; }
     public ICommand TogglePlayerLocationCommand { get; }
@@ -825,6 +847,8 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
     public ICommand ResumeAllDownloadsCommand { get; }
     public ICommand CancelDownloadsCommand { get; }
     public ICommand DeleteTrackCommand { get; }
+    public ICommand NavigateToStudioCommand { get; }
+    public ICommand NavigateToStyleLabCommand { get; }
 
     // Page instances (lazy-loaded)
     // Lazy-loaded page instances
@@ -908,6 +932,11 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
     private void NavigateToDownloadCenter()
     {
         _navigationService.NavigateTo("Projects");
+    }
+
+    private void NavigateToImport()
+    {
+        _navigationService.NavigateTo("Import");
     }
 
 
@@ -1235,5 +1264,17 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
         {
             page.DataContext = DiscoveryHubViewModel;
         }
+    }
+
+    private void NavigateToStudio()
+    {
+        Workspace.SetContext(WorkspaceContext.SetDesigner);
+        _navigationService.NavigateTo("Studio");
+    }
+
+    private void NavigateToStyleLab()
+    {
+        Workspace.SetContext(WorkspaceContext.LocalLibrary);
+        _navigationService.NavigateTo("StyleLab");
     }
 }

@@ -5,6 +5,7 @@
              xmlns:vm="clr-namespace:SLSKDONET.ViewModels"
              xmlns:controls="clr-namespace:SLSKDONET.Views.Avalonia.Controls"
              xmlns:views="clr-namespace:SLSKDONET.Views.Avalonia"
+             xmlns:converters="clr-namespace:SLSKDONET.Converters"
              mc:Ignorable="d" d:DesignWidth="1200" d:DesignHeight="800"
              x:Class="SLSKDONET.Views.Avalonia.IntelligenceCenterView"
              IsVisible="{Binding IsVisible}">
@@ -82,8 +83,21 @@
                                     <TextBlock Text="TRACK_UID:" Classes="hud-label" VerticalAlignment="Center" Opacity="0.5"/>
                                     <TextBlock Text="{Binding SelectedTrackHash}" FontSize="10" Foreground="#666" VerticalAlignment="Center" FontFamily="{StaticResource CodeFont}"/>
                                 </StackPanel>
-                                <TextBlock Text="{Binding Inspector.Track.Title}" FontSize="26" FontWeight="Black" Foreground="White" TextTrimming="CharacterEllipsis"/>
-                                <TextBlock Text="{Binding Inspector.Track.Artist}" FontSize="14" Foreground="#AAA" FontWeight="SemiBold" LetterSpacing="1"/>
+                                <StackPanel>
+                                    <TextBlock Text="{Binding Inspector.Track.Title}" FontSize="26" FontWeight="Black" Foreground="White" TextTrimming="CharacterEllipsis"/>
+                                    <StackPanel Orientation="Horizontal" Spacing="6" IsVisible="{Binding Inspector.IsTitleDrifted}" Margin="0,2,0,0">
+                                        <TextBlock Text="CLOUD:" FontSize="9" FontWeight="Black" Foreground="#FFA500" Opacity="0.6" VerticalAlignment="Center"/>
+                                        <TextBlock Text="{Binding Inspector.GhostTitle}" FontSize="12" Foreground="#FFA500" Opacity="0.4" FontStyle="Italic"/>
+                                    </StackPanel>
+                                </StackPanel>
+                                
+                                <StackPanel>
+                                    <TextBlock Text="{Binding Inspector.Track.Artist}" FontSize="14" Foreground="#AAA" FontWeight="SemiBold" LetterSpacing="1"/>
+                                    <StackPanel Orientation="Horizontal" Spacing="6" IsVisible="{Binding Inspector.IsArtistDrifted}" Margin="0,1,0,0">
+                                        <TextBlock Text="CLOUD:" FontSize="8" FontWeight="Black" Foreground="#666" VerticalAlignment="Center"/>
+                                        <TextBlock Text="{Binding Inspector.GhostArtist}" FontSize="10" Foreground="#666" Opacity="0.5"/>
+                                    </StackPanel>
+                                </StackPanel>
                             </StackPanel>
 
                             <!-- MIK Energy Gauge (Phase 1) -->
@@ -131,6 +145,19 @@
                                               <StackPanel VerticalAlignment="Center">
                                                    <TextBlock Text="COMMIT" FontSize="13" FontWeight="Black" Foreground="White" LetterSpacing="1"/>
                                                    <TextBlock Text="SYNC FORENSIC DATA" FontSize="8" Foreground="#666" FontWeight="Bold"/>
+                                              </StackPanel>
+                                         </StackPanel>
+                                    </Button>
+                                </Border>
+
+                                <!-- SYNC GHOSTS ACTION (Phase 6) -->
+                                <Border CornerRadius="8" BoxShadow="0 4 15 0 #20000000" IsVisible="{Binding Inspector.HasAnyDrift}">
+                                    <Button Command="{Binding Inspector.SyncGhostToLocalCommand}" Classes="glass" Height="48" Padding="16,0" BorderBrush="#44FFA500">
+                                         <StackPanel Orientation="Horizontal" Spacing="10">
+                                              <PathIcon Data="{StaticResource cloud_download_regular}" Width="18" Height="18" Foreground="#FFA500"/>
+                                              <StackPanel VerticalAlignment="Center">
+                                                   <TextBlock Text="SYNC HYBRID" FontSize="13" FontWeight="Black" Foreground="White" LetterSpacing="1"/>
+                                                   <TextBlock Text="OVERWRITE LOCAL TAGS" FontSize="8" Foreground="#FFA500" FontWeight="Bold"/>
                                               </StackPanel>
                                          </StackPanel>
                                     </Button>
@@ -240,7 +267,13 @@
                                                     <TextBlock Text="{Binding Lab.BitrateVerificationLabel}" Foreground="#4EC9B0" FontWeight="Bold" FontSize="13"/>
                                                     <TextBlock Text="{Binding Inspector.TechDetailsLabel}" Foreground="#888" FontSize="11"/>
                                                     <TextBlock Text="{Binding Inspector.FileSizeLabel}" Foreground="#666" FontSize="10"/>
-                                               </StackPanel>
+                                                     
+                                                     <!-- BPM Drift Ghost -->
+                                                     <StackPanel Orientation="Horizontal" Spacing="8" IsVisible="{Binding Inspector.IsBpmDrifted}" Margin="0,10,0,0">
+                                                         <TextBlock Text="BPM DRIFT:" FontSize="9" FontWeight="Black" Foreground="#FFA500" Opacity="0.8"/>
+                                                         <TextBlock Text="{Binding Inspector.GhostBpm, StringFormat='{}{0:F1} (Cloud)'}" Foreground="#FFA500" FontSize="11" FontFamily="{StaticResource CodeFont}"/>
+                                                     </StackPanel>
+                                                </StackPanel>
 
                                                <Separator Background="#222"/>
 
@@ -279,7 +312,13 @@
                                                     <TextBlock Text="SONIC ATTRIBUTES" FontSize="9" Foreground="#444" FontWeight="Bold"/>
                                                     <TextBlock Text="{Binding Lab.MoodTag}" Foreground="#DCDCAA" FontSize="12" FontWeight="SemiBold"/>
                                                     <TextBlock Text="{Binding Lab.ElectronicSubgenre}" Foreground="#569CD6" FontSize="11"/>
-                                               </StackPanel>
+                                                     
+                                                     <!-- Genre Drift Ghost -->
+                                                     <StackPanel Orientation="Horizontal" Spacing="8" IsVisible="{Binding Inspector.IsGenresDrifted}" Margin="0,10,0,0">
+                                                         <TextBlock Text="GENRE CLOUD:" FontSize="9" FontWeight="Black" Foreground="#FFA500" Opacity="0.8"/>
+                                                         <TextBlock Text="{Binding Inspector.GhostGenres}" Foreground="#FFA500" FontSize="11" MaxWidth="150" TextTrimming="CharacterEllipsis"/>
+                                                     </StackPanel>
+                                                </StackPanel>
 
                                                <Separator Background="#222" Margin="0,10"/>
                                                
@@ -297,8 +336,14 @@
                                       </Border>
                                  </StackPanel>
 
-                                  <!-- Center: Spectrogram (The Hero) -->
-                                  <Border Grid.Column="1" x:Name="SpectrogramBorder" Background="#050505" Margin="0,0,20,0" CornerRadius="12" BorderBrush="#333" BorderThickness="1" ClipToBounds="True" PointerPressed="Spectrogram_PointerPressed">
+                                  <Grid Grid.Column="1" RowDefinitions="Auto,*" Margin="0,0,20,0">
+                                       <!-- Structural Rail -->
+                                       <controls:StructuralRailView Grid.Row="0" Margin="0,0,0,12" 
+                                                                    Segments="{Binding Inspector.StructuralPhraseSegments}" 
+                                                                    TotalDuration="{Binding Inspector.TotalDurationSeconds}"/>
+
+                                       <!-- Center: Spectrogram (The Hero) -->
+                                       <Border Grid.Row="1" x:Name="SpectrogramBorder" Background="#050505" CornerRadius="12" BorderBrush="#333" BorderThickness="1" ClipToBounds="True" PointerPressed="Spectrogram_PointerPressed">
                                        <Grid VerticalAlignment="Stretch">
                                             <Image Source="{Binding Lab.SpectrogramImage}" Stretch="Uniform" Opacity="0.8"/>
                                             
@@ -320,7 +365,8 @@
                                                 </StackPanel>
                                             </Border>
                                        </Grid>
-                                  </Border>
+                                   </Border>
+                                  </Grid>
 
                                  <!-- Right: Metadata & Cues -->
                                  <Border Grid.Column="2" Background="#111" CornerRadius="12" Padding="0">
@@ -402,6 +448,31 @@
                                                           </Button>
                                                       </StackPanel>
                                                   </Border>
+
+                                                   <!-- SURGICAL ACTIONS (Phase 7) -->
+                                                   <Border Background="#1A1A2A" BorderBrush="#222244" BorderThickness="1" CornerRadius="8" Padding="16">
+                                                       <StackPanel Spacing="12">
+                                                            <StackPanel Orientation="Horizontal" Spacing="10">
+                                                                <PathIcon Data="{StaticResource scissor_regular}" Width="16" Height="16" Foreground="#9CDCFE"/>
+                                                                <TextBlock Text="SURGICAL ACTIONS" FontWeight="Bold" FontSize="14" Foreground="White"/>
+                                                            </StackPanel>
+                                                            
+                                                            <TextBlock Text="Perform lossless cropping and stitching of the current track phrases using FFmpeg." 
+                                                                       TextWrapping="Wrap" FontSize="11" Foreground="#AAA"/>
+
+                                                            <Button Command="{Binding Inspector.SurgicalRenderCommand}" 
+                                                                    Classes="glass" 
+                                                                    HorizontalAlignment="Stretch" 
+                                                                    Height="44" 
+                                                                    Margin="0,8,0,0"
+                                                                    BorderBrush="#449CDCFE">
+                                                                <StackPanel Orientation="Horizontal" Spacing="10">
+                                                                    <TextBlock Text="⚡" VerticalAlignment="Center"/>
+                                                                    <TextBlock Text="RENDER TO FLAC" FontWeight="Black" VerticalAlignment="Center" Foreground="#9CDCFE"/>
+                                                                </StackPanel>
+                                                            </Button>
+                                                       </StackPanel>
+                                                   </Border>
 
                                                   <StackPanel Spacing="8">
                                                       <TextBlock Text="HINT" FontSize="9" FontWeight="Bold" Foreground="#444"/>

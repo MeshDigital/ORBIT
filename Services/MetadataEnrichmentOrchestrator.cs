@@ -27,6 +27,7 @@ public class MetadataEnrichmentOrchestrator : IDisposable
     private readonly ITrackRepository _trackRepository;
     private readonly SpotifyAuthService _spotifyAuthService;
     private readonly SonicIntegrityService _sonicIntegrityService;
+    private readonly ISafeWriteService _safeWriteService;
     private readonly IEventBus _eventBus;
     private readonly Configuration.AppConfig _config;
 
@@ -43,6 +44,7 @@ public class MetadataEnrichmentOrchestrator : IDisposable
         ITrackRepository trackRepository,
         SpotifyAuthService spotifyAuthService,
         SonicIntegrityService sonicIntegrityService,
+        ISafeWriteService safeWriteService,
         IEventBus eventBus,
         Configuration.AppConfig config)
     {
@@ -55,6 +57,7 @@ public class MetadataEnrichmentOrchestrator : IDisposable
         _trackRepository = trackRepository;
         _spotifyAuthService = spotifyAuthService;
         _sonicIntegrityService = sonicIntegrityService;
+        _safeWriteService = safeWriteService;
         _eventBus = eventBus;
         _config = config;
 
@@ -369,8 +372,22 @@ public class MetadataEnrichmentOrchestrator : IDisposable
                 Label = entry.Label
             };
 
-            await _taggerService.TagFileAsync(trackModel, entry.FilePath);
-            _logger.LogInformation("☁️ Applied Cloud metadata to Local file: {Path}", entry.FilePath);
+            // Phase 6: Use SafeWriteService for atomic tagging
+            bool success = await _safeWriteService.SafeWriteTagsAsync(entry.FilePath, (tFile) => 
+            {
+                if (!string.IsNullOrEmpty(entry.Artist)) tFile.Tag.Performers = new[] { entry.Artist };
+                if (!string.IsNullOrEmpty(entry.Title)) tFile.Tag.Title = entry.Title;
+                if (!string.IsNullOrEmpty(entry.Album)) tFile.Tag.Album = entry.Album;
+                if (!string.IsNullOrEmpty(entry.Genres)) tFile.Tag.Genres = entry.Genres.Split(", ", StringSplitOptions.RemoveEmptyEntries);
+                if (entry.BPM > 0) tFile.Tag.BeatsPerMinute = (uint)entry.BPM;
+                if (!string.IsNullOrEmpty(entry.MusicalKey)) tFile.Tag.Comment = entry.MusicalKey; // Typical place for key in ID3 if no dedicated frame
+                if (entry.ReleaseDate.HasValue) tFile.Tag.Year = (uint)entry.ReleaseDate.Value.Year;
+            });
+
+            if (success)
+                _logger.LogInformation("☁️ Applied Cloud metadata to Local file (Atomic): {Path}", entry.FilePath);
+            else
+                _logger.LogWarning("⚠️ Failed to apply metadata (Safety Abort): {Path}", entry.FilePath);
         }
         catch (Exception ex)
         {

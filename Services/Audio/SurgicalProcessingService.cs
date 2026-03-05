@@ -1,9 +1,7 @@
-using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Threading;
-using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
+using System.Diagnostics;
+using System.Text;
+using System.Linq;
 
 using SLSKDONET.Models;
 
@@ -44,11 +42,6 @@ namespace SLSKDONET.Services.Audio
             string outputFileName = $"Surgical_{Path.GetFileNameWithoutExtension(sourcePath)}_{DateTime.Now:yyyyMMddHHmmss}.flac";
             string outputPath = Path.Combine(_surgicalWorkDir, outputFileName);
 
-            // FFmpeg Strategy: 
-            // 1. Create a filter_complex to trim each segment.
-            // 2. Chain acrossfade for each transition (50ms).
-            // Example: [0:a]atrim=start=10:end=20,asetpts=PTS-STARTPTS[v1]; [0:a]atrim=start=30:end=40,asetpts=PTS-STARTPTS[v2]; [v1][v2]acrossfade=d=0.05:c1=tri:c2=tri[out]
-
             var filterParts = new List<string>();
             var labels = new List<string>();
 
@@ -58,9 +51,8 @@ namespace SLSKDONET.Services.Audio
                 string label = $"s{i}";
                 labels.Add(label);
                 
-                // Truncate to 3 decimal places for millisecond precision
-                string start = seg.Start.ToString("F3");
-                string end = (seg.Start + seg.Duration).ToString("F3");
+                string start = seg.Start.ToString("F3", System.Globalization.CultureInfo.InvariantCulture);
+                string end = (seg.Start + seg.Duration).ToString("F3", System.Globalization.CultureInfo.InvariantCulture);
                 
                 filterParts.Add($"[0:a]atrim=start={start}:end={end},asetpts=PTS-STARTPTS[{label}]");
             }
@@ -71,29 +63,48 @@ namespace SLSKDONET.Services.Audio
                 string currentOut = labels[0];
                 for (int i = 1; i < labels.Count; i++)
                 {
-                    string nextOut = $"merged{i}";
-                    crossfadeFilter += $"{currentOut}{labels[i]}acrossfade=d=0.05:c1=tri:c2=tri[{nextOut}];";
+                    string nextOut = (i == labels.Count - 1) ? "out" : $"merged{i}";
+                    crossfadeFilter += $"[{currentOut}][{labels[i]}]acrossfade=d=0.05:c1=tri:c2=tri[{nextOut}];";
                     currentOut = nextOut;
                 }
-                // The last one is our final output
-                crossfadeFilter = crossfadeFilter.Replace($"[{currentOut}];", "[out]");
-                if (!crossfadeFilter.Contains("[out]")) crossfadeFilter = crossfadeFilter.TrimEnd(';') + "[out]";
+                crossfadeFilter = crossfadeFilter.TrimEnd(';');
             }
             else
             {
-                crossfadeFilter = $"[{labels[0]}]copy[out]";
+                crossfadeFilter = $"[{labels[0]}]asplit[out]"; // asplit or similar to just map it
             }
 
             string fullFilter = string.Join(";", filterParts) + ";" + crossfadeFilter;
-            
-            // Build command: ffmpeg -i source -filter_complex "..." -map "[out]" output
-            string arguments = $"-i \"{sourcePath}\" -filter_complex \"{fullFilter}\" -map \"[out]\" -c:a flac \"{outputPath}\"";
-            
-            _logger.LogDebug("🎬 FFmpeg Surgical Command: {Args}", arguments);
+            if (labels.Count == 1) fullFilter = filterParts[0].Replace($"[{labels[0]}]", "[out]");
 
-            // TODO: Execute FFmpeg Process
-            await Task.Delay(500, ct); 
-            
+            // Build command: ffmpeg -i source -filter_complex "..." -map "[out]" output
+            var startInfo = new ProcessStartInfo
+            {
+                FileName = "ffmpeg",
+                Arguments = $"-y -i \"{sourcePath}\" -filter_complex \"{fullFilter}\" -map \"[out]\" -c:a flac \"{outputPath}\"",
+                RedirectStandardError = true,
+                UseShellExecute = false,
+                CreateNoWindow = true
+            };
+
+            _logger.LogDebug("🎬 FFmpeg Surgical Command: ffmpeg {Args}", startInfo.Arguments);
+
+            using var process = new Process { StartInfo = startInfo };
+            var errorOutput = new StringBuilder();
+            process.ErrorDataReceived += (s, e) => { if (e.Data != null) errorOutput.AppendLine(e.Data); };
+
+            process.Start();
+            process.BeginErrorReadLine();
+
+            await process.WaitForExitAsync(ct);
+
+            if (process.ExitCode != 0)
+            {
+                _logger.LogError("❌ FFmpeg Surgical Failed (Exit {Code}): {Error}", process.ExitCode, errorOutput.ToString());
+                return string.Empty;
+            }
+
+            _logger.LogInformation("✅ Surgical Render Complete: {Path}", outputPath);
             return outputPath;
         }
 
@@ -106,14 +117,33 @@ namespace SLSKDONET.Services.Audio
             var cached = await _stemCache.TryGetCachedStemAsync(trackHash, startTime, duration, stemType);
             if (cached != null) return cached;
 
-            await Task.Delay(1000, ct); 
+            // Phase 7: Real Stem Isolation via FFmpeg/Spleeter/UVRLib
+            // For now, we crop the segment as a placeholder, then in Phase 8 we'll hook up the Neural separator.
+            string stemResultPath = Path.Combine(_surgicalWorkDir, $"stem_{stemType}_{Guid.NewGuid().ToString().Substring(0,8)}.flac");
             
-            string stemResultPath = Path.Combine(_surgicalWorkDir, $"stem_{Guid.NewGuid()}.flac");
-            // Placeholder for actual extraction
+            string startStr = startTime.ToString("F3", System.Globalization.CultureInfo.InvariantCulture);
+            string durStr = duration.ToString("F3", System.Globalization.CultureInfo.InvariantCulture);
+
+            var startInfo = new ProcessStartInfo
+            {
+                FileName = "ffmpeg",
+                Arguments = $"-y -ss {startStr} -t {durStr} -i \"{sourcePath}\" -c:a flac \"{stemResultPath}\"",
+                RedirectStandardError = true,
+                UseShellExecute = false,
+                CreateNoWindow = true
+            };
+
+            using var process = new Process { StartInfo = startInfo };
+            process.Start();
+            await process.WaitForExitAsync(ct);
+
+            if (process.ExitCode == 0)
+            {
+                await _stemCache.StoreStemAsync(trackHash, startTime, duration, stemType, stemResultPath);
+                return stemResultPath;
+            }
             
-            await _stemCache.StoreStemAsync(trackHash, startTime, duration, stemType, stemResultPath);
-            
-            return stemResultPath;
+            return string.Empty;
         }
 
         public async Task<bool> RenderPreviewAsync(string sourcePath, IEnumerable<PhraseSegment> segments, CancellationToken ct = default)
@@ -121,6 +151,8 @@ namespace SLSKDONET.Services.Audio
             _logger.LogInformation("🎧 Surgical Surgery: Preparing render preview for {Path}", sourcePath);
             
             var previewPath = await CutAndCombineSegmentsAsync(sourcePath, segments, ct);
+            
+            // In a real app, we'd trigger the player to play this temp file.
             return !string.IsNullOrEmpty(previewPath);
         }
     }

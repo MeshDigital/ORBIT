@@ -169,10 +169,17 @@ namespace SLSKDONET.Views.Avalonia
             var popup = this.FindControl<Popup>("QuickLookPopup");
             if (popup == null) return;
 
-            this.FindControl<TextBlock>("PreviewTitle").Text = item.Title;
-            this.FindControl<TextBlock>("PreviewArtist").Text = item.Artist;
-            this.FindControl<ProgressBar>("VocalDensityBar").Value = (item.Model?.Energy ?? 0.5) * 100;
-            this.FindControl<TextBlock>("EnergyValue").Text = $"{(item.Model?.Energy ?? 0.5):P0}";
+            var titleBlock = this.FindControl<TextBlock>("PreviewTitle");
+            if (titleBlock != null) titleBlock.Text = item.Title;
+
+            var artistBlock = this.FindControl<TextBlock>("PreviewArtist");
+            if (artistBlock != null) artistBlock.Text = item.Artist;
+
+            var progressBar = this.FindControl<ProgressBar>("VocalDensityBar");
+            if (progressBar != null) progressBar.Value = (item.Model?.Energy ?? 0.5) * 100;
+
+            var energyBlock = this.FindControl<TextBlock>("EnergyValue");
+            if (energyBlock != null) energyBlock.Text = $"{(item.Model?.Energy ?? 0.5):P0}";
 
             popup.IsOpen = true;
         }

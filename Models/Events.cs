@@ -97,7 +97,8 @@ public record AutoDownloadTrackEvent(string TrackGlobalId, Track BestMatch);
 public record AutoDownloadUpgradeEvent(string TrackGlobalId, Track BestMatch);
 public record UpgradeAvailableEvent(string TrackGlobalId, Track BestMatch);
 
-// Phase 6: Cloud-Hybrid Sync
+// Phase 6: Cloud-Hybrid Sync & Library Health
+public enum LibraryHealthStatus { Healthy, Drifted, Missing }
 public record SyncCloudToLocalRequestEvent(string TrackGlobalId);
 
 // Phase 2A: Crash Recovery Events
@@ -109,3 +110,6 @@ public record RecoveryCompletedEvent(
     TimeSpan RecoveryDuration);
 // Phase 10: Connectivity & Background Events
 public record GlobalStatusEvent(string Message, bool IsActive, bool IsError = false);
+
+// UI Notifications
+public record UserNotificationEvent(string Title, string Message, SLSKDONET.Views.NotificationType Type);

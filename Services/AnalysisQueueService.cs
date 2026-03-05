@@ -436,8 +436,9 @@ public class AnalysisWorker : BackgroundService
     private readonly IForensicLogger _forensicLogger;
     private readonly Services.Musical.CueGenerationEngine _cueEngine;
     private readonly IForensicLockdownService _lockdown;
-    private readonly Services.Audio.PhraseDetectionService _phraseDetector;
+    private readonly Services.PhraseDetectionService _phraseDetector;
     private readonly Services.Musical.VocalIntelligenceService _vocalService;
+    private readonly Services.CueGenerationService _cueGenerator;
 
     
     // Phase 1.2: Dynamic Concurrency & Pressure Monitor
@@ -465,9 +466,10 @@ public class AnalysisWorker : BackgroundService
         IForensicLogger forensicLogger, 
         Services.Musical.CueGenerationEngine cueEngine, 
         IForensicLockdownService lockdown, 
-        Services.Audio.PhraseDetectionService phraseDetector,
+        Services.PhraseDetectionService phraseDetector,
         Services.Musical.VocalIntelligenceService vocalService,
-        IAudioPlayerService audioPlayer)
+        IAudioPlayerService audioPlayer,
+        Services.CueGenerationService cueGenerator)
     {
         _queue = queue;
         _serviceProvider = serviceProvider;
@@ -479,6 +481,7 @@ public class AnalysisWorker : BackgroundService
         _phraseDetector = phraseDetector;
         _vocalService = vocalService;
         _audioPlayer = audioPlayer;
+        _cueGenerator = cueGenerator;
         
         // Initialize CPU Counter for Pressure Monitor (Windows only)
         if (System.Runtime.InteropServices.RuntimeInformation.IsOSPlatform(System.Runtime.InteropServices.OSPlatform.Windows))
@@ -888,56 +891,49 @@ public class AnalysisWorker : BackgroundService
                     _queue.UpdateThreadStatus(threadId, request.FilePath, "Forensics Complete", 80, currentBpmConfidence, currentKeyConfidence, currentIntegrityScore, AnalysisStage.Forensics);
                 }
 
-                // 4. Cue Generation (Heuristic)
+                // 4. Structural Intelligence & Smart Cues (Phase 7)
                 run.CurrentStage = AnalysisStage.Finalizing;
-                _queue.UpdateThreadStatus(threadId, request.FilePath, "Finalizing Cues...", 85, currentBpmConfidence, currentKeyConfidence, currentIntegrityScore, stage: AnalysisStage.Finalizing);
+                _queue.UpdateThreadStatus(threadId, request.FilePath, "Structural Analysis...", 85, currentBpmConfidence, currentKeyConfidence, currentIntegrityScore, stage: AnalysisStage.Finalizing);
                 
                 if (resultContext.WaveformData != null)
                 {
-                    PublishThrottled(new AnalysisProgressEvent(trackHash, "Generating cue points...", 85, currentBpmConfidence, currentKeyConfidence, currentIntegrityScore));
+                    PublishThrottled(new AnalysisProgressEvent(trackHash, "Detecting phrases...", 85, currentBpmConfidence, currentKeyConfidence, currentIntegrityScore));
                     
-                    // 1. Get Physical Cues (based on waveform peaks/troughs)
-                    var cues = await _cueEngine.GenerateCuesAsync(resultContext.WaveformData, resultContext.WaveformData.DurationSeconds);
+                    // 1. Detect Phrases using high-res waveform/RMS data
+                    var bpm = resultContext.MusicalResult?.Bpm ?? 120f;
+                    var phrases = await _phraseDetector.DetectPhrasesAsync(
+                        trackHash, 
+                        resultContext.WaveformData.PeakData, 
+                        resultContext.WaveformData.RmsData, 
+                        (float)resultContext.WaveformData.DurationSeconds, 
+                        bpm);
                     
-                    // 2. Enrich with AI Musical Cues (Essentia)
+                    resultContext.Phrases = phrases;
+                    
+                    // Sync to JSON for UI legacy support (TrackInspectorViewModel)
                     if (resultContext.MusicalResult != null)
                     {
-                        // Drop
-                        if (resultContext.MusicalResult.DropTimeSeconds.HasValue && resultContext.MusicalResult.DropTimeSeconds > 5)
-                        {
-                            // Remove any physical cue near this timestamp to avoid duplicates (within 2s)
-                            cues.RemoveAll(c => Math.Abs(c.Timestamp - resultContext.MusicalResult.DropTimeSeconds.Value) < 2.0);
-                            
-                            cues.Add(new OrbitCue 
-                            { 
-                                Timestamp = resultContext.MusicalResult.DropTimeSeconds.Value,
-                                Name = "DROP",
-                                Role = CueRole.Drop,
-                                Color = "#FF0055", // Neon Red
-                                Source = CueSource.Auto,
-                                Confidence = 0.9f
-                            });
-                        }
-
-                        // Intro End (Phrase Start)
-                        if (resultContext.MusicalResult.CueIntro > 0)
-                        {
-                            cues.Add(new OrbitCue 
-                            { 
-                                Timestamp = resultContext.MusicalResult.CueIntro,
-                                Name = "Intro End",
-                                Role = CueRole.Custom, // Or PhraseStart
-                                Color = "#00BFFF", // Deep Sky Blue
-                                Source = CueSource.Auto,
-                                Confidence = 0.85f
-                            });
-                        }
+                        var uiSegments = phrases.Select(p => new PhraseSegment 
+                        { 
+                            Label = p.Label ?? "Phrase", 
+                            Start = p.StartTimeSeconds, 
+                            Duration = p.EndTimeSeconds - p.StartTimeSeconds,
+                            Confidence = p.Confidence
+                        }).ToList();
+                        resultContext.MusicalResult.PhraseSegmentsJson = System.Text.Json.JsonSerializer.Serialize(uiSegments);
                     }
                     
-                    // Sort by time
-                    resultContext.Cues = cues.OrderBy(c => c.Timestamp).ToList();
+                    // 2. Generate Smart Cues based on Phrases
+                    var smartCues = _cueGenerator.GenerateSmartCuesFromPhrases(phrases, bpm);
                     
-                    _forensicLogger.Info(correlationId, ForensicStage.AnalysisQueue, $"Generated {cues.Count} structural cues (Merged AI + Physical)", trackHash);
+                    // 3. Fallback to heuristic physical cues if no phrases found
+                    if (smartCues.Count == 0)
+                    {
+                        smartCues = await _cueEngine.GenerateCuesAsync(resultContext.WaveformData, resultContext.WaveformData.DurationSeconds);
+                    }
+                    
+                    resultContext.Cues = smartCues.OrderBy(c => c.Timestamp).ToList();
+                    _forensicLogger.Info(correlationId, ForensicStage.AnalysisQueue, $"Generated {smartCues.Count} automated structural cues (Surgical-Aware)", trackHash);
                 }
 
                 PublishThrottled(new AnalysisProgressEvent(trackHash, "Queued for save...", 90));
@@ -1097,7 +1093,18 @@ public class AnalysisWorker : BackgroundService
                                 .Where(t => t.TrackUniqueHash == trackHash)
                                 .ToListAsync(token);
 
-                            foreach (var track in playlistTracks)
+                             // Save Phrases (Phase 17)
+                             if (result.Phrases != null && result.Phrases.Any())
+                             {
+                                 var existingPhrases = await dbContext.TrackPhrases.Where(p => p.TrackUniqueHash == trackHash).ToListAsync(token);
+                                 if (existingPhrases.Any())
+                                 {
+                                     dbContext.TrackPhrases.RemoveRange(existingPhrases);
+                                 }
+                                 dbContext.TrackPhrases.AddRange(result.Phrases);
+                             }
+
+                             foreach (var track in playlistTracks)
                             {
                                 ApplyResultsToTrack(track, result);
                                 
@@ -1134,14 +1141,16 @@ public class AnalysisWorker : BackgroundService
                         {
                             _eventBus.Publish(new TrackMetadataUpdatedEvent(result.TrackHash));
                             
-                            try
-                            {
-                                await _phraseDetector.DetectPhrasesAsync(result.TrackHash);
-                            }
-                            catch (Exception ex)
-                            {
-                                 _logger.LogWarning("Phrase detection failed for {Hash}: {Msg}", result.TrackHash, ex.Message);
-                            }
+                            // Phrase detection is now handled during the main analysis pipeline, not during batch flush.
+                            // Phrase detection is now handled during the main analysis pipeline, not during batch flush.
+                            // try
+                            // {
+                            //     await _phraseDetector.DetectPhrasesAsync(result.TrackHash);
+                            // }
+                            // catch (Exception ex)
+                            // {
+                            //      _logger.LogWarning("Phrase detection failed for {Hash}: {Msg}", result.TrackHash, ex.Message);
+                            // }
 
                             _eventBus.Publish(new TrackAnalysisCompletedEvent(result.TrackHash, true) { DatabaseId = result.DatabaseId });
                             _eventBus.Publish(new AnalysisCompletedEvent(result.TrackHash, true));
@@ -1412,5 +1421,6 @@ public class AnalysisWorker : BackgroundService
         public AudioAnalysisEntity? TechResult { get; set; }
         public AudioFeaturesEntity? MusicalResult { get; set; }
         public List<OrbitCue>? Cues { get; set; } // Phase 10
+        public List<TrackPhraseEntity>? Phrases { get; set; } // Phase 17
     }
 }

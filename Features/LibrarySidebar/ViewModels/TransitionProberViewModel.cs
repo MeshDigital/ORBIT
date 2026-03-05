@@ -720,23 +720,26 @@ public class TransitionProberViewModel : ReactiveObject, ISidebarContent, IDispo
                 else SecondaryWaveform = waveform;
             }
 
-            await _phraseService.DetectPhrasesAsync(track.Model.TrackUniqueHash);
-            
-            var phraseEntities = await _libraryService.GetPhrasesByHashAsync(track.Model.TrackUniqueHash);
-            var phrases = phraseEntities.Select(p => new PhraseSegment 
+            if (track.Model != null)
             {
-                Label = p.Label ?? p.Type.ToString(),
-                Start = p.StartTimeSeconds,
-                Duration = p.DurationSeconds
-            }).ToList();
+                await _phraseService.DetectPhrasesAsync(track.Model.TrackUniqueHash);
+                
+                var phraseEntities = await _libraryService.GetPhrasesByHashAsync(track.Model.TrackUniqueHash);
+                var phrases = phraseEntities.Select(p => new PhraseSegment 
+                {
+                    Label = p.Label ?? p.Type.ToString(),
+                    Start = p.StartTimeSeconds,
+                    Duration = p.DurationSeconds
+                }).ToList();
 
-            if (isPrimary)
-            {
-                PrimaryPhrases = phrases;
-            }
-            else
-            {
-                SecondaryPhrases = phrases;
+                if (isPrimary)
+                {
+                    PrimaryPhrases = phrases;
+                }
+                else
+                {
+                    SecondaryPhrases = phrases;
+                }
             }
         }
         catch (OperationCanceledException)

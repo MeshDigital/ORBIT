@@ -34,7 +34,7 @@ public class LibrarySourcesViewModel : INotifyPropertyChanged, IDisposable
     }
 
     private readonly ILogger<LibrarySourcesViewModel> _logger;
-    private readonly LibraryFolderScannerService _libraryFolderScannerService;
+    private readonly ILibraryFolderScannerService _libraryFolderScannerService;
     private readonly IFileInteractionService _fileInteractionService;
     private readonly IEventBus _eventBus;
 
@@ -54,7 +54,7 @@ public class LibrarySourcesViewModel : INotifyPropertyChanged, IDisposable
 
     public LibrarySourcesViewModel(
         ILogger<LibrarySourcesViewModel> logger,
-        LibraryFolderScannerService libraryFolderScannerService,
+        ILibraryFolderScannerService libraryFolderScannerService,
         IFileInteractionService fileInteractionService,
         IEventBus eventBus)
     {

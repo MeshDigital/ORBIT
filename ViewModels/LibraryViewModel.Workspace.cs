@@ -130,7 +130,7 @@ public partial class LibraryViewModel
                 else
                 {
                     IsForensicLabVisible = false;
-                    _notificationService.Show("Forensic Lab", "Select a track to enter forensic mode", NotificationType.Warning);
+                    _notificationService.Show("Forensic Lab", "Select a track to enter forensic mode", SLSKDONET.Views.NotificationType.Warning);
                 }
                 break;
             case LibraryWorkspace.Industrial:

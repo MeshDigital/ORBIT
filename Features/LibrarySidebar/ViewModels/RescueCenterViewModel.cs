@@ -18,6 +18,7 @@ namespace SLSKDONET.Features.LibrarySidebar.ViewModels;
 public class RescueCenterViewModel : ReactiveObject, ISidebarContent, IDisposable
 {
     private readonly ILibraryService _libraryService;
+    private readonly ILibraryFolderScannerService _scannerService;
     private readonly IEventBus _eventBus;
     private readonly CompositeDisposable _disposables = new();
 
@@ -46,9 +47,13 @@ public class RescueCenterViewModel : ReactiveObject, ISidebarContent, IDisposabl
     public System.Windows.Input.ICommand SmartRelinkCommand { get; }
     public System.Windows.Input.ICommand RescueViaSoulseekCommand { get; }
 
-    public RescueCenterViewModel(ILibraryService libraryService, IEventBus eventBus)
+    public RescueCenterViewModel(
+        ILibraryService libraryService, 
+        ILibraryFolderScannerService scannerService,
+        IEventBus eventBus)
     {
         _libraryService = libraryService;
+        _scannerService = scannerService;
         _eventBus = eventBus;
 
         _missingTracksSource.Connect()
@@ -79,11 +84,19 @@ public class RescueCenterViewModel : ReactiveObject, ISidebarContent, IDisposabl
         if (IsScanning) return;
         
         IsScanning = true;
-        StatusText = "Scanning library for missing files...";
+        StatusText = "Scanning library and building shadow index...";
         _missingTracksSource.Clear();
 
         try
         {
+            // Phase 6: Initialize Shadow Index from commonly checked folders
+            var musicDir = Environment.GetFolderPath(Environment.SpecialFolder.MyMusic);
+            var orbitDir = Path.Combine(musicDir, "ORBIT");
+            var folders = new List<string> { musicDir };
+            if (Directory.Exists(orbitDir)) folders.Add(orbitDir);
+            
+            await _scannerService.InitializeIndexAsync(folders);
+
             var allTracks = await _libraryService.GetAllPlaylistTracksAsync();
             var missing = new List<PlaylistTrackViewModel>();
 
@@ -117,55 +130,53 @@ public class RescueCenterViewModel : ReactiveObject, ISidebarContent, IDisposabl
 
     private async Task AttemptSmartRelinkAsync(PlaylistTrackViewModel trackVm)
     {
-        StatusText = $"Attempting to relink: {trackVm.Title}";
+        StatusText = $"Searching Shadow Index for: {trackVm.Title}";
         
-        // Phase 6 Note: In a real implementation this would scan commonly configured 'LibraryFolders'
-        // For now, let's pretend we look in the top level of the user's Music directory
         try
         {
-            await Task.Run(async () => 
+            // Use Shadow Index for O(1) Relink
+            string? foundPath = await _scannerService.AttemptSmartRelinkAsync(
+                Path.GetFileName(trackVm.Model.ResolvedFilePath), 
+                0);
+
+            if (foundPath != null && File.Exists(foundPath))
             {
-                var musicDir = Environment.GetFolderPath(Environment.SpecialFolder.MyMusic);
-                var orbitDir = Path.Combine(musicDir, "ORBIT");
-                
-                if (Directory.Exists(orbitDir))
+                double confidence = _scannerService.CalculateConfidence(
+                    foundPath, 
+                    Path.GetFileName(trackVm.Model.ResolvedFilePath), 
+                    0);
+
+                if (confidence >= 0.9)
                 {
-                    var files = Directory.GetFiles(orbitDir, "*.mp3", SearchOption.AllDirectories);
+                    // Level 1/2 Match: Auto-Apply
+                    trackVm.Model.ResolvedFilePath = foundPath;
+                    trackVm.Model.Status = SLSKDONET.Models.TrackStatus.Downloaded;
                     
-                    foreach (var file in files)
-                    {
-                        var filename = Path.GetFileNameWithoutExtension(file);
-                        
-                        // Extremely naive "Smart Match": If the filename contains both artist and title
-                        // Note: To truly match, we should read tags or use AcoustID 
-                        if (filename.Contains(trackVm.Artist, StringComparison.OrdinalIgnoreCase) && 
-                            filename.Contains(trackVm.Title, StringComparison.OrdinalIgnoreCase))
-                        {
-                            // Update database record immediately
-                            trackVm.Model.ResolvedFilePath = file;
-                            trackVm.Model.Status = SLSKDONET.Models.TrackStatus.Downloaded;
-                            
-                            // Remove from missing list
-                            Dispatcher.UIThread.Post(() => {
-                                _missingTracksSource.Remove(trackVm);
-                                StatusText = $"Relinked {trackVm.Title} successfully!";
-                            });
-                            
-                            // Emit global event to update UI
-                            _eventBus.Publish(new TrackUpdatedEvent(trackVm));
-                            return;
-                        }
-                    }
+                    Dispatcher.UIThread.Post(() => {
+                        _missingTracksSource.Remove(trackVm);
+                        StatusText = $"Relinked {trackVm.Title} (Confidence: {confidence:P0})";
+                    });
+                    
+                    _eventBus.Publish(new TrackUpdatedEvent(trackVm));
                 }
-                
+                else
+                {
+                    Dispatcher.UIThread.Post(() => {
+                        StatusText = $"Candidate found for {trackVm.Title} but low confidence ({confidence:P0})";
+                    });
+                }
+            }
+            else
+            {
                 Dispatcher.UIThread.Post(() => {
-                    StatusText = $"Relink failed: Could not find '{trackVm.Title}'";
+                    StatusText = $"Relink failed: {trackVm.Title} not found in checked folders";
                 });
-            });
+            }
         }
-        catch (Exception)
+        catch (Exception ex)
         {
             StatusText = "Relink encountered an error";
+            Serilog.Log.Error(ex, "Relink failed for {Track}", trackVm.Title);
         }
     }
 

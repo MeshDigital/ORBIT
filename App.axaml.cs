@@ -561,8 +561,8 @@ public partial class App : Application
         // Phase 2.5: Path provider for safe folder structure
         services.AddSingleton<PathProviderService>();
         
-        // Library Folder Scanner
-        services.AddSingleton<LibraryFolderScannerService>();
+        // Phase 6: Library Folder Scanner (Shadow Index)
+        services.AddSingleton<ILibraryFolderScannerService, LibraryFolderScannerService>();
 
         // Download manager
         
@@ -628,8 +628,6 @@ public partial class App : Application
         services.AddTransient<ViewModels.ImportHistoryViewModel>();
         services.AddTransient<ViewModels.LibrarySourcesViewModel>();
 
-        // [NEW] Library Scanning
-        services.AddSingleton<LibraryFolderScannerService>();
         
         // Orchestration Services
         services.AddSingleton<SearchOrchestrationService>();
@@ -665,6 +663,7 @@ public partial class App : Application
         // Phase 4.2: Drop Detection & Cue Generation Engines
         services.AddSingleton<Services.Musical.DropDetectionEngine>();
         services.AddSingleton<Services.Musical.CueGenerationEngine>();
+        services.AddSingleton<Services.CueGenerationService>();
         services.AddSingleton<Services.Musical.ManualCueGenerationService>(); // User-triggered batch cue processing
         
         // Phase 9: Forensic & Style Services
@@ -678,8 +677,8 @@ public partial class App : Application
         services.AddSingleton<SLSKDONET.Services.Tagging.TagTemplateEngine>();
         services.AddSingleton<SLSKDONET.Services.Tagging.Id3MasteringService>();
         
-        services.AddSingleton<SLSKDONET.Services.IO.SafeWriteService>();
-        services.AddSingleton<SLSKDONET.Services.IO.IFileWriteService>(sp => sp.GetRequiredService<SLSKDONET.Services.IO.SafeWriteService>());
+        // Phase 6: Safe Metadata Writing
+        services.AddSingleton<ISafeWriteService, SafeWriteService>();
 
         services.AddSingleton<SLSKDONET.Services.Tagging.ISeratoMarkerService, SLSKDONET.Services.Tagging.SeratoMarkerService>();
         services.AddSingleton<SLSKDONET.Services.Tagging.IUniversalCueService, SLSKDONET.Services.Tagging.UniversalCueService>();
