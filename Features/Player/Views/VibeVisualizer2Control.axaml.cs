@@ -11,8 +11,10 @@ using System.Reactive.Linq;
 
 namespace SLSKDONET.Features.Player.Views
 {
-    public class VibeVisualizer2Control : Control
+    public class VibeVisualizer2Control : SLSKDONET.Views.Avalonia.Controls.BaseSkiaWaveform
     {
+        protected override void StartRenderingLoop() { }
+        protected override void StopRenderingLoop() { }
         private readonly CompositeDisposable _disposables = new();
         private FftFrame? _latestFrame;
         private VibeProfile _profile = VibeProfile.GetProfile(0.5f, null);

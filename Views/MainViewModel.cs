@@ -198,8 +198,18 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
         NavigateSettingsCommand = new RelayCommand(NavigateToSettings);
         NavigateTheaterCommand = new RelayCommand(NavigateToTheater);
         NavigateExportCommand = new RelayCommand(NavigateToExport);
+        
+        // Ghost Feature Restoration (Phase 1: Excavation)
+        MapsToTheaterModeCommand = new RelayCommand(() => _navigationService.NavigateTo("Theater"));
+        MapsToDJCompanionCommand = new RelayCommand(() => _navigationService.NavigateTo("DJCompanion"));
 
         ToggleNavigationCommand = new RelayCommand(() => IsNavigationCollapsed = !IsNavigationCollapsed);
+        ToggleNavLabelsCommand = new RelayCommand(() => 
+        {
+            IsNavLabelVisible = !IsNavLabelVisible;
+            _config.IsNavLabelVisible = IsNavLabelVisible;
+            _configManager.Save(_config);
+        });
         TogglePlayerCommand = new RelayCommand(() => IsPlayerSidebarVisible = !IsPlayerSidebarVisible);
         TogglePlayerLocationCommand = new RelayCommand(() => IsPlayerAtBottom = !IsPlayerAtBottom);
         ZoomInCommand = new RelayCommand(() => BaseFontSize += 1);
@@ -444,6 +454,13 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
         set => SetProperty(ref _isAltPressed, value);
     }
 
+    private bool _isNavLabelVisible = false;
+    public bool IsNavLabelVisible
+    {
+        get => _isNavLabelVisible;
+        set => SetProperty(ref _isNavLabelVisible, value);
+    }
+
     private bool _isNavigationCollapsed;
     public bool IsNavigationCollapsed
     {
@@ -571,14 +588,8 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
 
     public bool IsGlobalSidebarOpen
     {
-        get => Sidebar.IsSidebarOpen && CurrentPageType != PageType.Library;
-        set
-        {
-            if (CurrentPageType != PageType.Library || !value)
-            {
-                Sidebar.IsSidebarOpen = value;
-            }
-        }
+        get => Sidebar.IsSidebarOpen;
+        set => Sidebar.IsSidebarOpen = value;
     }
 
     private PerformanceDockMode _performanceDockMode = PerformanceDockMode.CompactPlayer;
@@ -840,6 +851,10 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
     public ICommand TogglePerformanceDockCommand { get; }
     public ICommand ToggleZenModeCommand { get; }
     public ICommand ToggleTopBarCommand { get; }
+    
+    // Restoration Commands
+    public ICommand MapsToTheaterModeCommand { get; }
+    public ICommand MapsToDJCompanionCommand { get; }
 
     
     // Downloads Page Commands
@@ -849,6 +864,7 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
     public ICommand DeleteTrackCommand { get; }
     public ICommand NavigateToStudioCommand { get; }
     public ICommand NavigateToStyleLabCommand { get; }
+    public ICommand ToggleNavLabelsCommand { get; }
 
     // Page instances (lazy-loaded)
     // Lazy-loaded page instances

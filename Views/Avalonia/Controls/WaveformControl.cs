@@ -13,8 +13,10 @@ using Avalonia.Threading;
 
 namespace SLSKDONET.Views.Avalonia.Controls
 {
-    public class WaveformControl : Control
+    public class WaveformControl : BaseSkiaWaveform
     {
+        protected override void StartRenderingLoop() { /* Managed by InvalidateVisual in OnPropertyChanged */ }
+        protected override void StopRenderingLoop() { }
         public static readonly StyledProperty<WaveformAnalysisData> WaveformDataProperty =
             AvaloniaProperty.Register<WaveformControl, WaveformAnalysisData>(nameof(WaveformData));
 

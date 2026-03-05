@@ -74,6 +74,7 @@ public class AppConfig
     public double WindowX { get; set; } = double.NaN; // NaN means center
     public double WindowY { get; set; } = double.NaN;
     public bool WindowMaximized { get; set; } = false;
+    public bool IsNavLabelVisible { get; set; } = false;
 
     // Library Management
     public List<string> LibraryRootPaths { get; set; } = new(); // Root directories to scan for music files

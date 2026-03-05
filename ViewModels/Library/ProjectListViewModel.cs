@@ -4,6 +4,8 @@ using System.ComponentModel;
 using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Threading.Tasks;
+using Avalonia.Controls;
+using Avalonia.Controls.Models.TreeDataGrid;
 using Avalonia.Threading;
 using Microsoft.Extensions.Logging;
 using SLSKDONET.Models;
@@ -67,6 +69,28 @@ public class ProjectListViewModel : INotifyPropertyChanged, IDisposable
         }
     }
 
+    private ITreeDataGridSource? _projectSource;
+    public ITreeDataGridSource ProjectSource => _projectSource ??= CreateProjectSource();
+
+    private ITreeDataGridSource CreateProjectSource()
+    {
+        var source = new FlatTreeDataGridSource<PlaylistJob>(FilteredProjects);
+        var selection = new Avalonia.Controls.Selection.TreeDataGridRowSelectionModel<PlaylistJob>(source) { SingleSelect = true };
+        source.Selection = selection;
+        
+        source.Columns.Add(new TextColumn<PlaylistJob, string>("Crates", x => x.SourceTitle));
+        
+        selection.SelectionChanged += (s, e) => 
+        {
+            if (selection.SelectedItem != null && selection.SelectedItem != SelectedProject)
+            {
+                SelectedProject = selection.SelectedItem;
+            }
+        };
+
+        return source;
+    }
+
     // Selected project
     private PlaylistJob? _selectedProject;
     public PlaylistJob? SelectedProject
@@ -79,6 +103,20 @@ public class ProjectListViewModel : INotifyPropertyChanged, IDisposable
                 _logger.LogInformation("SelectedProject changing to {Id} - {Title}", value?.Id, value?.SourceTitle);
                 _selectedProject = value;
                 OnPropertyChanged();
+                
+                // Sync with TreeDataGrid selection
+                if (_projectSource?.Selection is Avalonia.Controls.Selection.TreeDataGridRowSelectionModel<PlaylistJob> selection)
+                {
+                    if (selection.SelectedItem != value)
+                    {
+                        var index = FilteredProjects.IndexOf(value!);
+                        if (index >= 0)
+                        {
+                            selection.SelectedIndex = index;
+                        }
+                    }
+                }
+                
                 OnPropertyChanged(nameof(HasSelectedProject));
                 OnPropertyChanged(nameof(CanDeleteProject));
 
